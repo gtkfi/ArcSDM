@@ -1,5 +1,5 @@
 """
-    ArcSDM 5 Weights of evidence
+    ArcSDM 5 Weights of evidence - Calculate Weights 
     Converted to ArcGis Pro 1.2
 
     Tero Rönkkö, Geological survey of Finland 2016
@@ -29,6 +29,7 @@
 # Import system modules
 import sys, os, traceback
 import math
+# TODO: Make these imports soem other way?
 import SDMValues, WorkArounds_93
 
 # Create the Geoprocessor object
@@ -179,7 +180,6 @@ try:
     #tempTrainingPoints = gp.createscratchname("OutPoints", "FC", "shapefile", gp.scratchworkspace)
     #gp.ExtractValuesToPoints_sa(TrainingSites, EvidenceLayer, tempTrainingPoints, "NONE", "VALUE_ONLY")
     assert isinstance(EvidenceLayer, object)
-    print (EvidenceLayer)
     tempTrainingPoints = WorkArounds_93.ExtractValuesToPoints(gp, EvidenceLayer, TrainingSites, "TPFID")
 # Process: Summarize Frequency and manage fields
     #Statistics = gp.createuniquename("WtsStatistics.dbf")

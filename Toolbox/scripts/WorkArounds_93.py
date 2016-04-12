@@ -24,7 +24,6 @@ def ExtractValuesToPoints(gp, inputRaster, inputFeatures, siteFIDName):
            If the selected subset is very large, a very large query string will be created in memory.
     """
 
-    print (inputFeatures)
     try:
         assert siteFIDName in ('TPFID','NDTPFID')
         if siteFIDName not in [field.name for field in rowgen(gp.ListFields(inputFeatures))]:
