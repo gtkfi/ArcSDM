@@ -24,7 +24,7 @@ if (not (os.path.exists(gdbdir + gdb))):
     
 
 arcpy.CheckOutExtension("spatial")
-arcpy.ImportToolbox(".arcsdm.tbx")
+arcpy.ImportToolbox("./arcsdm.tbx")
 print ("Testing Calculate_weights -tool (Wofe)")
 
 
@@ -37,7 +37,7 @@ arcpy.env.cellSize = "c:/SDM/NewWofE_beto/WofE/Geologia"
 
 
 arcpy.env.mask = "c:/SDM/NewWofE_beto/WofE/geologia"
-arcpy.Delete_management(r"C:\Users\tronkko\OneDrive\Work\MPM\MPM\as_rcl_CalculateWeights.dbf");
+arcpy.Delete_management(r"../../../Work/MPM/MPM/as_rcl_CalculateWeights.dbf");
 
-arcpy.ArcSDM.CalculateWeights("C:\\SDM\\NewWofE_beto\\WofE\\as_rcl", "VALUE", "C:\\SDM\\NewWofE_beto\\WofE\\TrainGP.shp", "Ascending", r"C:\Users\tronkko\OneDrive\Work\MPM\MPM\as_rcl_CalculateWeights.dbf", 2, 1, -99)
+arcpy.ArcSDM.CalculateWeights("C:\\SDM\\NewWofE_beto\\WofE\\as_rcl", "VALUE", "C:\\SDM\\NewWofE_beto\\WofE\\TrainGP.shp", "Ascending", r"../../../Work/MPM/MPM/as_rcl_CalculateWeights.dbf", 2, 1, -99)
 print ("Ok?");
