@@ -25,19 +25,19 @@ if (not (os.path.exists(gdbdir + gdb))):
 
 arcpy.CheckOutExtension("spatial")
 arcpy.ImportToolbox("./arcsdm.tbx")
-print ("Testing Calculate_weights -tool (Wofe)")
+print ("Testing Calculate_weights -tool (Wofe)...")
 
 
 # This _SHOULD_ work against filegeodatabase
 arcpy.env.workspace = gdbdir + gdb;
 arcpy.env.scratchWorkspace = gdbdir + gdb;
 
-arcpy.env.outputCoordinateSystem = arcpy.SpatialReference("c:/SDM/NewWofE_beto/WofE/TrainGP.prj")
-arcpy.env.cellSize = "c:/SDM/NewWofE_beto/WofE/Geologia"
+arcpy.env.outputCoordinateSystem = arcpy.SpatialReference("../demodata/TrainGP.prj")
+arcpy.env.cellSize = "../demodata/Geologia"
 
 
-arcpy.env.mask = "c:/SDM/NewWofE_beto/WofE/geologia"
-arcpy.Delete_management(r"../../../Work/MPM/MPM/as_rcl_CalculateWeights.dbf");
+arcpy.env.mask = "../demodata/geologia"
+arcpy.Delete_management("../demodata/results/as_rcl_CalculateWeights.dbf");
 
-arcpy.ArcSDM.CalculateWeights("C:\\SDM\\NewWofE_beto\\WofE\\as_rcl", "VALUE", "C:\\SDM\\NewWofE_beto\\WofE\\TrainGP.shp", "Ascending", r"../../../Work/MPM/MPM/as_rcl_CalculateWeights.dbf", 2, 1, -99)
-print ("Ok?");
+arcpy.ArcSDM.CalculateWeights("../demodata/as_rcl", "VALUE", "../demodata/TrainGP.shp", "Ascending", r"../demodata/results/as_rcl_CalculateWeights.dbf", 2, 1, -99)
+print ("Test complete.");
