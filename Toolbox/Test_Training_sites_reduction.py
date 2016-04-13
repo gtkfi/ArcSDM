@@ -1,7 +1,12 @@
 # Commandline test for WEights of evidence
 #
+# Testing: Training sites reduction
+#
 # Tero Rönkkö, Geological survey of Finland 2016
-# TODO: Use demo dataset when it comes
+#
+# TODO: This doesn't test correctly - Works in ArcGis pro - (input is layer)
+
+
 
 
 import os
@@ -25,7 +30,7 @@ if (not (os.path.exists(gdbdir + gdb))):
 
 arcpy.CheckOutExtension("spatial")
 arcpy.ImportToolbox("./arcsdm.tbx")
-print ("Testing Calculate_weights -tool (Wofe)...")
+print ("Testing Training sites reduction -tool (Wofe)...")
 
 
 # This _SHOULD_ work against filegeodatabase
@@ -37,7 +42,7 @@ arcpy.env.cellSize = "../demodata/Geologia"
 
 
 arcpy.env.mask = "../demodata/geologia"
-arcpy.Delete_management("../demodata/results/as_rcl_CalculateWeights.dbf");
+#arcpy.Delete_management("../demodata/results/as_rcl_CalculateWeights.dbf");
 
-arcpy.ArcSDM.CalculateWeights("../demodata/as_rcl", "VALUE", "../demodata/TrainGP.shp", "Ascending", r"../demodata/results/as_rcl_CalculateWeights.dbf", 2, 1, -99)
-print ("Test complete.");
+
+arcpy.ArcSDM.SiteReduction("../demodata/TrainGP", True, 50, False, 50)
