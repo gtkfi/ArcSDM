@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-    
+
     Logistic Regression for two or more evidence layers.
     Converted for ArcSDM 5 - ArcGis PRO
     2016 Tero Rönkkö / GTK
-    
+
     Spatial Data Modeller for ESRI* ArcGIS 9.3
     Copyright 2009
     Gary L Raines, Reno, NV, USA: production and certification
@@ -37,7 +37,7 @@ try:
         unitCell = (float(gp.CellSize)/1000.0)**2
         gp.AddWarning('Unit Cell area is less than area of Study Area cells.\n'+
                     'Setting Unit Cell to area of study area cells: %.0f sq km.'%unitCell)
-        
+
     #Get evidence layer names
     Input_Rasters = gp.GetParameterAsText(0).split(';')
     #gp.AddMessage('Input_Rasters: %s'%(str(Input_Rasters)))
@@ -47,7 +47,7 @@ try:
     if len(Evidence_types) != len(Input_Rasters):
         gp.AddError("Not enough Evidence types!")
         raise Exception
-    for evtype in Evidence_types:       
+    for evtype in Evidence_types:
         if not evtype[0] in 'ofc':
             gp.AddError("Incorrect Evidence type: %s"%evtype)
             raise Exception
@@ -69,7 +69,7 @@ try:
 
     #Print out SDM environmental values
     SDMValues.appendSDMValues(gp, unitCell, TrainPts)
-    
+
     #Create Generalized Class tables
     Wts_Rasters = []
     mdidx = 0
@@ -83,6 +83,7 @@ try:
         gp.makerasterlayer(Input_Raster, RasterLayer)
         gp.AddJoin_management(RasterLayer, "Value", Wts_Table, "CLASS")
         Temp_Raster = gp.CreateScratchName('temp_ras', '', 'raster', gp.scratchworkspace)
+        gp.AddMessage('Temp_Raster: %s'%(str(Temp_Raster)))
         gp.CopyRaster_management(RasterLayer, Temp_Raster)
         gp.Lookup_sa(Temp_Raster, "GEN_CLASS", Output_Raster)
         gp.delete(RasterLayer)
@@ -101,7 +102,7 @@ try:
     gp.Combine_sa(Input_Combine_rasters, thmUC)
 ##    #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     #gp.AddMessage('Combine done...')
-    
+
     #Get UC lists from combined raster
     UCOIDname = gp.describe(thmUC).OIDfieldname
     #First get names of evidence fields in UC raster
@@ -133,7 +134,7 @@ try:
             lstAreas[i].append(ucrow.Count * cellSize * cellSize / (1000000.0 * unitCell))
     #gp.AddMessage('lstsVals: %s'%(str(lstsVals)))
     #gp.AddMessage('lstAreas: %s'%(str(lstAreas)))
-        
+
     #Check Maximum area of conditions so not to exceed 100,000 unit areas
     #This is a limitation of Logistic Regression: sdmlr.exe
     maxArea = max(lstAreas[0])
@@ -212,8 +213,8 @@ try:
         ' Description:  Calculates a weighted average for
         '               filling in areas of missing data, based
         '               on values found in the rest of the theme.
-        ' 
-        ' 
+        '
+        '
         '
         ' Requires:
         '
@@ -232,7 +233,7 @@ try:
         lstAreas = self.Get(1)     'list of areas for each unique condition
         lstMD = self.Get(2)      'missing data values for each theme
         lstMCF = self.Get(3)    ' list of expanded values for multi-class, free data type themes
-        lstThmMCF = lstMCF.Get(0)    
+        lstThmMCF = lstMCF.Get(0)
         'list of values corresponding to list of themes, empty of theme is not multi-class free
         """
         try:
@@ -276,7 +277,7 @@ try:
             print (pymsg)
             print (msgs)
             raise Exception
-                
+
     def RemoveDuplicates(lst):
         """ Remove duplicates without sorting """
         unique = []
@@ -284,12 +285,12 @@ try:
             if l not in unique: unique.append(l)
         #gp.Addmessage('RemoveDuplicates: %s'%unique)
         return unique
-    
+
     def CalcWeightedAvg(lstVals, lstValsNew, lstAreas, nmbMD, sumArea, mcf):
         """Converted from Avenue script gSDI.CalcWeightedAvg
         ' gSDI.CalcWeightedAvg
         '
-        ' Topics:  Spatial Data Modeller  
+        ' Topics:  Spatial Data Modeller
         '
         ' Description:  Takes a list of values and
         '          areas and calculates a weighted
@@ -300,7 +301,7 @@ try:
         '
         ' Requires:
         '
-        ' Self:   0 -- lstVals -- list of current values, 
+        ' Self:   0 -- lstVals -- list of current values,
         '                         doesn't have to be unique
         '         1 -- lstValsNew -- list of new values, Nil if none
         '         2 -- lstAreas -- list of areas corresponding to lstVals
@@ -341,7 +342,7 @@ try:
                 ##  ' If there are new values to use for average, loop
                 ##  ' through these and calculate the average, otherwise
                 ##  ' use the current values
-                ##  '--------------------------------------------------    
+                ##  '--------------------------------------------------
                 lstWeight = lUnique #Never any new values
                 #Calculate weighted average value for
                 #missing data in an ordered evidence layer
@@ -356,7 +357,7 @@ try:
                     i += 1
                 nmbWA = numerator / denominator
                 return [nmbWA]
-            
+
             else: #Is Multi-Class, Free evidence
                 #Fill ValueSum and AreaSum lists
                 lstValSum = []
@@ -390,7 +391,7 @@ try:
                     numerator = (vb0*area0) + (vb1*area1)
                     wa = numerator / sumArea
                     lstNmbWA.append(wa)
-                    i += 1             
+                    i += 1
                 #gp.AddMessage('lstNmbWA: %s'%(lstNmbWA))
                 return lstNmbWA
         except:
@@ -412,7 +413,7 @@ try:
             print (pymsg)
             print (msgs)
             raise Exception
-    ##------------- end of definition ----------------------------------------------------------------------    
+    ##------------- end of definition ----------------------------------------------------------------------
 
     lstWA = CalcVals4Msng(lstsVals, lstAreas[0], lstMD, catMCLists)
     #gp.AddMessage('lstWA: %s'%(str(lstWA)))
@@ -425,7 +426,7 @@ try:
     #dirTmp = gp.ScratchWorkspace
     #dirTmp = tempfile.gettempdir()
     dirTmp = "c:/tmp"
-    
+
     fnCase = os.path.join(dirTmp, strF2)
     fCase = open(fnCase, 'w')
     if not fCase :
@@ -523,7 +524,7 @@ try:
     strF1 = "param.dat"
     print ("DirTmp: ", dirTmp);
 
-    
+
     fnParam = os.path.join(dirTmp, strF1) #param.dat file
     fParam = open(fnParam, 'w')
     if not fParam:
@@ -552,9 +553,9 @@ try:
     else:
         gp.AddError("Logistic regression case file does not exist: %s"%Casefile)
         raise Exception
-    
+
     #Place input files folder in batch file
-    
+
     #sdmlr.exe starts in input files folder.
     sdmlr = os.path.join(sys.path[0], 'sdmlr.exe')
     if not os.path.exists(sdmlr):
@@ -576,27 +577,27 @@ try:
     fBat.close()
     params = []
     try:
-        #os.spawnv(os.P_WAIT, fnBat, params) # <==RDB  07/01/2010  replace with subprocess 
+        #os.spawnv(os.P_WAIT, fnBat, params) # <==RDB  07/01/2010  replace with subprocess
         import subprocess
         p = subprocess.Popen([fnBat,params]).wait()
         gp.AddMessage('Running %s: '%fnBat)
     except OSError:
         gp.AddMessage('Exectuion failed %s: '%fnBat)
-        
+
     if not os.path.exists('logpol.tba'):
         gp.AddError("Logistic regression output file %s\\logpol.tba does not exist.\n Error in case.dat or param.dat. "%gp.scratchworkspace)
         raise Exception
     #gp.AddMessage("Finished running Logistic Regression")
 
 ###ReadLRResults -------------------------------------------------------------------------------------------------------
-    
+
     thmuc = thmUC
     vTabUC = 'thmuc_lr'
     gp.MakeRasterLayer_management(thmuc, vTabUC)
     strFN = "logpol.tba"
     #strFnLR = os.path.join(gp.ScratchWorkspace, strFN)
     strFnLR = os.path.join(dirTmp, strFN)
-    
+
     if not gp.Exists(strFnLR):
         gp.AddError("Reading Logistic Regression Results\nCould not find file: %s"%strFnLR)
         raise 'Existence error'
@@ -616,9 +617,9 @@ try:
     gp.CreateTable_management(tbldir, tblfn)
     print('Making table to hold logistic regression results: %s'%fnNew)
     fnNew = tbldir + "/" + fnNew;
-    
+
     #To point to REAL table
-    
+
     gp.AddField_management(fnNew, 'ID', 'Long', 6)
     gp.AddField_management(fnNew, 'LRPostProb', 'Double', "#", "#", "#", "LR Posterior Probability")
     gp.AddField_management(fnNew, 'LR_Std_Dev', 'Double', "#", "#", "#", "LR Standard Deviation")
@@ -652,7 +653,7 @@ try:
     fLR.close()
     del vTabLRrow, vTabLRrows
     #gp.AddMessage('Created table to hold logistic regression results: %s'%fnNew)
-        
+
 ##' Get the coefficients file
 ##'----------------------------------------------
     strFN2 = "logco.dat"
@@ -671,8 +672,8 @@ try:
             lstLabels.append(e.replace(' ', ''))
     #TODO: COntinue here!
     print ("LstLabels: ", lstLabels);
-    
-    
+
+
     #gp.AddMessage('lstLabels: %s'%lstLabels)
 ##  ' Make vtab to hold theme coefficients
 ##  '----------------------------------------------
@@ -687,6 +688,7 @@ try:
     #TODO: CLEAN this
     fnNew2 = tbldir + "/" + fnNew2;
     #TODO: CLEANUP these annoying filenames
+    gp.AddMessage('Making table to hold theme coefficients: %s'%fnNew2)
     gp.CreateTable_management(tbldir, tblfn)
     gp.AddField_management(fnNew2, "Theme_ID", 'Long', 6, "#", "#", "Theme ID")
     gp.AddField_management(fnNew2, "Theme", 'text', "#", "#", 48, "Evidential Theme")
@@ -697,7 +699,7 @@ try:
     strLine = fLR2.readline()
     i = 0
     first = 1
-    #gp.AddMessage("Reading Logistic Regression Coefficients Results: %s"%fnLR2) 
+    #gp.AddMessage("Reading Logistic Regression Coefficients Results: %s"%fnLR2)
     vTabLR2rows = gp.InsertCursor(vTabLR2)
     print ("Starting to read LR_Coeff")
     while strLine:
@@ -708,7 +710,7 @@ try:
                 strLine = fLR2.readline()
                 continue
         if read:
-            
+
             lstLine = strLine.split()
             if len(lstLine) > 2:
                 vTabLR2row = vTabLR2rows.NewRow()
@@ -754,7 +756,7 @@ try:
     cmb_cpy = gp.createscratchname("cmb_cpy", '', 'raster', gp.scratchworkspace)
     gp.copyraster_management(cmbrl, cmb_cpy)
     #Make output float rasters from attributes of joined unique conditions raster
-    outRaster1 = gp.GetParameterAsText(8)    
+    outRaster1 = gp.GetParameterAsText(8)
     outRaster2 = gp.GetParameterAsText(9)
     outRaster3 =  gp.GetParameterAsText(10)
     gp.addmessage("="*41+'\n'+"="*41)
@@ -776,7 +778,7 @@ try:
     gp.SetParameterAsText(8, outRaster1)
     gp.SetParameterAsText(9, outRaster2)
     gp.SetParameterAsText(10, outRaster3)
-    
+
 except:
     # get the traceback object
     tb = sys.exc_info()[2]

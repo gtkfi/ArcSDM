@@ -1,0 +1,401 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE metadata SYSTEM "http://www.fgdc.gov/metadata/fgdc-std-001-1998.dtd">
+<metadata>
+	<idinfo>
+		<citation>
+			<citeinfo>
+				<origin>Don Sawatzky</origin>
+				<pubdate>1996</pubdate>
+				<title Sync="TRUE">gbfaults3</title>
+				<geoform Sync="TRUE">vector digital data</geoform>
+				<serinfo>
+					<sername>DDS</sername>
+					<issue>41</issue>
+				</serinfo>
+				<pubinfo>
+					<pubplace>Denver</pubplace>
+					<publish>U.S. Geological Survey</publish>
+				</pubinfo>
+				<lworkcit>
+					<citeinfo>
+						<title>Raines, G. L., Sawatzky, D.L. and Connors, K.A., 1996, Great Basin geoscience data base: U.S. Geological Survey Digital Data Series DDS-41</title>
+					</citeinfo>
+				</lworkcit>
+				<ftname Sync="TRUE">gbfaults3</ftname><onlink Sync="TRUE">\\ROICNU4290RJH\C$\SDM\Carlin_Demo\gbfaults3.shp</onlink></citeinfo>
+		</citation>
+		<descript>
+			<abstract>Faults compiled from State maps.</abstract>
+			<purpose>The USGS Digital Data Series 41 has broad application and was used by the Reno Field Office for  the Great Basin Mineral Assessment (NAMRAP).</purpose>
+			<supplinf>ARC/INFO arc feature types; Single Precision;</supplinf>
+			<langdata Sync="TRUE">fi</langdata></descript>
+		<timeperd>
+			<timeinfo>
+				<sngdate>
+					<caldate>1992</caldate>
+				</sngdate>
+			</timeinfo>
+			<current>Creation date</current>
+		</timeperd>
+		<status>
+			<progress>Complete</progress>
+			<update>None planned</update>
+		</status>
+		<spdom>
+			<bounding>
+				<westbc>-121.760643</westbc>
+				<eastbc>-111.128246</eastbc>
+				<northbc>43.402268</northbc>
+				<southbc>33.847863</southbc>
+			</bounding>
+			<lboundng><leftbc Sync="TRUE">-164174.263274</leftbc><rightbc Sync="TRUE">87825.736726</rightbc><bottombc Sync="TRUE">4570126.006454</bottombc><topbc Sync="TRUE">4848126.006454</topbc></lboundng></spdom>
+		<keywords>
+			<theme>
+				<themekt>none</themekt>
+				<themekey> faults</themekey>
+			</theme>
+			<place>
+				<placekt>none</placekt>
+				<placekey>Great Basin</placekey>
+			</place>
+			<stratum>
+				<stratkt>none</stratkt>
+			</stratum>
+			<temporal>
+				<tempkt>none</tempkt>
+			</temporal>
+		</keywords>
+		<accconst>None</accconst>
+		<useconst>For use at 1:500,000 (NV, OR, ID, UT) and 1:750,000 (CA) scale. Source Projection: State map.  Only end points of straight line segments digitized.</useconst>
+		<ptcontac>
+			<cntinfo>
+				<cntperp>
+					<cntper>Gary L. Raines</cntper>
+					<cntorg>U.S. Geological Survey</cntorg>
+				</cntperp>
+				<cntpos>Geologist</cntpos>
+				<cntaddr>
+					<addrtype>mailing and physical address</addrtype>
+					<address>
+USGS C\O Mackay School of Mines
+MS-176 University of Nevada, Reno
+</address>
+					<city>Reno</city>
+					<state>Nevada</state>
+					<postal>89557</postal>
+					<country>USA</country>
+				</cntaddr>
+				<cntvoice>775-784-5596</cntvoice>
+				<cntfax>775-784-5079</cntfax>
+				<cntemail>graines@usgs.gov</cntemail>
+				<hours>8-1700 PT</hours>
+			</cntinfo>
+		</ptcontac>
+		<browse></browse>
+		<datacred>Digitally compiled by Don Sawatzky</datacred>
+		<secinfo>
+			<secsys>None</secsys>
+			<secclass>Unclassified</secclass>
+			<sechandl>None</sechandl>
+		</secinfo>
+		<native Sync="TRUE">Microsoft Windows XP Version 5.1 (Build 2600) Service Pack 2; ESRI ArcCatalog 9.2.2.1350</native>
+		<crossref>
+			<citeinfo>
+				<serinfo></serinfo>
+				<pubinfo></pubinfo>
+				<lworkcit>
+					<citeinfo></citeinfo>
+				</lworkcit>
+			</citeinfo>
+		</crossref>
+		<natvform Sync="TRUE">Shapefile</natvform></idinfo>
+	<dataqual>
+		<attracc>
+			<attraccr>Only end points of straight line segments digitized.</attraccr>
+		</attracc>
+		<logic>Chain-node  topology.</logic>
+		<lineage>
+			<srcinfo>
+				<srccite>
+					<citeinfo>
+						<origin>Compiled by Don Sawatzky</origin>
+						<pubdate>Unknown</pubdate>
+						<title>Great Basin faults</title>
+						<geoform>map</geoform>
+						<pubinfo>
+						</pubinfo>
+						<othercit>Faults compiled from state maps.</othercit></citeinfo>
+				</srccite>
+				<srcscale>500,000  and 750,000</srcscale>
+				<typesrc>paper</typesrc>
+				<srctime>
+					<timeinfo>
+						<sngdate>
+							<caldate>1970</caldate>
+						</sngdate>
+					</timeinfo>
+					<srccurr>publication date</srccurr>
+				</srctime>
+				<srccitea>Great Basin faults</srccitea>
+				<srccontr>Great Basin faults</srccontr>
+			</srcinfo>
+			<procstep>
+				<procdesc>Great Basin faults compiled from State maps.  Only end points of straight line segments digitized.</procdesc>
+				<srcused>Great basin faults</srcused>
+				<srcprod>DDS-41</srcprod>
+				<proccont>
+					<cntinfo>
+						<cntperp>
+							<cntper>Gary Raines</cntper>
+							<cntorg>U.S. Geological Survey, Reno</cntorg>
+						</cntperp>
+						<cntpos>Geologist</cntpos>
+						<cntaddr>
+							<addrtype>mailing address</addrtype>
+							<address>
+USGS C/O Mackay School of Mines
+MS-176
+University of Nevada, Reno
+</address>
+							<city>Reno</city>
+							<state>NV</state>
+							<postal>89557</postal>
+							<country>USA</country>
+						</cntaddr>
+						<cntvoice>775-784-5596</cntvoice>
+						<cntfax>775-784-5079</cntfax>
+						<cntemail>graines@usgs.gov</cntemail>
+					</cntinfo>
+				</proccont>
+				<procdate>1992</procdate></procstep>
+			<procstep><procdesc Sync="TRUE">Metadata imported.</procdesc><srcused Sync="TRUE">G:\archive\greatbasin\lambert\geology\gbfaults\metadata.xml</srcused><date Sync="TRUE">20021106</date><time Sync="TRUE">10351400</time></procstep><procstep><procdesc Sync="TRUE">Dataset moved.</procdesc><srcused Sync="TRUE">D:\Carlin_ArcSDM1\gbfaults3</srcused><date Sync="TRUE">20021223</date><time Sync="TRUE">14554700</time></procstep><procstep><procdesc Sync="TRUE">Dataset copied.</procdesc><srcused Sync="TRUE">C:\Carlin_ArcSDM2\gbfaults3</srcused><date Sync="TRUE">20070414</date><time Sync="TRUE">12174700</time></procstep></lineage>
+		<complete>Covers the Great Basin.</complete></dataqual>
+	<spdoinfo>
+		<direct Sync="TRUE">Vector</direct>
+		<ptvctinf>
+			<sdtsterm Name="gbfaults3">
+				<sdtstype Sync="TRUE">String</sdtstype>
+				<ptvctcnt Sync="TRUE">1674</ptvctcnt>
+			</sdtsterm>
+			<sdtsterm Name="tic">
+				<sdtstype>Point</sdtstype>
+				<ptvctcnt>4</ptvctcnt>
+			</sdtsterm>
+			<esriterm Name="gbfaults3"><efeatyp Sync="TRUE">Simple</efeatyp><efeageom Sync="TRUE">Polyline</efeageom><esritopo Sync="TRUE">FALSE</esritopo><efeacnt Sync="TRUE">1674</efeacnt><spindex Sync="TRUE">TRUE</spindex><linrefer Sync="TRUE">FALSE</linrefer></esriterm><esriterm Name="tic"><efeatyp Sync="TRUE">Simple</efeatyp><efeageom Sync="TRUE">Tic</efeageom><esritopo Sync="TRUE">FALSE</esritopo><efeacnt Sync="TRUE">4</efeacnt><spindex Sync="TRUE">FALSE</spindex><linrefer Sync="TRUE">FALSE</linrefer></esriterm></ptvctinf>
+	</spdoinfo>
+	<spref>
+		<horizsys>
+			<planar>
+				<planci>
+					<plance>coordinate pair</plance>
+					<coordrep>
+						<absres>0.000855</absres>
+						<ordres>0.000855</ordres>
+					</coordrep>
+					<plandu>meters</plandu>
+				</planci>
+				<mapproj><mapprojn Sync="TRUE">Lambert Conformal Conic</mapprojn><lambertc><stdparll Sync="TRUE">33.000000</stdparll><stdparll Sync="TRUE">45.000000</stdparll><longcm Sync="TRUE">-117.000000</longcm><latprjo Sync="TRUE">0.000000</latprjo><feast Sync="TRUE">0.000000</feast><fnorth Sync="TRUE">0.000000</fnorth></lambertc></mapproj></planar>
+			<geodetic>
+				<horizdn>D_Clarke_1866</horizdn>
+				<ellips>Clarke 1866</ellips>
+				<semiaxis>6378206.400000</semiaxis>
+				<denflat>294.978698</denflat>
+			</geodetic>
+			<cordsysn><geogcsn Sync="TRUE">GCS_Clarke_1866</geogcsn><projcsn Sync="TRUE">Clarke_1866_Lambert_Conformal_Conic</projcsn></cordsysn></horizsys>
+	</spref>
+	<eainfo>
+		<detailed Name="gbfaults3">
+			<enttyp>
+				<enttypl Sync="TRUE">gbfaults3</enttypl>
+				<enttypd>Arc Attribute Table</enttypd>
+				<enttypds>Computed</enttypds>
+				<enttypt Sync="TRUE">Feature Class</enttypt><enttypc Sync="TRUE">1674</enttypc></enttyp>
+			<attr>
+				<attrlabl Sync="TRUE">FID</attrlabl>
+				<attrdef Sync="TRUE">Internal feature number.</attrdef>
+				<attrdefs Sync="TRUE">ESRI</attrdefs>
+				<attrdomv>
+					<edom>
+						<edomv>Sequential unique positive number</edomv>
+						<edomvds>Computed</edomvds>
+					</edom>
+					<udom Sync="TRUE">Sequential unique whole numbers that are automatically generated.</udom></attrdomv>
+				<attwidth Sync="TRUE">4</attwidth><atoutwid Sync="TRUE">5</atoutwid><attrtype Sync="TRUE">OID</attrtype><attalias Sync="TRUE">FID</attalias><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale></attr>
+			<attr>
+				<attrlabl Sync="TRUE">Shape</attrlabl>
+				<attrdef Sync="TRUE">Feature geometry.</attrdef>
+				<attwidth Sync="TRUE">0</attwidth><atoutwid Sync="TRUE">5</atoutwid><attrtype Sync="TRUE">Geometry</attrtype><attalias Sync="TRUE">Shape</attalias><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale><attrdefs Sync="TRUE">ESRI</attrdefs><attrdomv><udom Sync="TRUE">Coordinates defining the features.</udom></attrdomv></attr>
+			<attr>
+				<attrlabl Sync="TRUE">FNODE_</attrlabl>
+				<attrdef>Internal number of from-node</attrdef>
+				<attrdefs>Computed</attrdefs>
+				<attrdomv>
+					<edom>
+						<edomv>Sequential unique positive integer</edomv>
+						<edomvds>Computed</edomvds>
+					</edom>
+					<udom Sync="TRUE">Whole numbers that are automatically generated.</udom></attrdomv>
+				<attwidth Sync="TRUE">11</attwidth><atoutwid Sync="TRUE">5</atoutwid><attrtype Sync="TRUE">Number</attrtype><attalias Sync="TRUE">FNODE_</attalias></attr>
+			<attr>
+				<attrlabl Sync="TRUE">TNODE_</attrlabl>
+				<attrdef>Internal number of to-node</attrdef>
+				<attrdefs>Computed</attrdefs>
+				<attrdomv>
+					<edom>
+						<edomv>Sequential unique positive integer</edomv>
+						<edomvds>Computed</edomvds>
+					</edom>
+					<udom Sync="TRUE">Whole numbers that are automatically generated.</udom></attrdomv>
+				<attwidth Sync="TRUE">11</attwidth><atoutwid Sync="TRUE">5</atoutwid><attrtype Sync="TRUE">Number</attrtype><attalias Sync="TRUE">TNODE_</attalias></attr>
+			<attr>
+				<attrlabl Sync="TRUE">LPOLY_</attrlabl>
+				<attrdef>Internal number of poly left of arc</attrdef>
+				<attrdefs>Computed</attrdefs>
+				<attrdomv>
+					<edom>
+						<edomv>Sequential unique positive integer</edomv>
+						<edomvds>Computed</edomvds>
+					</edom>
+					<udom Sync="TRUE">Whole numbers that are automatically generated.</udom></attrdomv>
+				<attwidth Sync="TRUE">11</attwidth><atoutwid Sync="TRUE">5</atoutwid><attrtype Sync="TRUE">Number</attrtype><attalias Sync="TRUE">LPOLY_</attalias></attr>
+			<attr>
+				<attrlabl Sync="TRUE">RPOLY_</attrlabl>
+				<attrdef>Internal number of poly to right of arc</attrdef>
+				<attrdefs>Computed</attrdefs>
+				<attrdomv>
+					<edom>
+						<edomv>Sequential unique positive integer</edomv>
+						<edomvds>Computed</edomvds>
+					</edom>
+					<udom Sync="TRUE">Whole numbers that are automatically generated.</udom></attrdomv>
+				<attwidth Sync="TRUE">11</attwidth><atoutwid Sync="TRUE">5</atoutwid><attrtype Sync="TRUE">Number</attrtype><attalias Sync="TRUE">RPOLY_</attalias></attr>
+			<attr>
+				<attrlabl Sync="TRUE">LENGTH</attrlabl>
+				<attrdef>Length of arc in coverage units</attrdef>
+				<attrdefs>Computed</attrdefs>
+				<attrdomv>
+					<edom>
+						<edomv>Positive real number</edomv>
+						<edomvds>Computed</edomvds>
+					</edom>
+					<udom Sync="TRUE">Positive real numbers that are automatically generated.</udom></attrdomv>
+				<attwidth Sync="TRUE">12</attwidth><atoutwid Sync="TRUE">12</atoutwid><attrtype Sync="TRUE">Number</attrtype><atnumdec Sync="TRUE">3</atnumdec><attalias Sync="TRUE">LENGTH</attalias></attr>
+			<attr>
+				<attrlabl Sync="TRUE">GBFAULTS_</attrlabl>
+				<attrdef>Internal feature number</attrdef>
+				<attrdefs>Computed</attrdefs>
+				<attrdomv>
+					<edom>
+						<edomv>Sequential unique positive number</edomv>
+						<edomvds>Computed</edomvds>
+					</edom>
+					<udom Sync="TRUE">Sequential unique whole numbers that are automatically generated.</udom></attrdomv>
+				<attwidth Sync="TRUE">11</attwidth><atoutwid Sync="TRUE">5</atoutwid><attrtype Sync="TRUE">Number</attrtype><attalias Sync="TRUE">GBFAULTS_</attalias></attr>
+			<attr>
+				<attrlabl Sync="TRUE">GBFAULTS_I</attrlabl>
+				<attrdef>User-assigned feature number</attrdef>
+				<attrdefs>User-defined</attrdefs>
+				<attrdomv>
+					<edom>
+						<edomv>Integer</edomv>
+						<edomvds>User-defined</edomvds>
+					</edom>
+				</attrdomv>
+				<attwidth Sync="TRUE">11</attwidth><atoutwid Sync="TRUE">5</atoutwid><attrtype Sync="TRUE">Number</attrtype><attalias Sync="TRUE">GBFAULTS_I</attalias></attr>
+			<attr>
+				<attrlabl Sync="TRUE">AZIMUTH</attrlabl>
+				<attwidth Sync="TRUE">5</attwidth><atoutwid Sync="TRUE">5</atoutwid><attrtype Sync="TRUE">Number</attrtype><attrdef>Arc attribute</attrdef><attrdefs>State maps</attrdefs><attrdomv><edom><edomv>Degrees</edomv><edomvd>Azimuth, measured clockwise, 0 to 360</edomvd><edomvds>State maps</edomvds></edom></attrdomv><begdatea>1992</begdatea><enddatea>1992</enddatea><attalias Sync="TRUE">AZIMUTH</attalias></attr>
+			<attr>
+				<attrlabl Sync="TRUE">NHEM_AZ</attrlabl>
+				<attwidth Sync="TRUE">5</attwidth><atoutwid Sync="TRUE">5</atoutwid><attrtype Sync="TRUE">Number</attrtype><attrdef>Arc attribute</attrdef><attrdefs>State maps</attrdefs><attrdomv><edom><edomv>Degrees</edomv><edomvd>Azimuth in the northern hemisphere, measured clockwise, 0 to 90 and 270 to 359.</edomvd><edomvds>State maps</edomvds></edom></attrdomv><attalias Sync="TRUE">NHEM_AZ</attalias></attr>
+			<attr><attrlabl Sync="TRUE">SDMAzimuth</attrlabl><attalias Sync="TRUE">SDMAzimuth</attalias><attrtype Sync="TRUE">Number</attrtype><attwidth Sync="TRUE">9</attwidth></attr><attr><attrlabl Sync="TRUE">SDMBearing</attrlabl><attalias Sync="TRUE">SDMBearing</attalias><attrtype Sync="TRUE">Number</attrtype><attwidth Sync="TRUE">9</attwidth></attr></detailed>
+	</eainfo>
+	<distinfo>
+		<distrib>
+			<cntinfo>
+				<cntorgp>
+					<cntorg>USGS Earth Science Information Center (ESIC)</cntorg>
+				</cntorgp>
+				<cntaddr>
+					<addrtype>mailing address</addrtype>
+					<address>
+USGS Information Services
+Box 25286
+Denver Federal Center
+</address>
+					<city>Denver</city>
+					<state>Colorado</state>
+					<postal>80225</postal>
+					<country>USA</country>
+				</cntaddr>
+				<cntvoice>1-888-ASK-USGS</cntvoice>
+			</cntinfo>
+		</distrib>
+		<resdesc>DDS_41</resdesc>
+		<distliab>No warranty, expressed or implied, is made by the USGS as to the accuracy of the data.  The act of distribution shall not constitute any such warranty, and no responsibility is assumed by the USGS in the use of these data, software, or related materials.</distliab>
+		<stdorder>
+			<digform>
+				<digtinfo>
+					<formname>ARC</formname>
+					<filedec>No compression applied</filedec>
+					<transize>1.734</transize>
+					<dssize Sync="TRUE">0.166</dssize></digtinfo>
+				<digtopt>
+					<onlinopt>
+						<computer>
+							<networka>
+								<networkr>\\WMRRENO\archive\greatbasin\lambert\geology\gbfaults</networkr>
+							</networka>
+						</computer>
+						<accinstr>Local area network</accinstr>
+					</onlinopt>
+				</digtopt>
+			</digform>
+			<fees>Subject to change</fees>
+		</stdorder>
+		<custom>Contact the Earth Science Information Center</custom>
+		<techpreq>
+Coverage formats:  ARC export, Federal Data Exchange format (STDS), and PC visualization (ARCVIEW1).
+System Requirements: IBM or compatible personal computer (386 or higher); Microsoft Windows 3.1 or higher; 4 megabytes RAM; MS- or PC_Dos version 5.0 or later; VGA color monitor; CD-ROM drive
+</techpreq>
+	</distinfo>
+	<metainfo>
+		<metd Sync="TRUE">20070606</metd>
+		<metc>
+			<cntinfo>
+				<cntperp>
+					<cntper>Lorre A. Moyer</cntper>
+					<cntorg>U.S. Geological Survey</cntorg>
+				</cntperp>
+				<cntpos>Geologist</cntpos>
+				<cntaddr>
+					<addrtype>mailing address</addrtype>
+					<address>
+USGS C\O Mackay school of Mines
+MS-176 University of Nevada
+</address>
+					<city>Reno</city>
+					<state>Nevada</state>
+					<postal>89557</postal>
+					<country>USA</country>
+				</cntaddr>
+				<cntvoice>775-784-5552</cntvoice>
+				<cntfax>775-784-5079</cntfax>
+				<cntemail>lorre@usgs.gov</cntemail>
+			</cntinfo>
+		</metc>
+		<metstdn Sync="TRUE">FGDC Content Standards for Digital Geospatial Metadata</metstdn>
+		<metstdv Sync="TRUE">FGDC-STD-001-1998</metstdv>
+		<mettc Sync="TRUE">local time</mettc>
+		<metac>None</metac>
+		<metuc>None</metuc>
+		<metsi>
+			<metscs>None</metscs>
+			<metsc>Unclassified</metsc>
+			<metshd>None</metshd>
+		</metsi>
+		<metextns>
+			<onlink>http://www.esri.com/metadata/esriprof80.html</onlink>
+			<metprof>ESRI Metadata Profile</metprof>
+		</metextns>
+		<langmeta Sync="TRUE">fi</langmeta><metextns><onlink Sync="TRUE">http://www.esri.com/metadata/esriprof80.html</onlink><metprof Sync="TRUE">ESRI Metadata Profile</metprof></metextns></metainfo>
+	<Esri><CreaDate>20160526</CreaDate><CreaTime>10103800</CreaTime><SyncDate>20070606</SyncDate><SyncTime>15073300</SyncTime><ModDate>20070606</ModDate><ModTime>15073300</ModTime><SyncOnce>FALSE</SyncOnce><DataProperties><lineage><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20090116" Time="094918">AddField gbfaults3 LinLength DOUBLE 16 2 # LinLength NON_NULLABLE NON_REQUIRED # gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20090116" Time="094918">AddField gbfaults3 LinAzm LONG 5 0 # LinAzimuth NON_NULLABLE NON_REQUIRED # gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20090116" Time="094918">AddField gbfaults3 LinWtdAzm LONG 5 0 # LinWtdAzimuth NON_NULLABLE NON_REQUIRED # gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20090116" Time="094918">AddField gbfaults3 LinStrike LONG 5 0 # LinStrike NON_NULLABLE NON_REQUIRED # gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20090116" Time="094918">AddField gbfaults3 LinWtdStrk LONG 5 0 # LinWtdStrike NON_NULLABLE NON_REQUIRED # gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090126" Time="153852">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= 0 AND "SDMBearing" &lt;= 45" gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20090209" Time="134616">AddField gbfaults3 LinLength DOUBLE 16 2 # LinLength NON_NULLABLE NON_REQUIRED # gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20090209" Time="134616">AddField gbfaults3 LinAzm LONG 5 0 # LinAzimuth NON_NULLABLE NON_REQUIRED # gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20090209" Time="134616">AddField gbfaults3 LinWtdAzm LONG 5 0 # LinWtdAzimuth NON_NULLABLE NON_REQUIRED # gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20090209" Time="134617">AddField gbfaults3 LinStrike LONG 5 0 # LinStrike NON_NULLABLE NON_REQUIRED # gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20090209" Time="134617">AddField gbfaults3 LinWtdStrk LONG 5 0 # LinWtdStrike NON_NULLABLE NON_REQUIRED # gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090209" Time="134747">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LinStrike" &gt;= 10 AND "LinStrike" &lt;= 20" gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20090211" Time="172247">AddField gbfaults3 FREQUENCY LONG # # # "Orientation Frequency" NON_NULLABLE NON_REQUIRED # gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20090211" Time="172247">AddField gbfaults3 CLSFREQ5 LONG # # # "Class Frequency" NON_NULLABLE NON_REQUIRED # gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20090211" Time="172247">AddField gbfaults3 PSTD5 FLOAT # # # "Poisson STDs5" NON_NULLABLE NON_REQUIRED # gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090211" Time="172854">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LinStrike" &gt;= -4 AND "LinStrike" &lt;= 24" gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090212" Time="105347">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LinStrike" &gt;= -4 AND "LinStrike" &lt;= 24" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090224" Time="125732">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= -45 AND "SDMBearing" &lt;= 0" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090302" Time="103242">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= 0 AND "SDMBearing" &lt;= 45" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090311" Time="140937">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= -45 AND "SDMBearing" &lt;= 0" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090312" Time="083046">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= 0 AND "SDMBearing" &lt;= 20" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090312" Time="083056">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= -45 AND "SDMBearing" &lt;= 0" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090312" Time="114931">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= -45 AND "SDMBearing" &lt;= 0" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090312" Time="114948">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= 0 AND "SDMBearing" &lt;= 45" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090312" Time="133041">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= -45 AND "SDMBearing" &lt;= 0" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090312" Time="133054">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= 0 AND "SDMBearing" &lt;= 45" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090312" Time="182336">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= -45 AND "SDMBearing" &lt;= 0" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090312" Time="182350">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= 0 AND "SDMBearing" &lt;= 45" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090312" Time="182616">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= -45 AND "SDMBearing" &lt;= 0" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090312" Time="182629">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= 0 AND "SDMBearing" &lt;= 45" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090312" Time="182840">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= -45 AND "SDMBearing" &lt;= 0" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090312" Time="182853">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= 0 AND "SDMBearing" &lt;= 45" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090312" Time="183727">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= -45 AND "SDMBearing" &lt;= 0" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090312" Time="183740">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= 0 AND "SDMBearing" &lt;= 45" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090312" Time="183904">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= -45 AND "SDMBearing" &lt;= 0" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090312" Time="183917">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= 0 AND "SDMBearing" &lt;= 45" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090312" Time="184702">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= -45 AND "SDMBearing" &lt;= 0" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090312" Time="184716">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= 0 AND "SDMBearing" &lt;= 45" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090313" Time="124356">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= -45 AND "SDMBearing" &lt;= 0" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090313" Time="124410">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= 0 AND "SDMBearing" &lt;= 45" gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20090422" Time="110615">AddField gbfaults3 LinLength DOUBLE 16 2 # LinLength NON_NULLABLE NON_REQUIRED # gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20090422" Time="110615">AddField gbfaults3 LinAzm LONG 5 0 # LinAzimuth NON_NULLABLE NON_REQUIRED # gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20090422" Time="110615">AddField gbfaults3 LinWtdAzm LONG 5 0 # LinWtdAzimuth NON_NULLABLE NON_REQUIRED # gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20090422" Time="110615">AddField gbfaults3 LinStrike LONG 5 0 # LinStrike NON_NULLABLE NON_REQUIRED # gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20090422" Time="110616">AddField gbfaults3 LinWtdStrk LONG 5 0 # LinWtdStrike NON_NULLABLE NON_REQUIRED # gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090603" Time="164555">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LENGTH" &gt;= 32236.957" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090603" Time="164841">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LENGTH" &gt;= 32236.957" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090603" Time="170646">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= -45 AND "SDMBearing" &lt;= 0" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090603" Time="170659">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= 0 AND "SDMBearing" &lt;= 45" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090603" Time="172218">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= -45 AND "SDMBearing" &lt;= 0" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090603" Time="172231">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= 0 AND "SDMBearing" &lt;= 45" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090603" Time="172434">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= -45 AND "SDMBearing" &lt;= 0" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090603" Time="172447">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= 0 AND "SDMBearing" &lt;= 45" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090603" Time="190457">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LENGTH" &gt;= 37221.336 " gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090603" Time="190727">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LENGTH" &gt;= 37221.336 " gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090603" Time="190852">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LENGTH" &gt;= 37221.336 " gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090603" Time="191303">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LENGTH" &gt;= 32236.957 " gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090603" Time="191659">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LENGTH" &gt;= 37221.336 " gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090603" Time="192136">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LENGTH" &gt;= 37221.336 " gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090603" Time="192344">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LENGTH" &gt;= 37221.336 " gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090604" Time="095534">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LENGTH" &gt;= 37221.336 " gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090604" Time="100425">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LENGTH" &gt;= 37221.336 " gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090604" Time="111054">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LENGTH" &gt;= 37221.336 " gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090604" Time="131700">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LENGTH" &gt;= 37221.336 " gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090604" Time="140859">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LENGTH" &gt;= 37221.336 " gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090604" Time="141043">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LENGTH" &gt;= 37221.336 " gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090604" Time="141232">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LENGTH" &gt;= 37221.336 " gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090604" Time="142547">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LENGTH" &gt;= 37221.336 " gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090604" Time="143349">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LENGTH" &gt;= 37221.336 " gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090604" Time="145209">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LENGTH" &gt;= 37993.844" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090604" Time="152342">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LENGTH" &gt;= 37221.336" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090604" Time="153200">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= -45 AND "SDMBearing" &lt;= 0" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090604" Time="153218">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= 0 AND "SDMBearing" &lt;= 45" gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20090608" Time="143602">AddField gbfaults3 SDMBearing LONG 5 # # # NON_NULLABLE NON_REQUIRED # gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20090608" Time="143602">AddField gbfaults3 SDMAzimuth LONG 5 # # # NON_NULLABLE NON_REQUIRED # gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090608" Time="145236">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= -45 AND "SDMBearing" &lt;= 0" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090608" Time="145249">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= 0 AND "SDMBearing" &lt;= 45" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090608" Time="145439">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &gt;= 0 AND "SDMBearing" &lt;= 45" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090608" Time="145619">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""LENGTH" &gt;= 37221.336" gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20090916" Time="234558">AddField gbfaults3 SDMBearing LONG 5 # # # NON_NULLABLE NON_REQUIRED # gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20090916" Time="234558">AddField gbfaults3 SDMAzimuth LONG 5 # # # NON_NULLABLE NON_REQUIRED # gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20090916" Time="234741">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""SDMBearing" &lt;= 0 AND "SDMBearing" &gt;= -45" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\Desktop9.4\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20091101" Time="113437">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""AZIMUTH" = 6" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\Desktop9.4\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20091206" Time="165552">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""NHEM_AZ" &lt;= 80" gbfaults3</Process><Process Name="Select Layer By Attribute" ToolSource="C:\Program Files\ArcGIS\Desktop9.4\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20091206" Time="170313">SelectLayerByAttribute gbfaults3 NEW_SELECTION ""NHEM_AZ" &lt;&gt; 45" gbfaults3</Process><Process ToolSource="C:\Program Files\ArcGIS\Desktop10.0\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20100609" Time="122018">AddField gbfaults3 SDMBearing LONG 5 # # # NON_NULLABLE NON_REQUIRED #</Process><Process ToolSource="C:\Program Files\ArcGIS\Desktop10.0\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20100609" Time="122018">AddField gbfaults3 SDMAzimuth LONG 5 # # # NON_NULLABLE NON_REQUIRED #</Process><Process ToolSource="C:\Program Files\ArcGIS\Desktop10.0\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20100609" Time="122103">AddField gbfaults3 SDMBearing LONG 5 # # # NON_NULLABLE NON_REQUIRED #</Process><Process ToolSource="C:\Program Files\ArcGIS\Desktop10.0\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20100609" Time="122103">AddField gbfaults3 SDMAzimuth LONG 5 # # # NON_NULLABLE NON_REQUIRED #</Process><Process ToolSource="C:\Program Files\ArcGIS\Desktop10.0\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20100706" Time="161142">AddField gbfaults3 SDMBearing LONG 5 # # # NON_NULLABLE NON_REQUIRED #</Process><Process ToolSource="C:\Program Files\ArcGIS\Desktop10.0\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20100706" Time="161142">AddField gbfaults3 SDMAzimuth LONG 5 # # # NON_NULLABLE NON_REQUIRED #</Process></lineage><itemProps><itemLocation><linkage Sync="TRUE">file://\\KUOH91HL32\C$\Users\tronkko\OneDrive\Code\ArcSDM\Demodata\gbfaults3</linkage><protocol Sync="TRUE">Local Area Network</protocol></itemLocation></itemProps><copyHistory><copy source="C:\SDM\Carlin_Demo\gbfaults3" dest="\\KUOH91HL32\C$\Users\tronkko\OneDrive\Code\ArcSDM\Demodata\gbfaults3" date="20160526" time="10103800"></copy></copyHistory></DataProperties></Esri><dataIdInfo><envirDesc Sync="TRUE">Microsoft Windows XP Version 5.1 (Build 2600) Service Pack 2; ESRI ArcCatalog 9.2.2.1350</envirDesc><dataLang><languageCode Sync="TRUE" value="fi"></languageCode></dataLang><idCitation><resTitle Sync="TRUE">gbfaults3</resTitle><presForm><PresFormCd Sync="TRUE" value="005"></PresFormCd></presForm></idCitation><spatRpType><SpatRepTypCd Sync="TRUE" value="001"></SpatRepTypCd></spatRpType><geoBox esriExtentType="decdegrees"><westBL Sync="TRUE">-118.961563</westBL><eastBL Sync="TRUE">-115.950537</eastBL><northBL Sync="TRUE">41.034825</northBL><southBL Sync="TRUE">38.502116</southBL><exTypeCode Sync="TRUE">1</exTypeCode></geoBox><dataExt><geoEle><GeoBndBox esriExtentType="native"><westBL Sync="TRUE">-164174.263274</westBL><eastBL Sync="TRUE">87825.736726</eastBL><northBL Sync="TRUE">4848126.006454</northBL><southBL Sync="TRUE">4570126.006454</southBL><exTypeCode Sync="TRUE">1</exTypeCode></GeoBndBox></geoEle></dataExt></dataIdInfo><mdLang><languageCode Sync="TRUE" value="fi"></languageCode></mdLang><mdStanName Sync="TRUE">ISO 19115 Geographic Information - Metadata</mdStanName><mdStanVer Sync="TRUE">DIS_ESRI1.0</mdStanVer><mdChar><CharSetCd Sync="TRUE" value="004"></CharSetCd></mdChar><mdHrLv><ScopeCd Sync="TRUE" value="005"></ScopeCd></mdHrLv><mdHrLvName Sync="TRUE">dataset</mdHrLvName><distInfo><distributor><distorTran><onLineSrc><orDesc Sync="TRUE">002</orDesc><linkage Sync="TRUE">file://\\ROICNU4290RJH\C$\SDM\Carlin_Demo\gbfaults3.shp</linkage><protocol Sync="TRUE">Local Area Network</protocol></onLineSrc><transSize Sync="TRUE">0.166</transSize></distorTran><distorFormat><formatName Sync="TRUE">Shapefile</formatName></distorFormat></distributor></distInfo><refSysInfo><RefSystem><refSysID><identCode Sync="TRUE">Clarke_1866_Lambert_Conformal_Conic</identCode></refSysID></RefSystem></refSysInfo><spatRepInfo><VectSpatRep><topLvl><TopoLevCd Sync="TRUE" value="001"></TopoLevCd></topLvl><geometObjs Name="gbfaults3"><geoObjTyp><GeoObjTypCd Sync="TRUE" value="001"></GeoObjTypCd></geoObjTyp><geoObjCnt Sync="TRUE">1674</geoObjCnt></geometObjs></VectSpatRep></spatRepInfo><mdDateSt Sync="TRUE">20070606</mdDateSt></metadata>
