@@ -1,4 +1,4 @@
-'''
+"""
 Calculate_bends tool
 
 ArcSDM 5 for Arcgis Pro
@@ -8,7 +8,7 @@ Original Work by Don Sawatzky 2008.
 TODO: Update all copyright headers
 
 
-'''
+"""
 
 
 # Copyright (C) 2008, Don Sawatzky
@@ -106,7 +106,15 @@ def LinearFeaturesToPoints(polylineIn, pointsOut):
                     pnt = linepart.GetObject(pntno)
                     newrow.shape = pnt
                     #Insert polyline FID in new row
-                    newrow.ID = inrow.FID
+                    field_names = [f.name for f in arcpy.ListFields(polylineIn)]
+
+                    gp.addmessage(str(field_names))
+                    if ('FID' in field_names):
+                        newrow.ID = inrow.FID
+                        gp.addmessage("Using FID")
+                    else:
+                        newrow.ID = inrow.OBJECTID
+                        gp.addmessage("Using OBJECTID")
                     #Calculate degrees of turning
                     if pntno == 0 or pntno == linepart.Count-1:
                         #First and last points given false turning = 400

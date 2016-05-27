@@ -1,0 +1,10 @@
+<PAMDataset>
+  <PAMRasterBand band="1">
+    <Description>sb_rcl</Description>
+    <NoDataValue>0.00000000000000E+000</NoDataValue>
+    <GDALRasterAttributeTable />
+    <Metadata>
+      <MDI key="LAYER_TYPE">athematic</MDI>
+    </Metadata>
+  </PAMRasterBand>
+</PAMDataset>
