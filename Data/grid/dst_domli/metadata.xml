@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xml:lang="fi"><Esri><CreaDate>20160606</CreaDate><CreaTime>13002800</CreaTime><ArcGISFormat>1.0</ArcGISFormat><SyncOnce>TRUE</SyncOnce><DataProperties><lineage><Process Name="Euclidean Distance" ToolSource="c:\program files (x86)\arcgis\desktop10.3\ArcToolbox\Toolboxes\Spatial Analyst Tools.tbx\EucDistance" Date="20160606" Time="130028">EucDistance domli C:\MPM\Data\grid\dst_domli # 1000 #</Process></lineage></DataProperties></Esri></metadata>

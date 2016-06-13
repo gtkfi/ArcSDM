@@ -1,0 +1,16 @@
+<PAMDataset>
+  <SRS>PROJCS["EUREF_FIN_TM35FIN",GEOGCS["GCS_EUREF_FIN",DATUM["European_Terrestrial_Reference_System_1989",SPHEROID["GRS_1980",6378137.0,298.257222101]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",27.0],PARAMETER["Scale_Factor",0.9996],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0]]</SRS>
+  <PAMRasterBand band="1">
+    <Description>till_gc_co</Description>
+    <Histograms>
+      <HistItem>
+        <HistMin>0.6076034903526306</HistMin>
+        <HistMax>88.15855407714844</HistMax>
+        <BucketCount>256</BucketCount>
+        <IncludeOutOfRange>1</IncludeOutOfRange>
+        <Approximate>0</Approximate>
+        <HistCounts>4|2|4|11|24|44|102|244|428|680|958|1303|1633|1861|2062|2152|2237|2418|2606|2733|2742|2651|2523|2449|2571|2587|2572|2497|2395|2246|2119|2057|2124|1848|1829|1871|1854|1725|1718|1631|1590|1646|1584|1455|1364|1435|1282|1382|1331|1292|1191|1108|1218|1026|1069|1014|865|905|830|773|695|641|612|613|538|473|418|372|358|319|318|344|252|233|213|172|155|164|138|142|123|127|106|112|102|74|85|70|85|64|67|66|50|56|48|42|50|32|30|18|33|28|33|24|20|20|12|17|16|13|15|16|9|9|10|7|7|6|3|7|8|6|7|6|1|3|2|6|3|1|1|6|1|0|4|1|0|1|3|0|2|1|0|1|1|1|3|1|1|2|1|1|0|0|1|0|0|1|0|0|0|0|0|1|0|0|1|0|0|1|1|0|0|1|0|0|0|0|0|2|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1|0|0|0|0|0|1|0|0|0|0|0|0|0|0|0|2|0|0|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1|0|0|0|0|0|0|0|0|0|0|0|0|1|0|0|0|1|0|0|0|0|0|0|0|1</HistCounts>
+      </HistItem>
+    </Histograms>
+  </PAMRasterBand>
+</PAMDataset>

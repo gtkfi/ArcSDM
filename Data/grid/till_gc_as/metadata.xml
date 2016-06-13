@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xml:lang="fi"><Esri><CreaDate>20160601</CreaDate><CreaTime>14342400</CreaTime><ArcGISFormat>1.0</ArcGISFormat><SyncOnce>TRUE</SyncOnce><DataProperties><lineage><Process Name="IDW (3)" ToolSource="c:\program files (x86)\arcgis\desktop10.3\ArcToolbox\Toolboxes\Spatial Analyst Tools.tbx\Idw" Date="20160601" Time="143424">Idw almr511p_as_selected AS_511P C:\MPM\Data\grid\till_gc_as 1000 2 "VARIABLE 12 10000" #</Process></lineage></DataProperties></Esri></metadata>
