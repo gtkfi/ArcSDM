@@ -19,7 +19,8 @@ gp = arcgisscripting.create()
 
 # Check out any necessary licenses
 gp.CheckOutExtension("spatial")
-
+#gp.AddMessage("Point 1");
+    
 # Load required toolboxes...
 #d = gp.GetInstallInfo()
 #sPath = d["InstallDir"]
@@ -33,15 +34,29 @@ gp.CheckOutExtension("spatial")
 
 # Process: Missing Data Variance...
 try:
+    #gp.AddMessage("Point 1");
+     
     TrainPts = gp.GetParameterAsText(0)
+    #gp.AddMessage(TrainPts);
+    #print (TrainPts)
     gp.SelectLayerByAttribute_management (TrainPts) 
     #gp.AddMessage("%s All Selected = %s"%(TrainPts,str(gp.GetCount_management(TrainPts))))
     
     #Get initial selection within mask
-    maskname = gp.Describe(gp.mask).Name+'_poly'
-    maskpolygon = os.path.join(gp.ScratchWorkspace,maskname)
+    if not gp.Exists(gp.mask):
+        gp.AddMessage("Mask doesn't exist! Set Mask under Analysis/Environments.");
+        sys.exit(0);
+    maskname = gp.Describe(gp.mask).Name;
+    
+    #gp.AddMessage(gp.ScratchWorkspace);
+    
+    #maskpolygon = os.path.join(gp.ScratchWorkspace,maskname)
+    maskpolygon = gp.mask;
+    gp.AddMessage("Ussing mask:" + maskname);
+    
     if not gp.Exists(maskpolygon):
-        gp.RasterToPolygon_conversion(gp.mask, maskpolygon, "SIMPLIFY")
+        gp.AddMessage("Mask on olemassa");
+        #gp.RasterToPolygon_conversion(gp.mask, maskpolygon, "SIMPLIFY")
     gp.MakeFeatureLayer_management(maskpolygon, maskname)
     gp.SelectLayerByLocation(TrainPts, 'CONTAINED_BY', maskname, "#", 'SUBSET_SELECTION')
     tpcount = gp.GetCount_management(TrainPts)
@@ -51,8 +66,15 @@ try:
     UnitArea = float(gp.GetParameterAsText(2))
     random = gp.GetParameterAsText(3) == 'true'
     
-    SDMValues.appendSDMValues(gp, UnitArea, TrainPts)
+    #SDMValues.appendSDMValues(gp, UnitArea, TrainPts)
+    # This is used to test if OID is OBJECTID or FID
+    field_names = [f.name for f in arcpy.ListFields(TrainPts)]
     
+    if ('OBJECTID' in field_names):    
+        gp.AddMessage("Object contains OBJECTID and is geodatabase feature");
+    else:
+        gp.AddMessage("Object contains FID and is of type shape");
+        
     if thin:
         #Get minimum allowable distance in meters based on Unit Area
         minDist = math.sqrt(UnitArea * 1000000.0 / math.pi)
@@ -61,9 +83,15 @@ try:
         listPnts = []
         feats = gp.SearchCursor(TrainPts)
         feat = feats.Next()
+        
+        
         while feat:
             pnt = feat.Shape.GetPart(0)
-            listPnts.append((pnt,feat.FID))
+            # Geodababase
+            if ("OBJECTID" in field_names):
+                listPnts.append((pnt,feat.OBJECTID))
+            else:
+                listPnts.append((pnt,feat.FID))
             feat = feats.Next()
         #gp.AddMessage("%s = %s"%('Num listPnts',listPnts[0]))
             
@@ -127,19 +155,29 @@ try:
             if not feat:
                 raise Exception( 'No feature rows selected')
             pnt = feat.Shape.GetPart(0)
-            point = POINT(pnt, feat.FID)
+            if ("OBJECTID" in field_names):
+                point = POINT(pnt, feat.OBJECTID)
+            else:
+                point = POINT(pnt, feat.FID)
+            
             savedPnts.append(point)
 
             unitRadius = minDist
             for feat in feats:
                 pnt = feat.Shape.GetPart(0)
-                point = POINT(pnt, feat.FID)
+                if ("OBJECTID" in field_names):
+                    point = POINT(pnt, feat.OBJECTID)
+                else:
+                    point = POINT(pnt, feat.FID)
                 if brute_force(savedPnts, unitRadius, point):
                     savedPnts.append(point)
             fidl = savedPnts
             if len(fidl) > 0:
                 #Compose SQL where clause like:  "FID" IN (11, 233, 3010,...)
-                fids = '"FID" IN (%d'%fidl[0].fid
+                if ("OBJECTID" in field_names): 
+                    fids = '"OBJECTID" IN (%d'%fidl[0].fid
+                else:
+                    fids = '"FID" IN (%d'%fidl[0].fid
                 for pnt in fidl[1:]:
                     fids += ', %d'%pnt.fid
                 fids += ')'
@@ -219,12 +257,15 @@ try:
                 s += 1
                 
             #gp.AddMessage('fidl:'+str(len(fidl))+","+str(fidl))
-            fids = 'FID = ('
+            if ('OBJECTID' in field_names):
+                fids = 'OBJECTID = ('
+            else:           
+                fids = 'FID = ('
             for fid in fidl:
                 fids += "%d, "%fid
             fids += ')'
         #gp.AddMessage('fids:'+str(fids))
-                        
+        
         gp.SelectLayerByAttribute_management (TrainPts, 'SUBSET_SELECTION', fids) 
         gp.AddMessage("Selected by thinning = " + str(gp.GetCount_management(TrainPts)))
 
@@ -253,17 +294,35 @@ try:
         #gp.AddMessage("randnums: " + str(randnums))
         cutoff = sorted_randnums[int(randomcutoff * gp.GetCount_management(TrainPts))]
         #gp.AddMessage("cutoff: " + str(cutoff))
-        fids = 'FID = '
+        if ('OBJECTID' in field_names):
+            fids = 'OBJECTID = '
+        else:
+            fids = 'FID = '
         feats = gp.SearchCursor(TrainPts)
         i = 0
         feat = feats.Next()
+        #Is this first?
+        first = 0;
         while feat:
+        
             if randnums[i] < cutoff:
-                fids += (str(feat.fid) + ' or FID = ')
+                if ('OBJECTID' in field_names):
+                    if (first > 0):
+                        fids += ' or OBJECTID = ';
+                    else:
+                        first = 1;
+                    fids += (str(feat.OBJECTID) )
+                else:
+                    if (first>0):
+                        fids += ' or FID = ';
+                    else:
+                        first = 1;
+                    fids += (str(feat.fid) + ' or FID = ')
             i+=1
             feat = feats.Next()
         del feats
-        fids = fids[:len(fids)-9]
+        #Removing is not done this way... huoh...T
+        #fids = fids[:len(fids)-9]
         #gp.AddMessage(fids)
         gp.SelectLayerByAttribute_management (TrainPts, 'SUBSET_SELECTION', fids) 
         gp.AddMessage("Selected by random = "+str(gp.GetCount_management(TrainPts)))
