@@ -3,3 +3,6 @@ Demodata/results/as_rcl_CalculateWeights.dbf.xml
 Demodata/results/as_rcl_CalculateWeights.dbf
 Toolbox/scripts/sdmlr.bat
 *.lock
+work/ArcSDM.aprx
+work
+work/*
