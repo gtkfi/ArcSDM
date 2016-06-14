@@ -1,4 +1,4 @@
-# Commandline test for WEights of evidence
+# Commandline test for WEights of evidence toolbox
 #
 # Testing: Training sites reduction
 #
@@ -14,11 +14,11 @@ import arcpy
 import os.path
 
 #Change this to point whereever you wish to create test db...
-gdbdir = "../../"
-gdb = "arcsdmtest.gdb"
+gdbdir = "../work/"
+gdb = "database.gdb"
 
 #TODO: Adjust datadirs to point to demo data when it comes ready
-datadir = "../demo/"
+datadir = "../work/"
 
 
 print ("Checking if database exists...");
@@ -29,7 +29,7 @@ if (not (os.path.exists(gdbdir + gdb))):
     
 
 arcpy.CheckOutExtension("spatial")
-arcpy.ImportToolbox("./arcsdm.tbx")
+arcpy.ImportToolbox("../toolbox/arcsdm.tbx")
 print ("Testing Training sites reduction -tool (Wofe)...")
 
 
@@ -37,12 +37,15 @@ print ("Testing Training sites reduction -tool (Wofe)...")
 arcpy.env.workspace = gdbdir + gdb;
 arcpy.env.scratchWorkspace = gdbdir + gdb;
 
-arcpy.env.outputCoordinateSystem = arcpy.SpatialReference("../demodata/TrainGP.prj")
-arcpy.env.cellSize = "../demodata/Geologia"
+
+dataset = "../work/database.gdb/gold_deposits"
+arcpy.env.outputCoordinateSystem = arcpy.Describe(dataset).spatialReference
+arcpy.env.cellSize = "../work/database.gdb/study_area"
 
 
-arcpy.env.mask = "../demodata/geologia"
-#arcpy.Delete_management("../demodata/results/as_rcl_CalculateWeights.dbf");
+arcpy.env.mask = "../work/database.gdb/study_area"
 
 
-arcpy.ArcSDM.SiteReduction("../demodata/TrainGP", True, 50, False, 50)
+
+
+arcpy.ArcSDM.SiteReduction("../work/database.gdb/gold_deposits", True, 50, False, 50)

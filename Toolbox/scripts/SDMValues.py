@@ -26,8 +26,9 @@ def appendSDMValues(gp, unitCell, TrainPts):
         maskrow = maskrows.next()
         count =  0
         while maskrow:
-            count += maskrow.count
+            count += 1; #maskrow.count
             maskrow = maskrows.next()
+        gp.AddMessage("Maskrowcount: " + str(count));
         mapUnits = getMapUnits(gp).lower().strip()
         if not mapUnits.startswith('meter'):
             gp.addError('Incorrect output map units: Check units of study area.')

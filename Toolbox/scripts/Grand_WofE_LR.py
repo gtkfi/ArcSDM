@@ -6,8 +6,12 @@
 """
 """
     ArcSDM 5 / Spatial data modeler for ArcGis Pro
-    6.4.2016 initial changes Tero Ronkko
     
+	History:
+	6.4.2016 initial changes Tero Ronkko
+	14.6.2016 Geodatabase support started TR
+	
+	
     Spatial Data Modeller for ESRI* ArcGIS 9.2
     Copyright 2007
     Gary L Raines, Reno, NV, USA: production and certification
