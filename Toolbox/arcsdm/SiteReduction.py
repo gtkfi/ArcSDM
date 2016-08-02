@@ -12,15 +12,19 @@
 #  make input optionally points and result another table? (is not commandline testable now)
 
 
+
 # Import system modules
+
+
+
+
 if __name__ == "__main__":
     import sys, string, os, math, traceback
     import SDMValues
     import arcgisscripting
-
+    
 
 def ReduceSites(self, parameters, messages):
-
     import arcpy;
     import math;
     messages.addMessage("Starting sites reduction");
@@ -79,7 +83,8 @@ def ReduceSites(self, parameters, messages):
         
         thin = parameters[1].valueAsText == 'true'
         #messages.addMessage("debug: thin: = " + str(thin)) ;
-        UnitArea = float(parameters[2].valueAsText)
+        if thin:
+            UnitArea = float(parameters[2].valueAsText)
         random = parameters[3].valueAsText == 'true'
         
         #SDMValues.appendSDMValues(gp, UnitArea, TrainPts)

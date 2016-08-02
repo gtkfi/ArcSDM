@@ -21,14 +21,16 @@ def appendSDMValues(gp, unitCell, TrainPts):
             gp.adderror('Scratch workspace mask not set')
         gp.addmessage("Scratch workspace: %s"%gp.scratchworkspace)
         if not gp.mask:
-            gp.adderror('Study Area mask not set')
-        maskrows = gp.SearchCursor(gp.describe(gp.mask).catalogpath)
-        maskrow = maskrows.next()
-        count =  0
-        while maskrow:
-            count += 1; #maskrow.count
+            gp.adderror('Study Area mask not set');
+        else:
+            gp.AddMessage("Mask set");
+            maskrows = gp.SearchCursor(gp.describe(gp.mask).catalogpath)
             maskrow = maskrows.next()
-        gp.AddMessage("Maskrowcount: " + str(count));
+            count =  0
+            while maskrow:
+                count += 1; #maskrow.count
+                maskrow = maskrows.next()
+            gp.AddMessage("Maskrowcount: " + str(count));            
         mapUnits = getMapUnits(gp).lower().strip()
         if not mapUnits.startswith('meter'):
             gp.addError('Incorrect output map units: Check units of study area.')
