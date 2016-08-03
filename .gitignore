@@ -6,3 +6,4 @@ Toolbox/scripts/sdmlr.bat
 work/ArcSDM.aprx
 work
 work/*
+*.pyc
