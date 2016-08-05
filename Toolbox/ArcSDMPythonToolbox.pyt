@@ -1,8 +1,7 @@
 ﻿import sys
 import arcpy
-import arcsdm.SiteReduction as SiteReduction;
+from arcsdm import *
 import arcsdm.CalculateWeights as CalculateWeights;
-import arcsdm;
 import importlib;
 from imp import reload;
 
@@ -222,14 +221,7 @@ class SiteReductionTool(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        #3.4
-        try:
-            importlib.reload (arcsdm.SiteReduction)
-        except :
-            reload(arcsdm.SiteReduction);
-        # To list what functions does module contain
-        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
-        arcsdm.SiteReduction.ReduceSites(self, parameters, messages);
+        ReduceSites(self, parameters, messages)
         return
         
         
