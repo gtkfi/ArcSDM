@@ -11,12 +11,9 @@
 # TODO: Cleanup 
 #  make input optionally points and result another table? (is not commandline testable now)
 
-
-
 # Import system modules
-
-
-
+import sys
+import traceback
 
 if __name__ == "__main__":
     import sys, string, os, math, traceback
@@ -54,10 +51,10 @@ def ReduceSites(self, parameters, messages):
         #print (TrainPts)
         arcpy.SelectLayerByAttribute_management (TrainPts) 
         #gp.AddMessage("%s All Selected = %s"%(TrainPts,str(gp.GetCount_management(TrainPts))))
-        
+        messages.addMessage("Kukkuu")
         #Get initial selection within mask
         if not arcpy.Exists(arcpy.env.mask):
-            messges.addErrorMessage("Mask doesn't exist! Set Mask under Analysis/Environments.");
+            messages.addErrorMessage("Mask doesn't exist! Set Mask under Analysis/Environments.");
             raise arcpy.ExecuteError
 
         maskname = arcpy.Describe(arcpy.env.mask).Name;
@@ -71,7 +68,6 @@ def ReduceSites(self, parameters, messages):
         messages.AddMessage("Ussing mask:" + maskname);
         
         if not arcpy.Exists(maskpolygon):
-            
             #TODO: Make suere everything is set in some other module!
             messages.addWarningMessage("Mask doesn't exist - abort?");
             #gp.RasterToPolygon_conversion(gp.mask, maskpolygon, "SIMPLIFY")
@@ -372,7 +368,6 @@ def ReduceSites(self, parameters, messages):
 
         # print messages for use in Python/PythonWin
         print (pymsg)
-        print (msgs)
         raise
     #gp.MissingDataVariance_sdm(Input_Evidence_Rasters, Output_Weights_Table, crap_pprb, Cellsize)
 
