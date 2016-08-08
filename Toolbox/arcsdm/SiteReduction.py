@@ -51,7 +51,7 @@ def ReduceSites(self, parameters, messages):
         #print (TrainPts)
         arcpy.SelectLayerByAttribute_management (TrainPts) 
         #gp.AddMessage("%s All Selected = %s"%(TrainPts,str(gp.GetCount_management(TrainPts))))
-        
+        messages.addMessage("Kukkuu")
         #Get initial selection within mask
         if not arcpy.Exists(arcpy.env.mask):
             messages.addErrorMessage("Mask doesn't exist! Set Mask under Analysis/Environments.");

@@ -1,7 +1,7 @@
 ﻿import sys
 import arcpy
 from arcsdm import *
-import arcsdm.CalculateWeights as CalculateWeights;
+#import arcsdm.CalculateWeights as CalculateWeights;
 import importlib;
 from imp import reload;
 
@@ -112,13 +112,16 @@ class CalculateWeightsTool(object):
     def execute(self, parameters, messages):
         """The source code of the tool."""
         #3.4
-        try:
-            importlib.reload (arcsdm.CalculateWeights)
-        except :
-            reload(arcsdm.CalculateWeights);
+        #try:
+        #    importlib.reload (arcsdm.CalculateWeights)
+        #except :
+        #    reload(arcsdm.CalculateWeights);
         # To list what functions does module contain
         #messages.addWarningMessage(dir(arcsdm.SiteReduction));
-        arcsdm.CalculateWeights.Calculate(self, parameters, messages);
+        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
+        messages.AddMessage("Waiting for debugger")
+        wait_for_debugger(15);
+        Calculate(self, parameters, messages)
         return
         
         
@@ -221,6 +224,8 @@ class SiteReductionTool(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
+        messages.AddMessage("Waiting for debugger")
+        wait_for_debugger();
         ReduceSites(self, parameters, messages)
         return
         
