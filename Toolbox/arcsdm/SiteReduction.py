@@ -6,16 +6,16 @@
 # Previous version by Unknown (ArcSDM)
 # 13.4.2016 Recoded for ArcSDM 5 / ArcGis pro
 # 30.6.2016 As python toolbox tool module
-#
+# 8.8.2016 AG Desktop compatibility TR
 #
 # TODO: Cleanup 
 #  make input optionally points and result another table? (is not commandline testable now)
 
 # Import system modules
-import sys
-import traceback
 
-#if __name__ == "__main__":
+if __name__ == "__main__":
+    import sys
+    import traceback
    
 def ReduceSites(self, parameters, messages):
     import sys, string, os, math, traceback
@@ -50,7 +50,7 @@ def ReduceSites(self, parameters, messages):
         #print (TrainPts)
         arcpy.SelectLayerByAttribute_management (TrainPts) 
         #gp.AddMessage("%s All Selected = %s"%(TrainPts,str(gp.GetCount_management(TrainPts))))
-        messages.addMessage("Kukkuu")
+        messages.addMessage("DebugMsg5") 
         #Get initial selection within mask
         if not arcpy.Exists(arcpy.env.mask):
             messages.addErrorMessage("Mask doesn't exist! Set Mask under Analysis/Environments.");
