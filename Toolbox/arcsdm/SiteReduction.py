@@ -15,13 +15,12 @@
 import sys
 import traceback
 
-if __name__ == "__main__":
-    import sys, string, os, math, traceback
-    import SDMValues
-    import arcgisscripting
-    
-
+#if __name__ == "__main__":
+   
 def ReduceSites(self, parameters, messages):
+    import sys, string, os, math, traceback
+    #import SDMValues
+    import arcgisscripting
     import arcpy;
     import math;
     messages.addMessage("Starting sites reduction");

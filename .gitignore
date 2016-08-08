@@ -7,3 +7,6 @@ work/ArcSDM.aprx
 work
 work/*
 *.pyc
+*.pyc
+Toolbox/arcsdm/SDMValues.pyc
+Toolbox/arcsdm/SiteReduction.pyc
