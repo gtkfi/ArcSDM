@@ -4,7 +4,7 @@ Spatial Data Modeler 5 for ArcGis pro<Br>
 Status of the toolbox should be updated to wiki [[toolbox-details|https://github.com/gtkfi/ArcSDM/wiki/Toolbox-details]]. <bR>
 
 ##History:
-8.8.2016 
+8.8.2016  ArcGis desktop mxd, python toolbox - development branches 
 26.5.2016 AddBearings, calculatebends and logistic regression tools. Demodatafixes updates
 28.4.2016 Logistic Regression tool (needs lots of work)<br>
 18.4.2016 WofE manual steps compile<br>
