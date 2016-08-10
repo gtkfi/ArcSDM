@@ -6,7 +6,9 @@ Toolbox/scripts/sdmlr.bat
 work/ArcSDM.aprx
 work
 work/*
+Toolbox/arcsdm/__pycache__
+Toolbox/arcsdm/__pycache__/*
 *.pyc
-*.pyc
-Toolbox/arcsdm/SDMValues.pyc
-Toolbox/arcsdm/SiteReduction.pyc
+
+
+
