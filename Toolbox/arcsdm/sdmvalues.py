@@ -4,7 +4,8 @@
     unitCell: unit cell area in sq km
     TrainPts: training sites Points feature class
 """
-import traceback, sys
+import traceback, sys, arcsdm.exceptions;
+import arcpy;
 
 ToMetric = {
     'square meters to square kilometers' : 0.000001,
@@ -39,38 +40,50 @@ def appendSDMValues(gp, unitCell, TrainPts):
             gp.adderror('Study Area cellsize not set')
         if (gp.cellsize == "MAXOF"):
             gp.AddError("Cellsize must have value!");
-            raise;
+            raise arcpy.ExecuteError
+            #raise arcsdm.exceptions.SDMError ("");
+        
         cellsize = float(gp.cellsize)
+        gp.addmessage('Cell Size: %s'%cellsize)
+        
         total_area = count * cellsize **2 * conversion
         num_unit_cells = total_area / unitCell
         num_tps = gp.GetCount_management(TrainPts)
+        #gp.AddMessage("Debug: num_tps = {} num_unit_cells = {}".format(num_tps, num_unit_cells));
+        gp.addmessage('Number of Training Sites: %s' %num_tps)
+        gp.addmessage('Unit Cell Area (sq km): %s'%unitCell)
+        
         priorprob = num_tps / num_unit_cells
         if not (0 < priorprob <= 1.0):
-            gp.adderror('Incorrect no. of training sites or unit cell area')
+            gp.adderror('Incorrect no. of training sites or unit cell area. Result {}'.format(priorprob));
+            raise arcpy.ExecuteError;
         gp.addmessage('Prior Probability: %0.6f' %priorprob)
         gp.addmessage('Training Set: %s'%gp.describe(TrainPts).catalogpath)
-        gp.addmessage('Number of Training Sites: %s' %num_tps)
         gp.addmessage('Study Area Raster: %s'%gp.describe(gp.mask).catalogpath)
         gp.addmessage('Study Area Area (sq km): %s'%total_area)
-        gp.addmessage('Unit Cell Area (sq km): %s'%unitCell)
         gp.addmessage('Map Units: %s'%mapUnits)
         #gp.addmessage('Map Units to Square Kilometers Conversion: %f'%conversion)
-        
+       
+    except arcpy.ExecuteError as error:
+        raise arcpy.ExecuteError;
+    except arcsdm.exceptions.SDMError as error:
+        pass;
     except:
         # get the traceback object
         tb = sys.exc_info()[2]
         # tbinfo contains the line number that the code failed on and the code from that line
         tbinfo = traceback.format_tb(tb)[0]
         # concatenate information together concerning the error into a message string
-        pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-            str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
+        #pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
+        #    str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
         # generate a message string for any geoprocessing tool errors
+        pass;
         if len(gp.GetMessages(2)) > 0:
             msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"
             gp.AddError(msgs)
 
         # return gp messages for use with a script tool
-        gp.AddError(pymsg)
+        #gp.AddError(pymsg)
 
         raise
 
@@ -85,7 +98,7 @@ def getMapUnits(gp):
         #Get spatial reference of geoprocessor
         ocs = gp.outputcoordinatesystem
         if not ocs:
-            gp.adderror('Output Coordinate System not set')
+            gp.adderror('Output Coordinate System not set')            
             raise Exception
         else:
             gp.AddMessage("Debug: Coordinate system ok");
@@ -119,14 +132,17 @@ def getMapUnits(gp):
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
             str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
         # generate a message string for any geoprocessing tool errors
-        msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"
+        msgs = "SDMVALUES + GP ERRORS:\n" + gp.GetMessages(2) + "\n"
         gp.AddError(msgs)
 
         # return gp messages for use with a script tool
-        gp.AddError(pymsg)
+        if (len(gp.GetMessages(2)) < 1):
+            gp.AddError(pymsg)
+            print (pymsg)
+        
+        
 
         # print messages for use in Python/PythonWin
-        print (pymsg)
         print (msgs)
 
 if __name__ == '__main__':

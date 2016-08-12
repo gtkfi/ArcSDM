@@ -34,7 +34,7 @@
 # Import system modules
 import sys, os, traceback
 import math
-    
+import arcpy;
 # TODO: Make these imports soem other way?
 if __name__ == "__main__":
     import sys, string, os, math, traceback
@@ -566,21 +566,32 @@ def Calculate(self, parameters, messages):
         Success = 0  # Invalid Table: Error
         gp.SetParameter(8, Success)
         print ('Aborting wts calculation')
-
+    except arcpy.ExecuteError:
+        pass;
     except Exception as msg:
         # get the traceback object
+        import sys;
+        import traceback;
+        gp.AddMessage(msg);
+        errors = gp.GetMessages(2);
+        
+        # generate a message string for any geoprocessing tool errors
+        msgs = "\n\nCW - GP ERRORS:\n" + gp.GetMessages(2) + "\n"
+        gp.AddMessage("GPMEs: " + str(len(errors)) + " " + gp.GetMessages(2));
+        if (len(errors) > 0):
+            gp.AddError(msgs)
+        
         tb = sys.exc_info()[2]
+        
         # tbinfo contains the line number that the code failed on and the code from that line
         tbinfo = traceback.format_tb(tb)[0]
         # concatenate information together concerning the error into a message string
-        pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-            str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
-        # generate a message string for any geoprocessing tool errors
-        msgs = "GP ERRORS:\n" + gp.GetMessages() + "\n"
-        gp.AddError(msgs)
-
+        pymsg = "CW - PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
+            str(traceback.format_exc)+ "\n" #+  : " + str(sys.exc_value) + "\n"
+        
         # return gp messages for use with a script tool
-        gp.AddError(pymsg)
+        if (len(errors) < 1):
+            gp.AddError(pymsg)
 
         # print messages for use in Python/PythonWin
         print (pymsg)
