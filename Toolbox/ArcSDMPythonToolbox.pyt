@@ -1,9 +1,11 @@
 ﻿import sys
 import arcpy
 
+import arcsdm;
+
 from arcsdm import *
 from arcsdm.sitereduction import ReduceSites
-
+from arcsdm.calculateweights import Calculate
 
     
 
@@ -17,7 +19,8 @@ class Toolbox(object):
         .pyt file)."""
         
         self.label = "ArcSDM python toolbox"
-        self.alias = "ArcSDM python toolbox"
+        self.alias = "ArcSDM" 
+
         # List of tool classes associated with this toolbox
         self.tools = [CalculateWeightsTool,SiteReductionTool]
 
@@ -119,15 +122,15 @@ class CalculateWeightsTool(object):
         """The source code of the tool."""
         #3.4
         try:
-            importlib.reload (arcsdm.CalculateWeights)
+            importlib.reload (arcsdm.calculateweights)
         except :
-            reload(arcsdm.CalculateWeights);
+            reload(arcsdm.calculateweights);
         # To list what functions does module contain
         #messages.addWarningMessage(dir(arcsdm.SiteReduction));
         #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
         #messages.AddMessage("Waiting for debugger")
         #wait_for_debugger(15);
-        Calculate(self, parameters, messages)
+        calculateweights.Calculate(self, parameters, messages)
         return
         
         
