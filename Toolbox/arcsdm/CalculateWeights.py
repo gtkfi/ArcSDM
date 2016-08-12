@@ -5,6 +5,7 @@
    
     History: 
     1.8.2016 Python toolbox version started
+    12.8.2016 First running version for pyt. Shapefile training points and output?
 
     
     
@@ -191,7 +192,8 @@ def Calculate(self, parameters, messages):
         CodeName =  parameters[1].valueAsText #gp.GetParameterAsText(1)
         TrainingSites =  parameters[2].valueAsText
         Type =  parameters[3].valueAsText
-        wtstable = gp.GetParameterAsText(4)
+        wtstable = parameters[4].valueAsText;
+        
         Confident_Contrast = float( parameters[5].valueAsText)
         Unitarea = float( parameters[6].valueAsText)
         MissingDataValue = int( parameters[7].valueAsText)
@@ -209,12 +211,13 @@ def Calculate(self, parameters, messages):
         if gp.exists(Statistics): gp.Delete_management(Statistics)
         gp.Statistics_analysis(tempTrainingPoints, Statistics, "rastervalu sum" ,"rastervalu")
     # Process: Create the table
+        gp.addmessage ("Creating table: " + wtstable);
         gp.CreateTable_management(os.path.dirname(wtstable), os.path.basename(wtstable), Statistics)
         gp.AddField_management (wtstable, "Count", "long") 
         gp.AddField_management (wtstable, "Area", 'double')
         gp.AddField_management (wtstable, "AreaUnits", 'double')
         gp.AddField_management (wtstable, "CLASS", "long") 
-        if len(CodeName) > 0:
+        if CodeName != None and len(CodeName) > 0:
             gp.AddField_management(wtstable,"CODE","text","5","#","#","Symbol")
         gp.AddField_management (wtstable, "AREA_SQ_KM", "double") 
         gp.AddField_management (wtstable, "AREA_UNITS", "double")
@@ -244,7 +247,8 @@ def Calculate(self, parameters, messages):
                 wtsrow = wtsrows.NewRow()
                 wtsrow.rastervalu = row.Value
                 wtsrow.SetValue('class',row.Value)
-                if len(CodeName) > 0: wtsrow.Code = row.GetValue(CodeName)
+                if CodeName != None and len(CodeName) > 0: 
+                    wtsrow.Code = row.GetValue(CodeName)
                 wtsrow.Count = row.Count
                 statsrows = gp.SearchCursor(Statistics,'rastervalu = %i'%row.Value)
                 if statsrows:

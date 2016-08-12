@@ -222,8 +222,8 @@ class SiteReductionTool(object):
             #parameters[4].setErrorMessage("Random percentage value required!")
             if parameters[4].value == '' or  parameters[4].value is None:
                 parameters[4].setErrorMessage("Random percentage value required!")
-            elif parameters[4].value > 100 or parameters[4].value < 0:
-                parameters[4].setErrorMessage("Value has to between 0-100 %!")
+            elif parameters[4].value > 100 or parameters[4].value < 1:
+                parameters[4].setErrorMessage("Value has to between 1-100 %!")
             
         if (l < 1):
             parameters[1].setErrorMessage("You have to select either one!")
