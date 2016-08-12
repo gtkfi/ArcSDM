@@ -37,6 +37,9 @@ def appendSDMValues(gp, unitCell, TrainPts):
         conversion = getMapConversion(gp, mapUnits)
         if not gp.cellsize:
             gp.adderror('Study Area cellsize not set')
+        if (gp.cellsize == "MAXOF"):
+            gp.AddError("Cellsize must have value!");
+            raise;
         cellsize = float(gp.cellsize)
         total_area = count * cellsize **2 * conversion
         num_unit_cells = total_area / unitCell
@@ -84,6 +87,8 @@ def getMapUnits(gp):
         if not ocs:
             gp.adderror('Output Coordinate System not set')
             raise Exception
+        else:
+            gp.AddMessage("Debug: Coordinate system ok");
         #Replace apostrophes with quotations
         ocs = ocs.replace("'",'"')
         #Open scratch file for output

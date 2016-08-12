@@ -33,10 +33,12 @@
 # Import system modules
 import sys, os, traceback
 import math
+    
 # TODO: Make these imports soem other way?
 if __name__ == "__main__":
     import sys, string, os, math, traceback
-    import SDMValues, WorkArounds_93
+    import sdmvalues, workarounds_93
+    import sdmvalues;
     import arcgisscripting
     
 
@@ -167,7 +169,16 @@ def MakeWts(patternNTP, patternArea, unit, totalNTP, totalArea, Type):
             
 # Load arguments...
 def Calculate(self, parameters, messages):
+    import importlib;
     try:
+        import arcsdm.sdmvalues;
+        import arcsdm.workarounds_93;
+        try:
+            importlib.reload (arcsdm.sdmvalues)
+            importlib.reload (arcsdm.workarounds_93);
+        except :
+            reload(arcsdm.sdmvalues);
+            reload(arcsdm.workarounds_93);        
         gp.OverwriteOutput = 1
         gp.LogHistory = 1
         EvidenceLayer = parameters[0].valueAsText
@@ -184,14 +195,14 @@ def Calculate(self, parameters, messages):
         Confident_Contrast = float( parameters[5].valueAsText)
         Unitarea = float( parameters[6].valueAsText)
         MissingDataValue = int( parameters[7].valueAsText)
-        
-        SDMValues.appendSDMValues(gp,  Unitarea, TrainingSites)
+        gp.AddMessage("Debug step 12");
+        arcsdm.sdmvalues.appendSDMValues(gp,  Unitarea, TrainingSites)
         
     # Process: ExtractValuesToPoints
         #tempTrainingPoints = gp.createscratchname("OutPoints", "FC", "shapefile", gp.scratchworkspace)
         #gp.ExtractValuesToPoints_sa(TrainingSites, EvidenceLayer, tempTrainingPoints, "NONE", "VALUE_ONLY")
         assert isinstance(EvidenceLayer, object)
-        tempTrainingPoints = WorkArounds_93.ExtractValuesToPoints(gp, EvidenceLayer, TrainingSites, "TPFID")
+        tempTrainingPoints = arcsdm.workarounds_93.ExtractValuesToPoints(gp, EvidenceLayer, TrainingSites, "TPFID")
     # Process: Summarize Frequency and manage fields
         #Statistics = gp.createuniquename("WtsStatistics.dbf")
         Statistics = gp.createuniquename("WtsStatistics")
