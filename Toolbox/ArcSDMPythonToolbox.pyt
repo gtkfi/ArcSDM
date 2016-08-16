@@ -32,6 +32,7 @@ class CalculateWeightsTool(object):
         self.label = "Calculate Weights"
         self.description = "Calculate weight rasters from the inputs"
         self.canRunInBackground = False
+        self.category = "Weights of Evidence"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -144,6 +145,7 @@ class SiteReductionTool(object):
         self.label = "Training sites reduction"
         self.description = "Selects subset of the training points"
         self.canRunInBackground = False
+        self.category = "Weights of Evidence"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -250,6 +252,7 @@ class CategoricalMembershipToool(object):
         self.label = "Categorical Membership"
         self.description = "Create fuzzy memberships for categorical data by first reclassification to integers and then division by an appropriate value"
         self.canRunInBackground = False
+        self.category = "Fuzzy Logic\\Fuzzy Membership"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -301,6 +304,12 @@ class CategoricalMembershipToool(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
+        import ptvsd
+        try:
+            ptvsd.enable_attach(secret=None)   
+        except:
+            pass
+        ptvsd.wait_for_attach()
         try:
             importlib.reload (arcsdm.categoricalmembership)
         except:
