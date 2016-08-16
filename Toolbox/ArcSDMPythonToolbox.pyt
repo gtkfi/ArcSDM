@@ -6,10 +6,10 @@ import arcsdm;
 from arcsdm import *
 from arcsdm.sitereduction import ReduceSites
 from arcsdm.calculateweights import Calculate
+from arcsdm.categoricalmembership import Calculate
+   
 
-    
-
-import importlib;
+import importlib
 from imp import reload;
 
 
@@ -22,7 +22,7 @@ class Toolbox(object):
         self.alias = "ArcSDM" 
 
         # List of tool classes associated with this toolbox
-        self.tools = [CalculateWeightsTool,SiteReductionTool]
+        self.tools = [CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool]
 
 
 
@@ -244,9 +244,67 @@ class SiteReductionTool(object):
         sitereduction.ReduceSites(self, parameters, messages)
         return
         
+class CategoricalMembershipToool(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Categorical Membership"
+        self.description = "Create fuzzy memberships for categorical data by first reclassification to integers and then division by an appropriate value"
+        self.canRunInBackground = False
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        param0 = arcpy.Parameter(
+        displayName="Categorical evidence raster",
+        name="categorical_evidence",
+        datatype="GPRasterLayer",
+        parameterType="Required",
+        direction="Input")
+
+        param1 = arcpy.Parameter(
+        displayName="Reclassification",
+        name="reclassification",
+        datatype="GPTableView",
+        parameterType="Required",
+        direction="Input")
+
+        param2 = arcpy.Parameter(
+        displayName="Rescale Constant",
+        name="rescale_constant",
+        datatype="GPLong",
+        parameterType="Required",
+        direction="Input")
+
+        param3 = arcpy.Parameter(
+        displayName="FMCat",
+        name="fmcat",
+        datatype="DERasterDataset",
+        parameterType="Required",
+        direction="Output")
         
-        
-        
-        
-        
+        params = [param0, param1, param2, param3]
+        return params
+
+    def isLicensed(self):
+        """Set whether tool is licensed to execute."""
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        try:
+            importlib.reload (arcsdm.categoricalmembership)
+        except:
+            reload(arcsdm.categoricalmembership)
+        categoricalmembership.Calculate(self, parameters, messages)
+        return
         
