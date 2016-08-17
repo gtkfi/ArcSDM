@@ -14,10 +14,9 @@ def Calculate(self, parameters, messages):
             fmcat = "%Workspace%/FMCat" # provide a default value if unspecified
         reclass_cat_evidence = ReclassByTable(cat_evidence, reclassification, "VALUE", "VALUE", "FMx100", "NODATA")
         float_reclass_cat_evidence = Float(reclass_cat_evidence)
-        divided = Divide(float_reclass_cat_evidence, rescale_constant)
+        result_raster = Divide(float_reclass_cat_evidence, rescale_constant)
         rasterLayerName = os.path.split(fmcat)[1]
-        AddToDisplay(divided, rasterLayerName, "BOTTOM")
-        
+        addToDisplay(result_raster, rasterLayerName, "BOTTOM")
     except Exception as Msg:
         # get the traceback object
         tb = sys.exc_info()[2]
@@ -31,10 +30,17 @@ def Calculate(self, parameters, messages):
         print (pymsg)
         raise
 
-def AddToDisplay(layer, name, position):
+def addToDisplay(layer, name, position):
     result = arcpy.MakeRasterLayer_management(layer, name)
     lyr = result.getOutput(0)
-    mxd = arcpy.mapping.MapDocument("CURRENT")
-    dataframe = arcpy.mapping.ListDataFrames(mxd)[0]
-    arcpy.mapping.AddLayer(dataframe, lyr, position)
-    
+    product = arcpy.GetInstallInfo()['ProductName']
+    if "Desktop" in product:
+        mxd = arcpy.mapping.MapDocument("CURRENT")
+        dataframe = arcpy.mapping.ListDataFrames(mxd)[0]
+        arcpy.mapping.AddLayer(dataframe, lyr, position)
+    elif "Pro" in product:
+        aprx = arcpy.mp.ArcGISProject("CURRENT")
+        m = aprx.listMaps("Map")[0]
+        m.addLayer(lyr, position)
+
+

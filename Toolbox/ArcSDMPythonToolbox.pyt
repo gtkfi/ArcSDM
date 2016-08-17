@@ -304,12 +304,6 @@ class CategoricalMembershipToool(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        import ptvsd
-        try:
-            ptvsd.enable_attach(secret=None)   
-        except:
-            pass
-        ptvsd.wait_for_attach()
         try:
             importlib.reload (arcsdm.categoricalmembership)
         except:
