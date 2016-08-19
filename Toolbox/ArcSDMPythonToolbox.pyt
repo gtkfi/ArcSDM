@@ -22,7 +22,7 @@ class Toolbox(object):
         self.alias = "ArcSDM" 
 
         # List of tool classes associated with this toolbox
-        self.tools = [CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool]
+        self.tools = [CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,CategoricalAndReclassTool]
 
 
 
@@ -235,10 +235,6 @@ class SiteReductionTool(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        
-        #messages.AddMessage("Waiting for debugger")
-        #wait_for_debugger();
-         #3.4
         try:
             importlib.reload (arcsdm.sitereduction)
         except :
@@ -309,5 +305,89 @@ class CategoricalMembershipToool(object):
         except:
             reload(arcsdm.categoricalmembership)
         categoricalmembership.Calculate(self, parameters, messages)
+        return
+
+class CategoricalAndReclassTool(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Categorical & Reclass"
+        self.description = "Create fuzzy memberships for categorical data by first reclassification to integers and then division by an appropriate value."
+        self.canRunInBackground = False
+        self.category = "Fuzzy Logic\\Fuzzy Membership"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        param0 = arcpy.Parameter(
+        displayName="Categorical evidence raster",
+        name="categorical_evidence",
+        datatype="GPRasterLayer",
+        parameterType="Required",
+        direction="Input")
+        
+        param1 = arcpy.Parameter(
+        displayName="Reclass field",
+        name="reclass_field",
+        datatype="Field",
+        parameterType="Required",
+        direction="Input")
+        
+        param2 = arcpy.Parameter(
+        displayName="Reclassification",
+        name="reclassification",
+        datatype="remap",
+        parameterType="Required",
+        direction="Input")
+        
+        param3 = arcpy.Parameter(
+        displayName="FM Categorical",
+        name="fmcat",
+        datatype="DERasterDataset",
+        parameterType="Required",
+        direction="Output")
+
+        param4 = arcpy.Parameter(
+        displayName="Divisor",
+        name="divisor",
+        datatype="GPLong",
+        parameterType="Required",
+        direction="Input")
+        
+        param1.value = "VALUE"
+        param1.enabled = False
+        param2.enabled = False
+        param1.parameterDependencies = [param0.name]  
+        param2.parameterDependencies = [param0.name,param1.name]
+
+        params = [param0,param1,param2,param3,param4]
+        return params
+
+    def isLicensed(self):
+        """Set whether tool is licensed to execute."""
+        return True
+    
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        if parameters[0].value:
+            parameters[1].enabled = True
+            parameters[2].enabled = True
+        else:
+            parameters[1].enabled = False
+            parameters[2].enabled = False
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        try:
+            importlib.reload (arcsdm.categoricalreclass)
+        except:
+            reload(arcsdm.categoricalreclass)
+        categoricalreclass.Calculate(self, parameters, messages)
         return
         

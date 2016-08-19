@@ -1,2 +1,2 @@
-__all__ = ["sitereduction", "calculateweights", "categoricalmembership"]
+__all__ = ["sitereduction", "calculateweights", "categoricalmembership", "categoricalreclass"]
 
