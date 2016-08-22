@@ -22,7 +22,7 @@ class Toolbox(object):
         self.alias = "ArcSDM" 
 
         # List of tool classes associated with this toolbox
-        self.tools = [CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,CategoricalAndReclassTool]
+        self.tools = [CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,CategoricalAndReclassTool, TOCFuzzificationTool]
 
 
 
@@ -389,5 +389,72 @@ class CategoricalAndReclassTool(object):
         except:
             reload(arcsdm.categoricalreclass)
         categoricalreclass.Calculate(self, parameters, messages)
+        return
+
+class TOCFuzzificationTool(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "TOC Fuzzification"
+        self.description = "This fuzzification method utilized the symbolization of the input raster that has been applied in the map document table of contects (TOC). The symbolization in the TOC defines the number of classes and this tool rescales those classes (1...N) to the range [0,1] by (C - 1)/(N-1) where C is the class value and N is the number of classes."
+        self.canRunInBackground = False
+        self.category = "Fuzzy Logic\\Fuzzy Membership"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        param0 = arcpy.Parameter(
+        displayName="Input Raster",
+        name="categorical_evidence",
+        datatype="GPRasterLayer",
+        parameterType="Required",
+        direction="Input")
+        
+        param1 = arcpy.Parameter(
+        displayName="Reclass Field",
+        name="reclass_field",
+        datatype="Field",
+        parameterType="Required",
+        direction="Input")
+
+        param2 = arcpy.Parameter(
+        displayName="Number of Classes",
+        name="classes",
+        datatype="GPLong",
+        parameterType="Required",
+        direction="Input")
+
+        param3 = arcpy.Parameter(
+        displayName="Fuzzy Membership Raster",
+        name="fmtoc",
+        datatype="DERasterDataset",
+        parameterType="Required",
+        direction="Output")
+        
+        param1.value = "VALUE"
+        param1.parameterDependencies = [param0.name]  
+        params = [param0,param1,param2,param3]
+        return params
+
+    def isLicensed(self):
+        """Set whether tool is licensed to execute."""
+        return True
+    
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        try:
+            importlib.reload (arcsdm.tocfuzzification)
+        except:
+            reload(arcsdm.tocfuzzification)
+        tocfuzzification.Calculate(self, parameters, messages)
         return
         
