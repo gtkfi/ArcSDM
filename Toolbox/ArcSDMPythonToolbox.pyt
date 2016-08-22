@@ -403,7 +403,7 @@ class TOCFuzzificationTool(object):
         """Define parameter definitions"""
         param0 = arcpy.Parameter(
         displayName="Input Raster",
-        name="categorical_evidence",
+        name="input_raster",
         datatype="GPRasterLayer",
         parameterType="Required",
         direction="Input")
@@ -416,13 +416,20 @@ class TOCFuzzificationTool(object):
         direction="Input")
 
         param2 = arcpy.Parameter(
+        displayName="Reclassification",
+        name="reclassification",
+        datatype="remap",
+        parameterType="Required",
+        direction="Output")
+
+        param3 = arcpy.Parameter(
         displayName="Number of Classes",
         name="classes",
         datatype="GPLong",
         parameterType="Required",
         direction="Input")
 
-        param3 = arcpy.Parameter(
+        param4 = arcpy.Parameter(
         displayName="Fuzzy Membership Raster",
         name="fmtoc",
         datatype="DERasterDataset",
@@ -431,7 +438,8 @@ class TOCFuzzificationTool(object):
         
         param1.value = "VALUE"
         param1.parameterDependencies = [param0.name]  
-        params = [param0,param1,param2,param3]
+        param2.parameterDependencies = [param0.name,param1.name]
+        params = [param0,param1,param2,param3,param4]
         return params
 
     def isLicensed(self):
