@@ -23,6 +23,7 @@ def appendSDMValues(gp, unitCell, TrainPts):
         gp.addmessage("Scratch workspace: %s"%gp.scratchworkspace)
         if not gp.mask:
             gp.adderror('Study Area mask not set');
+            raise arcpy.ExecuteError;
         else:
             gp.AddMessage("Mask set");
             maskrows = gp.SearchCursor(gp.describe(gp.mask).catalogpath)
@@ -65,7 +66,9 @@ def appendSDMValues(gp, unitCell, TrainPts):
         #gp.addmessage('Map Units to Square Kilometers Conversion: %f'%conversion)
        
     except arcpy.ExecuteError as error:
-        raise arcpy.ExecuteError;
+        #gp.AddMessage("Debug1");
+        #gp.AddError(gp.GetMessages(2))
+        pass;
     except arcsdm.exceptions.SDMError as error:
         pass;
     except:
@@ -98,8 +101,8 @@ def getMapUnits(gp):
         #Get spatial reference of geoprocessor
         ocs = gp.outputcoordinatesystem
         if not ocs:
-            gp.adderror('Output Coordinate System not set')            
-            raise Exception
+            gp.adderror('Output Coordinate System not set')
+            raise arcpy.ExecuteError
         else:
             gp.AddMessage("Debug: Coordinate system ok");
         #Replace apostrophes with quotations
@@ -122,6 +125,12 @@ def getMapUnits(gp):
             return spatref.angularunitname
         else:
             return None        
+    except arcpy.ExecuteError as error:
+        #gp.AddError(gp.GetMessages(2))
+        #gp.AddMessage("Debug SDMVAlues exception");
+        exit();
+        raise arcpy.ExecuteError;
+        #pass;
     except:
         import traceback, sys
         # get the traceback object

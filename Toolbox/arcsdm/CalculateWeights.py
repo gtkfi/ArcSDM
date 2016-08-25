@@ -567,7 +567,14 @@ def Calculate(self, parameters, messages):
         gp.SetParameter(8, Success)
         print ('Aborting wts calculation')
     except arcpy.ExecuteError:
-        pass;
+        gp.AddMessage("DebugHere");
+        
+        #gp.AddError(gp.GetMessages(2))
+        exit();
+        raise arcpy.ExecuteError;
+        return;
+        #pass;
+        
     except Exception as msg:
         # get the traceback object
         import sys;
