@@ -1,10 +1,11 @@
+# -*- coding: utf-8 -*-
 import unittest
 import platform
 import os
 import arcpy
 
-
 class TestSiteReduction(unittest.TestCase):
+    
     ARCSDM_TOOLBOX = "../ArcSDMPythonToolbox.pyt"
     GDBDIR = "../../work/"
     GDB = "database.gdb"
@@ -12,6 +13,7 @@ class TestSiteReduction(unittest.TestCase):
     TRAINING_SITE_LYR_STR = "traininig_site_lyr"	
     TRAINING_SITE_LYR = arcpy.MakeFeatureLayer_management(TRAINING_SITE_FILEPATH, TRAINING_SITE_LYR_STR)	
     MASK = os.path.join(GDBDIR, GDB + "/study_area") 
+    
     @classmethod
     def setUpClass(cls):
         print("Using Python version %s" % platform.python_version())
