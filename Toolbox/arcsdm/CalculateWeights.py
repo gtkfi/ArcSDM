@@ -271,7 +271,8 @@ def Calculate(self, parameters, messages):
                 wtsrow = wtsrows.NewRow()
                 wtsrow.rastervalu = row.Value
                 wtsrow.SetValue('class',row.Value)
-                if len(CodeName) > 0: wtsrow.Code = row.GetValue(CodeName)
+                if CodeName != None and len(CodeName) > 0: 
+                    wtsrow.Code = row.GetValue(CodeName)
                 wtsrow.Count = row.Count
                 statsrows = gp.SearchCursor(Statistics,'rastervalu = %i'%row.Value)
                 if statsrows:
@@ -560,7 +561,7 @@ def Calculate(self, parameters, messages):
         gp.DeleteField_management(wtstable, "area;areaunits;count;rastervalu;frequency;sum_raster")
      #Set Output Parameter
         gp.SetParameterAsText(4, gp.Describe(wtstable).CatalogPath)
-        gp.SetParameter(8, Success)
+        #gp.SetParameter(8, Success)
         
     except ErrorExit:
         Success = 0  # Invalid Table: Error

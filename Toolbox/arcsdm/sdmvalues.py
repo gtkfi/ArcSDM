@@ -52,11 +52,11 @@ def appendSDMValues(gp, unitCell, TrainPts):
         num_tps = gp.GetCount_management(TrainPts)
         #gp.AddMessage("Debug: num_tps = {} num_unit_cells = {}".format(num_tps, num_unit_cells));
         gp.addmessage('Number of Training Sites: %s' %num_tps)
-        gp.addmessage('Unit Cell Area (sq km): %s'%unitCell)
+        gp.addmessage('Unit Cell Area (sq km): {}  Cells in area: {} '.format(unitCell,num_unit_cells))
         
         priorprob = num_tps / num_unit_cells
         if not (0 < priorprob <= 1.0):
-            gp.adderror('Incorrect no. of training sites or unit cell area. Result {}'.format(priorprob));
+            gp.adderror('Incorrect no. of training sites or unit cell area. TrainingPointsResult {}'.format(priorprob));
             raise arcpy.ExecuteError;
         gp.addmessage('Prior Probability: %0.6f' %priorprob)
         gp.addmessage('Training Set: %s'%gp.describe(TrainPts).catalogpath)
@@ -66,9 +66,8 @@ def appendSDMValues(gp, unitCell, TrainPts):
         #gp.addmessage('Map Units to Square Kilometers Conversion: %f'%conversion)
        
     except arcpy.ExecuteError as error:
-        #gp.AddMessage("Debug1");
-        #gp.AddError(gp.GetMessages(2))
-        pass;
+        exit();
+        raise arcpy.ExecuteError;
     except arcsdm.exceptions.SDMError as error:
         pass;
     except:

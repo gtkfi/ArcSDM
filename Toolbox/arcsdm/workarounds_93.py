@@ -11,7 +11,8 @@
     
     Work-arounds for 9.3 version of ArcGIS 
 """
-import sys, os, traceback
+import sys, os, traceback, arcpy
+
 
 def rowgen( searchcursor ):
     """ wrapper for searchcursor to permit its use in Python for statement """
@@ -23,6 +24,20 @@ def rowgen( searchcursor ):
         row = rows.next()
     del rows
 
+    
+    
+#This function needs to be GENERAL    
+
+def GetIDField(table):
+    field_names = []
+    fields = arcpy.ListFields(table,"")
+    for field in fields:
+        field_names.append(field.name)
+    if "FID" in [field_names]:
+        return "FID"
+    else:
+        return "OBJECTID" 
+    
 def ExtractValuesToPoints(gp, inputRaster, inputFeatures, siteFIDName):
     """ ExtractValuesToPoints tool in ArcGIS 9.3 now selects ALL features.
            This routine generates the extracted feature class from only selected input features.
@@ -38,8 +53,8 @@ def ExtractValuesToPoints(gp, inputRaster, inputFeatures, siteFIDName):
             gp.AddMessage("Debug: SiteFIDName = " + siteFIDName );
          
         #gp.CalculateField_management(inputFeatures, siteFIDName, "!FID!", "PYTHON_9.3", None)
-          
-        gp.CalculateField_management(inputFeatures, siteFIDName, "!FID!", "PYTHON_9.3")
+        idfield = GetIDField(inputFeatures); 
+        gp.CalculateField_management(inputFeatures, siteFIDName, "!{}!".format(idfield) , "PYTHON_9.3")
 
         tempExtrShp = gp.CreateScratchName ('Extr', 'Tmp', 'shapefile', gp.scratchworkspace)
         #tempSelectedExtrShp = gp.CreateScratchName ('SelExtr', 'Tmp', 'shapefile', gp.scratchworkspace)
