@@ -21,6 +21,7 @@ def appendSDMValues(gp, unitCell, TrainPts):
         if not gp.scratchworkspace:
             gp.adderror('Scratch workspace mask not set')
         gp.addmessage("Scratch workspace: %s"%gp.scratchworkspace)
+        # TODO: These should be moved to common CHECKENV class/function TR
         if not gp.mask:
             gp.adderror('Study Area mask not set');
             raise arcpy.ExecuteError;
@@ -46,8 +47,13 @@ def appendSDMValues(gp, unitCell, TrainPts):
         
         cellsize = float(gp.cellsize)
         gp.addmessage('Cell Size: %s'%cellsize)
-        
+        #gp.addMessage("Debug: " + str(conversion));
         total_area = count * cellsize **2 * conversion
+        #gp.addMessage("Debug));
+        
+        gp.addMessage("Debug: " + str(total_area));
+        gp.addMessage("Debug: " + str(type(unitCell)));
+        unitCell = int(unitCell);
         num_unit_cells = total_area / unitCell
         num_tps = gp.GetCount_management(TrainPts)
         #gp.AddMessage("Debug: num_tps = {} num_unit_cells = {}".format(num_tps, num_unit_cells));
@@ -66,22 +72,23 @@ def appendSDMValues(gp, unitCell, TrainPts):
         #gp.addmessage('Map Units to Square Kilometers Conversion: %f'%conversion)
        
     except arcpy.ExecuteError as error:
-        exit();
+        gp.addError("SdmValues: ExecuteError");
         raise arcpy.ExecuteError;
-    except arcsdm.exceptions.SDMError as error:
-        pass;
+        
+  
     except:
         # get the traceback object
         tb = sys.exc_info()[2]
+        gp.addError("sdmvalues.py excepted:");
         # tbinfo contains the line number that the code failed on and the code from that line
         tbinfo = traceback.format_tb(tb)[0]
+        gp.addError ( tbinfo );
         # concatenate information together concerning the error into a message string
         #pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
         #    str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
         # generate a message string for any geoprocessing tool errors
-        pass;
         if len(gp.GetMessages(2)) > 0:
-            msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"
+            msgs = "SDM GP ERRORS:\n" + gp.GetMessages(2) + "\n"
             gp.AddError(msgs)
 
         # return gp messages for use with a script tool
@@ -127,7 +134,6 @@ def getMapUnits(gp):
     except arcpy.ExecuteError as error:
         #gp.AddError(gp.GetMessages(2))
         #gp.AddMessage("Debug SDMVAlues exception");
-        exit();
         raise arcpy.ExecuteError;
         #pass;
     except:

@@ -13,7 +13,8 @@
 """
 # Import system modules
 import sys, os, math, traceback, operator, arcpy
-
+import arcsdm.sdmvalues;
+import importlib;
 # For ArcGis pro - 
 if __name__ == "__main__":
     import sys, string, os, math, traceback
@@ -28,8 +29,10 @@ import arcgisscripting
 
 # TODO: This should be in external file - like all other common things TR 
 def CheckEnvironment():
+    arcpy.AddMessage("Checking environment...");
+    #arcpy.AddMessage('Cell size:{}'.format(arcpy.env.cellSize));
     if (arcpy.env.cellSize == 'MAXOF'):
-        arcpy.AddError("Cellsize must not be MAXOF!");
+        arcpy.AddError("  Cellsize must not be MAXOF!");
         raise arcpy.ExecuteError;
 
 
@@ -47,12 +50,19 @@ def Execute(self, parameters, messages):
 
     # Script arguments...
     try:
-        from  floatingrasterarray import FloatRasterSearchcursor
-        #Check for max cell area
-        #unitCell = gp.GetParameter(5)
+    
+        from  arcsdm.floatingrasterarray import FloatRasterSearchcursor
+        import arcsdm.sdmvalues;
+        import arcsdm.workarounds_93;
+        try:
+            importlib.reload (arcsdm.sdmvalues)
+            importlib.reload (arcsdm.workarounds_93);
+        except :
+            reload(arcsdm.sdmvalues);
+            reload(arcsdm.workarounds_93);            
         unitCell = parameters[5].valueAsText
         
-        gp.AddMessage('Cell size:{}'.format(arcpy.env.cellSize));
+        
         CheckEnvironment();
         if unitCell < (float(gp.CellSize)/1000.0)**2:
             unitCell = (float(gp.CellSize)/1000.0)**2
@@ -60,11 +70,11 @@ def Execute(self, parameters, messages):
                         'Setting Unit Cell to area of study area cells: %.0f sq km.'%unitCell)
 
         #Get evidence layer names
-        Input_Rasters = gp.GetParameterAsText(0).split(';')
+        Input_Rasters = parameters[0].valueAsText.split(';')
         #gp.AddMessage('Input_Rasters: %s'%(str(Input_Rasters)))
         #Get evidence layer types
-        Evidence_types = gp.GetParameterAsText(1).lower().split(';')
-        #gp.AddMessage('Input_Rasters: %s'%(str(Input_Rasters)))
+        Evidence_types = parameters[1].valueAsText.lower().split(';')
+        gp.AddMessage('Input_Rasters: %s'%(str(Input_Rasters)))
         if len(Evidence_types) != len(Input_Rasters):
             gp.AddError("Not enough Evidence types!")
             raise Exception
@@ -73,28 +83,28 @@ def Execute(self, parameters, messages):
                 gp.AddError("Incorrect Evidence type: %s"%evtype)
                 raise Exception
         #Get weights tables names
-        Wts_Tables = gp.GetParameterAsText(2).split(';')
-        #gp.AddMessage('Wts_Tables: %s'%(str(Wts_Tables)))
+        Wts_Tables = parameters[2].valueAsText.split(';')
+        gp.AddMessage('Wts_Tables: %s'%(str(Wts_Tables)))
         if len(Wts_Tables) != len(Wts_Tables):
             gp.AddError("Not enough weights tables!")
             raise Exception
         #Get Training sites feature layer
-        TrainPts = gp.GetParameterAsText(3)
-        #gp.AddMessage('TrainPts: %s'%(str(TrainPts)))
+        TrainPts = parameters[3].valueAsText
+        gp.AddMessage('TrainPts: %s'%(str(TrainPts)))
         #Get missing data values
-        MissingDataValue = gp.GetParameter(4)
+        MissingDataValue = parameters[4].valueAsText
         lstMD = [MissingDataValue for ras in Input_Rasters]
-        #gp.AddMessage('MissingDataValue: %s'%(str(MissingDataValue)))
+        gp.AddMessage('MissingDataValue: %s'%(str(MissingDataValue)))
         #Get output raster name
         thmUC = gp.createscratchname("tmp_UCras", '', 'raster', gp.scratchworkspace)
 
         #Print out SDM environmental values
-        SDMValues.appendSDMValues(gp, unitCell, TrainPts)
+        sdmvalues.appendSDMValues(gp, unitCell, TrainPts)
 
         #Create Generalized Class tables
         Wts_Rasters = []
         mdidx = 0
-        #gp.AddMessage("Creating Generalized Class rasters.")
+        gp.AddMessage("Creating Generalized Class rasters.")
         for Input_Raster, Wts_Table in zip(Input_Rasters, Wts_Tables):
             Output_Raster = gp.CreateScratchName(os.path.basename(Input_Raster[:9]) + "_G", '', 'raster', gp.scratchworkspace)
             #gp.AddMessage('Output_Raster: %s'%(str(Output_Raster)))
@@ -595,7 +605,7 @@ def Execute(self, parameters, messages):
 
     
     except arcpy.ExecuteError:
-        #gp.AddMessage("DebugHere");
+        #gp.AddMessage("LR ExecuteError");
         
         #gp.AddError(gp.GetMessages(2))
         #exit();
@@ -621,7 +631,7 @@ def Execute(self, parameters, messages):
         # print messages for use in Python/PythonWin
         print (pymsg)
         print (msgs)
-        #raise 'Stopped on error.'       
+        raise;
     
     
 def RemoveDuplicates(lst):
