@@ -1,7 +1,7 @@
 # ArcSDM
 Spatial Data Modeler 5 for ArcGis pro<Br>
 <br>
-Status of the toolbox should be updated to wiki [[toolbox-details|https://github.com/gtkfi/ArcSDM/wiki/Toolbox-details]]. <bR>
+Status of the toolbox should be updated to wiki [[toolbox-details][https://github.com/gtkfi/ArcSDM/wiki/Toolbox-details]] <bR>
 
 ##History:
 2.9.2016 Logistic regression (wip) Area frequency tool (wip)<br>

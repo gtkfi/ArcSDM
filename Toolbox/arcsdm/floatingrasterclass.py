@@ -161,8 +161,9 @@ if __name__ == '__main__':
     gp.OverwriteOutput = 1
 
     try:
-        gp.workspace = 'C:/Carlin_GIS'
-        gp.scratchworkspace = "C:/TEMP"
+        #What? TR
+        #gp.workspace = 'C:/Carlin_GIS'
+        #gp.scratchworkspace = "C:/TEMP"
         floatrasters = gp.listrasters('gw*')
         #floatraster = floatrasters.next()
         #while floatraster:
