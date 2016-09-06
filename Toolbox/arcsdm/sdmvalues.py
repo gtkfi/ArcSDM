@@ -51,8 +51,8 @@ def appendSDMValues(gp, unitCell, TrainPts):
         total_area = count * cellsize **2 * conversion
         #gp.addMessage("Debug));
         
-        gp.addMessage("Debug: " + str(total_area));
-        gp.addMessage("Debug: " + str(type(unitCell)));
+        gp.addMessage("Debug: Total_area=" + str(total_area));
+        gp.addMessage("Debug: Unitcell=" + str((unitCell)));
         unitCell = int(unitCell);
         num_unit_cells = total_area / unitCell
         num_tps = gp.GetCount_management(TrainPts)

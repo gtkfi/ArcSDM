@@ -36,7 +36,9 @@ import sys, string, os, random, traceback, tempfile
 import arcgisscripting
 import arcsdm.workarounds_93
 from arcsdm.floatingrasterclass import FloatRasterVAT, rowgen
+import importlib;
 
+import arcpy;
 # Create the Geoprocessor object
 gp = arcgisscripting.create()
 
@@ -55,8 +57,14 @@ def Execute(self, parameters, messages):
         UnitArea =  parameters[3].valueAsText #gp.GetParameter(3)
         Output_Table =  parameters[4].valueAsText #gp.GetParameterAsText(4)
 
-        import SDMValues
-        SDMValues.appendSDMValues(gp, UnitArea, Input_point_features)
+        import arcsdm.sdmvalues
+        try:
+            importlib.reload (arcsdm.sdmvalues)
+            importlib.reload (arcsdm.workarounds_93);
+        except :
+            reload(arcsdm.sdmvalues);
+            reload(arcsdm.workarounds_93);          
+        arcsdm.sdmvalues.appendSDMValues(gp, UnitArea, Input_point_features)
         
         #Some locals
         valuetypes = {1:'Integer', 2:'Float'}
@@ -65,7 +73,7 @@ def Execute(self, parameters, messages):
         RasterValue_field = Value_field.title().endswith('Value')
         #Create Output Raster
         valuetype = gp.GetRasterProperties (Input_raster, 'VALUETYPE')
-        #gp.addmessage("valuetype = " + str(valuetype))
+        gp.addmessage("valuetype = " + str(valuetype))
         #gp.addmessage("Value type: %s"%valuetypes[valuetype])
         ##if valuetypes[valuetype].title() == 'Integer': #INTEGER #RDB
         if valuetype <= 8:  #<RDB new integer valuetype property values for arcgis version 10
@@ -315,7 +323,11 @@ def Execute(self, parameters, messages):
 
         if Input_table and joinRastername: #In case of joined integer raster and table
             gp.RemoveJoin_management(joinRastername, Input_table)
-            
+    except arcpy.ExecuteError:
+        #TODO: Clean up all these execute errors in final version
+        gp.AddMessage("AreaFrequency caught: arcpy.ExecuteError");
+        gp.AddMessage("-------------- END EXECUTION ---------------");        
+        raise arcpy.ExecuteError;       
     except:
         #In case of joined integer raster and table
         if Input_table and joinRastername:

@@ -11,4 +11,4 @@ Status of the toolbox should be updated to wiki [[toolbox-details][https://githu
 28.4.2016 Logistic Regression tool (needs lots of work)<br>
 18.4.2016 WofE manual steps compile<br>
 13.4.2016 Demodata for tests added (from original files)<br>
-1.4.2016 Repository created
+1.4.2016 Repository created <br>
