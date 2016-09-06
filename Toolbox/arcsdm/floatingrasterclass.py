@@ -12,6 +12,7 @@ scale of 6 or less have FLOAT type in tables and the type DOUBLE for higher scal
     All attribute and function names must be lower case.
 """
 import os, sys, traceback, array
+import arcpy;
 
 class FloatRasterVAT(object):
     """ Pseudo VAT for a float-type raster and useful methods """
@@ -19,7 +20,13 @@ class FloatRasterVAT(object):
         """ Generator yields VAT-like rows for floating rasters """
         # Process: RasterToFLOAT_conversion: FLOAT raster to FLOAT file
         # Get a output scratch file name
-        OutAsciiFile = gp.createuniquename("tmp_rasfloat.flt", gp.scratchworkspace)
+        ## TODO: .flt for dir, no .flt to geodatabase!
+        ## Now using Scratchfolder
+        #OutAsciiFile = gp.createuniquename("tmp_rasfloat.flt", gp.scratchworkspace)  
+        arcpy.AddMessage(" -- Debug: FLoatingRasterArray --");
+        arcpy.AddMessage("Debug:" + arcpy.env.scratchFolder);
+        
+        OutAsciiFile = gp.createuniquename("tmp_rasfloat.flt", arcpy.env.scratchFolder)
         #Convert float raster to FLOAT file and ASCII header
         gp.RasterToFLOAT_conversion(float_raster, OutAsciiFile)
         # Create dictionary as pseudo-VAT
@@ -31,10 +38,10 @@ class FloatRasterVAT(object):
             fdin = open(hdrpath,'r')
             ncols = int(fdin.readline().split()[1].strip())
             nrows = int(fdin.readline().split()[1].strip())
-            xllcorner =  float(fdin.readline().split()[1].strip())
-            yllcorner = float(fdin.readline().split()[1].strip())
-            cellsize = float(fdin.readline().split()[1].strip())
-            self.nodata_value = float(fdin.readline().split()[1].strip())
+            xllcorner =  float(fdin.readline().split()[1].strip().replace(",", ".")) #NO commas!
+            yllcorner = float(fdin.readline().split()[1].strip().replace(",", "."))
+            cellsize = float(fdin.readline().split()[1].strip().replace(",", "."))
+            self.nodata_value = float(fdin.readline().split()[1].strip().replace(",", "."))
             byteorder = fdin.readline().split()[1].strip()
         finally:
             fdin.close()

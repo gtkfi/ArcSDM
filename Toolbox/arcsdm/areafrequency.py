@@ -61,9 +61,13 @@ def Execute(self, parameters, messages):
         try:
             importlib.reload (arcsdm.sdmvalues)
             importlib.reload (arcsdm.workarounds_93);
+            importlib.reload (arcsdm.floatingrasterclass);
+            
         except :
             reload(arcsdm.sdmvalues);
             reload(arcsdm.workarounds_93);          
+            reload (arcsdm.floatingrasterclass);
+
         arcsdm.sdmvalues.appendSDMValues(gp, UnitArea, Input_point_features)
         
         #Some locals
@@ -113,24 +117,37 @@ def Execute(self, parameters, messages):
         #gp.AddMessage('Extracting values to points...')
         #Output_point_features = gp.createuniquename("Extract_Train.shp", gp.ScratchWorkspace)
         #gp.ExtractValuesToPoints_sa(Input_point_features, Input_raster, Output_point_features)
-        Output_point_features = WorkArounds_93. ExtractValuesToPoints(gp, Input_raster, Input_point_features, "TPFID")
+        Output_point_features = arcsdm.workarounds_93. ExtractValuesToPoints(gp, Input_raster, Input_point_features, "TPFID")
 
     # Process: Summary Statistics...
         #Get stats of RASTERVALU field in training sites features with extracted points.
         #gp.AddMessage('Getting statistics...')
-        Output_summary_stats = gp.createuniquename("Ext_Trn_Stats.dbf", gp.scratchworkspace)
-        gp.Statistics_analysis(Output_point_features, Output_summary_stats,"RASTERVALU FIRST","RASTERVALU")
+        
+        #TODO: IF GDB, no .dbf if other - .dbf        
+        #Output_summary_stats = gp.createuniquename("Ext_Trn_Stats.dbf", gp.scratchworkspace)
+        Output_summary_stats = gp.createuniquename("Ext_Trn_Stats", gp.scratchworkspace)
+        
+        
+
+        
         stats_dict = {}
         #gp.addwarning('Got stats...')
         #Get all VALUES from input raster, add to stats_dict dictionary
         #from floatingrasterclass import FloatRasterVAT, rowgen
         flt_ras = FloatRasterVAT(gp, Input_raster)
         rows = flt_ras.FloatRasterSearchcursor()
+        gp.Statistics_analysis(Output_point_features, Output_summary_stats,"RASTERVALU FIRST","RASTERVALU")
+      
+        
+        
         for row in rows: stats_dict[row.value] = 0
         num_training_sites = gp.getcount(Output_point_features)
         #gp.addwarning('num_training_sites: %s'%num_training_sites)
         #Get frequency of RASTERVALU in training points extracted values.
         statsrows = rowgen(gp.SearchCursor(Output_summary_stats))
+       
+        
+        
         num_nodata = 0
         for row in statsrows:
             #Get actual raster value from truncated value in Extracted values of point theme.
@@ -142,12 +159,14 @@ def Execute(self, parameters, messages):
                 rasval = flt_ras[row.RASTERVALU]
                 #Update stats dictionary with occurence frequencies in Statistics table
                 if rasval in stats_dict: stats_dict[rasval] = row.FREQUENCY
-        #gp.addwarning("Created stats_dict: %s"%stats_dict)
+        gp.addwarning("Created stats_dict: %s"%stats_dict)
         num_counts = sum(stats_dict.values())
         if num_counts != num_training_sites - num_nodata:
             gp.addwarning("Stats count and number of training sites in data area do not compare.")
         if num_nodata > 0: gp.addwarning("%d training points in NoData area."%num_nodata)
-                                                                                
+        gp.AddMessage("Debug: Goes here");
+        #gp.AddMessage(Output_summary_stats);
+        raise                                                                        
         #gp.AddMessage('Creating table: %s'%Output_Table)
         gp.CreateTable_management(os.path.dirname(Output_Table),os.path.basename(Output_Table))
         #gp.AddMessage("Created output table.")
