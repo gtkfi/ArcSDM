@@ -4,6 +4,7 @@
 #
 # History:
 # Previous version by Unknown (ArcSDM)
+# 7.9.2016 Fixes
 # 13.4.2016 Recoded for ArcSDM 5 / ArcGis pro
 # 30.6.2016 As python toolbox tool module
 # 8.8.2016 AG Desktop compatibility TR
@@ -16,7 +17,8 @@
 if __name__ == "__main__":
     import sys
     import traceback
-   
+
+    
 def ReduceSites(self, parameters, messages):
     import sys, string, os, math, traceback
     #import SDMValues
@@ -24,23 +26,10 @@ def ReduceSites(self, parameters, messages):
     import arcpy;
     import math;
     messages.addMessage("Starting sites reduction");
-    ##gp = arcgisscripting.create()
+ 
+ 
 
-    # Check out any necessary licenses
-    #gp.CheckOutExtension("spatial")
-    #gp.AddMessage("Point 1");
-        
-    # Load required toolboxes...
-    #d = gp.GetInstallInfo()
-    #sPath = d["InstallDir"]
-    ##gp.AddToolbox("C:/Program Files/ArcGIS/ArcToolbox/Toolboxes/Spatial Analyst Tools.tbx") #<== RDB 07/01/2010
-    ##gp.AddToolbox("C:/Program Files/ArcGIS/ArcToolbox/Toolboxes/Data Management Tools.tbx")
-    #gp.AddToolbox(os.path.join(sPath, "ArcToolbox/Toolboxes/Spatial Analyst Tools.tbx"))
-    #gp.AddToolbox(os.path.join(sPath, "ArcToolbox/Toolboxes/Data Management Tools.tbx"))
-
-    # Script arguments...
-    # Local variables...
-
+ 
     # Process: Missing Data Variance...
     try:
         #gp.AddMessage("Point 1");
@@ -50,28 +39,38 @@ def ReduceSites(self, parameters, messages):
         #print (TrainPts)
         arcpy.SelectLayerByAttribute_management (TrainPts) 
         #gp.AddMessage("%s All Selected = %s"%(TrainPts,str(gp.GetCount_management(TrainPts))))
-        messages.addMessage("DebugMsg5") 
+        
+        #messages.addMessage("DebugMsg5") 
         #Get initial selection within mask
+        maskpolygon = arcpy.env.mask;
+        if maskpolygon is None:
+            #messages.addErrorMessage("Mask doesn't exist! Set Mask under Analysis/Environments.");
+            raise arcpy.ExecuteError("Mask doesn't exist! Set Mask under Analysis/Environments.")
+           
         if not arcpy.Exists(arcpy.env.mask):
-            messages.addErrorMessage("Mask doesn't exist! Set Mask under Analysis/Environments.");
-            raise arcpy.ExecuteError
-
+            #messages.addErrorMessage("Mask doesn't exist! Set Mask under Analysis/Environments.");
+            raise arcpy.ExecuteError("Mask doesn't exist! Set Mask under Analysis/Environments.");
+        
         maskname = arcpy.Describe(arcpy.env.mask).Name;
         
         #NOTE: THere is also scratch folder!
-        messages.AddMessage(arcpy.env.scratchWorkspace);
-        messages.AddMessage(maskname);
+        messages.AddMessage("Scratch workspace: " + arcpy.env.scratchWorkspace);
+        #messages.AddMessage(maskname);
         
         #maskpolygon = os.path.join(gp.ScratchWorkspace,maskname)
         maskpolygon = arcpy.env.mask;
-        messages.AddMessage("Ussing mask:" + maskname);
+        messages.AddMessage("Using mask:" + maskname);
         
         if not arcpy.Exists(maskpolygon):
             #TODO: Make suere everything is set in some other module!
-            messages.addWarningMessage("Mask doesn't exist - abort?");
+            #messages.addWarningMessage("Mask doesn't exist - abort?");
+            #messages.addMessage("DebugMsg5")        
             #gp.RasterToPolygon_conversion(gp.mask, maskpolygon, "SIMPLIFY")
+            raise arcpy.ExecuteError ("Mask doesn't exist - aborting");
         arcpy.MakeFeatureLayer_management(maskpolygon, maskname)
-        messages.addMessage(maskpolygon);
+        #messages.addMessage("DebugMsg5") 
+        
+        #messages.addMessage(maskpolygon);
         arcpy.SelectLayerByLocation_management(TrainPts, 'CONTAINED_BY', maskname, "#", 'SUBSET_SELECTION')
         tpcount = arcpy.GetCount_management(TrainPts)
         #messages.AddMessage("debug: Selected by mask = "+str(tpcount))
@@ -283,9 +282,10 @@ def ReduceSites(self, parameters, messages):
                     fids += "%d, "%fid
                 fids += ')'
             #gp.AddMessage('fids:'+str(fids))
+            total_amount_of_points = (arcpy.GetCount_management(TrainPts))
             
             arcpy.SelectLayerByAttribute_management (TrainPts, 'SUBSET_SELECTION', fids) 
-            messages.AddMessage("Selected by thinning = " + str(arcpy.GetCount_management(TrainPts)))
+            messages.AddMessage("Selected by thinning = " + str(arcpy.GetCount_management(TrainPts)) + "/" + str(total_amount_of_points )  )
 
     #Random site reduction can take place after thinning
         if random:
@@ -349,7 +349,16 @@ def ReduceSites(self, parameters, messages):
         if not thin and not random:
             gp.AddError("No training sites reduction method selected.")
             raise 'User Error'
-
+    except arcpy.ExecuteError as e:
+        #TODO: Clean up all these execute errors in final version
+        arcpy.AddError("\n");
+        arcpy.AddMessage("Training sites reduction caught arcpy.ExecuteError: ");
+        args = e.args[0];
+        args.split('\n')
+        arcpy.AddError(args);
+                    
+        arcpy.AddMessage("-------------- END EXECUTION ---------------");        
+        raise arcpy.ExecuteError;   
     except Exception as Msg:
         # get the traceback object
         tb = sys.exc_info()[2]
