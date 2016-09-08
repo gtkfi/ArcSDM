@@ -33,7 +33,7 @@ def GetIDField(table):
     fields = arcpy.ListFields(table,"")
     for field in fields:
         field_names.append(field.name)
-    if "FID" in [field_names]:
+    if "FID" in field_names:
         return "FID"
     else:
         return "OBJECTID" 
