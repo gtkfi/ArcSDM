@@ -1,4 +1,7 @@
+
+
 """
+
     Spatial Data Modeller for ESRI* ArcGIS 9.3
     Copyright 2009
     Gary L Raines, Reno, NV, USA: production and certification

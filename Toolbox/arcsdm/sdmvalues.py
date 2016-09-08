@@ -53,7 +53,7 @@ def appendSDMValues(gp, unitCell, TrainPts):
         
         gp.addMessage("Debug: Total_area=" + str(total_area));
         gp.addMessage("Debug: Unitcell=" + str((unitCell)));
-        unitCell = float(unitCell.replace(",", ".")); # Python: "Commas, gtfo"
+        unitCell = float(unitCell)#.replace(",", ".")); # Python: "Commas, gtfo"
         num_unit_cells = total_area / unitCell
         num_tps = gp.GetCount_management(TrainPts)
         #gp.AddMessage("Debug: num_tps = {} num_unit_cells = {}".format(num_tps, num_unit_cells));

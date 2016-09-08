@@ -195,7 +195,8 @@ def Calculate(self, parameters, messages):
         wtstable = parameters[4].valueAsText;
         
         Confident_Contrast = float( parameters[5].valueAsText)
-        Unitarea = float( parameters[6].valueAsText)
+        #Unitarea = float( parameters[6].valueAsText)
+        Unitarea = float( parameters[6].value)
         MissingDataValue = int( parameters[7].valueAsText)
         gp.AddMessage("Debug step 12");
         arcsdm.sdmvalues.appendSDMValues(gp,  Unitarea, TrainingSites)
@@ -288,8 +289,11 @@ def Calculate(self, parameters, messages):
      # Calculate fields
         #gp.AddMessage('Calculating weights...')
         #gp.AddMessage("[count] * %f * %f /1000000.0"%(cellsize,cellsize))
-        gp.CalculateField_management (wtstable, "area", "!count! * %f / 1000000.0"%(cellsize**2))
-        gp.CalculateField_management (wtstable, "areaunits", "!area! / %f"% Unitarea)
+        arcpy.CalculateField_management(wtstable, "area",  "!count! * %f / 1000000.0"%(cellsize**2), "PYTHON_9.3")
+        arcpy.CalculateField_management(wtstable, "areaunits",  "!area! / %f"% Unitarea, "PYTHON_9.3")
+
+        #gp.CalculateField_management (wtstable, "area", "!count! * %f / 1000000.0"%(cellsize**2))
+        #gp.CalculateField_management (wtstable, "areaunits", "!area! / %f"% Unitarea)
      # Calculate accumulative fields
         if Type in ("Ascending", "Descending"):
             wtsrows = gp.UpdateCursor(wtstable)
@@ -567,14 +571,16 @@ def Calculate(self, parameters, messages):
         Success = 0  # Invalid Table: Error
         gp.SetParameter(8, Success)
         print ('Aborting wts calculation')
-    except arcpy.ExecuteError:
-        gp.AddMessage("DebugHere");
-        
-        #gp.AddError(gp.GetMessages(2))
-        exit();
-        raise arcpy.ExecuteError;
-        return;
-        #pass;
+    except arcpy.ExecuteError as e:
+        #TODO: Clean up all these execute errors in final version
+        arcpy.AddError("\n");
+        arcpy.AddMessage("Calculate weights caught arcpy.ExecuteError: ");
+        args = e.args[0];
+        args.split('\n')
+        arcpy.AddError(args);
+                    
+        arcpy.AddMessage("-------------- END EXECUTION ---------------");        
+        raise arcpy.ExecuteError;   
         
     except Exception as msg:
         # get the traceback object
