@@ -11,21 +11,10 @@
     Don L Sawatzky, Spokane, WA, USA: Python software development
 
 """
-# Import system modules
-import sys, os, math, traceback, operator, arcpy
-import arcsdm.sdmvalues;
-import importlib;
-# For ArcGis pro - 
-if __name__ == "__main__":
-    import sys, string, os, math, traceback
-    import sdmvalues, workarounds_93
-    import sdmvalues;
-    import arcgisscripting
-    import tempfile
-    import arcpy;
-
-# Create the Geoprocessor object
+import sys, string, os, math, tempfile, arcgisscripting, traceback, operator, importlib
 import arcgisscripting
+import arcpy
+import sdmvalues, workarounds_93
 
 # TODO: This should be in external file - like all other common things TR 
 def CheckEnvironment():
@@ -59,8 +48,8 @@ def Execute(self, parameters, messages):
             importlib.reload (arcsdm.workarounds_93);
         except :
             reload(arcsdm.sdmvalues);
-            reload(arcsdm.workarounds_93);            
-        unitCell = parameters[5].valueAsText
+            reload(arcsdm.workarounds_93)
+        unitCell = parameters[5].value
         
         
         CheckEnvironment();
@@ -158,7 +147,7 @@ def Execute(self, parameters, messages):
             thmUCRL = gp.describe(thmUC).catalogpath
         else:
             thmUCRL = thmUC
-        ucrows = WorkArounds_93.rowgen(gp.SearchCursor(thmUCRL))
+        ucrows = workarounds_93.rowgen(gp.SearchCursor(thmUCRL))
         for ucrow in ucrows:
             for i, fld in enumerate(evflds):
                 lstsVals[i].append(ucrow.GetValue(fld))
@@ -178,10 +167,10 @@ def Execute(self, parameters, messages):
         #ExtrTrainPts = os.path.join(gp.ScratchWorkspace, "LRExtrPts.shp")
         #ExtrTrainPts = gp.CreateScratchName('LRExtrPts', 'shp', 'shapefile', gp.scratchworkspace)
         #gp.ExtractValuesToPoints_sa(TrainPts, thmUC, ExtrTrainPts, "NONE", "VALUE_ONLY")
-        ExtrTrainPts = WorkArounds_93.ExtractValuesToPoints(gp, thmUC, TrainPts, "TPFID")
+        ExtrTrainPts = workarounds_93.ExtractValuesToPoints(gp, thmUC, TrainPts, "TPFID")
         #Make dictionary of Counts of Points per RasterValue
         CntsPerRasValu = {}
-        tpFeats = WorkArounds_93.rowgen(gp.SearchCursor(ExtrTrainPts))
+        tpFeats = workarounds_93.rowgen(gp.SearchCursor(ExtrTrainPts))
         for tpFeat in tpFeats:
             if tpFeat.RasterValu in CntsPerRasValu.keys():
                 CntsPerRasValu[tpFeat.RasterValu] += 1
@@ -244,12 +233,10 @@ def Execute(self, parameters, messages):
         ot = [['%s, %s'%(Input_Rasters[i], Wts_Tables[i])] for i in range(len(Input_Rasters))]
         #gp.AddMessage("ot=%s"%ot)
         strF2 = "case.dat"
-        print (tempfile.gettempdir())
-        #Lets use system TMP dir -instead.
         # tmp != scratch
-        #dirTmp = gp.ScratchWorkspace
+        dirTmp = gp.ScratchWorkspace
         #dirTmp = tempfile.gettempdir()
-        dirTmp = "c:/tmp"
+        #dirTmp = "c:/tmp"
 
         fnCase = os.path.join(dirTmp, strF2)
         fCase = open(fnCase, 'w')
@@ -431,7 +418,8 @@ def Execute(self, parameters, messages):
             gp.AddError("Input Error - Unable to open the file: %s for reading." %strFnLR)
             raise 'Open error'
         read = 0
-        fnNew = gp.GetParameterAsText(6)
+        #fnNew = gp.GetParameterAsText(6)
+        fnNew = parameters[6].valueAsText
         tblbn = os.path.basename(fnNew)
         [tbldir, tblfn] = os.path.split(fnNew)
         gp.AddMessage("fnNew: %s"%fnNew)
@@ -451,7 +439,7 @@ def Execute(self, parameters, messages):
         gp.DeleteField_management(fnNew, "Field1")
         vTabLR = fnNew
         strLine = fLR.readline()
-        vTabUCrows = WorkArounds_93.rowgen(gp.SearchCursor(vTabUC))
+        vTabUCrows = workarounds_93.rowgen(gp.SearchCursor(vTabUC))
         #vTabUCrow = vTabUCrows.Next()
         ttl = 0
         #while vTabUCrow:
@@ -494,24 +482,18 @@ def Execute(self, parameters, messages):
         for el in ot:
             for e in el:
                 lstLabels.append(e.replace(' ', ''))
-        #TODO: COntinue here!
-        print ("LstLabels: ", lstLabels);
-
-
         #gp.AddMessage('lstLabels: %s'%lstLabels)
     ##  ' Make vtab to hold theme coefficients
     ##  '----------------------------------------------
-        fnNew2 = gp.GetParameterAsText(7)
+        #fnNew2 = gp.GetParameterAsText(7)
+        fnNew2 = parameters[7].valueAsText
         tblbn = os.path.basename(fnNew2)
         [tbldir, tblfn] = os.path.split(fnNew2)
         fnNew2 = tblbn
         print ("Tabledir: ", tbldir);
-        #print (fnNew2)
         #gp.AddMessage('Making table to hold theme coefficients: %s'%fnNew2)
         print('Making table to hold theme coefficients: %s'%fnNew2)
-        #TODO: CLEAN this
         fnNew2 = tbldir + "/" + fnNew2;
-        #TODO: CLEANUP these annoying filenames
         gp.AddMessage('Making table to hold theme coefficients: %s'%fnNew2)
         gp.CreateTable_management(tbldir, tblfn)
         gp.AddField_management(fnNew2, "Theme_ID", 'Long', 6, "#", "#", "Theme ID")
@@ -573,16 +555,20 @@ def Execute(self, parameters, messages):
         cmb = thmUC
         cmbrl = 'cmbrl'
         gp.makerasterlayer_management(cmb, cmbrl)
-        tbl = gp.GetParameterAsText(6)
+        #tbl = gp.GetParameterAsText(6)
+        tbl = parameters[6].valueAsText
         tbltv = 'tbltv'
         gp.maketableview_management(tbl, tbltv)
         gp.addjoin_management(cmbrl, 'Value', tbltv, 'ID')
         cmb_cpy = gp.createscratchname("cmb_cpy", '', 'raster', gp.scratchworkspace)
         gp.copyraster_management(cmbrl, cmb_cpy)
         #Make output float rasters from attributes of joined unique conditions raster
-        outRaster1 = gp.GetParameterAsText(8)
-        outRaster2 = gp.GetParameterAsText(9)
-        outRaster3 =  gp.GetParameterAsText(10)
+        #outRaster1 = gp.GetParameterAsText(8)
+        #outRaster2 = gp.GetParameterAsText(9)
+        #outRaster3 =  gp.GetParameterAsText(10)
+        outRaster1 =  parameters[8].valueAsText
+        outRaster2 =  parameters[9].valueAsText
+        outRaster3 =  parameters[10].valueAsText
         gp.addmessage("="*41+'\n'+"="*41)
         ##template = {'cmbrl':cmb_cpy}
         ##InExp = "CON(%(cmbrl)s.LRPOSTPROB >= 0, %(cmbrl)s.LRPOSTPROB, 0)"%template
@@ -602,16 +588,14 @@ def Execute(self, parameters, messages):
         gp.SetParameterAsText(8, outRaster1)
         gp.SetParameterAsText(9, outRaster2)
         gp.SetParameterAsText(10, outRaster3)
-
-    
-    except arcpy.ExecuteError:
-        #gp.AddMessage("LR ExecuteError");
-        
-        #gp.AddError(gp.GetMessages(2))
-        #exit();
-        raise arcpy.ExecuteError;
-        #return;
-        #pass;
+    except arcpy.ExecuteError as e:
+        arcpy.AddError("\n");
+        arcpy.AddMessage("Logistic regression caught ExecuteError: ");
+        args = e.args[0];
+        args.split('\n')
+        arcpy.AddError(args);
+        arcpy.AddMessage("-------------- END EXECUTION ---------------");        
+        raise 
     except:
         # get the traceback object
         tb = sys.exc_info()[2]
