@@ -12,8 +12,8 @@
 
 """
 import sys, string, os, math, tempfile, arcgisscripting, traceback, operator, importlib
-import arcgisscripting
 import arcpy
+import arcgisscripting
 import sdmvalues, workarounds_93
 
 # TODO: This should be in external file - like all other common things TR 
@@ -432,10 +432,10 @@ def Execute(self, parameters, messages):
 
         #To point to REAL table
 
-        gp.AddField_management(fnNew, 'ID', 'Long', 6)
-        gp.AddField_management(fnNew, 'LRPostProb', 'Double', "#", "#", "#", "LR Posterior Probability")
-        gp.AddField_management(fnNew, 'LR_Std_Dev', 'Double', "#", "#", "#", "LR Standard Deviation")
-        gp.AddField_management(fnNew, 'LRTValue', 'Double', "#", "#", "#", "LR TValue")
+        gp.AddField_management(fnNew, 'ID', 'LONG', 6)
+        gp.AddField_management(fnNew, 'LRPostProb', 'Double', "#", "#", "#", "LR_Posterior_Probability")
+        gp.AddField_management(fnNew, 'LR_Std_Dev', 'Double', "#", "#", "#", "LR_Standard_Deviation")
+        gp.AddField_management(fnNew, 'LRTValue', 'Double', "#", "#", "#", "LR_TValue")
         gp.DeleteField_management(fnNew, "Field1")
         vTabLR = fnNew
         strLine = fLR.readline()
@@ -496,10 +496,10 @@ def Execute(self, parameters, messages):
         fnNew2 = tbldir + "/" + fnNew2;
         gp.AddMessage('Making table to hold theme coefficients: %s'%fnNew2)
         gp.CreateTable_management(tbldir, tblfn)
-        gp.AddField_management(fnNew2, "Theme_ID", 'Long', 6, "#", "#", "Theme ID")
-        gp.AddField_management(fnNew2, "Theme", 'text', "#", "#", 48, "Evidential Theme")
+        gp.AddField_management(fnNew2, "Theme_ID", 'Long', 6, "#", "#", "Theme_ID")
+        gp.AddField_management(fnNew2, "Theme", 'text', "#", "#", 48, "Evidential_Theme")
         gp.AddField_management(fnNew2, "Coeff", 'double', "#", "#", "#", 'Coefficient')
-        gp.AddField_management(fnNew2, "LR_Std_Dev", 'double', "#", "#", "#", "LR Standard Deviation")
+        gp.AddField_management(fnNew2, "LR_Std_Dev", 'double', "#", "#", "#", "LR_Standard_Deviation")
         gp.DeleteField(fnNew2, "Field1")
         vTabLR2 = fnNew2
         strLine = fLR2.readline()
@@ -578,16 +578,22 @@ def Execute(self, parameters, messages):
         ##InExp = "CON(%(cmbrl)s.LRTVALUE >= 0, %(cmbrl)s.LRTVALUE, 0)"%template
         ##gp.SingleOutputMapAlgebra_sa(InExp, outRaster3) # <==RDB  07/01/2010
         # <==RDB  07/01/2010 -  SOMA expression is crashing in version 10. Changed to use Con tool.
+        
         gp.Con_sa(cmb_cpy,cmb_cpy+".LRPOSTPROB",outRaster1,"0","LRPOSTPROB > 0")
         gp.Con_sa(cmb_cpy,cmb_cpy+".LR_STD_DEV",outRaster2,"0","LR_STD_DEV > 0")
         gp.Con_sa(cmb_cpy,cmb_cpy+".LRTVALUE",outRaster3,"0","LRTVALUE > 0")
 
         #Add t0 display
-        gp.SetParameterAsText(6, tbl)
-        gp.SetParameterAsText(7, gp.describe(vTabLR2).catalogpath)
-        gp.SetParameterAsText(8, outRaster1)
-        gp.SetParameterAsText(9, outRaster2)
-        gp.SetParameterAsText(10, outRaster3)
+        #gp.SetParameterAsText(6, tbl)
+        arcpy.SetParameterAsText(6,tbl)
+        #gp.SetParameterAsText(7, gp.describe(vTabLR2).catalogpath)
+        arcpy.SetParameterAsText(7, gp.describe(vTabLR2).catalogpath)
+        #gp.SetParameterAsText(8, outRaster1)
+        arcpy.SetParameterAsText(8, outRaster1)
+        #gp.SetParameterAsText(9, outRaster2)
+        arcpy.SetParameterAsText(9, outRaster2)
+        #gp.SetParameterAsText(10, outRaster3)
+        arcpy.SetParameterAsText(10, outRaster3)
     except arcpy.ExecuteError as e:
         arcpy.AddError("\n");
         arcpy.AddMessage("Logistic regression caught ExecuteError: ");
