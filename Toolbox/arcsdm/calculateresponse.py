@@ -5,6 +5,7 @@
     History:
     4/2016 Conversion started - TR
     9/2016 Conversion started to Python toolbox TR
+    
 
     Spatial Data Modeller for ESRI* ArcGIS 9.2
     Copyright 2007
@@ -17,6 +18,9 @@
 # ---------------------------------------------------------------------------
 """
 
+import arcsdm.sdmvalues;
+import arcpy;
+
 def Execute(self, parameters, messages):
 
 
@@ -24,6 +28,15 @@ def Execute(self, parameters, messages):
         # Import system modules
         import sys, os, math, traceback;
         import arcsdm.sdmvalues
+        
+        import arcsdm.sdmvalues;
+        import arcsdm.workarounds_93;
+        try:
+            importlib.reload (arcsdm.sdmvalues)
+            importlib.reload (arcsdm.workarounds_93);
+        except :
+            reload(arcsdm.sdmvalues);
+            reload(arcsdm.workarounds_93);   
 
         # Create the Geoprocessor object
 
@@ -43,22 +56,24 @@ def Execute(self, parameters, messages):
         ##sdm_toolbox = os.path.dirname(sys.path[0])+ os.sep + "Spatial Data Modeller Tools.tbx"
         ##gp.AddToolbox(sdm_toolbox)
 
-        gp.AddMessage("\n"+"="*41+"\n"+"="*41)
+        #gp.AddMessage("\n"+"="*41+"\n"+"="*41)
     # Script arguments...
-        Evidence = gp.GetParameterAsText(0)
-        Wts_Tables = gp.GetParameterAsText(1)
-        Training_Points = gp.GetParameterAsText(2)
-        IgnoreMsgData = gp.GetParameter(3)
-        MissingDataValue = gp.GetParameter(4)
+        gp.AddMessage("\n"+"="*41)
+
+        Evidence = parameters[0].valueAsText #gp.GetParameterAsText(0)
+        Wts_Tables = parameters[1].valueAsText #gp.GetParameterAsText(1)
+        Training_Points = parameters[2].valueAsText #gp.GetParameterAsText(2)
+        IgnoreMsgData = parameters[3].value #gp.GetParameter(3)
+        MissingDataValue = parameters[4].value #gp.GetParameter(4)
         #Cleanup extramessages after stuff
-        gp.AddMessage('Got arguments' )
+        #gp.AddMessage('Got arguments' )
         if IgnoreMsgData: # for nodata argument to CopyRaster tool
             NoDataArg = MissingDataValue
         else:
             NoDataArg = '#'
-        UnitArea = gp.GetParameter(5)
+        UnitArea = parameters[5].value #gp.GetParameter(5)
         
-        SDMValues.appendSDMValues(gp, UnitArea, Training_Points)
+        arcsdm.sdmvalues.appendSDMValues(gp, UnitArea, Training_Points)
     # Local variables...
 
         
@@ -106,6 +121,8 @@ def Execute(self, parameters, messages):
         # NoData cell values within study area.
         # For each input_raster create a weights raster from the raster and its weights table.
         mdidx = 0
+        gp.AddMessage("\n"+"="*41+" Starting "+"="*41)
+
         for Input_Raster in Input_Rasters:
             #<== RDB
             #++ Needs to be able to extract input raster name from full path.
@@ -113,10 +130,18 @@ def Execute(self, parameters, messages):
     ##        Output_Raster = os.path.join(gp.ScratchWorkspace,Input_Raster[:11] + "_W")  
             ##Output_Raster = os.path.basename(Input_Raster)[:11] + "_W"
             outputrastername = (Input_Raster[:9]) + "_W";
+            
+            # Create _W raster
             Output_Raster = gp.CreateScratchName(outputrastername, '', 'raster', gp.scratchworkspace)
-            gp.AddMessage("Outputraster: " + outputrastername);
-            Wts_Table = Wts_Tables[i]
+            #gp.AddMessage("\n");            
+            gp.AddMessage("\nOutputraster: " + outputrastername);
+            
+            Wts_Table = Wts_Tables[i]           
+            
+            #Increase the count for next round
             i += 1
+            
+            arcpy.AddMessage("WtsTable: " + Wts_Table);
             #Wts_Table = gp.Describe(Wts_Table).CatalogPath
     ## >>>>> Section replaced by join and lookup below >>>>>
     ##        try:
@@ -135,24 +160,43 @@ def Execute(self, parameters, messages):
             #++ only forced the remove join but what happens if join fails?        
             #++ Need to create in-memory Raster Layer for Join
             #Check for unsigned integer raster; cannot have negative missing data
+            
             if NoDataArg != '#' and gp.describe(Input_Raster).pixeltype.upper().startswith('U'):
                 NoDataArg2 = '#'
             else:
                 NoDataArg2 = NoDataArg
-            RasterLayer = "OutRas_lyr"
+            
+            #Create new rasterlayer from input raster -> Result RasterLayer
+            RasterLayer = "OutRas_lyr"            
             gp.MakeRasterLayer_management(Input_Raster,RasterLayer)
-            #++ AddJoin requires and input layer or tableview not Input Raster Dataset.
+            
+            #++ AddJoin requires and input layer or tableview not Input Raster Dataset.     
+            #Join result layer with weights table
             gp.AddJoin_management(RasterLayer,"Value",Wts_Table,"CLASS")
+            
+           
+            
             # These are born in wrong place when the scratch workspace is filegeodatabase
-            Temp_Raster = os.path.join(gp.scratchworkspace,'temp_raster')
+            #Temp_Raster = os.path.join(arcpy.env.scratchFolder,'temp_raster')
+            # Note! ScratchFolder doesn't seem to work            
+            Temp_Raster = os.path.join(arcpy.env.scratchWorkspace,'temp_raster')
+            gp.AddMessage("RasterLayer=" + RasterLayer);
+            gp.AddMessage("Temp_Raster=" + Temp_Raster);
+            gp.AddMessage("Wts_Table=" + Wts_Table);
+            
+            #Delete old temp_raster
             if gp.exists(Temp_Raster):
-                gp.delete(Temp_Raster)
+                arcpy.Delete_management(Temp_Raster)
                 gp.AddMessage("Deleted tempraster");
+            
+            #Copy created and joined raster to temp_raster
             gp.CopyRaster_management(RasterLayer,Temp_Raster,'#','#',NoDataArg2)
+            gp.AddMessage("Output_Raster: " + Output_Raster);
+            
             gp.Lookup_sa(Temp_Raster,"WEIGHT",Output_Raster)
             
             #gp.addwarning(gp.getmessages())
-            gp.delete(RasterLayer)
+            arcpy.Delete_management(RasterLayer)
             #++ Optionally you can remove join but not necessary because join is on the layer
             #++ Better to just delete layer
     ##        #++ get name of join from the input table (without extention)
@@ -169,8 +213,11 @@ def Execute(self, parameters, messages):
             Wts_Rasters.append(Output_Raster)
             gp.AddMessage("Wts_rasters: " + str(Wts_Rasters));
             #Check for Missing Data in raster's Wts table
+            print ("DEBUG");
+            print ("DEBUG: IgnoreMsgData=" + str(IgnoreMsgData));
             if not IgnoreMsgData:
                 # Update the list for Missing Data Variance Calculation
+                gp.addMessage("Debug: Wts_Table = " + Wts_Table);
                 tblrows = gp.SearchCursor(Wts_Table,"Class = %s" % MissingDataValue)
                 tblrow = tblrows.Next()
                 if tblrow: rasterList.append(gp.Describe(Output_Raster).CatalogPath)
@@ -207,7 +254,7 @@ def Execute(self, parameters, messages):
             #PostLogitRL = os.path.join( gp.Workspace, "PostLogitRL")
             #gp.MakeRasterLayer_management(PostLogit,PostLogitRL)
             #InExpression = "EXP(%s) / ( 1.0 + EXP(%s))" %(PostLogitRL,PostLogitRL)
-            PostProb = gp.GetParameterAsText(6)
+            PostProb = parameters[6].valueAsText #gp.GetParameterAsText(6)
             ##InExpression = "EXP(%s) / (1.0 + EXP(%s))" %(InExpressionPLOG,InExpressionPLOG)
             
             #Pre arcgis pro expression
@@ -242,30 +289,42 @@ def Execute(self, parameters, messages):
             ##Output_Raster = Input_Raster[:11] + "_S"
             ##Output_Raster = os.path.basename(Input_Raster)[:11] + "_S"  
             Output_Raster = gp.CreateScratchName(os.path.basename(Input_Raster[:9]) + "_S", '', 'raster', gp.scratchworkspace)
-            
+            #print ("DEBUG STD1");
             Wts_Table = Wts_Tables[i]
+            
             i += 1
             #Wts_Table = gp.Describe(Wts_Table).CatalogPath
     ##        gp.CreateRaster_sdm(Input_Raster, Wts_Table, "CLASS", "W_STD", Output_Raster, IgnoreMsgData, MissingDataValue)
-            #gp.AddMessage(Output_Raster + " exists: " + str(gp.Exists(Output_Raster)))
+            gp.AddMessage("OutputRaster:" + Output_Raster + " exists: " + str(gp.Exists(Output_Raster)))
             
             #<== Updated RDB
             #++ Same as calculate weight rasters above        
             #++ Need to create in-memory Raster Layer for Join
             #Check for unsigned integer raster; cannot have negative missing data
+            
             if NoDataArg != '#' and gp.describe(Input_Raster).pixeltype.upper().startswith('U'):
                 NoDataArg2 = '#'
             else:
                 NoDataArg2 = NoDataArg
-            RasterLayer = "OutRas_lyr"
+            arcpy.AddMessage("Debug: " + str(NoDataArg));
+            RasterLayer = "OutRas_lyr2";
             gp.makerasterlayer(Input_Raster,RasterLayer)
             #++ Input to AddJoin must be a Layer or TableView
             gp.AddJoin_management(RasterLayer,"Value",Wts_Table,"CLASS")
-            Temp_Raster = os.path.join(gp.scratchworkspace,'temp_raster')
-            if gp.exists(Temp_Raster): gp.delete(Temp_Raster)
-            gp.CopyRaster_management(RasterLayer,Temp_Raster,"#","#",NoDataArg2)
+            # Folder doesn't seem to do the trick...
+            #Temp_Raster = os.path.join(arcpy.env.scratchFolder,'temp_raster')
+            Temp_Raster = os.path.join(arcpy.env.scratchWorkspace,'temp_raster')
+            if gp.exists(Temp_Raster): 
+                arcpy.Delete_management(Temp_Raster)
+                gp.AddMessage("Tmpraster deleted.");
+            gp.AddMessage("RasterLayer=" + RasterLayer);
+            gp.AddMessage("Temp_Raster=" + Temp_Raster);
+            
+            arcpy.CopyRaster_management(RasterLayer, Temp_Raster,"#","#",NoDataArg2)
+            #gp.AddMessage("DEBUG STD1");
             gp.Lookup_sa(Temp_Raster,"W_STD",Output_Raster)
-            gp.delete(RasterLayer)
+            arcpy.Delete_management(RasterLayer)
+            #gp.AddMessage("DEBUG STD1");
             #++ Optionally you can remove join but not necessary because join is on the layer
             #++ Better to just delete layer
     ##        #get name of join from the input table (without extenstion)
@@ -297,7 +356,7 @@ def Execute(self, parameters, messages):
             #Input_Data_Str = ' + '.join('"{0}"'.format(w) for w in Wts_Rasters) #must be comma delimited string list
        
             Constant = 1.0 / float(numTPs)
-            PostProb_Std = gp.GetParameterAsText(7)
+            PostProb_Std = parameters[2].valueAsText #gp.GetParameterAsText(7)
             ##InExpression = "SQRT(SQR(%s) * (%s + SUM(%s)))" %(PostProb,Constant,SUM_args)
             #InExpression = "SQRT(SQR(%s) * (%s + SUM(%s)))" %(PostProb,Constant,SUM_args)  # PRe ARcGis pro
             InExpression = "SquareRoot(Square(\"%s\") * (%s +(%s)))" %(PostProb,Constant,SUM_args)  
@@ -331,7 +390,7 @@ def Execute(self, parameters, messages):
                 #gp.AddMessage("MissingDataRasters = " + str(MDRasters))
                 try:
                     MDVariance = gp.GetParameterAsText(8)
-                    if gp.exists(MDVariance): gp.Delete_management(MDVariance)
+                    if gp.exists(MDVariance): arcpy.Delete_management(MDVariance)
                     #<== Tool DOES NOT EXIST = FAIL
                     #gp.MissingDataVariance_sdm(rasterList,PostProb,MDVariance)
                     MissingDataVar_Func.MissingDataVariance(gp,rasterList,PostProb,MDVariance)
@@ -392,7 +451,19 @@ def Execute(self, parameters, messages):
         gp.SetParameterAsText(10,Confidence)
         
         gp.addmessage("done\n"+"="*41)
-
+    except arcpy.ExecuteError as e:
+        #TODO: Clean up all these execute errors in final version
+        arcpy.AddError("\n");
+        arcpy.AddMessage("Calculate weights caught arcpy.ExecuteError ");
+        gp.AddError(arcpy.GetMessages())
+        if len(e.args) > 0:
+            #arcpy.AddMessage("Calculate weights caught arcpy.ExecuteError: ");
+            args = e.args[0];
+            args.split('\n')
+            #arcpy.AddError(args);
+                    
+        arcpy.AddMessage("-------------- END EXECUTION ---------------");        
+        raise arcpy.ExecuteError;   
     except:
         # get the traceback object
         tb = sys.exc_info()[2]

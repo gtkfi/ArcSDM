@@ -71,10 +71,17 @@ def appendSDMValues(gp, unitCell, TrainPts):
         gp.addmessage('Map Units: %s'%mapUnits)
         #gp.addmessage('Map Units to Square Kilometers Conversion: %f'%conversion)
        
-    except arcpy.ExecuteError as error:
-        gp.addError("SdmValues: ExecuteError");
-        raise arcpy.ExecuteError;
-        
+    except arcpy.ExecuteError as e:
+        #TODO: Clean up all these execute errors in final version
+        arcpy.AddError("\n");
+        if not all(e.args):
+            arcpy.AddMessage("Calculate weights caught arcpy.ExecuteError: ");
+            args = e.args[0];
+            args.split('\n')
+            arcpy.AddError(args);
+                    
+        arcpy.AddMessage("-------------- END EXECUTION ---------------");        
+        raise arcpy.ExecuteError;           
   
     except:
         # get the traceback object
