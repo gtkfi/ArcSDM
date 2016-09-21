@@ -20,6 +20,7 @@
 
 import arcsdm.sdmvalues;
 import arcpy;
+import gc;
 
 def Execute(self, parameters, messages):
 
@@ -179,7 +180,9 @@ def Execute(self, parameters, messages):
             # These are born in wrong place when the scratch workspace is filegeodatabase
             #Temp_Raster = os.path.join(arcpy.env.scratchFolder,'temp_raster')
             # Note! ScratchFolder doesn't seem to work            
-            Temp_Raster = os.path.join(arcpy.env.scratchWorkspace,'temp_raster')
+            #Note Scratch these:
+            #Temp_Raster = os.path.join(arcpy.env.scratchWorkspace,'temp_raster')
+            Temp_Raster = gp.CreateScratchName('temp_raster', '', 'raster', gp.scratchworkspace)
             gp.AddMessage("RasterLayer=" + RasterLayer);
             gp.AddMessage("Temp_Raster=" + Temp_Raster);
             gp.AddMessage("Wts_Table=" + Wts_Table);
@@ -187,6 +190,9 @@ def Execute(self, parameters, messages):
             #Delete old temp_raster
             if gp.exists(Temp_Raster):
                 arcpy.Delete_management(Temp_Raster)
+                gc.collect();
+                arcpy.ClearWorkspaceCache_management()
+
                 gp.AddMessage("Deleted tempraster");
             
             #Copy created and joined raster to temp_raster
@@ -248,7 +254,7 @@ def Execute(self, parameters, messages):
             
         #Get Post Probability Raster
         #gp.AddMessage("Exists(PostLogit) = " + str(gp.Exists(PostLogit)))
-        gp.AddMessage("Creating Post Probability Raster...\n"+"="*41)
+        gp.AddMessage("\nCreating Post Probability Raster...\n"+"="*41)
         try:
             #pass
             #PostLogitRL = os.path.join( gp.Workspace, "PostLogitRL")
@@ -313,9 +319,13 @@ def Execute(self, parameters, messages):
             gp.AddJoin_management(RasterLayer,"Value",Wts_Table,"CLASS")
             # Folder doesn't seem to do the trick...
             #Temp_Raster = os.path.join(arcpy.env.scratchFolder,'temp_raster')
-            Temp_Raster = os.path.join(arcpy.env.scratchWorkspace,'temp_raster')
+            #Temp_Raster = os.path.join(arcpy.env.scratchWorkspace,'temp_raster2')
+            Temp_Raster = gp.CreateScratchName('temp_raster', '', 'raster', gp.scratchworkspace)
+            
             if gp.exists(Temp_Raster): 
                 arcpy.Delete_management(Temp_Raster)
+                gc.collect();
+                arcpy.ClearWorkspaceCache_management()
                 gp.AddMessage("Tmpraster deleted.");
             gp.AddMessage("RasterLayer=" + RasterLayer);
             gp.AddMessage("Temp_Raster=" + Temp_Raster);
@@ -343,8 +353,13 @@ def Execute(self, parameters, messages):
            
         gp.AddMessage("\nCreating Post Probability STD Raster...\n"+"="*41)
         #SQRT(SUM(SQR(kbgeol2_STD), SQR(kjenks_Std), SQR(rclssb2_Std)))
-        if len(Std_Rasters) == 1:
-            InExpression = Std_Rasters[0]
+        PostProb_Std = parameters[7].valueAsText #gp.GetParameterAsText(7)
+        
+        
+        #TODO: Figure out what this does!? TR
+        #TODO: This is always false now
+        if len(Std_Rasters) == 1: #If there is only one input... ??? TR 
+            InExpression = '"%s"' % (Std_Rasters[0])
         else:
             SUM_args_list = []
             for Std_Raster in Std_Rasters:
@@ -356,11 +371,10 @@ def Execute(self, parameters, messages):
             #Input_Data_Str = ' + '.join('"{0}"'.format(w) for w in Wts_Rasters) #must be comma delimited string list
        
             Constant = 1.0 / float(numTPs)
-            PostProb_Std = parameters[2].valueAsText #gp.GetParameterAsText(7)
             ##InExpression = "SQRT(SQR(%s) * (%s + SUM(%s)))" %(PostProb,Constant,SUM_args)
             #InExpression = "SQRT(SQR(%s) * (%s + SUM(%s)))" %(PostProb,Constant,SUM_args)  # PRe ARcGis pro
             InExpression = "SquareRoot(Square(\"%s\") * (%s +(%s)))" %(PostProb,Constant,SUM_args)  
-        #gp.AddMessage("InExpression = " + str(InExpression))
+            gp.AddMessage("InExpression = " + str(InExpression))
         #SQRT(SUM(SQR(rclssb2_md_S),SQR(kbgeol2_md_S)))
         try:
             gp.addmessage("InExpression 2 ====> " + InExpression) # <==RDB
@@ -389,12 +403,12 @@ def Execute(self, parameters, messages):
                 MDRasters = rasterList
                 #gp.AddMessage("MissingDataRasters = " + str(MDRasters))
                 try:
-                    MDVariance = gp.GetParameterAsText(8)
+                    MDVariance = parameters[8].valueAsText #gp.GetParameterAsText(8)
                     if gp.exists(MDVariance): arcpy.Delete_management(MDVariance)
                     #<== Tool DOES NOT EXIST = FAIL
                     #gp.MissingDataVariance_sdm(rasterList,PostProb,MDVariance)
                     MissingDataVar_Func.MissingDataVariance(gp,rasterList,PostProb,MDVariance)
-                    Total_Std = gp.GetParameterAsText(9)
+                    Total_Std = parameters[9].valueAsText #gp.GetParameterAsText(9)
                     ##InExpression = 'SQRT(SUM(SQR(%s),%s))' % (PostProb_Std, MDVariance)
                     InExpression = '%s = SQRT(SUM(SQR(%s),%s))' % (Total_Std, PostProb_Std, MDVariance)  # <==RDB update to MOMA
                     #gp.SetParameterAsText(8,MDVariance)
@@ -416,7 +430,7 @@ def Execute(self, parameters, messages):
             MDVariance = None
             Total_Std = PostProb_Std
         #Confidence is PP / sqrt(totVar)
-        gp.AddMessage("Calculating Confidence...\n"+"="*41)
+        gp.AddMessage("\nCalculating Confidence...\n"+"="*41)
         #PostProb1 / PP_Std
     ##    PostProbRL = os.path.join( gp.Workspace, "PostProbRL")
     ##    gp.MakeRasterLayer_management(PostProb,PostProbRL)
@@ -424,7 +438,7 @@ def Execute(self, parameters, messages):
     ##    PostProb_StdRL = os.path.join( gp.Workspace, "PostProb_StdRL")
     ##    gp.MakeRasterLayer_management(Total_Std, PostProb_StdRL)
         PostProb_StdRL = gp.describe(Total_Std).catalogpath
-        Confidence = gp.GetParameterAsText(10)
+        Confidence = parameters[10].valueAsText #gp.GetParameterAsText(10)
         #InExpression = PostProbRL + " / " + PostProb_StdRL
         #InExpression = "%s = %s / %s" %(Confidence,PostProbRL,PostProb_StdRL)  # PreARcGis pro
         InExpression = '"%s" / "%s"' %(PostProbRL,PostProb_StdRL)  # <==RDB update to MOMA
@@ -432,7 +446,7 @@ def Execute(self, parameters, messages):
         gp.addmessage("InExpression 4====> " + InExpression) # <==RDB
         try: 
             #gp.MultiOutputMapAlgebra_sa(InExpression)  # <==RDB
-            output_raster = gp.RasterCalculator(InExpression, Confidence);
+            output_raster = arcpy.gp.RasterCalculator_sa(InExpression, Confidence);
             #gp.SingleOutputMapAlgebra_sa(InExpression, Confidence)
             #gp.SetParameterAsText(10,Confidence)
         except:
