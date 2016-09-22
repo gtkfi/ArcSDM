@@ -8,6 +8,7 @@ from arcsdm.sitereduction import ReduceSites
 from arcsdm.calculateweights import Calculate
 from arcsdm.categoricalmembership import Calculate
 from arcsdm.logisticregression import Execute
+from arcsdm.debug_ptvs import wait_for_debugger
 
    
 
@@ -26,7 +27,6 @@ class Toolbox(object):
         # List of tool classes associated with this toolbox
         self.tools = [LogisticRegression]
 
-
 class LogisticRegression(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
@@ -37,7 +37,6 @@ class LogisticRegression(object):
 
     def getParameterInfo(self):
         """Define parameter definitions"""
-        # TODO: Multiple rasters?
         param0 = arcpy.Parameter(
         displayName="Input Raster Layer(s)",
         name="Input_evidence_raster_layers",
@@ -66,8 +65,7 @@ class LogisticRegression(object):
         parameterType="Required",
         direction="Input")
         paramInputWeights.columns = [['DETable', 'Weights table']]
-        
-        
+
         param2 = arcpy.Parameter(
         displayName="Training sites",
         name="training_sites",
@@ -76,7 +74,6 @@ class LogisticRegression(object):
         parameterType="Required",
         direction="Input")
         
-        
         param3 = arcpy.Parameter(
         displayName="Missing data value",
         name="Missing_Data_Value",
@@ -84,7 +81,6 @@ class LogisticRegression(object):
         parameterType="Required",
         direction="Output")
         param3.value= -99;
-        
 
         param4 = arcpy.Parameter(
         displayName="Unit area (km^2)",
@@ -93,7 +89,6 @@ class LogisticRegression(object):
         parameterType="Required",
         direction="Input")
         param4.value = "1";
-        
         
         param5 = arcpy.Parameter(
         displayName="Output polynomial table",
@@ -111,8 +106,6 @@ class LogisticRegression(object):
         direction="Output")
         param52.value = "%Workspace%\LR_coeff"
         
-        
-        
         param6 = arcpy.Parameter(
         displayName="Output post probablity raster",
         name="Output_Post_Probability_raster",
@@ -128,7 +121,6 @@ class LogisticRegression(object):
         parameterType="Required",
         direction="Output")
         param62.value = "%Workspace%\LR_std"
-          
         
         param63 = arcpy.Parameter(
         displayName="Output confidence raster",
@@ -137,8 +129,6 @@ class LogisticRegression(object):
         parameterType="Required",
         direction="Output")
         param63.value = "%Workspace%\LR_conf"
-        
-        
                                   
         params = [param0, param1, paramInputWeights, param2, param3, param4, param5, param52, param6, param62, param63]
         return params
@@ -165,13 +155,7 @@ class LogisticRegression(object):
         try:
             importlib.reload (arcsdm.logisticregression)
         except :
-            reload(arcsdm.logisticregression);
-        # To list what functions does module contain
-        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
-        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
-        #messages.AddMessage("Waiting for debugger")
-        #wait_for_debugger(15);
-        #No do yet
+            reload(arcsdm.logisticregression)
         arcsdm.logisticregression.Execute(self, parameters, messages)
         return
         

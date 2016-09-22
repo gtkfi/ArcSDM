@@ -85,7 +85,7 @@ def Execute(self, parameters, messages):
         lstMD = [MissingDataValue for ras in Input_Rasters]
         gp.AddMessage('MissingDataValue: %s'%(str(MissingDataValue)))
         #Get output raster name
-        thmUC = gp.createscratchname("tmp_UCras", '', 'raster', gp.scratchworkspace)
+        thmUC = gp.createscratchname("tmp_UCras", '', 'raster', arcpy.env.scratchFolder)
 
         #Print out SDM environmental values
         sdmvalues.appendSDMValues(gp, unitCell, TrainPts)
@@ -95,14 +95,14 @@ def Execute(self, parameters, messages):
         mdidx = 0
         gp.AddMessage("Creating Generalized Class rasters.")
         for Input_Raster, Wts_Table in zip(Input_Rasters, Wts_Tables):
-            Output_Raster = gp.CreateScratchName(os.path.basename(Input_Raster[:9]) + "_G", '', 'raster', gp.scratchworkspace)
+            Output_Raster = gp.CreateScratchName(os.path.basename(Input_Raster[:9]) + "_G", '', 'raster', arcpy.env.scratchFolder)
             #gp.AddMessage('Output_Raster: %s'%(str(Output_Raster)))
         #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
             #++ Need to create in-memory Raster Layer for AddJoin
             RasterLayer = "OutRas_lyr"
             gp.makerasterlayer(Input_Raster, RasterLayer)
             gp.AddJoin_management(RasterLayer, "Value", Wts_Table, "CLASS")
-            Temp_Raster = gp.CreateScratchName('temp_ras', '', 'raster', gp.scratchworkspace)
+            Temp_Raster = gp.CreateScratchName('temp_ras', '', 'raster', arcpy.env.scratchFolder)
             gp.AddMessage('Temp_Raster: %s'%(str(Temp_Raster)))
             gp.CopyRaster_management(RasterLayer, Temp_Raster)
             gp.Lookup_sa(Temp_Raster, "GEN_CLASS", Output_Raster)
@@ -223,22 +223,12 @@ def Execute(self, parameters, messages):
                     #evrow = evrows.next()
             evidx += 1
         #gp.AddMessage('catMCLists: %s'%(catMCLists))
- 
-        
-        
-
-          
         lstWA = CalcVals4Msng(lstsVals, lstAreas[0], lstMD, catMCLists)
         #gp.AddMessage('lstWA: %s'%(str(lstWA)))
         ot = [['%s, %s'%(Input_Rasters[i], Wts_Tables[i])] for i in range(len(Input_Rasters))]
         #gp.AddMessage("ot=%s"%ot)
         strF2 = "case.dat"
-        # tmp != scratch
-        dirTmp = gp.ScratchWorkspace
-        #dirTmp = tempfile.gettempdir()
-        #dirTmp = "c:/tmp"
-
-        fnCase = os.path.join(dirTmp, strF2)
+        fnCase = os.path.join(arcpy.env.scratchFolder, strF2)
         fCase = open(fnCase, 'w')
         if not fCase :
             gp.AddError("Can't create 'case.dat'.")
@@ -333,15 +323,12 @@ def Execute(self, parameters, messages):
     ##' Write a parameter file to the ArcView extension directory
     ##'----------------------------------------------
         strF1 = "param.dat"
-        print ("DirTmp: ", dirTmp);
-
-
-        fnParam = os.path.join(dirTmp, strF1) #param.dat file
+        fnParam = os.path.join(arcpy.env.scratchFolder, strF1) #param.dat file
         fParam = open(fnParam, 'w')
         if not fParam:
             gp.AddError("Error writing logistic regression parameter file.")
             raise Exception
-        fParam.write('%s\\\n' %(dirTmp))
+        fParam.write('%s\\\n' %(arcpy.env.scratchFolder))
         fParam.write('%s\n' %strF2)
         fParam.write("%d %g\n" %(nmbET, unitCell))
         fParam.close()
@@ -350,30 +337,20 @@ def Execute(self, parameters, messages):
     #Check input files
         #Check input files exist
         #Paramfile = os.path.join(gp.scratchworkspace, 'param.dat')
-        Paramfile = os.path.join(dirTmp, 'param.dat')
+        Paramfile = os.path.join(arcpy.env.scratchFolder, 'param.dat')
         if gp.exists(Paramfile):
             pass
             #gp.AddMessage("\nUsing the following input file in Logistic Regression: %s"%(Paramfile))
         else:
             gp.AddError("Logistic regression parameter file does not exist: %s"%Paramfile)
             raise Exception
-        Casefile = os.path.join(gp.scratchworkspace, 'case.dat')
-        if gp.exists(Casefile):
-            pass
-            #gp.AddMessage("\nUsing the following input file in Logistic Regression: %s"%(Casefile))
-        else:
-            gp.AddError("Logistic regression case file does not exist: %s"%Casefile)
-            raise Exception
-
         #Place input files folder in batch file
-
         #sdmlr.exe starts in input files folder.
         sdmlr = os.path.join(sys.path[0], 'sdmlr.exe')
         if not os.path.exists(sdmlr):
             gp.AddError("Logistic regression executable file does not exist: %s"%sdmlr)
             raise Exception
-        #This should be elsewhere if sw is filegeodatabase
-        os.chdir(dirTmp)
+        os.chdir(arcpy.env.scratchFolder)
         if os.path.exists('logpol.tba'): os.remove('logpol.tba')
         if os.path.exists('logpol.out'): os.remove('logpol.out')
         if os.path.exists('cumfre.tba'): os.remove('cumfre.tba')
@@ -382,8 +359,8 @@ def Execute(self, parameters, messages):
         fnBat = os.path.join( sys.path[0], 'sdmlr.bat')
         fBat = open(fnBat, 'w')
         #fBat.write("%s\n"%os.path.splitdrive(gp.ScratchWorkspace)[0])
-        fBat.write("%s\n"%os.path.splitdrive(dirTmp)[0])
-        fBat.write("CD %s\n"%os.path.splitdrive(dirTmp)[1])
+        fBat.write("%s\n"%os.path.splitdrive(arcpy.env.scratchFolder)[0])
+        fBat.write("CD %s\n"%os.path.splitdrive(arcpy.env.scratchFolder)[1])
         fBat.write('"%s"\n'%sdmlr)
         fBat.close()
         params = []
@@ -396,7 +373,7 @@ def Execute(self, parameters, messages):
             gp.AddMessage('Exectuion failed %s: '%fnBat)
 
         if not os.path.exists('logpol.tba'):
-            gp.AddError("Logistic regression output file %s\\logpol.tba does not exist.\n Error in case.dat or param.dat. "%gp.scratchworkspace)
+            gp.AddError("Logistic regression output file %s\\logpol.tba does not exist.\n Error in case.dat or param.dat. "%arcpy.env.scratchFolder)
             raise Exception
         #gp.AddMessage("Finished running Logistic Regression")
 
@@ -407,7 +384,7 @@ def Execute(self, parameters, messages):
         gp.MakeRasterLayer_management(thmuc, vTabUC)
         strFN = "logpol.tba"
         #strFnLR = os.path.join(gp.ScratchWorkspace, strFN)
-        strFnLR = os.path.join(dirTmp, strFN)
+        strFnLR = os.path.join(arcpy.env.scratchFolder, strFN)
 
         if not gp.Exists(strFnLR):
             gp.AddError("Reading Logistic Regression Results\nCould not find file: %s"%strFnLR)
@@ -422,6 +399,10 @@ def Execute(self, parameters, messages):
         fnNew = parameters[6].valueAsText
         tblbn = os.path.basename(fnNew)
         [tbldir, tblfn] = os.path.split(fnNew)
+        if tbldir.endswith(".gdb"):
+            tblfn = tblfn[:-4] if tblfn.endswith(".dbf") else tblfn
+            fnNew = fnNew[:-4] if fnNew.endswith(".dbf") else fnNew
+            tblbn = tblbn[:-4] if tblbn.endswith(".dbf") else tblbn
         gp.AddMessage("fnNew: %s"%fnNew)
         gp.AddMessage('Making table to hold logistic regression results: %s'%fnNew)
         fnNew = tblbn
@@ -469,7 +450,7 @@ def Execute(self, parameters, messages):
     ##' Get the coefficients file
     ##'----------------------------------------------
         strFN2 = "logco.dat"
-        fnLR2 = os.path.join(dirTmp, strFN2)
+        fnLR2 = os.path.join(arcpy.env.scratchFolder, strFN2)
     ##  ' Open file for reading
     ##  '----------------------------------------------
         #gp.AddMessage("Opening Logistic Regression coefficients Results: %s"%fnLR2)
@@ -489,15 +470,20 @@ def Execute(self, parameters, messages):
         fnNew2 = parameters[7].valueAsText
         tblbn = os.path.basename(fnNew2)
         [tbldir, tblfn] = os.path.split(fnNew2)
+        if tbldir.endswith(".gdb"):
+            tblfn = tblfn[:-4] if tblfn.endswith(".dbf") else tblfn
+            fnNew2 = fnNew2[:-4] if fnNew2.endswith(".dbf") else fnNew2
+            tblbn = tblbn[:-4] if tblbn.endswith(".dbf") else tblbn
         fnNew2 = tblbn
         print ("Tabledir: ", tbldir);
         #gp.AddMessage('Making table to hold theme coefficients: %s'%fnNew2)
         print('Making table to hold theme coefficients: %s'%fnNew2)
-        fnNew2 = tbldir + "/" + fnNew2;
+        #fnNew2 = tbldir + "/" + fnNew2;
+        fnNew2 = os.path.join(tbldir, fnNew2)
         gp.AddMessage('Making table to hold theme coefficients: %s'%fnNew2)
         gp.CreateTable_management(tbldir, tblfn)
         gp.AddField_management(fnNew2, "Theme_ID", 'Long', 6, "#", "#", "Theme_ID")
-        gp.AddField_management(fnNew2, "Theme", 'text', "#", "#", 48, "Evidential_Theme")
+        gp.AddField_management(fnNew2, "Theme", 'text', "#", "#", 80, "Evidential_Theme")
         gp.AddField_management(fnNew2, "Coeff", 'double', "#", "#", "#", 'Coefficient')
         gp.AddField_management(fnNew2, "LR_Std_Dev", 'double', "#", "#", "#", "LR_Standard_Deviation")
         gp.DeleteField(fnNew2, "Field1")
@@ -560,7 +546,7 @@ def Execute(self, parameters, messages):
         tbltv = 'tbltv'
         gp.maketableview_management(tbl, tbltv)
         gp.addjoin_management(cmbrl, 'Value', tbltv, 'ID')
-        cmb_cpy = gp.createscratchname("cmb_cpy", '', 'raster', gp.scratchworkspace)
+        cmb_cpy = gp.createscratchname("cmb_cpy", '', 'raster', arcpy.env.scratchFolder)
         gp.copyraster_management(cmbrl, cmb_cpy)
         #Make output float rasters from attributes of joined unique conditions raster
         #outRaster1 = gp.GetParameterAsText(8)

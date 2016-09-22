@@ -12,15 +12,15 @@ scale of 6 or less have FLOAT type in tables and the type DOUBLE for higher scal
     VAT does not include the NODATA value.
     Use getNODATA() to get NODATA value.
 """
-import os, sys, traceback, array
+import os, sys, traceback, array, arcpy
 
 class FloatRasterVAT(object):
     def __init__(self, gp, float_raster, *args):
         """ Generator yields VAT-like rows for floating-point rasters """
         # Process: RasterToFLOAT_conversion: FLOAT raster to FLOAT file
         # Get a output scratch file name
-        OutAsciiFile = gp.createuniquename("tmp_rasfloat.flt", gp.scratchworkspace)
-        #Convert float raster to FLOAT file and ASCII header
+        OutAsciiFile = gp.createuniquename("tmp_rasfloat.flt", arcpy.env.scratchFolder)
+        # Convert float raster to FLOAT file and ASCII header
         gp.RasterToFLOAT_conversion(float_raster, OutAsciiFile)
         # Create dictionary as pseudo-VAT
         # Open ASCII header file and get raster parameters
@@ -137,8 +137,6 @@ def FloatRasterSearchcursor(gp, float_raster, *args):
     float_raster = FloatRasterVAT(gp, float_raster, args)
     return float_raster.FloatRasterSearchcursor()
 
-# Local function and variables...
-
 def rowgen(rows):
     """ Convert a gp searchcursor to a generator function """
     row = rows.next()        
@@ -146,63 +144,3 @@ def rowgen(rows):
         yield row
         row = rows.next()
 
-if __name__ == '__main__':
-    
-    import arcgisscripting
-    gp = arcgisscripting.create()
-    # Check out any necessary licenses
-    gp.CheckOutExtension("spatial")
-
-    gp.OverwriteOutput = 1
-
-    try:
-        gp.workspace = "C:/Saibal_stuff/Saibal's_data"
-        gp.scratchworkspace = "C:/TEMP"
-        Input_raster = 'w_pprb6'
-        print (gp.describe(Input_raster).catalogpath)
-        valuetype = gp.GetRasterProperties (Input_raster, 'VALUETYPE')
-        valuetypes = {1:'Integer', 2:'Float'}
-        if valuetype != 2:
-            gp.adderror('Not a float-type raster')
-            raise
-        flt_ras = FloatRasterVAT(gp, Input_raster)
-        print (len(flt_ras))
-        tblval = flt_ras.getNODATA()
-        print (tblval in flt_ras)
-        try:
-            print (tblval, flt_ras[tblval])
-        except ValueError as msg:
-            print (tblval, 'value not found')
-        try:
-            print (flt_ras.index(tblval))
-        except ValueError as msg:
-            print (tblval, 'index not found')
-##        rows = flt_ras.FloatRasterSearchcursor()
-##        rows = FloatRasterSearchcursor(gp, os.path.join(gp.workspace, Input_raster))
-##        print ('OID   VALUE   COUNT   T/F')
-##        for row in rows:
-##            print '%d %.16e %d' %(row.OID,row.value,row.getvalue('Count')), row == tblval
-##            #gp.addmessage( '%s %s %s' %(row.OID,row.Value,row.getvalue('Count')))
-##            if row.oid > 50:
-##                gp.AddWarning('Greater than 50 raster values.')
-##                break
-
-    except:
-        # get the traceback object
-        tb = sys.exc_info()[2]
-        # tbinfo contains the line number that the code failed on and the code from that line
-        tbinfo = traceback.format_tb(tb)[0]
-        # concatenate information together concerning the error into a message string
-        pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-            str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
-        # generate a message string for any geoprocessing tool errors
-        msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"
-        gp.AddError(msgs)
-
-        # return gp messages for use with a script tool
-        gp.AddError(pymsg)
-
-        # print messages for use in Python/PythonWin
-        print (pymsg)
-        print (msgs)
-        raise
