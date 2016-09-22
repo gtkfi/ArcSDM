@@ -153,7 +153,6 @@ class CalculateResponse(object):
                                   
         params = [param0, paramInputWeights, param2, paramIgnoreMissing, param3, param4,  param_pprb, param_std, param_md_varianceraster, param_totstddev,  param_Confraster]
         return params
->>>>>>> origin/master
 
     def isLicensed(self):
         """Set whether tool is licensed to execute."""
