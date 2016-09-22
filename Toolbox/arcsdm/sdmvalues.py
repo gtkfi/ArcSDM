@@ -121,7 +121,7 @@ def getMapUnits(gp):
         #Replace apostrophes with quotations
         ocs = ocs.replace("'",'"')
         #Open scratch file for output
-        prjfile = gp.createuniquename('coordsys', gp.scratchworkspace) + '.prj'
+        prjfile = gp.createuniquename('coordsys', gp.scratchFolder) + '.prj'
         #Write spatial reference string to scratch file
         fdout = open(prjfile,'w')
         fdout.write(ocs)
