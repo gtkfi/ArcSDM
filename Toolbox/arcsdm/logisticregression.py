@@ -14,7 +14,8 @@
 import sys, string, os, math, tempfile, arcgisscripting, traceback, operator, importlib
 import arcpy
 import arcgisscripting
-import sdmvalues, workarounds_93
+from arcsdm import sdmvalues
+from arcsdm import workarounds_93
 
 # TODO: This should be in external file - like all other common things TR 
 def CheckEnvironment():
