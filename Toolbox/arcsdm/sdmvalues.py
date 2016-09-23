@@ -141,7 +141,7 @@ def getMapUnits(gp):
     except arcpy.ExecuteError as error:
         #gp.AddError(gp.GetMessages(2))
         #gp.AddMessage("Debug SDMVAlues exception");
-        raise arcpy.ExecuteError;
+        raise error;
         #pass;
     except:
         import traceback, sys
