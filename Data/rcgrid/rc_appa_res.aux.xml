@@ -6,11 +6,11 @@
     <Histograms>
       <HistItem>
         <HistMin>0.5</HistMin>
-        <HistMax>5.5</HistMax>
-        <BucketCount>5</BucketCount>
+        <HistMax>6.5</HistMax>
+        <BucketCount>6</BucketCount>
         <IncludeOutOfRange>1</IncludeOutOfRange>
         <Approximate>0</Approximate>
-        <HistCounts>6711|28585|27896|28688|6478</HistCounts>
+        <HistCounts>61575|67452|67245|65432|67434|64657</HistCounts>
       </HistItem>
     </Histograms>
     <Metadata>
