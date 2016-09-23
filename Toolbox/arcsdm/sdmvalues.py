@@ -13,8 +13,46 @@ ToMetric = {
     'square inches to square kilometers' : 0.00064516 * 1e-6,
     'square miles to square kilometers' : 2.589988110647
     }
+    
+    
+    
+#Return mask size in square km
+def getMaskSize ():
+    desc = arcpy.Describe(arcpy.env.mask);
+    #arcpy.AddMessage( "getMaskSize()");
+    if (desc.dataType == "RasterLayer"):
+        #arcpy.AddMessage( " Counting raster size");                       
+        maskrows = gp.SearchCursor(desc.catalogpath)        
+        maskrow = maskrows.next()
+        count =  0
+        while maskrow:
+            count += maskrow.count
+            maskrow = maskrows.next()
+    if (desc.dataType == "FeatureLayer"):
+        #arcpy.AddMessage( " Calculating mask size");           
+        maskrows = arcpy.SearchCursor(desc.catalogpath)
+        shapeName = desc.shapeFieldName                
+        maskrow = maskrows.next()
+        count =  0
+        while maskrow:
+            feat = maskrow.getValue(shapeName)
+            count += feat.area;
+            maskrow = maskrows.next()
+       
+        mapUnits = getMapUnits().lower().strip()
+        if not mapUnits.startswith('meter'):
+                arcpy.addError('Incorrect output map units: Check units of study area.')
+        conversion = getMapConversion( mapUnits)
+        count = count * conversion;
+    
+    return count 
+
+    
+    
+    
 def appendSDMValues(gp, unitCell, TrainPts):
     try:
+        arcpy.AddMessage("\n" + "="*30 + " arcsdm values  " + "=" *30);
         if not gp.workspace:
             gp.adderror('Workspace not set')
         gp.addmessage("Workspace: %s"%gp.workspace)
@@ -26,19 +64,17 @@ def appendSDMValues(gp, unitCell, TrainPts):
             gp.adderror('Study Area mask not set');
             raise arcpy.ExecuteError;
         else:
-            gp.AddMessage("Mask set");
-            maskrows = gp.SearchCursor(gp.describe(gp.mask).catalogpath)
-            maskrow = maskrows.next()
-            count =  0
-            while maskrow:
-                count += 1; #maskrow.count
-                maskrow = maskrows.next()
-            gp.AddMessage("Maskrowcount: " + str(count));            
-        mapUnits = getMapUnits(gp).lower().strip()
+            #gp.AddMessage("Mask set");
+            desc = gp.describe(gp.mask);
+            gp.addMessage( "Mask name is \"" + desc.name + "\" and it is " + desc.dataType);           
+            #gp.AddMessage("Masksize: " + str(getMaskSize()));            
+        mapUnits = getMapUnits().lower().strip()
         if not mapUnits.startswith('meter'):
-            gp.addError('Incorrect output map units: Check units of study area.')
-        conversion = getMapConversion(gp, mapUnits)
-        if not gp.cellsize:
+            gp.addError('Incorrect output map units: Check units of study area.')            
+        conversion = getMapConversion(mapUnits)                
+        #gp.addMessage("Conversion from map units to km^2: " + str(conversion));
+
+        if not gp.cellsize:        
             gp.adderror('Study Area cellsize not set')
         if (gp.cellsize == "MAXOF"):
             gp.AddError("Cellsize must have value!");
@@ -48,11 +84,11 @@ def appendSDMValues(gp, unitCell, TrainPts):
         cellsize = float(gp.cellsize)
         gp.addmessage('Cell Size: %s'%cellsize)
         #gp.addMessage("Debug: " + str(conversion));
-        total_area = count * cellsize **2 * conversion
+        total_area = getMaskSize() * cellsize **2 * conversion
         #gp.addMessage("Debug));
         
-        gp.addMessage("Debug: Total_area=" + str(total_area));
-        gp.addMessage("Debug: Unitcell=" + str((unitCell)));
+        #gp.addMessage("Debug: Total_area=" + str(total_area));
+        #gp.addMessage("Debug: Unitcell=" + str((unitCell)));
         unitCell = float(unitCell)#.replace(",", ".")); # Python: "Commas, gtfo"
         num_unit_cells = total_area / unitCell
         num_tps = gp.GetCount_management(TrainPts)
@@ -81,12 +117,12 @@ def appendSDMValues(gp, unitCell, TrainPts):
             arcpy.AddError(args);
                     
         arcpy.AddMessage("-------------- END EXECUTION ---------------");        
-        raise arcpy.ExecuteError;           
+        raise
   
     except:
         # get the traceback object
         tb = sys.exc_info()[2]
-        gp.addError("sdmvalues.py excepted:");
+        #gp.addError("sdmvalues.py excepted:");
         # tbinfo contains the line number that the code failed on and the code from that line
         tbinfo = traceback.format_tb(tb)[0]
         gp.addError ( tbinfo );
@@ -103,45 +139,49 @@ def appendSDMValues(gp, unitCell, TrainPts):
 
         raise
 
-def getMapConversion(gp, mapUnits):
+def getMapConversion(mapUnits):
     pluralMapUnits = {'meter':'meters', 'foot':'feet', 'inch':'inches', 'mile':'miles'}
     conversion = ToMetric["square %s to square kilometers"%pluralMapUnits[mapUnits]]
     return conversion    
 
-def getMapUnits(gp):
+def getMapUnits():
     """ Get document map units from g.outputcoordinatesystem """
     try:
         #Get spatial reference of geoprocessor
-        ocs = gp.outputcoordinatesystem
+        ocs = arcpy.env.outputCoordinateSystem
         if not ocs:
-            gp.adderror('Output Coordinate System not set')
+            arcpy.adderror('Output Coordinate System not set')
             raise arcpy.ExecuteError
-        else:
-            gp.AddMessage("Debug: Coordinate system ok");
-        #Replace apostrophes with quotations
-        ocs = ocs.replace("'",'"')
-        #Open scratch file for output
-        prjfile = gp.createuniquename('coordsys', gp.scratchFolder) + '.prj'
-        #Write spatial reference string to scratch file
-        fdout = open(prjfile,'w')
-        fdout.write(ocs)
-        fdout.write('\n')
-        fdout.close()
-        #Create spatial reference object
-        spatref = gp.createobject('spatialreference')
+        #else:
+        #arcpy.AddMessage("Outputcoordinate system ok");
+        ##Replace apostrophes with quotations
+        #ocs = ocs.replace("'",'"')
+        ##Open scratch file for output
+        #prjfile = arcpy.createuniquename('coordsys', gp.scratchFolder) + '.prj'
+        ##Write spatial reference string to scratch file
+        #fdout = open(prjfile,'w')
+        #fdout.write(ocs)
+        #fdout.write('\n')
+        #fdout.close()
+        ##Create spatial reference object
+        #spatref = gp.createobject('spatialreference')
         #Populate it by parsing of scratch file
-        spatref.createfromfile(prjfile)
+        #spatref.createfromfile(prjfile)
         #Return map units value
-        if spatref.type == 'Projected':
-            return spatref.linearunitname
-        elif spatref.type == 'Geographic':
-            return spatref.angularunitname
+        #spatial_ref = arcpy.Describe(dataset).spatialReference
+        if ocs.type == 'Projected':
+            #arcpy.AddMessage("Projected system");
+            return ocs.linearUnitName
+            
+        elif ocs.type == 'Geographic':
+            #arcpy.AddMessage("Geographics system");
+            return ocs.angularUnitName
         else:
             return None        
     except arcpy.ExecuteError as error:
         #gp.AddError(gp.GetMessages(2))
         #gp.AddMessage("Debug SDMVAlues exception");
-        raise error;
+        raise
         #pass;
     except:
         import traceback, sys
@@ -153,18 +193,19 @@ def getMapUnits(gp):
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
             str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
         # generate a message string for any geoprocessing tool errors
-        msgs = "SDMVALUES + GP ERRORS:\n" + gp.GetMessages(2) + "\n"
-        gp.AddError(msgs)
+        msgs = "SDMVALUES + GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
+        arcpy.AddError(msgs)
 
         # return gp messages for use with a script tool
-        if (len(gp.GetMessages(2)) < 1):
-            gp.AddError(pymsg)
+        if (len(arcpy.GetMessages(2)) < 1):
+            arcpy.AddError(pymsg)
             print (pymsg)
         
         
 
         # print messages for use in Python/PythonWin
         print (msgs)
+        raise
 
 if __name__ == '__main__':
     import arcgisscripting

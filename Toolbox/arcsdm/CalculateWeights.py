@@ -4,9 +4,10 @@
     Recode from the original by Tero Rönkkö / Geological survey of Finland
    
     History: 
-    1.8.2016 Python toolbox version started
+    23.9.2016 Goes through
     12.8.2016 First running version for pyt. Shapefile training points and output?
-
+    1.8.2016 Python toolbox version started
+    
     
     
     Spatial Data Modeller for ESRI* ArcGIS 9.3
