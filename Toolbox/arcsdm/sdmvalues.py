@@ -28,7 +28,7 @@ def getMaskSize ():
         while maskrow:
             count += maskrow.count
             maskrow = maskrows.next()
-    if (desc.dataType == "FeatureLayer"):
+    if (desc.dataType == "FeatureLayer" or desc.dataType == "FeatureClass"):
         #arcpy.AddMessage( " Calculating mask size");           
         maskrows = arcpy.SearchCursor(desc.catalogpath)
         shapeName = desc.shapeFieldName                
@@ -81,7 +81,7 @@ def appendSDMValues(gp, unitCell, TrainPts):
             raise arcpy.ExecuteError
             #raise arcsdm.exceptions.SDMError ("");
         
-        cellsize = float(gp.cellsize)
+        cellsize = float(arcpy.env.cellSize)
         gp.addmessage('Cell Size: %s'%cellsize)
         #gp.addMessage("Debug: " + str(conversion));
         total_area = getMaskSize() * cellsize **2 * conversion
