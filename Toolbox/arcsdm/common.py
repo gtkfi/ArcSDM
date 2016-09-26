@@ -3,7 +3,6 @@ import sys, os, traceback
 import arcpy
 import arcsdm.config as cfg
 from arcsdm.exceptions import SDMError
-from arcsdm.debug_ptvs import wait_for_debugger
 
 PY2 = sys.version_info[0] == 2
 PY34 = sys.version_info[0:2] >= (3, 4)
@@ -27,7 +26,11 @@ def reload_module(name, messages):
 def execute_tool(func, self, parameters, messages):
     if cfg.USE_PTVS_DEBUGGER:
         messages.AddMessage("Waiting for debugger..")
-        wait_for_debugger()
+        try:
+            from arcsdm.debug_ptvs import wait_for_debugger
+            wait_for_debugger()
+        except:
+            messages.AddMessage("Failed to import debug_ptvs")
     try:
         func(self, parameters, messages)
     except arcpy.ExecuteError as e:
