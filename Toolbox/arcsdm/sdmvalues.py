@@ -65,6 +65,9 @@ def appendSDMValues(gp, unitCell, TrainPts):
             gp.adderror('Study Area mask not set');
             raise arcpy.ExecuteError;
         else:
+            if not arcpy.Exists(gp.mask):
+                gp.addError("Mask " + gp.mask + " not found!");
+                raise arcpy.ExecuteError
             #gp.AddMessage("Mask set");
             desc = gp.describe(gp.mask);
             gp.addMessage( "Mask name is \"" + desc.name + "\" and it is " + desc.dataType);           
@@ -111,6 +114,7 @@ def appendSDMValues(gp, unitCell, TrainPts):
             args.split('\n')
             arcpy.AddError(args);
         arcpy.AddMessage("-------------- END EXECUTION ---------------");        
+        raise;
     except:
         # get the traceback object
         tb = sys.exc_info()[2]
@@ -126,6 +130,7 @@ def appendSDMValues(gp, unitCell, TrainPts):
             msgs = "SDM GP ERRORS:\n" + gp.GetMessages(2) + "\n"
             gp.AddError(msgs)
         #gp.AddError(pymsg)
+        raise;
 
         
 

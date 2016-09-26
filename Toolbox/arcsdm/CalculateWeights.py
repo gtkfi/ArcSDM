@@ -199,7 +199,7 @@ def Calculate(self, parameters, messages):
         #Unitarea = float( parameters[6].valueAsText)
         Unitarea = float( parameters[6].value)
         MissingDataValue = int( parameters[7].valueAsText)
-        gp.AddMessage("Debug step 12");
+        #gp.AddMessage("Debug step 12");
         arcsdm.sdmvalues.appendSDMValues(gp,  Unitarea, TrainingSites)
         
     # Process: ExtractValuesToPoints

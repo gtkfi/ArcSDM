@@ -297,7 +297,7 @@ class CalculateWeightsTool(object):
         #messages.AddMessage("Waiting for debugger")
         #wait_for_debugger(15);
         calculateweights.Calculate(self, parameters, messages)
-        exe
+        
         return
         
         
