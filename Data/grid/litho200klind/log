@@ -1,1 +1,1 @@
-201606151259   1    18     0vnykanen C:\MPM\Data\grid\litho200klind = LINEDENSITY(bedrock200k_line, NONE, 1000.0, SIMPLE, 1000.0, 12824.944212937293)
+201609131511   1    71     0vnykanen C:\MPM\Data\grid\litho200klind = LINEDENSITY(bedrock200k_line, NONE, 500.0, SIMPLE, 1000.0, 12816.666666666666)

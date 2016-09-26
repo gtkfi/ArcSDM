@@ -49,18 +49,8 @@ def Execute(self, parameters, messages):
         # Check out any necessary licenses
         gp.CheckOutExtension("spatial")
 
-        # Load required toolboxes...
-        ##gp.AddToolbox("C:/Program Files/ArcGIS/ArcToolbox/Toolboxes/Spatial Analyst Tools.tbx")
-        ##gp.AddToolbox("C:/Program Files/ArcGIS/ArcToolbox/Toolboxes/Data Management Tools.tbx")
-
-        #++remove hardcoded path for toolboxes... may not be only on c:\     #<== RDB
-        ##sdm_toolbox = os.path.dirname(sys.path[0])+ os.sep + "Spatial Data Modeller Tools.tbx"
-        ##gp.AddToolbox(sdm_toolbox)
-
-        #gp.AddMessage("\n"+"="*41+"\n"+"="*41)
-    # Script arguments...
-        gp.AddMessage("\n"+"="*41)
-
+        ''' Parameters '''
+        
         Evidence = parameters[0].valueAsText #gp.GetParameterAsText(0)
         Wts_Tables = parameters[1].valueAsText #gp.GetParameterAsText(1)
         Training_Points = parameters[2].valueAsText #gp.GetParameterAsText(2)
@@ -79,16 +69,9 @@ def Execute(self, parameters, messages):
 
         
     #Getting Study Area in counts and sq. kilometers
-        Counts = 0
-        desc = gp.Describe(gp.mask)
-        #gp.AddMessage(desc.CatalogPath)
-        
-        rows = gp.SearchCursor(desc.catalogpath)
-        row = rows.Next()
-        while row:
-            Counts += row.Count
-            row = rows.Next()
-            
+    
+        Counts = arcsdm.sdmvalues.getMaskSize();
+        gp.AddMessage("\n"+"="*41+" Starting "+"="*41)
         #gp.AddMessage(str(gp.CellSize))
         CellSize = float(gp.CellSize)
         Study_Area = (Counts * CellSize * CellSize / 1000000.0) / UnitArea
@@ -96,7 +79,7 @@ def Execute(self, parameters, messages):
 
         #Get number of training points
         numTPs = gp.GetCount_management(Training_Points)
-        gp.AddMessage("numTPs: " + str(numTPs))
+        gp.AddMessage("Number of training points: " + str(numTPs))
         
         #Prior probability
         Prior_prob = float(numTPs) / Study_Area 
@@ -104,11 +87,11 @@ def Execute(self, parameters, messages):
 
         #Get input evidence rasters
         Input_Rasters = Evidence.split(";")
-        gp.AddMessage("Input rasters: " + str(Input_Rasters))
+        #gp.AddMessage("Input rasters: " + str(Input_Rasters))
 
         #Get input weight tables
         Wts_Tables = Wts_Tables.split(";")
-        gp.AddMessage("Wts_Tables = " + str(Wts_Tables))
+        #gp.AddMessage("Wts_Tables = " + str(Wts_Tables))
         
         #Create weight raster from raster's associated weights table
         #gp.AddMessage("Getting Weights rasters...")
@@ -122,38 +105,46 @@ def Execute(self, parameters, messages):
         # NoData cell values within study area.
         # For each input_raster create a weights raster from the raster and its weights table.
         mdidx = 0
-        gp.AddMessage("\n"+"="*41+" Starting "+"="*41)
+       
+       
+        ''' Weight rasters '''
+        
+        gp.AddMessage("\nCreating weight rasters ")
+        arcpy.AddMessage("=" * 41);
 
         for Input_Raster in Input_Rasters:
+            arcpy.AddMessage("Processing " + Input_Raster);
             #<== RDB
             #++ Needs to be able to extract input raster name from full path.
             #++ Can't assume only a layer from ArcMap.
     ##        Output_Raster = os.path.join(gp.ScratchWorkspace,Input_Raster[:11] + "_W")  
             ##Output_Raster = os.path.basename(Input_Raster)[:11] + "_W"
-            outputrastername = (Input_Raster[:9]) + "_W";
+            #outputrastername = (Input_Raster[:9]) + "_W"; 
+            #TODO: Do we need to consider if the file names collide with shapes? We got collision with featureclasses
+            outputrastername = Input_Raster + "_W";
             
             # Create _W raster
             Output_Raster = gp.CreateScratchName(outputrastername, '', 'raster', gp.scratchworkspace)
             #gp.AddMessage("\n");            
-            gp.AddMessage("\nOutputraster: " + outputrastername);
+            #gp.AddMessage(" Outputraster: " + outputrastername);
             
             Wts_Table = Wts_Tables[i]           
             
             #Increase the count for next round
             i += 1
             
-            arcpy.AddMessage("WtsTable: " + Wts_Table);
+            #arcpy.AddMessage("WtsTable: " + Wts_Table);
             #Wts_Table = gp.Describe(Wts_Table).CatalogPath
-    ## >>>>> Section replaced by join and lookup below >>>>>
-    ##        try:
-    ##            gp.CreateRaster_sdm(Input_Raster, Wts_Table, "CLASS", "WEIGHT", Output_Raster, IgnoreMsgData , MissingDataValue)
-    ##        except:
-    ##            gp.AddError(gp.getMessages(2))
-    ##            raise
-    ##        else:
-    ##            gp.AddWarning(gp.getMessages(1))
-    ##            gp.AddMessage(gp.getMessages(0))
-    ## <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+            ## >>>>> Section replaced by join and lookup below >>>>>
+            ##        try:
+            ##            gp.CreateRaster_sdm(Input_Raster, Wts_Table, "CLASS", "WEIGHT", Output_Raster, IgnoreMsgData , MissingDataValue)
+            ##        except:
+            ##            gp.AddError(gp.getMessages(2))
+            ##            raise
+            ##        else:
+            ##            gp.AddWarning(gp.getMessages(1))
+            ##            gp.AddMessage(gp.getMessages(0))
+            ## <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
             #<==RDB Updated code
             #Same as CreateRaster above
@@ -183,9 +174,9 @@ def Execute(self, parameters, messages):
             #Note Scratch these:
             #Temp_Raster = os.path.join(arcpy.env.scratchWorkspace,'temp_raster')
             Temp_Raster = gp.CreateScratchName('temp_raster', '', 'raster', gp.scratchworkspace)
-            gp.AddMessage("RasterLayer=" + RasterLayer);
-            gp.AddMessage("Temp_Raster=" + Temp_Raster);
-            gp.AddMessage("Wts_Table=" + Wts_Table);
+            #gp.AddMessage(" RasterLayer=" + RasterLayer);
+            gp.AddMessage(" Temp_Raster=" + Temp_Raster);
+            gp.AddMessage(" Wts_Table=" + Wts_Table);
             
             #Delete old temp_raster
             if gp.exists(Temp_Raster):
@@ -197,7 +188,7 @@ def Execute(self, parameters, messages):
             
             #Copy created and joined raster to temp_raster
             gp.CopyRaster_management(RasterLayer,Temp_Raster,'#','#',NoDataArg2)
-            gp.AddMessage("Output_Raster: " + Output_Raster);
+            gp.AddMessage(" Output_Raster: " + Output_Raster);
             
             gp.Lookup_sa(Temp_Raster,"WEIGHT",Output_Raster)
             
@@ -213,33 +204,34 @@ def Execute(self, parameters, messages):
             
             #gp.AddMessage(Output_Raster + " exists: " + str(gp.Exists(Output_Raster)))
             if not gp.Exists(Output_Raster):
-                gp.AddError(Output_Raster + " does not exist.")
+                gp.AddError( " " + Output_Raster + " does not exist.")
                 raise
             #Output_Raster = gp.Describe(Output_Raster).CatalogPath
             Wts_Rasters.append(Output_Raster)
-            gp.AddMessage("Wts_rasters: " + str(Wts_Rasters));
             #Check for Missing Data in raster's Wts table
-            print ("DEBUG");
-            print ("DEBUG: IgnoreMsgData=" + str(IgnoreMsgData));
             if not IgnoreMsgData:
                 # Update the list for Missing Data Variance Calculation
-                gp.addMessage("Debug: Wts_Table = " + Wts_Table);
+                #gp.addMessage("Debug: Wts_Table = " + Wts_Table);
                 tblrows = gp.SearchCursor(Wts_Table,"Class = %s" % MissingDataValue)
                 tblrow = tblrows.Next()
                 if tblrow: rasterList.append(gp.Describe(Output_Raster).CatalogPath)
-        
+            arcpy.AddMessage(" ") #Cycle done - add ONE linefeed
         #Get Post Logit Raster
-        #gp.AddMessage("Getting Post Logit raster...")
+        
+        
+        ''' Post Logit Raster '''
+        
+        gp.AddMessage( "\n" + "Getting Post Logit raster...\n" + "=" * 41)
         # This used to be comma separated, now +
         Input_Data_Str = ' + '.join('"{0}"'.format(w) for w in Wts_Rasters) #must be comma delimited string list
-        gp.AddMessage("Input_data_str: " + Input_Data_Str)
+        arcpy.AddMessage(" Input_data_str: " + Input_Data_Str)
         Constant = math.log(Prior_prob/(1.0 - Prior_prob))
         if len(Wts_Rasters) == 1:
             InExpressionPLOG = "%s + %s" %(Constant,Input_Data_Str)
         else:
             InExpressionPLOG = "%s + (%s)" %(Constant,Input_Data_Str)
-        gp.AddMessage("="*41);
-        gp.AddMessage("InexpressionPlog: " + InExpressionPLOG);
+        #gp.AddMessage("="*41);
+        gp.AddMessage(" InexpressionPlog: " + InExpressionPLOG);
         #gp.AddMessage("InExpression = " + str(InExpression))
     ##    PostLogit = os.path.join(gp.Workspace, OutputPrefix + "_PLOG")
     ##    try:
@@ -252,9 +244,14 @@ def Execute(self, parameters, messages):
     ##        gp.AddWarning(gp.getMessages(1))
     ##        gp.AddMessage(gp.getMessages(0))
             
+        
+        #gp.AddMessage(" Wts_rasters: " + str(Wts_Rasters));
+            
+    
         #Get Post Probability Raster
         #gp.AddMessage("Exists(PostLogit) = " + str(gp.Exists(PostLogit)))
-        gp.AddMessage("\nCreating Post Probability Raster...\n"+"="*41)
+        
+        gp.AddMessage("\nCreating Post Probability Raster..."+"="*41)
         try:
             #pass
             #PostLogitRL = os.path.join( gp.Workspace, "PostLogitRL")
@@ -289,6 +286,7 @@ def Execute(self, parameters, messages):
         i = 0
         mdidx = 0
         for Input_Raster in Input_Rasters:
+            arcpy.AddMessage(" Processing " + Input_Raster);
             #<== RDB
             #++ Needs to be able to extract input raster name from full path.
             #++ Can't assume only a layer from ArcMap.
@@ -312,7 +310,7 @@ def Execute(self, parameters, messages):
                 NoDataArg2 = '#'
             else:
                 NoDataArg2 = NoDataArg
-            arcpy.AddMessage("Debug: " + str(NoDataArg));
+            #arcpy.AddMessage("Debug: " + str(NoDataArg));
             RasterLayer = "OutRas_lyr2";
             gp.makerasterlayer(Input_Raster,RasterLayer)
             #++ Input to AddJoin must be a Layer or TableView
@@ -477,7 +475,7 @@ def Execute(self, parameters, messages):
             #arcpy.AddError(args);
                     
         arcpy.AddMessage("-------------- END EXECUTION ---------------");        
-        raise arcpy.ExecuteError;   
+        raise 
     except:
         # get the traceback object
         tb = sys.exc_info()[2]
@@ -487,11 +485,11 @@ def Execute(self, parameters, messages):
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
                 str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
         # generate a message string for any geoprocessing tool errors
-        msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"
-        gp.AddError(msgs)
+        msgs = "GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
+        arcpy.AddError(msgs)
 
         # return gp messages for use with a script tool
-        gp.AddError(pymsg)
+        arcpy.AddError(pymsg)
 
         # print messages for use in Python/PythonWin
         print (pymsg)
