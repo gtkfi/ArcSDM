@@ -4,8 +4,9 @@
     unitCell: unit cell area in sq km
     TrainPts: training sites Points feature class
 """
-import traceback, sys, arcsdm.exceptions;
-import arcpy;
+import traceback, sys
+from arcsdm.exceptions import SDMError
+import arcpy
 
 ToMetric = {
     'square meters to square kilometers' : 0.000001,
@@ -43,7 +44,6 @@ def appendSDMValues(gp, unitCell, TrainPts):
         if (gp.cellsize == "MAXOF"):
             gp.AddError("Cellsize must have value!");
             raise arcpy.ExecuteError
-            #raise arcsdm.exceptions.SDMError ("");
         
         cellsize = float(gp.cellsize)
         gp.addmessage('Cell Size: %s'%cellsize)
@@ -53,17 +53,17 @@ def appendSDMValues(gp, unitCell, TrainPts):
         
         gp.addMessage("Debug: Total_area=" + str(total_area));
         gp.addMessage("Debug: Unitcell=" + str((unitCell)));
-        unitCell = float(unitCell)#.replace(",", ".")); # Python: "Commas, gtfo"
+        unitCell = float(unitCell)
         num_unit_cells = total_area / unitCell
         num_tps = gp.GetCount_management(TrainPts)
-        #gp.AddMessage("Debug: num_tps = {} num_unit_cells = {}".format(num_tps, num_unit_cells));
         gp.addmessage('Number of Training Sites: %s' %num_tps)
         gp.addmessage('Unit Cell Area (sq km): {}  Cells in area: {} '.format(unitCell,num_unit_cells))
         
         priorprob = num_tps / num_unit_cells
         if not (0 < priorprob <= 1.0):
-            gp.adderror('Incorrect no. of training sites or unit cell area. TrainingPointsResult {}'.format(priorprob));
-            raise arcpy.ExecuteError;
+            arcpy.AddError('Incorrect no. of training sites or unit cell area. TrainingPointsResult {}'.format(priorprob))
+            raise arcpy.ExecuteError
+            #raise SDMError('Incorrect no. of training sites or unit cell area. TrainingPointsResult {}'.format(priorprob))
         gp.addmessage('Prior Probability: %0.6f' %priorprob)
         gp.addmessage('Training Set: %s'%gp.describe(TrainPts).catalogpath)
         gp.addmessage('Study Area Raster: %s'%gp.describe(gp.mask).catalogpath)
@@ -72,17 +72,16 @@ def appendSDMValues(gp, unitCell, TrainPts):
         #gp.addmessage('Map Units to Square Kilometers Conversion: %f'%conversion)
        
     except arcpy.ExecuteError as e:
-        #TODO: Clean up all these execute errors in final version
-        arcpy.AddError("\n");
         if not all(e.args):
             arcpy.AddMessage("Calculate weights caught arcpy.ExecuteError: ");
             args = e.args[0];
             args.split('\n')
             arcpy.AddError(args);
-                    
         arcpy.AddMessage("-------------- END EXECUTION ---------------");        
-        raise arcpy.ExecuteError;           
-  
+        # Get the tool error messages 
+        msgs = arcpy.GetMessages(2) 
+        arcpy.AddError(msgs) 
+        raise        
     except:
         # get the traceback object
         tb = sys.exc_info()[2]
@@ -97,11 +96,9 @@ def appendSDMValues(gp, unitCell, TrainPts):
         if len(gp.GetMessages(2)) > 0:
             msgs = "SDM GP ERRORS:\n" + gp.GetMessages(2) + "\n"
             gp.AddError(msgs)
-
-        # return gp messages for use with a script tool
         #gp.AddError(pymsg)
 
-        raise
+        
 
 def getMapConversion(gp, mapUnits):
     pluralMapUnits = {'meter':'meters', 'foot':'feet', 'inch':'inches', 'mile':'miles'}
@@ -139,10 +136,9 @@ def getMapUnits(gp):
         else:
             return None        
     except arcpy.ExecuteError as error:
-        #gp.AddError(gp.GetMessages(2))
-        #gp.AddMessage("Debug SDMVAlues exception");
+        gp.AddError(gp.GetMessages(2))
+        gp.AddMessage("Debug SDMVAlues exception");
         raise error;
-        #pass;
     except:
         import traceback, sys
         # get the traceback object
@@ -160,16 +156,6 @@ def getMapUnits(gp):
         if (len(gp.GetMessages(2)) < 1):
             gp.AddError(pymsg)
             print (pymsg)
-        
-        
-
         # print messages for use in Python/PythonWin
         print (msgs)
 
-if __name__ == '__main__':
-    import arcgisscripting
-    gp = arcgisscripting.create()
-    training_sites = gp.getParameterAsText(0)
-    unit_area = gp.getparameter(1)
-    appendSDMValues(gp, unit_area, training_sites)
-    

@@ -9,6 +9,7 @@ from arcsdm.calculateweights import Calculate
 from arcsdm.categoricalmembership import Calculate
 from arcsdm.logisticregression import Execute
 from arcsdm.calculateresponse import Execute
+from arcsdm.common import reload_module, execute_tool
 
 import importlib
 from imp import reload;
@@ -24,7 +25,6 @@ class Toolbox(object):
 
         # List of tool classes associated with this toolbox
         self.tools = [CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool]
-
 
 class CalculateResponse(object):
     def __init__(self):
@@ -297,6 +297,7 @@ class CalculateWeightsTool(object):
         #messages.AddMessage("Waiting for debugger")
         #wait_for_debugger(15);
         calculateweights.Calculate(self, parameters, messages)
+        exe
         return
         
         
@@ -639,6 +640,7 @@ class LogisticRegressionTool(object):
         self.canRunInBackground = False
         self.category = "Weights of Evidence"
 
+
     def getParameterInfo(self):
         """Define parameter definitions"""
         param0 = arcpy.Parameter(
@@ -750,15 +752,12 @@ class LogisticRegressionTool(object):
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
         parameter.  This method is called after internal validation."""
-     
         return
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        #3.4
-        try:
-            importlib.reload (arcsdm.logisticregression)
-        except :
-            reload(arcsdm.logisticregression)
-        arcsdm.logisticregression.Execute(self, parameters, messages)
+        reload_module(arcsdm.sdmvalues, messages)
+        reload_module (arcsdm.workarounds_93, messages)
+        reload_module (arcsdm.logisticregression, messages)
+        execute_tool(arcsdm.logisticregression.Execute, self, parameters, messages)
         return
