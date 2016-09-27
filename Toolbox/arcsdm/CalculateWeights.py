@@ -201,7 +201,7 @@ def Calculate(self, parameters, messages):
         MissingDataValue = int( parameters[7].valueAsText)
         #gp.AddMessage("Debug step 12");
         arcsdm.sdmvalues.appendSDMValues(gp,  Unitarea, TrainingSites)
-        
+        arcpy.AddMessage("="*10 + " Calculate weights " + "="*10)
     # Process: ExtractValuesToPoints
         #tempTrainingPoints = gp.createscratchname("OutPoints", "FC", "shapefile", gp.scratchworkspace)
         #gp.ExtractValuesToPoints_sa(TrainingSites, EvidenceLayer, tempTrainingPoints, "NONE", "VALUE_ONLY")
@@ -213,7 +213,7 @@ def Calculate(self, parameters, messages):
         if gp.exists(Statistics): gp.Delete_management(Statistics)
         gp.Statistics_analysis(tempTrainingPoints, Statistics, "rastervalu sum" ,"rastervalu")
     # Process: Create the table
-        gp.addmessage ("Creating table: " + wtstable);
+        gp.addmessage ("%-20s %s (%s)" %("Creating table:" , wtstable, Type ));
         gp.CreateTable_management(os.path.dirname(wtstable), os.path.basename(wtstable), Statistics)
         gp.AddField_management (wtstable, "Count", "long") 
         gp.AddField_management (wtstable, "Area", 'double')

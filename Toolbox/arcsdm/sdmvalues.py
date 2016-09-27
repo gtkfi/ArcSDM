@@ -17,18 +17,21 @@ ToMetric = {
     
     
     
-#Return mask size in square km
+#Return mask size in sqkm
 def getMaskSize ():
     desc = arcpy.Describe(arcpy.env.mask);
     #arcpy.AddMessage( "getMaskSize()");
     if (desc.dataType == "RasterLayer"):
         #arcpy.AddMessage( " Counting raster size");                       
-        maskrows = gp.SearchCursor(desc.catalogpath)        
+        maskrows = arcpy.SearchCursor(desc.catalogpath)        
         maskrow = maskrows.next()
         count =  0
         while maskrow:
             count += maskrow.count
             maskrow = maskrows.next()
+        cellsize = float(arcpy.env.cellSize)
+        count = count * (cellsize * cellsize);
+      
     if (desc.dataType == "FeatureLayer" or desc.dataType == "FeatureClass"):
         #arcpy.AddMessage( " Calculating mask size");           
         maskrows = arcpy.SearchCursor(desc.catalogpath)
@@ -40,12 +43,15 @@ def getMaskSize ():
             count += feat.area;
             maskrow = maskrows.next()
        
-        mapUnits = getMapUnits().lower().strip()
-        if not mapUnits.startswith('meter'):
-                arcpy.addError('Incorrect output map units: Check units of study area.')
-        conversion = getMapConversion( mapUnits)
-        count = count * conversion;
-    
+    mapUnits = getMapUnits().lower().strip()
+    if not mapUnits.startswith('meter'):
+            arcpy.addError('Incorrect output map units: Check units of study area.')
+    conversion = getMapConversion( mapUnits)
+    count = count * conversion;
+        #Count is now in Sqkm -> So multiply that with 1000m*1000m / cellsize ^2
+        #multiplier = (1000 * 1000) / (cellsize * cellsize); #with 500 x 500 expect "4"
+        #arcpy.AddMessage("Debug:" + str(multiplier));
+        #count = count * multiplier;
     return count 
 
     
@@ -56,10 +62,10 @@ def appendSDMValues(gp, unitCell, TrainPts):
         arcpy.AddMessage("\n" + "="*30 + " arcsdm values  " + "=" *30);
         if not gp.workspace:
             gp.adderror('Workspace not set')
-        gp.addmessage("Workspace: %s"%gp.workspace)
+        gp.addmessage("%-20s %s" % ("Workspace: ", gp.workspace));
         if not gp.scratchworkspace:
             gp.adderror('Scratch workspace mask not set')
-        gp.addmessage("Scratch workspace: %s"%gp.scratchworkspace)
+        gp.addmessage("%-20s %s" % ("Scratch workspace:",  gp.scratchworkspace))
         # TODO: These should be moved to common CHECKENV class/function TR
         if not gp.mask:
             gp.adderror('Study Area mask not set');
@@ -70,7 +76,8 @@ def appendSDMValues(gp, unitCell, TrainPts):
                 raise arcpy.ExecuteError
             #gp.AddMessage("Mask set");
             desc = gp.describe(gp.mask);
-            gp.addMessage( "Mask name is \"" + desc.name + "\" and it is " + desc.dataType);           
+            gp.addMessage( "%-20s %s" %( "Mask:", "\"" + desc.name + "\" and it is " + desc.dataType));           
+            gp.addMessage( "%-20s %s" %( "Mask size:", str(getMaskSize())));           
             #gp.AddMessage("Masksize: " + str(getMaskSize()));            
         mapUnits = getMapUnits().lower().strip()
         if not mapUnits.startswith('meter'):
@@ -85,28 +92,28 @@ def appendSDMValues(gp, unitCell, TrainPts):
             raise arcpy.ExecuteError
         
         cellsize = float(arcpy.env.cellSize)
-        gp.addmessage('Cell Size: %s'%cellsize)
+        gp.addmessage("%-20s %s" %("Cell Size:", cellsize))
         #gp.addMessage("Debug: " + str(conversion));
-        total_area = getMaskSize() * cellsize **2 * conversion
+        total_area = getMaskSize() # Now the getMaskSize returns it correctly in sqkm   : * cellsize **2 * conversion
         #gp.addMessage("Debug));
         unitCell = float(unitCell)
         num_unit_cells = total_area / unitCell
         num_tps = gp.GetCount_management(TrainPts)
-        gp.addmessage('Number of Training Sites: %s' %num_tps)
-        gp.addmessage('Unit Cell Area (sq km): {}  Cells in area: {} '.format(unitCell,num_unit_cells))
+        gp.addmessage("%-20s %s"% ('# Training Sites:' ,num_tps))
+        gp.addmessage("%-20s %s" % ("Unit Cell Area:", "{}km^2, Cells in area: {} ".format(unitCell,num_unit_cells)))
         
         priorprob = num_tps / num_unit_cells
         if not (0 < priorprob <= 1.0):
             arcpy.AddError('Incorrect no. of training sites or unit cell area. TrainingPointsResult {}'.format(priorprob))
             raise arcpy.ExecuteError
             #raise SDMError('Incorrect no. of training sites or unit cell area. TrainingPointsResult {}'.format(priorprob))
-        gp.addmessage('Prior Probability: %0.6f' %priorprob)
-        gp.addmessage('Training Set: %s'%gp.describe(TrainPts).catalogpath)
-        gp.addmessage('Study Area Raster: %s'%gp.describe(gp.mask).catalogpath)
-        gp.addmessage('Study Area Area (sq km): %s'%total_area)
-        gp.addmessage('Map Units: %s'%mapUnits)
+        gp.addmessage("%-20s %0.6f" % ('Prior Probability:', priorprob))
+        gp.addmessage("%-20s %s" % ('Training Set:', gp.describe(TrainPts).catalogpath))
+        gp.addmessage("%-20s %s" % ('Study Area Raster:', gp.describe(gp.mask).catalogpath))
+        gp.addmessage("%-20s %s" % ( 'Study Area Area:', str(total_area) + "km^2"))
+        gp.addmessage("%-20s %s" % ( 'Map Units:',  mapUnits))
         #gp.addmessage('Map Units to Square Kilometers Conversion: %f'%conversion)
-       
+        arcpy.AddMessage(""); # Empty line at end
     except arcpy.ExecuteError as e:
         if not all(e.args):
             arcpy.AddMessage("Calculate weights caught arcpy.ExecuteError: ");

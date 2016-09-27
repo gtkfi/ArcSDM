@@ -71,19 +71,19 @@ def Execute(self, parameters, messages):
     #Getting Study Area in counts and sq. kilometers
     
         Counts = arcsdm.sdmvalues.getMaskSize();
-        gp.AddMessage("\n"+"="*41+" Starting "+"="*41)
+        gp.AddMessage("\n"+"="*41+" Starting calculate response "+"="*41)
         #gp.AddMessage(str(gp.CellSize))
         CellSize = float(gp.CellSize)
-        Study_Area = (Counts * CellSize * CellSize / 1000000.0) / UnitArea
-        #gp.AddMessage("Study Area: " + str(Study_Area))
+        Study_Area = Counts / UnitArea # getMaskSize returns mask size in sqkm now - TODO: WHy is this divided with UnitArea? (Counts * CellSize * CellSize / 1000000.0) / UnitArea
+        gp.AddMessage( ("%-20s %s" % ("Study Area:",  str(Study_Area))))
 
         #Get number of training points
         numTPs = gp.GetCount_management(Training_Points)
-        gp.AddMessage("Number of training points: " + str(numTPs))
+        gp.AddMessage("%-20s %s" % ("# training points:", str(numTPs)))
         
         #Prior probability
         Prior_prob = float(numTPs) / Study_Area 
-        gp.AddMessage("Prior_prob = " + str(Prior_prob))
+        gp.AddMessage("%-20s %s"% ("Prior_prob:" , str(Prior_prob)))
 
         #Get input evidence rasters
         Input_Rasters = Evidence.split(";")
@@ -251,7 +251,7 @@ def Execute(self, parameters, messages):
         #Get Post Probability Raster
         #gp.AddMessage("Exists(PostLogit) = " + str(gp.Exists(PostLogit)))
         
-        gp.AddMessage("\nCreating Post Probability Raster..."+"="*41)
+        gp.AddMessage("\nCreating Post Probability Raster...\n"+"="*41)
         try:
             #pass
             #PostLogitRL = os.path.join( gp.Workspace, "PostLogitRL")

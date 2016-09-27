@@ -48,9 +48,9 @@ def ExtractValuesToPoints(gp, inputRaster, inputFeatures, siteFIDName):
         assert siteFIDName in ('TPFID','NDTPFID')
         if siteFIDName not in [field.name for field in rowgen(gp.ListFields(inputFeatures))]:
             gp.AddField_management(inputFeatures, siteFIDName, 'LONG')
-            gp.AddMessage("Debug: Added new FID field");
-        else:
-            gp.AddMessage("Debug: SiteFIDName = " + siteFIDName );
+            #gp.AddMessage("Debug: Added new FID field");
+        #else:
+            #gp.AddMessage("Debug: SiteFIDName = " + siteFIDName );
          
         #gp.CalculateField_management(inputFeatures, siteFIDName, "!FID!", "PYTHON_9.3", None)
         idfield = GetIDField(inputFeatures); 
