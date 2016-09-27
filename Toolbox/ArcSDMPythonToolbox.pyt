@@ -756,6 +756,7 @@ class LogisticRegressionTool(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
+        reload_module(arcsdm.common, messages)
         reload_module(arcsdm.sdmvalues, messages)
         reload_module (arcsdm.workarounds_93, messages)
         reload_module (arcsdm.logisticregression, messages)
