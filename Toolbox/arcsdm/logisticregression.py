@@ -571,30 +571,27 @@ def Execute(self, parameters, messages):
         #gp.SetParameterAsText(10, outRaster3)
         arcpy.SetParameterAsText(10, outRaster3)
     except arcpy.ExecuteError as e:
-        #arcpy.AddError("\n");
-        #arcpy.AddMessage("Caught ExecuteError in logistic regression. Details:");
-        #args = e.args[0];
-        #args.split('\n')
-        #arcpy.AddError(args);
+        arcpy.AddError("\n");
+        arcpy.AddMessage("Caught ExecuteError in logistic regression. Details:");
+        args = e.args[0];
+        args.split('\n')
+        arcpy.AddError(args);
         raise 
     except:
         # get the traceback object
-        #tb = sys.exc_info()[2]
-        # tbinfo contains the line number that the code failed on and the code from that line
-        #tbinfo = traceback.format_tb(tb)[0]
-        #tbinfo = traceback.format_tb()
+        tb = sys.exc_info()[2]
+         # tbinfo contains the line number that the code failed on and the code from that line
+        tbinfo = traceback.format_tb(tb)[0]
         # concatenate information together concerning the error into a message string
-        #pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-        #str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
+        msgs = "Traceback\n" + tbinfo + "\nError Info:\n" + str(sys.exc_info()[1])
+        pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " +str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
         # generate a message string for any geoprocessing tool errors
-        #msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"
-        #gp.AddError(msgs)
-
+        msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"
+        gp.AddError(msgs)
         # return gp messages for use with a script tool
-        #gp.AddError(pymsg)
-
+        gp.AddError(pymsg)
         # print messages for use in Python/PythonWin
-        #print (pymsg)
+        print (pymsg)
         raise
     
 def RemoveDuplicates(lst):
