@@ -336,7 +336,7 @@ def Execute(self, parameters, messages):
             raise Exception
         #Place input files folder in batch file
         #sdmlr.exe starts in input files folder.
-        sdmlr = os.path.join(sys.path[0], 'sdmlr.exe')
+        sdmlr = os.path.join(sys.path[0], 'bin', 'sdmlr.exe')
         if not os.path.exists(sdmlr):
             gp.AddError("Logistic regression executable file does not exist: %s"%sdmlr)
             raise Exception
@@ -345,8 +345,8 @@ def Execute(self, parameters, messages):
         if os.path.exists('logpol.out'): os.remove('logpol.out')
         if os.path.exists('cumfre.tba'): os.remove('cumfre.tba')
         if os.path.exists('logco.dat'): os.remove('logco.dat')
-        #fnBat = os.path.join(gp.ScratchWorkspace, 'sdmlr.bat')
-        fnBat = os.path.join( sys.path[0], 'sdmlr.bat')
+        fnBat = os.path.join(arcpy.env.scratchFolder, 'sdmlr.bat')
+        #fnBat = os.path.join( sys.path[0], 'sdmlr.bat')
         fBat = open(fnBat, 'w')
         #fBat.write("%s\n"%os.path.splitdrive(gp.ScratchWorkspace)[0])
         fBat.write("%s\n"%os.path.splitdrive(arcpy.env.scratchFolder)[0])
