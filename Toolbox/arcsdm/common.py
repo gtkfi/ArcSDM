@@ -58,7 +58,7 @@ def execute_tool(func, self, parameters, messages):
         print(e.value)
     except:
         # get the traceback object
-        arccpy.AddError('Unexcpected exception caught')
+        arcpy.AddError('Unexcpected exception caught')
         tb = sys.exc_info()[2]
         # tbinfo contains the line number that the code failed on and the code from that line
         tbinfo = traceback.format_tb(tb)[0]
