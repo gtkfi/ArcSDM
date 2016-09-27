@@ -4,6 +4,7 @@
     Recode from the original by Tero Rönkkö / Geological survey of Finland
    
     History: 
+    27.9.2016 Calculate weights output cleaned
     23.9.2016 Goes through
     12.8.2016 First running version for pyt. Shapefile training points and output?
     1.8.2016 Python toolbox version started
@@ -203,6 +204,7 @@ def Calculate(self, parameters, messages):
         arcsdm.sdmvalues.appendSDMValues(gp,  Unitarea, TrainingSites)
         arcpy.AddMessage("="*10 + " Calculate weights " + "="*10)
     # Process: ExtractValuesToPoints
+        arcpy.AddMessage ("%-20s %s (%s)" %("Creating table:" , wtstable, Type ));
         #tempTrainingPoints = gp.createscratchname("OutPoints", "FC", "shapefile", gp.scratchworkspace)
         #gp.ExtractValuesToPoints_sa(TrainingSites, EvidenceLayer, tempTrainingPoints, "NONE", "VALUE_ONLY")
         assert isinstance(EvidenceLayer, object)
@@ -213,7 +215,6 @@ def Calculate(self, parameters, messages):
         if gp.exists(Statistics): gp.Delete_management(Statistics)
         gp.Statistics_analysis(tempTrainingPoints, Statistics, "rastervalu sum" ,"rastervalu")
     # Process: Create the table
-        gp.addmessage ("%-20s %s (%s)" %("Creating table:" , wtstable, Type ));
         gp.CreateTable_management(os.path.dirname(wtstable), os.path.basename(wtstable), Statistics)
         gp.AddField_management (wtstable, "Count", "long") 
         gp.AddField_management (wtstable, "Area", 'double')

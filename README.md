@@ -1,9 +1,10 @@
 # ArcSDM
 Spatial Data Modeler 5 for ArcGis pro<Br>
 <br>
-Status of the toolbox should be updated to wiki [[toolbox-details][https://github.com/gtkfi/ArcSDM/wiki/Toolbox-details]] <bR>
+Status of the toolbox should be updated to wiki https://github.com/gtkfi/ArcSDM/wiki/Toolbox-details <bR>
 
 ##History:
+27.9.2016 Calculate response update <br>
 20.9.2016 Testing started against Arcgis desktop 10.4.1 <br>
 7.9.2016 Calculate response (WIP) + New demo data <br>
 2.9.2016 Logistic regression (wip) Area frequency tool (wip)<br>

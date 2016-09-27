@@ -1,9 +1,18 @@
-"""A function to append Spatial Data Modeller parameters to Geoprocessor History
+
+""" SDM Values / ArcSDM 5 for ArcGis 
+    conversion by Tero Ronkko / Geological survey of Finland 2016
+    
+    History: 
+    27.9.2016 Output cleaned and getMaskSize fixed
+
+A function to append Spatial Data Modeller parameters to Geoprocessor History
     for those SDM tools that have the following values:
     gp: geoprocessor object
     unitCell: unit cell area in sq km
     TrainPts: training sites Points feature class
 """
+
+
 import traceback, sys
 from arcsdm.exceptions import SDMError
 import arcpy
