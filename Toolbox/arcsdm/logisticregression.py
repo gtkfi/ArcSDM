@@ -75,7 +75,7 @@ def Execute(self, parameters, messages):
         lstMD = [MissingDataValue for ras in Input_Rasters]
         gp.AddMessage('MissingDataValue: %s'%(str(MissingDataValue)))
         #Get output raster name
-        thmUC = gp.createscratchname("tmp_UCras", '', 'raster', arcpy.env.scratchFolder)
+        thmUC = gp.createscratchname("tmp_UCras", '', 'raster', arcpy.env.scratchWorkspace)
 
         #Print out SDM environmental values
         sdmvalues.appendSDMValues(gp, unitCell, TrainPts)
@@ -85,14 +85,14 @@ def Execute(self, parameters, messages):
         mdidx = 0
         gp.AddMessage("Creating Generalized Class rasters.")
         for Input_Raster, Wts_Table in zip(Input_Rasters, Wts_Tables):
-            Output_Raster = gp.CreateScratchName(os.path.basename(Input_Raster[:9]) + "_G", '', 'raster', arcpy.env.scratchFolder)
+            Output_Raster = gp.CreateScratchName(os.path.basename(Input_Raster[:9]) + "_G", '', 'raster', arcpy.env.scratchWorkspace )            
             #gp.AddMessage('Output_Raster: %s'%(str(Output_Raster)))
         #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
             #++ Need to create in-memory Raster Layer for AddJoin
             RasterLayer = "OutRas_lyr"
             gp.makerasterlayer(Input_Raster, RasterLayer)
             gp.AddJoin_management(RasterLayer, "Value", Wts_Table, "CLASS")
-            Temp_Raster = gp.CreateScratchName('temp_ras', '', 'raster', arcpy.env.scratchFolder)
+            Temp_Raster = gp.CreateScratchName('temp_ras', '', 'raster', arcpy.env.scratchWorkspace )
             gp.AddMessage('Temp_Raster: %s'%(str(Temp_Raster)))
             gp.CopyRaster_management(RasterLayer, Temp_Raster)
             gp.Lookup_sa(Temp_Raster, "GEN_CLASS", Output_Raster)
@@ -576,6 +576,13 @@ def Execute(self, parameters, messages):
         args = e.args[0];
         args.split('\n')
         arcpy.AddError(args);
+        # get the traceback object
+        tb = sys.exc_info()[2]
+         # tbinfo contains the line number that the code failed on and the code from that line
+        tbinfo = traceback.format_tb(tb)[0]
+        # concatenate information together concerning the error into a message string
+        msgs = "Traceback\n" + tbinfo + "\nError Info:\n" + str(sys.exc_info()[1])
+        arcpy.AddError(msgs)
         raise 
     except:
         # get the traceback object
