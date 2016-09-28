@@ -21,6 +21,7 @@
 import arcsdm.sdmvalues;
 import arcpy;
 import gc;
+import importlib;
 
 def Execute(self, parameters, messages):
 

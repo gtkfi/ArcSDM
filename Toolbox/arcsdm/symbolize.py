@@ -11,7 +11,7 @@ import arcpy
 
 import os
 import arcsdm.sdmvalues;
-
+import importlib;
 
 def execute(self, parameters, messages):
     rastername = parameters[0].valueAsText; 
