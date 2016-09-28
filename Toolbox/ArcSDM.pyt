@@ -22,7 +22,7 @@ class Toolbox(object):
         """Define the toolbox (the name of the toolbox is the name of the
         .pyt file)."""
         
-        self.label = "ArcSDM python toolbox"
+        self.label = "ArcSDM toolbox"
         self.alias = "ArcSDM" 
 
         # List of tool classes associated with this toolbox
