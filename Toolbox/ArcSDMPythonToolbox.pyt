@@ -10,6 +10,8 @@ from arcsdm.categoricalmembership import Calculate
 from arcsdm.logisticregression import Execute
 from arcsdm.calculateresponse import Execute
 from arcsdm.common import reload_module, execute_tool
+from arcsdm.symbolize import execute
+
 
 import importlib
 from imp import reload;
@@ -24,8 +26,74 @@ class Toolbox(object):
         self.alias = "ArcSDM" 
 
         # List of tool classes associated with this toolbox
-        self.tools = [CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool]
+        self.tools = [CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool, Symbolize]
 
+class Symbolize(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Symbolize raster with priorprobability (classified values)"
+        self.description = "TODO: Describe this"
+        self.canRunInBackground = False
+        self.category = "Utilities"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        param0 = arcpy.Parameter(
+        displayName="Raster Layer to symbolize",
+        name="evidence_raster_layer",
+        datatype="GPRasterLayer",
+        parameterType="Required",
+        direction="Input")
+
+        
+        param2 = arcpy.Parameter(
+        displayName="Training sites (for prior prob)",
+        name="training_sites",
+        #datatype="DEFeatureClass",
+        datatype="GPFeatureLayer",
+        parameterType="Required",
+        direction="Input")
+        
+        param5 = arcpy.Parameter(
+        displayName="Unit area (km2)",
+        name="Unit_Area__sq_km_",
+        datatype="GPDouble",
+        parameterType="Required",
+        direction="Input")
+        param5.value = "1";
+        
+                                  
+        params = [param0, param2, param5]
+        return params
+
+    def isLicensed(self):
+        """Set whether tool is licensed to execute."""
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+     
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        #3.4
+        try:
+            importlib.reload (arcsdm.symbolize)
+        except :
+            reload(arcsdm.symbolize)
+        arcsdm.symbolize.execute(self, parameters, messages)
+        return
+        
+                       
+        
 class CalculateResponse(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""

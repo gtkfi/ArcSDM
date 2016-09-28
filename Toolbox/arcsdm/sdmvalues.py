@@ -25,6 +25,24 @@ ToMetric = {
     }
     
     
+
+# Returns prior probability against mask/training points    
+def getPriorProb(TrainPts ,unitCell) :
+    size = getMaskSize;
+    num_tps = arcpy.GetCount_management(TrainPts)
+    #arcpy.AddMessage("%-20s %s"% ('amount:' ,num_tps))
+    #arcpy.addmessage("%-20s %s" % ("Unit Cell Area:", "{}km^2, Cells in area: {} ".format(unitCell,num_unit_cells)))
+        
+    total_area = getMaskSize() # Now the getMaskSize returns it correctly in sqkm   : * cellsize **2 * conversion
+      #gp.addMessage("Debug));
+    unitCell = float(unitCell)
+    total_area = float(total_area);
+    num_unit_cells = total_area / unitCell
+    num_tps = count = int(num_tps.getOutput(0))
+    priorprob = num_tps / num_unit_cells
+    return priorprob;
+    
+
     
 #Return mask size in sqkm
 def getMaskSize ():
@@ -117,6 +135,8 @@ def appendSDMValues(gp, unitCell, TrainPts):
             raise arcpy.ExecuteError
             #raise SDMError('Incorrect no. of training sites or unit cell area. TrainingPointsResult {}'.format(priorprob))
         gp.addmessage("%-20s %0.6f" % ('Prior Probability:', priorprob))
+        #gp.addmessage("Debug priorprob:" + str(getPriorProb(TrainPts, unitCell))) 
+        
         gp.addmessage("%-20s %s" % ('Training Set:', gp.describe(TrainPts).catalogpath))
         gp.addmessage("%-20s %s" % ('Study Area Raster:', gp.describe(gp.mask).catalogpath))
         gp.addmessage("%-20s %s" % ( 'Study Area Area:', str(total_area) + "km^2"))

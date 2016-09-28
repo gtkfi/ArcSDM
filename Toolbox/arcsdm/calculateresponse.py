@@ -87,8 +87,13 @@ def Execute(self, parameters, messages):
 
         #Get input evidence rasters
         Input_Rasters = Evidence.split(";")
-        #gp.AddMessage("Input rasters: " + str(Input_Rasters))
-
+        
+        # Process things and removve grouplayer names including EXTRA ' ' symbols around spaced grouplayer name
+        gp.AddMessage("Input rasters: " + str(Input_Rasters))
+        for i, s in enumerate(Input_Rasters):
+            Input_Rasters[i] = arcpy.Describe( s.strip("'")).file;
+        gp.AddMessage("Input rasters: " + str(Input_Rasters))
+        
         #Get input weight tables
         Wts_Tables = Wts_Tables.split(";")
         #gp.AddMessage("Wts_Tables = " + str(Wts_Tables))
@@ -113,7 +118,6 @@ def Execute(self, parameters, messages):
         arcpy.AddMessage("=" * 41);
 
         for Input_Raster in Input_Rasters:
-            arcpy.AddMessage("Processing " + Input_Raster);
             #<== RDB
             #++ Needs to be able to extract input raster name from full path.
             #++ Can't assume only a layer from ArcMap.
@@ -121,6 +125,12 @@ def Execute(self, parameters, messages):
             ##Output_Raster = os.path.basename(Input_Raster)[:11] + "_W"
             #outputrastername = (Input_Raster[:9]) + "_W"; 
             #TODO: Do we need to consider if the file names collide with shapes? We got collision with featureclasses
+            desc = arcpy.Describe(Input_Raster);
+            
+            
+            arcpy.AddMessage("Processing " + Input_Raster);
+            
+            
             outputrastername = Input_Raster + "_W";
             
             # Create _W raster
