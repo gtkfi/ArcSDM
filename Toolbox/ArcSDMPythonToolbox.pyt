@@ -253,7 +253,7 @@ class CalculateWeightsTool(object):
         datatype="GPDouble",
         parameterType="Required",
         direction="Input")
-        
+        param5.value = "1";
         
         param6 = arcpy.Parameter(
         displayName="Missing data value",
@@ -276,6 +276,17 @@ class CalculateWeightsTool(object):
         """Modify the values and properties of parameters before internal
         validation is performed.  This method is called whenever a parameter
         has been changed."""
+        if parameters[0].value and parameters[3].value:
+            if parameters[0].altered or paramaters[3].altered:
+                layer = parameters[0].valueAsText;
+                desc = arcpy.Describe(layer)
+                name = desc.file;
+                type = parameters[3].valueAsText;
+                
+                #Update name accordingly
+                parameters[4].value = "%WORKSPACE%\\" + name + "_W" + type[:1]; #Output is _W + first letter of type
+        
+        
         return
 
     def updateMessages(self, parameters):
