@@ -75,7 +75,7 @@ def Execute(self, parameters, messages):
         lstMD = [MissingDataValue for ras in Input_Rasters]
         gp.AddMessage('MissingDataValue: %s'%(str(MissingDataValue)))
         #Get output raster name
-        thmUC = gp.createscratchname("tmp_UCras", '', 'raster', arcpy.env.scratchWorkspace)
+        thmUC = gp.createscratchname("tmp_UCras", '', 'raster',   gp.scratchworkspace)
 
         #Print out SDM environmental values
         sdmvalues.appendSDMValues(gp, unitCell, TrainPts)
@@ -85,14 +85,14 @@ def Execute(self, parameters, messages):
         mdidx = 0
         gp.AddMessage("Creating Generalized Class rasters.")
         for Input_Raster, Wts_Table in zip(Input_Rasters, Wts_Tables):
-            Output_Raster = gp.CreateScratchName(os.path.basename(Input_Raster[:9]) + "_G", '', 'raster', arcpy.env.scratchWorkspace )            
-            #gp.AddMessage('Output_Raster: %s'%(str(Output_Raster)))
+            Output_Raster = gp.CreateScratchName(os.path.basename(Input_Raster[:9]) + "_G", '', 'raster', gp.scratchworkspace)            
+            gp.AddMessage('Output_Raster: %s'%(str(Output_Raster)))
         #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
             #++ Need to create in-memory Raster Layer for AddJoin
             RasterLayer = "OutRas_lyr"
             gp.makerasterlayer(Input_Raster, RasterLayer)
             gp.AddJoin_management(RasterLayer, "Value", Wts_Table, "CLASS")
-            Temp_Raster = gp.CreateScratchName('temp_ras', '', 'raster', arcpy.env.scratchWorkspace )
+            Temp_Raster = gp.CreateScratchName('temp_ras', '', 'raster',  gp.scratchworkspace)
             gp.AddMessage('Temp_Raster: %s'%(str(Temp_Raster)))
             gp.CopyRaster_management(RasterLayer, Temp_Raster)
             gp.Lookup_sa(Temp_Raster, "GEN_CLASS", Output_Raster)
@@ -473,7 +473,7 @@ def Execute(self, parameters, messages):
         gp.AddMessage('Making table to hold theme coefficients: %s'%fnNew2)
         gp.CreateTable_management(tbldir, tblfn)
         gp.AddField_management(fnNew2, "Theme_ID", 'Long', 6, "#", "#", "Theme_ID")
-        gp.AddField_management(fnNew2, "Theme", 'text', "#", "#", 80, "Evidential_Theme")
+        gp.AddField_management(fnNew2, "Theme", 'text', "#", "#", 256, "Evidential_Theme")
         gp.AddField_management(fnNew2, "Coeff", 'double', "#", "#", "#", 'Coefficient')
         gp.AddField_management(fnNew2, "LR_Std_Dev", 'double', "#", "#", "#", "LR_Standard_Deviation")
         gp.DeleteField(fnNew2, "Field1")
