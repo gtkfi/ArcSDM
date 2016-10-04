@@ -33,15 +33,8 @@ def Execute(self, parameters, messages):
         
         import arcsdm.sdmvalues;
         import arcsdm.workarounds_93;
-        try:
-            importlib.reload (arcsdm.sdmvalues)
-            importlib.reload (arcsdm.workarounds_93);
-        except :
-            reload(arcsdm.sdmvalues);
-            reload(arcsdm.workarounds_93);   
-
+    
         # Create the Geoprocessor object
-
         import arcgisscripting
 
 

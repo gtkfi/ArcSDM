@@ -61,16 +61,6 @@ def Execute(self, parameters, messages):
         Output_Table =  parameters[4].valueAsText #gp.GetParameterAsText(4)
 
         import arcsdm.sdmvalues
-        try:
-            importlib.reload (arcsdm.sdmvalues)
-            importlib.reload (arcsdm.workarounds_93);
-            importlib.reload (arcsdm.floatingrasterclass);
-            
-        except :
-            reload(arcsdm.sdmvalues);
-            reload(arcsdm.workarounds_93);          
-            reload (arcsdm.floatingrasterclass);
-
         arcsdm.sdmvalues.appendSDMValues(gp, UnitArea, Input_point_features)
         
         #Some locals
