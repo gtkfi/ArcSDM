@@ -20,12 +20,6 @@ def execute(self, parameters, messages):
     rastername = parameters[0].valueAsText; 
     trainpts = parameters[1].valueAsText;
     unitcell = parameters[2].value;
-    try:
-        importlib.reload (arcsdm.sdmvalues)
-        importlib.reload (arcsdm.workarounds_93);
-    except :
-        reload(arcsdm.sdmvalues);
-        reload(arcsdm.workarounds_93);   
     Temp_Symbology = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..\\raster_classified.lyr')
     desc = arcpy.Describe(rastername);
     
