@@ -12,26 +12,36 @@ if PY2:
 if PY34:
     import importlib
 
-def reload_module(name, messages):
-    if not cfg.RELOAD_MODULES: return
-    try:
-        if PY2:
-            reload(name)
-        if PY34:
-            importlib.reload(name)
-        messages.AddMessage("Reloaded module {}".format(name))
-    except Exception as e:
-        messages.AddMessage("Failed to reload module %s. Reason:%s" %(name, e.message))
+def reload_arcsdm_modules(messages):
+    arcsdm_modules = [m.__name__ for m in sys.modules.values() if m and m.__name__.startswith(__package__)]
+    for m in arcsdm_modules:
+        try:
+            reload_module(sys.modules[m])
+        except Exception as e:
+            messages.AddMessage("Failed to reload module %s. Reason:%s" %(m, e.message))
+    messages.AddMessage("Reloaded %s modules" % __package__)
+
+def reload_module(name):
+    if PY2:
+        reload(name)
+    if PY34:
+        importlib.reload(name)
 
 def execute_tool(func, self, parameters, messages):
+    if cfg.RELOAD_MODULES:
+        # reload arcsdm.* modules
+        reload_arcsdm_modules(messages)
+        # update func ref to use reloaded code
+        func.__code__ = getattr(sys.modules[func.__module__],  func.__name__).__code__
     if cfg.USE_PTVS_DEBUGGER:
         messages.AddMessage("Waiting for debugger..")
         try:
             from arcsdm.debug_ptvs import wait_for_debugger
             wait_for_debugger()
         except:
-            messages.AddMessage("Failed to import debug_ptvs")
+            messages.AddMessage("Failed to import debug_ptvs. Is ptvsd package installed?")
     try:
+        # run the tool
         func(self, parameters, messages)
     except arcpy.ExecuteError as e:
         msgs = arcpy.GetMessages(2)  

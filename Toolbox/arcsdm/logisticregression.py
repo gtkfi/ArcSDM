@@ -16,7 +16,7 @@ import arcpy
 import arcgisscripting
 from arcsdm import sdmvalues
 from arcsdm import workarounds_93
-from  arcsdm.floatingrasterarray import FloatRasterSearchcursor
+from arcsdm.floatingrasterarray import FloatRasterSearchcursor
 
 # TODO: This should be in external file - like all other common things TR 
 def CheckEnvironment():
@@ -28,9 +28,7 @@ def CheckEnvironment():
 
 
 def Execute(self, parameters, messages):
-
     gp = arcgisscripting.create()
-
     # Check out any necessary licenses
     gp.CheckOutExtension("spatial")
 
@@ -811,6 +809,3 @@ def CalcVals4Msng(lstUCVals, lstAreas, lstMD, lstMCF):
         print (pymsg)
         print (msgs)
         raise Exception
-
-
-

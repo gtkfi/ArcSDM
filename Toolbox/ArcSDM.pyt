@@ -1,17 +1,14 @@
 ﻿import sys
 import arcpy
 
-import arcsdm;
-
-from arcsdm import *
-from arcsdm.sitereduction import ReduceSites
-from arcsdm.calculateweights import Calculate
-from arcsdm.categoricalmembership import Calculate
-from arcsdm.logisticregression import Execute
-from arcsdm.calculateresponse import Execute
-from arcsdm.common import reload_module, execute_tool
-from arcsdm.symbolize import execute
-
+import arcsdm.sitereduction
+import arcsdm.logisticregression
+import arcsdm.calculateweights
+import arcsdm.categoricalmembership
+import arcsdm.logisticregression
+import arcsdm.calculateresponse
+import arcsdm.symbolize
+from arcsdm.common import execute_tool
 
 import importlib
 from imp import reload;
@@ -27,6 +24,7 @@ class Toolbox(object):
 
         # List of tool classes associated with this toolbox
         self.tools = [CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool, Symbolize]
+
 
 class Symbolize(object):
     def __init__(self):
@@ -44,7 +42,6 @@ class Symbolize(object):
         datatype="GPRasterLayer",
         parameterType="Required",
         direction="Input")
-
         
         param2 = arcpy.Parameter(
         displayName="Training sites (for prior prob)",
@@ -61,7 +58,6 @@ class Symbolize(object):
         parameterType="Required",
         direction="Input")
         param5.value = "1";
-        
                                   
         params = [param0, param2, param5]
         return params
@@ -84,15 +80,9 @@ class Symbolize(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        #3.4
-        try:
-            importlib.reload (arcsdm.symbolize)
-        except :
-            reload(arcsdm.symbolize)
-        arcsdm.symbolize.execute(self, parameters, messages)
+        execute_tool(arcsdm.symbolize.execute, self, parameters, messages)
         return
         
-                       
         
 class CalculateResponse(object):
     def __init__(self):
@@ -134,7 +124,6 @@ class CalculateResponse(object):
         direction="Input")
         paramInputWeights.columns = [['DETable', 'Weights table']]
         
-        
         param2 = arcpy.Parameter(
         displayName="Training sites",
         name="training_sites",
@@ -142,7 +131,6 @@ class CalculateResponse(object):
         datatype="GPFeatureLayer",
         parameterType="Required",
         direction="Input")
-        
         
         paramIgnoreMissing = arcpy.Parameter(
         displayName="Ignore missing data",
@@ -152,7 +140,6 @@ class CalculateResponse(object):
         direction="Output")
         #paramIgnoreMissing.value= false;
         
-        
         param3 = arcpy.Parameter(
         displayName="Missing data value",
         name="Missing_Data_Value",
@@ -161,7 +148,6 @@ class CalculateResponse(object):
         #parameterType="Required",
         direction="Output")
         param3.value= -99;
-        
 
         param4 = arcpy.Parameter(
         displayName="Unit area (km^2)",
@@ -171,9 +157,6 @@ class CalculateResponse(object):
         direction="Input")
         param4.value = "1";
         
-        
-        
-        
         param_pprb = arcpy.Parameter(
         displayName="Output post probablity raster",
         name="Output_Post_Probability_raster",
@@ -182,7 +165,6 @@ class CalculateResponse(object):
         direction="Output")
         param_pprb.value = "%Workspace%\W_pprb"
         
-        
         param_std = arcpy.Parameter(
         displayName="Output standard deviation raster",
         name="Output_Standard_Deviation_raster",
@@ -190,7 +172,6 @@ class CalculateResponse(object):
         parameterType="Required",
         direction="Output")
         param_std.value = "%Workspace%\W_std"
-        
         
         param_md_varianceraster = arcpy.Parameter(
         displayName="Output MD variance raster",
@@ -207,7 +188,6 @@ class CalculateResponse(object):
         parameterType="Required",
         direction="Output")
         param_totstddev.value = "%Workspace%\W_Tstd"
-                                            
         
         param_Confraster = arcpy.Parameter(
         displayName="Output confidence raster",
@@ -216,8 +196,6 @@ class CalculateResponse(object):
         parameterType="Required",
         direction="Output")
         param_Confraster.value = "%Workspace%\W_conf"
-        
-        
                                   
         params = [param0, paramInputWeights, param2, paramIgnoreMissing, param3, param4,  param_pprb, param_std, param_md_varianceraster, param_totstddev,  param_Confraster]
         return params
@@ -235,28 +213,12 @@ class CalculateResponse(object):
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
         parameter.  This method is called after internal validation."""
-     
         return
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        #3.4
-        try:
-            importlib.reload (arcsdm.calculateresponse)
-        except :
-            reload(arcsdm.calculateresponse);
-        # To list what functions does module contain
-        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
-        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
-        #messages.AddMessage("Waiting for debugger")
-        #wait_for_debugger(15);
-        #No do yet
-        arcsdm.calculateresponse.Execute(self, parameters, messages)
+        execute_tool(arcsdm.calculateresponse.Execute, self, parameters, messages)
         return
-        
-                
-
-        
         
 
 class CalculateWeightsTool(object):
@@ -330,8 +292,6 @@ class CalculateWeightsTool(object):
         parameterType="Required",
         direction="Input")
         param6.value = "-99";
-
-                           
                                   
         params = [param0, param1, paramTrainingPoints, param2, param3, param4, param5, param6]
         return params
@@ -353,8 +313,6 @@ class CalculateWeightsTool(object):
                 
                 #Update name accordingly
                 parameters[4].value = "%WORKSPACE%\\" + name + "_W" + type[:1]; #Output is _W + first letter of type
-        
-        
         return
 
     def updateMessages(self, parameters):
@@ -365,24 +323,9 @@ class CalculateWeightsTool(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        #3.4
-        try:
-            importlib.reload (arcsdm.calculateweights)
-        except :
-            reload(arcsdm.calculateweights);
-        # To list what functions does module contain
-        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
-        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
-        #messages.AddMessage("Waiting for debugger")
-        #wait_for_debugger(15);
-        calculateweights.Calculate(self, parameters, messages)
-        
+        execute_tool(arcsdm.calculateweights.Calculate, self, parameters, messages)
         return
-        
-        
 
-        
-        
         
 class SiteReductionTool(object):
     def __init__(self):
@@ -480,11 +423,7 @@ class SiteReductionTool(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        try:
-            importlib.reload (arcsdm.sitereduction)
-        except :
-            reload(sitereduction);
-        sitereduction.ReduceSites(self, parameters, messages)
+        execute_tool(arcsdm.sitereduction.ReduceSites, self, parameters, messages)
         return
         
 class CategoricalMembershipToool(object):
@@ -545,12 +484,9 @@ class CategoricalMembershipToool(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        try:
-            importlib.reload (arcsdm.categoricalmembership)
-        except:
-            reload(arcsdm.categoricalmembership)
-        categoricalmembership.Calculate(self, parameters, messages)
+        execute_tool(arcsdm.categoricalmembership.Calculate, self, parameters, messages)
         return
+
 
 class CategoricalAndReclassTool(object):
     def __init__(self):
@@ -629,11 +565,7 @@ class CategoricalAndReclassTool(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        try:
-            importlib.reload (arcsdm.categoricalreclass)
-        except:
-            reload(arcsdm.categoricalreclass)
-        categoricalreclass.Calculate(self, parameters, messages)
+        execute_tool(arcsdm.categoricalreclass.Calculate, self, parameters, messages)
         return
 
 class TOCFuzzificationTool(object):
@@ -704,13 +636,10 @@ class TOCFuzzificationTool(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        try:
-            importlib.reload (arcsdm.tocfuzzification)
-        except:
-            reload(arcsdm.tocfuzzification)
-        tocfuzzification.Calculate(self, parameters, messages)
+        execute_tool(arcsdm.tocfuzzification.Calculate, self, parameters, messages)
         return
         
+
 class LogisticRegressionTool(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
@@ -718,7 +647,6 @@ class LogisticRegressionTool(object):
         self.description = "TODO: Copy this from old toolbox"
         self.canRunInBackground = False
         self.category = "Weights of Evidence"
-
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -835,9 +763,5 @@ class LogisticRegressionTool(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        reload_module(arcsdm.common, messages)
-        reload_module(arcsdm.sdmvalues, messages)
-        reload_module (arcsdm.workarounds_93, messages)
-        reload_module (arcsdm.logisticregression, messages)
         execute_tool(arcsdm.logisticregression.Execute, self, parameters, messages)
         return
