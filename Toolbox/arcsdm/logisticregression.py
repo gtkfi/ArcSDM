@@ -48,10 +48,14 @@ def Execute(self, parameters, messages):
 
         #Get evidence layer names
         Input_Rasters = parameters[0].valueAsText.split(';')
-        #gp.AddMessage('Input_Rasters: %s'%(str(Input_Rasters)))
+        #Remove group layer names 
+        for i, s in enumerate(Input_Rasters):
+            Input_Rasters[i] = arcpy.Describe( s.strip("'")).file;
+        gp.AddMessage("Input rasters: " + str(Input_Rasters))
+
         #Get evidence layer types
         Evidence_types = parameters[1].valueAsText.lower().split(';')
-        gp.AddMessage('Input_Rasters: %s'%(str(Input_Rasters)))
+        gp.AddMessage('Evidence_types: %s'%(str(Evidence_types)))
         if len(Evidence_types) != len(Input_Rasters):
             gp.AddError("Not enough Evidence types!")
             raise Exception
