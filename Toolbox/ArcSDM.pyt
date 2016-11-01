@@ -8,7 +8,10 @@ import arcsdm.categoricalmembership
 import arcsdm.logisticregression
 import arcsdm.calculateresponse
 import arcsdm.symbolize
+import arcsdm.roctool
+
 from arcsdm.common import execute_tool
+
 
 import importlib
 from imp import reload;
@@ -23,9 +26,72 @@ class Toolbox(object):
         self.alias = "ArcSDM" 
 
         # List of tool classes associated with this toolbox
-        self.tools = [CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool, Symbolize]
+        self.tools = [CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool, Symbolize, ROCCalculator ]
+
+        
 
 
+class ROCCalculator(object):
+
+    
+
+    def __init__(self):
+        self.label = "Calculate ROC Curves and AUC Values"
+        self.description = "Calculates Receiver Operator Characteristic curves and Areas Under the Curves"
+        self.category = "Roc tool"
+        self.canRunInBackground = False
+
+
+    def getParameterInfo(self):
+        positives_param = arcpy.Parameter(
+            displayName="True Positives",
+            name="positive_points",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Input")
+        positives_param.filter.list = ["Point", "Multipoint"]
+
+        negatives_param = arcpy.Parameter(
+            displayName="True Negatives",
+            name="negative_points",
+            datatype="GPFeatureLayer",
+            parameterType="Optional",
+            direction="Input")
+        negatives_param.filter.list = ["Point", "Multipoint"]
+
+        models_param = arcpy.Parameter(
+            displayName="Classification Models",
+            name="model_rasters",
+            datatype="GPRasterLayer",
+            parameterType="Required",
+            direction="Input",
+            multiValue=True)
+
+        table_param = arcpy.Parameter(
+            displayName="ROC Curves and AUC Values Table",
+            name="results_table",
+            datatype="DEDbaseTable",
+            parameterType="Required",
+            direction="Output")
+
+        return [positives_param, negatives_param, models_param, table_param]
+
+    def isLicensed(self):
+        return True
+
+   
+
+    def execute(self, parameters, messages):        
+        #execute_tool(arcsdm.roctool.execute, self, parameters, messages)
+        try:
+            importlib.reload (arcsdm.roctool)
+        except :
+            reload(arcsdm.roctool);
+        arcsdm.roctool.execute (self, parameters, messages);
+        return
+        
+        
+        
 class Symbolize(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
