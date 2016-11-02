@@ -9,38 +9,24 @@
 # 30.6.2016 As python toolbox tool module
 # 8.8.2016 AG Desktop compatibility TR
 #
-# TODO: Cleanup 
-#  make input optionally points and result another table? (is not commandline testable now)
-
-# Import system modules
-
-if __name__ == "__main__":
-    import sys
-    import traceback
-
     
 def ReduceSites(self, parameters, messages):
     import sys, string, os, math, traceback
-    #import SDMValues
     import arcgisscripting
     import arcpy;
     import math;
     messages.addMessage("Starting sites reduction");
- 
- 
-
  
     # Process: Missing Data Variance...
     try:
         #gp.AddMessage("Point 1");
          
         TrainPts = parameters[0].valueAsText
-        messages.addMessage( "Training points: {}".format( TrainPts));
-        #print (TrainPts)
+        OutputPts = parameters[5].valueAsText
+
+        messages.addMessage( "Training points: {}".format(TrainPts));
         arcpy.SelectLayerByAttribute_management (TrainPts) 
         #gp.AddMessage("%s All Selected = %s"%(TrainPts,str(gp.GetCount_management(TrainPts))))
-        
-        #messages.addMessage("DebugMsg5") 
         #Get initial selection within mask
         maskpolygon = arcpy.env.mask;
         if maskpolygon is None:
@@ -50,27 +36,17 @@ def ReduceSites(self, parameters, messages):
         if not arcpy.Exists(arcpy.env.mask):
             #messages.addErrorMessage("Mask doesn't exist! Set Mask under Analysis/Environments.");
             raise arcpy.ExecuteError("Mask doesn't exist! Set Mask under Analysis/Environments.");
-        
         maskname = arcpy.Describe(arcpy.env.mask).Name;
         
-        #NOTE: THere is also scratch folder!
         messages.AddMessage("Scratch workspace: " + arcpy.env.scratchWorkspace);
-        #messages.AddMessage(maskname);
-        
-        #maskpolygon = os.path.join(gp.ScratchWorkspace,maskname)
         maskpolygon = arcpy.env.mask;
         messages.AddMessage("Using mask:" + maskname);
+        messages.AddMessage("Selection layer: {}".format(OutputPts))
         
         if not arcpy.Exists(maskpolygon):
-            #TODO: Make suere everything is set in some other module!
-            #messages.addWarningMessage("Mask doesn't exist - abort?");
-            #messages.addMessage("DebugMsg5")        
-            #gp.RasterToPolygon_conversion(gp.mask, maskpolygon, "SIMPLIFY")
             raise arcpy.ExecuteError ("Mask doesn't exist - aborting");
+
         arcpy.MakeFeatureLayer_management(maskpolygon, maskname)
-        #messages.addMessage("DebugMsg5") 
-        
-        #messages.addMessage(maskpolygon);
         arcpy.SelectLayerByLocation_management(TrainPts, 'CONTAINED_BY', maskname, "#", 'SUBSET_SELECTION')
         tpcount = arcpy.GetCount_management(TrainPts)
         #messages.AddMessage("debug: Selected by mask = "+str(tpcount))
@@ -85,12 +61,11 @@ def ReduceSites(self, parameters, messages):
         # This is used to test if OID is OBJECTID or FID
         field_names = [f.name for f in arcpy.ListFields(TrainPts)]
         
-        # TODO: Make this general part of module
         if ('OBJECTID' in field_names):    
             messages.AddMessage("Object contains OBJECTID and is geodatabase feature");
         else:
             messages.AddMessage("Object contains FID and is of type shape");
-            
+
         if thin:
             #Get minimum allowable distance in meters based on Unit Area
             minDist = math.sqrt(UnitArea * 1000000.0 / math.pi)
@@ -322,21 +297,21 @@ def ReduceSites(self, parameters, messages):
             i = 0
             feat = feats.next()
             #Is this first?
-            first = 0;
+            first = 0
             
             while feat:            
                 if randnums[i] < cutoff:
                     if ('OBJECTID' in field_names):
                         if (first > 0):
-                            fids += ' or OBJECTID = ';
+                            fids += ' or OBJECTID = '
                         else:
                             first = 1;
                         fids += (str(feat.OBJECTID) )
                     else:
                         if (first>0):
-                            fids += ' or FID = ';
+                            fids += ' or FID = '
                         else:
-                            first = 1;
+                            first = 1
                         fids += (str(feat.fid) )
                 i+=1
                 feat = feats.next()
@@ -346,18 +321,24 @@ def ReduceSites(self, parameters, messages):
             #messages.AddMessage("Fids: " + fids)
             arcpy.SelectLayerByAttribute_management (TrainPts, 'SUBSET_SELECTION', fids) 
             messages.AddMessage("Selected by random = "+str(arcpy.GetCount_management(TrainPts)))
+
         if not thin and not random:
             gp.AddError("No training sites reduction method selected.")
             raise 'User Error'
+
+        if OutputPts: # save as a layer 
+            arcpy.CopyFeatures_management(TrainPts, OutputPts)
+            arcpy.SetParameterAsText(5, OutputPts)
+
     except arcpy.ExecuteError as e:
         #TODO: Clean up all these execute errors in final version
         arcpy.AddError("\n");
-        arcpy.AddMessage("Training sites reduction caught arcpy.ExecuteError: ");
+        arcpy.AddMessage("Training sites reduction caught arcpy.ExecuteError: ")
         args = e.args[0];
         args.split('\n')
         arcpy.AddError(args);
                     
-        arcpy.AddMessage("-------------- END EXECUTION ---------------");        
+        arcpy.AddMessage("-------------- END EXECUTION ---------------") 
         raise arcpy.ExecuteError;   
     except Exception as Msg:
         # get the traceback object

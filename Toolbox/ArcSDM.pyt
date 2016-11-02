@@ -372,8 +372,15 @@ class SiteReductionTool(object):
         datatype="GPLong",
         parameterType="Optional",
         direction="Input")
+        
+        param5 = arcpy.Parameter(
+        displayName="Save selection as a new layer",
+        name="layerSelection",
+        datatype="GPFeatureLayer",
+        parameterType="Optional",
+        direction="Derived")
                                             
-        params = [param0, param1, param2, param3, param4]
+        params = [param0, param1, param2, param3, param4, param5]
         return params
 
     def isLicensed(self):
