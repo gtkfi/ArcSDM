@@ -4,6 +4,8 @@ Spatial Data Modeler 5 for ArcGis pro<Br>
 Status of the toolbox should be updated to wiki https://github.com/gtkfi/ArcSDM/wiki/Toolbox-details <bR>
 
 ##History:
+1.11.2016 Roc-tool included <br>
+1.11.2016 Calculate response and Logistic regression feature complete and ready for testing, not clean<br>
 27.9.2016 Calculate response update <br>
 20.9.2016 Testing started against Arcgis desktop 10.4.1 <br>
 7.9.2016 Calculate response (WIP) + New demo data <br>
