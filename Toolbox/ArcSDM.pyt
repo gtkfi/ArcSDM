@@ -4,6 +4,7 @@ import arcpy
 import arcsdm.sitereduction
 import arcsdm.logisticregression
 import arcsdm.calculateweights
+import arcsdm.categoricalreclass
 import arcsdm.categoricalmembership
 import arcsdm.logisticregression
 import arcsdm.calculateresponse
