@@ -27,12 +27,12 @@ class Toolbox(object):
         self.alias = "ArcSDM" 
 
         # List of tool classes associated with this toolbox
-        self.tools = [CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool, Symbolize, ROCCalculator ]
+        self.tools = [CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool, Symbolize, ROCTool ]
 
         
 
 
-class ROCCalculator(object):
+class ROCTool(object):
 
     
 

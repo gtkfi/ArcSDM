@@ -188,9 +188,13 @@ def CalculateROCCurve( positive_sample, negative_sample):
     
 class RasterSampler:
 
+    NO_DATA_VALUE = -32768
+
     def __init__(self, raster):
         if raster.bandCount > 1:
             raise ValueError("Raster contains more than one band.")
+
+        self.raster = raster
 
         self.x0 = raster.extent.upperLeft.X
         self.y0 = raster.extent.upperLeft.Y
@@ -204,17 +208,27 @@ class RasterSampler:
         self.pixel_width = (self.x1 - self.x0) / raster.width
         self.pixel_height = (self.y1 - self.y0) / raster.height
         
-        self.pixel_values = arcpy.RasterToNumPyArray(raster, nodata_to_value=numpy.nan)
+        if raster.isInteger:
+            self.pixel_values = arcpy.RasterToNumPyArray(raster, nodata_to_value=self.NO_DATA_VALUE)
+        else:
+            self.pixel_values = arcpy.RasterToNumPyArray(raster, nodata_to_value=numpy.nan)
 
     def Sample(self, x, y):
         cols = numpy.floor((x - self.x0) / self.pixel_width).astype(int)
         rows = numpy.floor((y - self.y0) / self.pixel_height).astype(int)
 
-        z = numpy.ones(len(x)) * numpy.nan
+        if self.raster.isInteger:
+            z = numpy.ones(len(x)) * self.NO_DATA_VALUE
+        else:
+            z = numpy.ones(len(x)) * numpy.nan
+
         i = numpy.nonzero((cols >= 0) & (rows >= 0) & (cols < self.num_cols) & (rows < self.num_rows))
         z[i] = self.pixel_values[rows[i], cols[i]]
 
-        x, y, z = x[~numpy.isnan(z)], y[~numpy.isnan(z)], z[~numpy.isnan(z)]
+        if self.raster.isInteger:
+            x, y, z = x[z != self.NO_DATA_VALUE], y[z != self.NO_DATA_VALUE], z[z != self.NO_DATA_VALUE]
+        else:
+            x, y, z = x[~numpy.isnan(z)], y[~numpy.isnan(z)], z[~numpy.isnan(z)]
 
         return x, y, z
 
