@@ -4,7 +4,7 @@ import arcpy
 from arcpy.sa import ReclassByTable, Float, Divide
 
 def Calculate(self, parameters, messages):
-    messages.addMessage("Starting categorical membership calculation");
+    messages.addMessage("Starting categorical membership calculation")
     try:
         cat_evidence = parameters[0].valueAsText
         reclassification = parameters[1].valueAsText

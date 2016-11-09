@@ -11,6 +11,7 @@ import arcsdm.logisticregression
 import arcsdm.calculateresponse
 import arcsdm.symbolize
 import arcsdm.roctool
+import arcsdm.acterbergchengci
 
 from arcsdm.common import execute_tool
 
@@ -28,21 +29,14 @@ class Toolbox(object):
         self.alias = "ArcSDM" 
 
         # List of tool classes associated with this toolbox
-        self.tools = [CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool, Symbolize, ROCTool ]
-
-        
-
+        self.tools = [CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool, Symbolize, ROCTool, AgterbergChengCITest]
 
 class ROCTool(object):
-
-    
-
     def __init__(self):
         self.label = "Calculate ROC Curves and AUC Values"
         self.description = "Calculates Receiver Operator Characteristic curves and Areas Under the Curves"
         self.category = "Roc tool"
         self.canRunInBackground = False
-
 
     def getParameterInfo(self):
         positives_param = arcpy.Parameter(
@@ -81,8 +75,6 @@ class ROCTool(object):
     def isLicensed(self):
         return True
 
-   
-
     def execute(self, parameters, messages):        
         #execute_tool(arcsdm.roctool.execute, self, parameters, messages)
         try:
@@ -91,8 +83,6 @@ class ROCTool(object):
             reload(arcsdm.roctool);
         arcsdm.roctool.execute (self, parameters, messages);
         return
-        
-        
         
 class Symbolize(object):
     def __init__(self):
@@ -840,3 +830,73 @@ class LogisticRegressionTool(object):
         """The source code of the tool."""
         execute_tool(arcsdm.logisticregression.Execute, self, parameters, messages)
         return
+
+class AgterbergChengCITest(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Agterberg-Cheng CI Test"
+        self.description = ""
+        self.canRunInBackground = False
+        self.category = "Weights of Evidence"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        param0 = arcpy.Parameter(
+        displayName="Post Probability raster",
+        name="pp_raster",
+        datatype="GPRasterLayer",
+        parameterType="Required",
+        direction="Input")
+
+        param1 = arcpy.Parameter(
+        displayName="Probability Std raster",
+        name="ps_raster",
+        datatype="GPRasterLayer",
+        parameterType="Required",
+        direction="Input")
+
+        param2 = arcpy.Parameter(
+        displayName="Training sites",
+        name="training_sites",
+        datatype="GPFeatureLayer",
+        parameterType="Required",
+        direction="Input")
+
+        param3 = arcpy.Parameter(
+        displayName="Unit area (km2)",
+        name="Unit_Area__sq_km",
+        datatype="GPDouble",
+        parameterType="Required",
+        direction="Input")
+
+        param4 = arcpy.Parameter(
+        displayName="Output CI Test File",
+        name="ci_test_file",
+        datatype="DEFile",
+        parameterType="Optional",
+        direction="Output")
+                                  
+        params = [param0, param1, param2, param3, param4]
+        return params
+
+    def isLicensed(self):
+        """Set whether tool is licensed to execute."""
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+     
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        execute_tool(arcsdm.acterbergchengci.Calculate, self, parameters, messages)
+        return
+
