@@ -65,7 +65,7 @@ class ArealFrequency(object):
         parameterType="Required",
         direction="Input")
         #paramField.filter.list = [['Short', 'Long']]
-        paramField.parameterDependencies = [paramRaster.name];
+        #paramField.parameterDependencies = [paramRaster.name];
         paramField.value = "VALUE";
         
         #param1.filter.type = "ValueList";

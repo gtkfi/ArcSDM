@@ -1,6 +1,12 @@
 
 
+
 """
+
+  Area frequency tool 
+ 
+  Recoded for ArcSDM 5 by Tero Ronkko 2016 / GTK
+ 
 
     Spatial Data Modeller for ESRI* ArcGIS 9.3
     Copyright 2009
@@ -57,20 +63,26 @@ def Execute(self, parameters, messages):
         Input_point_features = parameters[0].valueAsText
         Input_raster =  parameters[1].valueAsText #gp.GetParameterAsText(1)
         Value_field =  parameters[2].valueAsText #gp.GetParameterAsText(2)
-        UnitArea =  parameters[3].valueAsText #gp.GetParameter(3)
+        UnitArea =  parameters[3].value #gp.GetParameter(3)
         Output_Table =  parameters[4].valueAsText #gp.GetParameterAsText(4)
 
         import arcsdm.sdmvalues
         arcsdm.sdmvalues.appendSDMValues(gp, UnitArea, Input_point_features)
+        arcpy.AddMessage("\n"+"="*41+" Starting area frequency "+"="*41)
         
         #Some locals
         valuetypes = {1:'Integer', 2:'Float'}
         joinRastername = None
         Input_table = None
         RasterValue_field = Value_field.title().endswith('Value')
+        if (RasterValue_field):
+            arcpy.AddMessage("Debug: There is rastervaluefield");
+        else:
+            arcpy.AddMessage("Debug: There is no rastervaluefield");
+        
         #Create Output Raster
         valuetype = gp.GetRasterProperties (Input_raster, 'VALUETYPE')
-        gp.addmessage("valuetype = " + str(valuetype))
+        gp.addmessage("Valuetype = " + str(valuetype))
         #gp.addmessage("Value type: %s"%valuetypes[valuetype])
         ##if valuetypes[valuetype].title() == 'Integer': #INTEGER #RDB
         if valuetype <= 8:  #<RDB new integer valuetype property values for arcgis version 10
@@ -94,14 +106,14 @@ def Execute(self, parameters, messages):
                         gp.adderror("Integer Raster Attribute field not floating type.")
                         raise RunTimeError("Integer Raster Attribute field not floating type.")
                 else:
-                   #Create a float raster from the Value field
+                    #Create a float raster from the Value field
                     gp.adderror("Integer Raster Value field not acceptable.")
                     raise RunTimeError ("Integer Raster Value field not acceptable")
             Input_raster = TmpRaster #The input raster is now the new float raster
             valuetype = 2 # Always a floating point raster
         else: #FLOAT
             gp.addmessage("Floating Raster from Floating Raster Value: type %s"%gp.describe(Input_raster).pixeltype)
-
+            
         # Process: Extract Values of Input Raster to Training Points...
         #gp.AddMessage("tpcnt = %i"%gp.GetCount_management(Input_point_features))
         if gp.GetCount_management(Input_point_features) == 0:
@@ -111,7 +123,7 @@ def Execute(self, parameters, messages):
         #Output_point_features = gp.createuniquename("Extract_Train.shp", gp.ScratchWorkspace)
         #gp.ExtractValuesToPoints_sa(Input_point_features, Input_raster, Output_point_features)
         Output_point_features = arcsdm.workarounds_93. ExtractValuesToPoints(gp, Input_raster, Input_point_features, "TPFID")
-
+        
     # Process: Summary Statistics...
         #Get stats of RASTERVALU field in training sites features with extracted points.
         #gp.AddMessage('Getting statistics...')
@@ -127,7 +139,10 @@ def Execute(self, parameters, messages):
         #gp.addwarning('Got stats...')
         #Get all VALUES from input raster, add to stats_dict dictionary
         #from floatingrasterclass import FloatRasterVAT, rowgen
+        arcpy.AddMessage("Debug: Before vat");        
         flt_ras = FloatRasterVAT(gp, Input_raster)
+        arcpy.AddMessage("Debug: after workarounds");
+        
         rows = flt_ras.FloatRasterSearchcursor()
         gp.Statistics_analysis(Output_point_features, Output_summary_stats,"RASTERVALU FIRST","RASTERVALU")
       
@@ -138,7 +153,9 @@ def Execute(self, parameters, messages):
         #gp.addwarning('num_training_sites: %s'%num_training_sites)
         #Get frequency of RASTERVALU in training points extracted values.
         statsrows = rowgen(gp.SearchCursor(Output_summary_stats))
-       
+        
+        
+        arcpy.AddMessage("Debug: Here");
         
         
         num_nodata = 0
@@ -152,7 +169,9 @@ def Execute(self, parameters, messages):
                 rasval = flt_ras[row.RASTERVALU]
                 #Update stats dictionary with occurence frequencies in Statistics table
                 if rasval in stats_dict: stats_dict[rasval] = row.FREQUENCY
-        gp.addwarning("Created stats_dict: %s"%stats_dict)
+        #gp.addwarning("Created stats_dict: %s"%stats_dict)
+        arcpy.AddMessage("Debug: Here2");
+        
         num_counts = sum(stats_dict.values())
         if num_counts != num_training_sites - num_nodata:
             gp.addwarning("Stats count and number of training sites in data area do not compare.")

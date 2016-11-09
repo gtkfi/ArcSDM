@@ -23,8 +23,8 @@ class FloatRasterVAT(object):
         ## TODO: .flt for dir, no .flt to geodatabase!
         ## Now using Scratchfolder
         #OutAsciiFile = gp.createuniquename("tmp_rasfloat.flt", gp.scratchworkspace)  
-        arcpy.AddMessage(" -- Debug: FLoatingRasterArray --");
-        arcpy.AddMessage("Debug:" + arcpy.env.scratchFolder);
+        #arcpy.AddMessage(" -- Debug: FLoatingRasterArray --");
+        #arcpy.AddMessage("Debug:" + arcpy.env.scratchFolder);
         
         OutAsciiFile = gp.createuniquename("tmp_rasfloat.flt", arcpy.env.scratchFolder)
         #Convert float raster to FLOAT file and ASCII header
