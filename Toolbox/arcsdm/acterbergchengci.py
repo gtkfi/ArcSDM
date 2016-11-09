@@ -12,6 +12,8 @@ import arcpy
 from arcsdm.floatingrasterarray import FloatRasterSearchcursor
 import arcgisscripting
 gp = arcgisscripting.create()
+gp.CheckOutExtension("spatial")
+gp.OverwriteOutput = 1
 
 def Calculate(self, parameters, messages):
     messages.addMessage("Starting Agterberg-Cheng CI Test")
