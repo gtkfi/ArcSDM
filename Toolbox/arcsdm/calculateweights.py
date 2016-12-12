@@ -8,6 +8,7 @@
     23.9.2016 Goes through
     12.8.2016 First running version for pyt. Shapefile training points and output?
     1.8.2016 Python toolbox version started
+    12.12.2016 Fixes 
     
     
     
@@ -215,7 +216,9 @@ def Calculate(self, parameters, messages):
         if gp.exists(Statistics): gp.Delete_management(Statistics)
         gp.Statistics_analysis(tempTrainingPoints, Statistics, "rastervalu sum" ,"rastervalu")
     # Process: Create the table
+            
         gp.CreateTable_management(os.path.dirname(wtstable), os.path.basename(wtstable), Statistics)
+        
         gp.AddField_management (wtstable, "Count", "long") 
         gp.AddField_management (wtstable, "Area", 'double')
         gp.AddField_management (wtstable, "AreaUnits", 'double')

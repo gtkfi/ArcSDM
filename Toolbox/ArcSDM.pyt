@@ -370,7 +370,8 @@ class CalculateWeightsTool(object):
                 type = parameters[3].valueAsText;
                 
                 #Update name accordingly
-                parameters[4].value = "%WORKSPACE%\\" + name + "_W" + type[:1]; #Output is _W + first letter of type
+                resulttmp = "%WORKSPACE%\\" + name + "_W" + type[:1]; #Output is _W + first letter of type
+                parameters[4].value =  resulttmp.replace(".","");  #Remove illegal characters
         return
 
     def updateMessages(self, parameters):
