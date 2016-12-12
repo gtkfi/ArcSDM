@@ -46,41 +46,66 @@ def getPriorProb(TrainPts ,unitCell) :
     
 #Return mask size in sqkm
 def getMaskSize ():
-    desc = arcpy.Describe(arcpy.env.mask);
-    #arcpy.AddMessage( "getMaskSize()");
-    if (desc.dataType == "RasterLayer"):
-        #arcpy.AddMessage( " Counting raster size");                       
-        maskrows = arcpy.SearchCursor(desc.catalogpath)        
-        maskrow = maskrows.next()
-        count =  0
-        while maskrow:
-            count += maskrow.count
+    try:
+        desc = arcpy.Describe(arcpy.env.mask);
+        #arcpy.AddMessage( "getMaskSize()");
+        if (desc.dataType == "RasterLayer"):
+            #arcpy.AddMessage( " Counting raster size");                       
+            maskrows = arcpy.SearchCursor(desc.catalogpath)        
             maskrow = maskrows.next()
-        cellsize = float(arcpy.env.cellSize)
-        count = count * (cellsize * cellsize);
-      
-    if (desc.dataType == "FeatureLayer" or desc.dataType == "FeatureClass"):
-        #arcpy.AddMessage( " Calculating mask size");           
-        maskrows = arcpy.SearchCursor(desc.catalogpath)
-        shapeName = desc.shapeFieldName                
-        maskrow = maskrows.next()
-        count =  0
-        while maskrow:
-            feat = maskrow.getValue(shapeName)
-            count += feat.area;
+            count =  0
+            while maskrow:
+                count += maskrow.count
+                maskrow = maskrows.next()
+            cellsize = float( str(arcpy.env.cellSize.replace(",",".")) )             
+            count = count * (cellsize * cellsize);
+          
+        if (desc.dataType == "FeatureLayer" or desc.dataType == "FeatureClass"):
+            #arcpy.AddMessage( " Calculating mask size");           
+            maskrows = arcpy.SearchCursor(desc.catalogpath)
+            shapeName = desc.shapeFieldName                
             maskrow = maskrows.next()
-       
-    mapUnits = getMapUnits().lower().strip()
-    if not mapUnits.startswith('meter'):
-            arcpy.addError('Incorrect output map units: Check units of study area.')
-    conversion = getMapConversion( mapUnits)
-    count = count * conversion;
-        #Count is now in Sqkm -> So multiply that with 1000m*1000m / cellsize ^2
-        #multiplier = (1000 * 1000) / (cellsize * cellsize); #with 500 x 500 expect "4"
-        #arcpy.AddMessage("Debug:" + str(multiplier));
-        #count = count * multiplier;
-    return count 
-
+            count =  0
+            while maskrow:
+                feat = maskrow.getValue(shapeName)
+                count += feat.area;
+                maskrow = maskrows.next()
+           
+        mapUnits = getMapUnits().lower().strip()
+        if not mapUnits.startswith('meter'):
+                arcpy.addError('Incorrect output map units: Check units of study area.')
+        conversion = getMapConversion( mapUnits)
+        count = count * conversion;
+            #Count is now in Sqkm -> So multiply that with 1000m*1000m / cellsize ^2
+            #multiplier = (1000 * 1000) / (cellsize * cellsize); #with 500 x 500 expect "4"
+            #arcpy.AddMessage("Debug:" + str(multiplier));
+            #count = count * multiplier;
+        #arcpy.AddMessage("Size: " + str(count));
+        return count
+    except arcpy.ExecuteError as e:
+        if not all(e.args):
+            arcpy.AddMessage("Calculate weights caught arcpy.ExecuteError: ");
+            args = e.args[0];
+            args.split('\n')
+            arcpy.AddError(args);
+        arcpy.AddMessage("-------------- END EXECUTION ---------------");        
+        raise;
+    except:
+        # get the traceback object
+        tb = sys.exc_info()[2]
+        #gp.addError("sdmvalues.py excepted:");
+        # tbinfo contains the line number that the code failed on and the code from that line
+        tbinfo = traceback.format_tb(tb)[0]
+        arcpy.AddError ( tbinfo );
+        # concatenate information together concerning the error into a message string
+        #pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
+        #    str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
+        # generate a message string for any geoprocessing tool errors
+        if len(arcpy.GetMessages(2)) > 0:
+            msgs = "SDM GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
+            arcpy.AddError(msgs)
+        #gp.AddError(pymsg)
+        raise;
     
     
     
@@ -104,7 +129,7 @@ def appendSDMValues(gp, unitCell, TrainPts):
             #gp.AddMessage("Mask set");
             desc = gp.describe(gp.mask);
             gp.addMessage( "%-20s %s" %( "Mask:", "\"" + desc.name + "\" and it is " + desc.dataType));           
-            gp.addMessage( "%-20s %s" %( "Mask size:", str(getMaskSize())));           
+            gp.addMessage( "%-20s %s" %( "Mask size:", str(getMaskSize())  ));           
             #gp.AddMessage("Masksize: " + str(getMaskSize()));            
         mapUnits = getMapUnits().lower().strip()
         if not mapUnits.startswith('meter'):
@@ -118,7 +143,7 @@ def appendSDMValues(gp, unitCell, TrainPts):
             gp.AddError("Cellsize must have value!");
             raise arcpy.ExecuteError
         
-        cellsize = float(arcpy.env.cellSize)
+        cellsize = float(str(arcpy.env.cellSize).replace(",","."))
         gp.addmessage("%-20s %s" %("Cell Size:", cellsize))
         #gp.addMessage("Debug: " + str(conversion));
         total_area = getMaskSize() # Now the getMaskSize returns it correctly in sqkm   : * cellsize **2 * conversion
