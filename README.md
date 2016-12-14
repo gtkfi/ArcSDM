@@ -11,8 +11,9 @@ Click "Clone or download" and select suitable download option for you. "Download
 
 ### Demodata <br>
 Download the demodata as a zip package from here: https://dl.dropboxusercontent.com/u/10684431/arcsdm/ArcSdm_DemoData.zip  <br>
+Open and save the zip optionally to your ArcSDM toolbox installation folder as "Data" folder. Then click "initworkdir.bat" to create (or overwrite older) working copy. <br>
 
-
+### Status
 <br>
 Status of the toolbox should be updated to wiki https://github.com/gtkfi/ArcSDM/wiki/Toolbox-details <bR>
 
