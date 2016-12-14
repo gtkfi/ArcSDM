@@ -9,6 +9,6 @@ work/*
 Toolbox/arcsdm/__pycache__
 Toolbox/arcsdm/__pycache__/*
 *.pyc
-
-
+data
+data/*
 
