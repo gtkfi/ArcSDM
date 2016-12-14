@@ -16,6 +16,7 @@ A function to append Spatial Data Modeller parameters to Geoprocessor History
 import traceback, sys
 from arcsdm.exceptions import SDMError
 import arcpy
+import os
 
 ToMetric = {
     'square meters to square kilometers' : 0.000001,
@@ -112,6 +113,10 @@ def getMaskSize ():
 def appendSDMValues(gp, unitCell, TrainPts):
     try:
         arcpy.AddMessage("\n" + "="*30 + " arcsdm values  " + "=" *30);
+        with open (os.path.join(os.path.dirname(__file__), "arcsdm_version.txt"), "r") as myfile:
+            data=myfile.readlines()
+        #Print version information
+        arcpy.AddMessage("%-20s %s" % ("", data[0]) ); 
         if not gp.workspace:
             gp.adderror('Workspace not set')
         gp.addmessage("%-20s %s" % ("Workspace: ", gp.workspace));

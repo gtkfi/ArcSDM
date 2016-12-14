@@ -1,0 +1,9 @@
+ArcSdm 5.00 for ArcGis (Pro and Desktop)
+
+## The following lines will and should not be printed as output as version info!
+
+Update this file when updating the version numbering of the arcsdm library
+
+Janne Kallunki, GTK 2016, janne.kallunki@gtk.fi
+Tero Rönkkö, GTK 2016, tero.ronkko@gtk.fi
+
