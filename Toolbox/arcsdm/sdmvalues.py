@@ -84,12 +84,7 @@ def getMaskSize ():
         #arcpy.AddMessage("Size: " + str(count));
         return count
     except arcpy.ExecuteError as e:
-        if not all(e.args):
-            arcpy.AddMessage("Calculate weights caught arcpy.ExecuteError: ");
-            args = e.args[0];
-            args.split('\n')
-            arcpy.AddError(args);
-        arcpy.AddMessage("-------------- END EXECUTION ---------------");        
+            
         raise;
     except:
         # get the traceback object
