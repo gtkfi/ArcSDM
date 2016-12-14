@@ -1,9 +1,26 @@
 # ArcSDM
 Spatial Data Modeler 5 for ArcGis pro<Br>
+
+## How to get started? <br>
+
+If you want to work against your own data, you can download just the toolbox. If you want to try, evaluate and experiment with ArcSdm you can download our demodata separately from the main package. <br>
+
+### Toolbox <br>
+Click "Clone or download" and select suitable download option for you. "Download Zip" is the safe and easy choice, just open the zip anywhere you like and add the toolbox to ArcGis (Desktop or Pro). <br>
+
+
+### Demodata <br>
+Download the demodata as a zip package from here: https://dl.dropboxusercontent.com/u/10684431/arcsdm/ArcSdm_DemoData.zip  <br>
+
+
 <br>
 Status of the toolbox should be updated to wiki https://github.com/gtkfi/ArcSDM/wiki/Toolbox-details <bR>
 
+##News: 
+The demodata and the toolbox will be separated from eachother to make downloading easier.<br>
+
 ##History:
+14.12.2016 Separation of demodata and toolbox started.<br>
 1.11.2016 Roc-tool included <br>
 1.11.2016 Calculate response and Logistic regression feature complete and ready for testing, not clean<br>
 27.9.2016 Calculate response update <br>
