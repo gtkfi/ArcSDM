@@ -3,7 +3,13 @@ Spatial Data Modeler 5 for ArcGis pro<Br>
 
 ## How to get started? <br>
 
+
+
 If you want to work against your own data, you can download just the toolbox. If you want to try, evaluate and experiment with ArcSdm you can download our demodata separately from the main package. <br>
+
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=w-EAv2A2jOM
+" target="_blank"><img src="http://img.youtube.com/vi/w-EAv2A2jOM/0.jpg" 
+alt="How to download and extract the toolbox" width="240" height="180" border="10" /></a>
 
 ### Toolbox <br>
 Click "Clone or download" and select suitable download option for you. "Download Zip" is the safe and easy choice, just open the zip anywhere you like and add the toolbox to ArcGis (Desktop or Pro). <br>
