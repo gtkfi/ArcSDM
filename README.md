@@ -21,8 +21,8 @@ alt="How to download and extract the toolbox" width="240" height="180" border="1
 Download the demodata as a zip package from here: https://dl.dropboxusercontent.com/u/10684431/arcsdm/ArcSdm_DemoData.zip  <br>
 Open and save the zip optionally to your ArcSDM toolbox installation folder as "Data" folder. Then click "initworkdir.bat" to create (or overwrite older) working copy. <br>
 
-<a href="http://www.youtube.com/watch?feature=player_embedded&v=4rU1oDqEUrQ&t
-" target="_blank"><img src="http://img.youtube.com/vi/4rU1oDqEUrQ&t/0.jpg" 
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=4rU1oDqEUrQ
+" target="_blank"><img src="http://img.youtube.com/vi/4rU1oDqEUrQ/0.jpg" 
 alt="How to download and extract the toolbox" width="240" height="180" border="10" /></a>
 
 
