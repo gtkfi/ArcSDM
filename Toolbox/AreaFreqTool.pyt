@@ -62,7 +62,7 @@ class ArealFrequency(object):
         displayName="Value field",
         name="valuefield_name",
         datatype="Field",
-        parameterType="Required",
+        parameterType="Optional",
         direction="Input")
         #paramField.filter.list = [['Short', 'Long']]
         #paramField.parameterDependencies = [paramRaster.name];
@@ -90,7 +90,7 @@ class ArealFrequency(object):
         datatype="DEDbaseTable",
         parameterType="Required",
         direction="Output")
-        paramOutputTable.value = "%WorkspaceDir%\LR_logpol"
+        paramOutputTable.value = "%Workspace%\LR_logpol"
                 
     
         

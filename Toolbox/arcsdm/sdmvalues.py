@@ -107,7 +107,7 @@ def getMaskSize ():
     
 def appendSDMValues(gp, unitCell, TrainPts):
     try:
-        arcpy.AddMessage("\n" + "="*30 + " arcsdm values  " + "=" *30);
+        arcpy.AddMessage("\n" + "="*10 + " arcsdm values  " + "=" *10);
         with open (os.path.join(os.path.dirname(__file__), "arcsdm_version.txt"), "r") as myfile:
             data=myfile.readlines()
         #Print version information
@@ -179,7 +179,6 @@ def appendSDMValues(gp, unitCell, TrainPts):
     except:
         # get the traceback object
         tb = sys.exc_info()[2]
-        #gp.addError("sdmvalues.py excepted:");
         # tbinfo contains the line number that the code failed on and the code from that line
         tbinfo = traceback.format_tb(tb)[0]
         gp.addError ( tbinfo );
@@ -236,7 +235,7 @@ def getMapUnits():
             return None        
     except arcpy.ExecuteError as error:
         gp.AddError(gp.GetMessages(2))
-        gp.AddMessage("Debug SDMVAlues exception");
+        #gp.AddMessage("Debug SDMVAlues exception");
         raise
     except:
         import traceback, sys

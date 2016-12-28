@@ -41,6 +41,11 @@ VAT.next() returns (ID, VALUE, COUNT)
 
 """
 # Import modules
+
+class UserException(Exception):
+    pass
+
+
 import sys, string, os, random, traceback, tempfile
 import arcgisscripting
 import arcsdm.workarounds_93
@@ -58,27 +63,29 @@ gp.OverwriteOutput = 1
 
 # Script arguments...
 def Execute(self, parameters, messages):
-
+    import arcsdm.sdmvalues
+    try:
+        importlib.reload (arcsdm.sdmvalues)
+    except:
+        reload(arcsdm.sdmvalues);
     try:
         Input_point_features = parameters[0].valueAsText
         Input_raster =  parameters[1].valueAsText #gp.GetParameterAsText(1)
         Value_field =  parameters[2].valueAsText #gp.GetParameterAsText(2)
         UnitArea =  parameters[3].value #gp.GetParameter(3)
         Output_Table =  parameters[4].valueAsText #gp.GetParameterAsText(4)
-
-        import arcsdm.sdmvalues
         arcsdm.sdmvalues.appendSDMValues(gp, UnitArea, Input_point_features)
-        arcpy.AddMessage("\n"+"="*41+" Starting area frequency "+"="*41)
+        arcpy.AddMessage("\n"+"="*10+" Starting area frequency "+"="*10)
         
         #Some locals
         valuetypes = {1:'Integer', 2:'Float'}
         joinRastername = None
         Input_table = None
         RasterValue_field = Value_field.title().endswith('Value')
-        if (RasterValue_field):
-            arcpy.AddMessage("Debug: There is rastervaluefield");
-        else:
-            arcpy.AddMessage("Debug: There is no rastervaluefield");
+        #if (RasterValue_field):
+        #    arcpy.AddMessage("Debug: There is rastervaluefield");
+        #else:
+        #    arcpy.AddMessage("Debug: There is no rastervaluefield");
         
         #Create Output Raster
         valuetype = gp.GetRasterProperties (Input_raster, 'VALUETYPE')
@@ -96,7 +103,8 @@ def Execute(self, parameters, messages):
                         Value_field = Value_field.split('.')
                         if len(Value_field) > 1:
                             gp.adderror("Integer Raster has joined table.")
-                            raise RunTimeError("Integer Raster has joined table.")                    
+                            #raise RunTimeError("Integer Raster has joined table.")                         
+                            raise UserException
                         InExpression = "FLOAT(%s.%s)"%(Input_raster, Value_field[0])
                         #gp.addwarning(InExpression)
                         TmpRaster = gp.createscratchname("tmp_AFT_ras", "", "raster", gp.scratchworkspace)
@@ -104,11 +112,16 @@ def Execute(self, parameters, messages):
                         gp.addmessage("Floating Raster from Raster Attribute: type %s"%gp.describe(Input_raster).pixeltype)
                     else:
                         gp.adderror("Integer Raster Attribute field not floating type.")
-                        raise RunTimeError("Integer Raster Attribute field not floating type.")
+                        #raise RunTimeError("Integer Raster Attribute field not floating type.")
+                        raise UserException
                 else:
                     #Create a float raster from the Value field
                     gp.adderror("Integer Raster Value field not acceptable.")
-                    raise RunTimeError ("Integer Raster Value field not acceptable")
+                    #raise
+                    #raise RunTimeError ("Integer Raster Value field not acceptable")
+                    #raise arcpy.ExecuteError ("Integer Raster Value field not acceptable")
+                    raise UserException ("Integer Raster Value field not acceptable")
+                    
             Input_raster = TmpRaster #The input raster is now the new float raster
             valuetype = 2 # Always a floating point raster
         else: #FLOAT
@@ -118,7 +131,7 @@ def Execute(self, parameters, messages):
         #gp.AddMessage("tpcnt = %i"%gp.GetCount_management(Input_point_features))
         if gp.GetCount_management(Input_point_features) == 0:
             gp.AddError("Training Points must be selected: %s"%Input_point_features)
-            raise
+            raise UserException
         #gp.AddMessage('Extracting values to points...')
         #Output_point_features = gp.createuniquename("Extract_Train.shp", gp.ScratchWorkspace)
         #gp.ExtractValuesToPoints_sa(Input_point_features, Input_raster, Output_point_features)
@@ -139,9 +152,7 @@ def Execute(self, parameters, messages):
         #gp.addwarning('Got stats...')
         #Get all VALUES from input raster, add to stats_dict dictionary
         #from floatingrasterclass import FloatRasterVAT, rowgen
-        arcpy.AddMessage("Debug: Before vat");        
         flt_ras = FloatRasterVAT(gp, Input_raster)
-        arcpy.AddMessage("Debug: after workarounds");
         
         rows = flt_ras.FloatRasterSearchcursor()
         gp.Statistics_analysis(Output_point_features, Output_summary_stats,"RASTERVALU FIRST","RASTERVALU")
@@ -155,7 +166,6 @@ def Execute(self, parameters, messages):
         statsrows = rowgen(gp.SearchCursor(Output_summary_stats))
         
         
-        arcpy.AddMessage("Debug: Here");
         
         
         num_nodata = 0
@@ -170,19 +180,23 @@ def Execute(self, parameters, messages):
                 #Update stats dictionary with occurence frequencies in Statistics table
                 if rasval in stats_dict: stats_dict[rasval] = row.FREQUENCY
         #gp.addwarning("Created stats_dict: %s"%stats_dict)
-        arcpy.AddMessage("Debug: Here2");
         
         num_counts = sum(stats_dict.values())
         if num_counts != num_training_sites - num_nodata:
             gp.addwarning("Stats count and number of training sites in data area do not compare.")
         if num_nodata > 0: gp.addwarning("%d training points in NoData area."%num_nodata)
-        gp.AddMessage("Debug: Goes here");
         #gp.AddMessage(Output_summary_stats);
-        raise                                                                        
-        #gp.AddMessage('Creating table: %s'%Output_Table)
+        #raise                                                                        
+        gp.AddMessage('Creating table: %s'%Output_Table)
+        fullname = arcpy.ParseTableName(Output_Table);
+        database, owner, table = fullname.split(", ")
+        gp.AddMessage('Output workspace: %s'%os.path.dirname(Output_Table))
+        
+        gp.AddMessage('Output table name: %s'%os.path.basename(Output_Table))
         gp.CreateTable_management(os.path.dirname(Output_Table),os.path.basename(Output_Table))
         #gp.AddMessage("Created output table.")
         gp.MakeTableView(Output_Table, 'output_table')
+        
         gp.AddField_management('output_table', "Frequency", "LONG", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
         #Precision and scale of RASTERVALU field must be same as field of that name in extract and statistics tables
         gp.AddField_management('output_table', "RASTERVALU", "DOUBLE", "18", "8", "", "", "NULLABLE", "NON_REQUIRED", "")
@@ -268,9 +282,12 @@ def Execute(self, parameters, messages):
                 effarea.append(area)
                 nSites.append(frequency)
                 stats_found += 1
+                #gp.AddMessage("Debug: Stats_found =  %s"%stats_found);
+            
             tblrow = tblrows.Next()
+        
         del tblrow,tblrows
-
+        
         #Check that output table is consistent with statistics
         if stats_found < len(stats_dict):
             gp.adderror('Not enough Values with Frequency > 0 found!')
@@ -354,13 +371,19 @@ def Execute(self, parameters, messages):
 
         if Input_table and joinRastername: #In case of joined integer raster and table
             gp.RemoveJoin_management(joinRastername, Input_table)
+            
+            
+    except UserException:
+        print('User exception caught. ')
+        
     except arcpy.ExecuteError:
         #TODO: Clean up all these execute errors in final version
         gp.AddMessage("AreaFrequency caught: arcpy.ExecuteError");
         gp.AddMessage("-------------- END EXECUTION ---------------");        
-        raise arcpy.ExecuteError;       
+        raise 
     except:
         #In case of joined integer raster and table
+        arcpy.AddMessage("Tsip");
         if Input_table and joinRastername:
             gp.RemoveJoin_management(joinRastername, Input_table)
        # get the traceback object
