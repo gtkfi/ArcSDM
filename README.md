@@ -34,6 +34,7 @@ Status of the toolbox should be updated to wiki https://github.com/gtkfi/ArcSDM/
 The demodata and the toolbox will be separated from eachother to make downloading easier.<br>
 
 ##History:
+2.2.2017 5.00.03 First draft version of Rescale raster -tool added<br>
 29.12.2016 Area Frequency Table -tool added to toolbox and tmp toolbox removed<br>
 14.12.2016 Separation of demodata and toolbox started.<br>
 1.11.2016 Roc-tool included <br>
