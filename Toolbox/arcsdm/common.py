@@ -43,40 +43,20 @@ def execute_tool(func, self, parameters, messages):
     try:
         # run the tool
         func(self, parameters, messages)
-    except arcpy.ExecuteError as e:
-        msgs = arcpy.GetMessages(2)  
-        arcpy.AddError(msgs) 
-        # get the traceback object
-        tb = sys.exc_info()[2]
-        # tbinfo contains the line number that the code failed on and the code from that line
-        tbinfo = traceback.format_tb(tb)[0]
-        # concatenate information together concerning the error into a message string
-        trace = "Traceback\n" + tbinfo + "\nError Info:\n" + str(sys.exc_info()[1])
-        print(trace)
-        print(msgs)
-    except SDMError as e:
-        arcpy.AddError(e.value)
-        # get the traceback object
-        tb = sys.exc_info()[2]
-        # tbinfo contains the line number that the code failed on and the code from that line
-        tbinfo = traceback.format_tb(tb)[0]
-        # concatenate information together concerning the error into a message string
-        trace = "Traceback\n" + tbinfo
-        arcpy.AddError('jiihaa2')
-        arcpy.AddError(trace)
-        print(trace)
-        print(e.value)
     except:
-        # get the traceback object
-        arcpy.AddError('Unexcpected exception caught')
         tb = sys.exc_info()[2]
-        # tbinfo contains the line number that the code failed on and the code from that line
-        tbinfo = traceback.format_tb(tb)[0]
-        # concatenate information together concerning the error into a message string
-        trace = "Traceback\n" + tbinfo + "\nError Info:\n" + str(sys.exc_info()[1])
-        msgs = "ArcPy ERRORS:\n" + arcpy.GetMessages(2) + "\n"
-        arcpy.AddError(trace)
-        arcpy.AddError(msgs)
-        print(trace)
-        print(msgs)
+        errors = "Unhandled exception caught\n" + traceback.format_exc()
+        arcpy.AddError(errors)         
 
+def addToDisplay(layer, name, position):
+    result = arcpy.MakeRasterLayer_management(layer, name)
+    lyr = result.getOutput(0)
+    product = arcpy.GetInstallInfo()['ProductName']
+    if "Desktop" in product:
+        mxd = arcpy.mapping.MapDocument("CURRENT")
+        dataframe = arcpy.mapping.ListDataFrames(mxd)[0]
+        arcpy.mapping.AddLayer(dataframe, lyr, position)
+    elif "Pro" in product:
+        aprx = arcpy.mp.ArcGISProject("CURRENT")
+        m = aprx.listMaps("Map")[0] 
+        m.addLayer(lyr, position)
