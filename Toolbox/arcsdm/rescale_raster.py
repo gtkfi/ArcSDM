@@ -15,7 +15,6 @@
 
 import arcpy;
 import numpy;
-from minisom import MiniSom    
 from datetime import datetime
 import itertools;
 import random;
@@ -49,21 +48,37 @@ def execute(self, parameters, messages):
     uppervalue = parameters[2].value;
 
     output_rastername = parameters[3].valueAsText;
+    addtomap = parameters[4].value;
+    ignorenegative = parameters[5].value;
+   
 
 
     raster_array = arcpy.RasterToNumPyArray (rasteri);
 
 
-    myprint ("="*10 + " Rescale raster " + "="*10);
+    myprint ("\n="*10 + " Rescale raster " + "="*10);
     myprint ("Starting rescale raster");
-
     
-
+    minimi = numpy.min(raster_array);
+    maksimi = numpy.max(raster_array);
+    
+    if (ignorenegative):
+        myprint ("   Negatives will be changed to zero..."); 
+        raster_array[raster_array < 0] = 0;
+        raster_array[raster_array < 0] = 0;
+        myprint ("      ...done");
+    else:
+        minimi = numpy.min(raster_array);
+        if (minimi < 0):
+            myprint ("   Negatives will be spread to new raster Min: %s" % (str(minimi)) );
+            raster_array +=  numpy.abs(minimi);
+        
+    
     #myprint (str(raster_array));
 
     diff = uppervalue - lowervalue;
-
-    myprint (" max(raster_array):%s diff:%s" %( str( numpy.max(raster_array)), str(diff) ));
+    myprint ("   Rescaling array[%s - %s] -> array[%s .. %s] " % (str(minimi), str(maksimi),  str(lowervalue), str(uppervalue)) );
+    myprint ("   max(raster_array):%s diff:%s" %( str( numpy.max(raster_array)), str(diff) ));
 
 
 
@@ -88,14 +103,15 @@ def execute(self, parameters, messages):
     arcpy.env.overwriteOutput = True
     myRasterBlock = arcpy.NumPyArrayToRaster(raster_array, arcpy.Point(mx, my),rasteri.meanCellWidth, rasteri.meanCellHeight);
 
-    myprint ("Saving new raster...\n Output rastername: %s"% (output_rastername ));
+    myprint ("Saving new raster...\n   Output rastername: %s"% (output_rastername ));
     #myRasterBlock.save("d:\\arcgis\\database.gdb\\tulos");
     myRasterBlock.save(output_rastername);
     desc = arcpy.Describe(output_rastername)
     name = desc.file + "_layer";
-    myprint (" Map layer name: " + name); 
     parameters[3].value =  myRasterBlock    ;
-    addToDisplay(output_rastername, name , "TOP");
+    if (addtomap):
+        myprint ("   Adding layer to map with name: " + name); 
+        addToDisplay(output_rastername, name , "TOP");
                 
 
     

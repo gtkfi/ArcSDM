@@ -67,6 +67,8 @@ class rescaleraster(object):
         new_max.value = 1;
         
         
+        
+        
         output_raster = arcpy.Parameter(
             displayName="Output rastername",
             name="results_table",
@@ -74,7 +76,26 @@ class rescaleraster(object):
             parameterType="Required",
             direction="Output")
         output_raster.value = "%workspace%\\rescaled_raster";
-        return [input_raster, new_min, new_max, output_raster ]
+        
+        paramAddToMap = arcpy.Parameter(
+        displayName="Add layer to map",
+        name="addtomap",
+        datatype="Boolean",
+        parameterType="Optional",
+        direction="Input")
+        paramAddToMap.value= True;
+        
+        paramIgnoreNegative = arcpy.Parameter(
+        displayName="Ignore negative values and replace them with zero",
+        name="ignorenegative",
+        datatype="Boolean",
+        parameterType="Optional",
+        direction="Input")
+        paramIgnoreNegative.value= True;
+        
+        
+        
+        return [input_raster, new_min, new_max, output_raster, paramAddToMap, paramIgnoreNegative ]
 
     def isLicensed(self):
         return True
