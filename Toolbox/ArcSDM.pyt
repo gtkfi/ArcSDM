@@ -846,7 +846,7 @@ class TOCFuzzificationTool(object):
         name="reclassification",
         datatype="remap",
         parameterType="Required",
-        direction="Output")
+        direction="Input")
 
         param3 = arcpy.Parameter(
         displayName="Number of Classes",
@@ -863,6 +863,9 @@ class TOCFuzzificationTool(object):
         direction="Output")
         
         param1.value = "VALUE"
+        param1.enabled = False
+        param2.enabled = False
+        
         param1.parameterDependencies = [param0.name]  
         param2.parameterDependencies = [param0.name,param1.name]
         params = [param0,param1,param2,param3,param4]
@@ -876,6 +879,12 @@ class TOCFuzzificationTool(object):
         """Modify the values and properties of parameters before internal
         validation is performed.  This method is called whenever a parameter
         has been changed."""
+        if parameters[0].value:
+            parameters[1].enabled = True
+            parameters[2].enabled = True
+        else:
+            parameters[1].enabled = False
+            parameters[2].enabled = False
         return
 
     def updateMessages(self, parameters):
