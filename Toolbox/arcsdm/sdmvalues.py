@@ -114,10 +114,13 @@ def appendSDMValues(gp, unitCell, TrainPts):
         arcpy.AddMessage("%-20s %s" % ("", data[0]) ); 
         if not gp.workspace:
             gp.adderror('Workspace not set')
-        gp.addmessage("%-20s %s" % ("Workspace: ", gp.workspace));
+        wdesc = arcpy.Describe(gp.workspace)
+        gp.addmessage("%-20s %s (%s)" % ("Workspace: ", gp.workspace, wdesc.workspaceType));
+        
         if not gp.scratchworkspace:
             gp.adderror('Scratch workspace mask not set')
-        gp.addmessage("%-20s %s" % ("Scratch workspace:",  gp.scratchworkspace))
+        wdesc = arcpy.Describe(gp.scratchworkspace)       
+        gp.addmessage("%-20s %s (%s)" % ("Scratch workspace:",  gp.scratchworkspace, wdesc.workspaceType))
         # TODO: These should be moved to common CHECKENV class/function TR
         if not gp.mask:
             gp.adderror('Study Area mask not set');
@@ -205,7 +208,7 @@ def getMapUnits():
         #Get spatial reference of geoprocessor
         ocs = arcpy.env.outputCoordinateSystem
         if not ocs:
-            arcpy.adderror('Output Coordinate System not set')
+            arcpy.AddError('Output Coordinate System not set')
             raise arcpy.ExecuteError
         #else:
         #arcpy.AddMessage("Outputcoordinate system ok");
@@ -234,9 +237,14 @@ def getMapUnits():
         else:
             return None        
     except arcpy.ExecuteError as error:
-        gp.AddError(gp.GetMessages(2))
+        if not all(error.args):
+            arcpy.AddMessage("Calculate weights caught arcpy.ExecuteError: ");
+            args = e.args[0];
+            args.split('\n')
+            arcpy.AddError(args);
+        #arcpy.AddMessage("-------------- END EXECUTION ---------------");        
+        raise;
         #gp.AddMessage("Debug SDMVAlues exception");
-        raise
     except:
         import traceback, sys
         # get the traceback object

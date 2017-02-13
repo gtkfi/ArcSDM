@@ -45,6 +45,7 @@ if __name__ == "__main__":
     import sdmvalues;
     import arcgisscripting
     
+    
 
 
 
@@ -197,6 +198,12 @@ def Calculate(self, parameters, messages):
         Type =  parameters[3].valueAsText
         wtstable = parameters[4].valueAsText;
         
+        # If using non gdb database, lets add .dbf
+        wdesc = arcpy.Describe(gp.workspace)
+        if (wdesc.workspaceType == "FileSystem"):
+            wtstable += ".dbf";
+        
+        
         Confident_Contrast = float( parameters[5].valueAsText)
         #Unitarea = float( parameters[6].valueAsText)
         Unitarea = float( parameters[6].value)
@@ -206,11 +213,14 @@ def Calculate(self, parameters, messages):
         arcpy.AddMessage("="*10 + " Calculate weights " + "="*10)
     # Process: ExtractValuesToPoints
         arcpy.AddMessage ("%-20s %s (%s)" %("Creating table:" , wtstable, Type ));
+        
+        
         #tempTrainingPoints = gp.createscratchname("OutPoints", "FC", "shapefile", gp.scratchworkspace)
         #gp.ExtractValuesToPoints_sa(TrainingSites, EvidenceLayer, tempTrainingPoints, "NONE", "VALUE_ONLY")
         assert isinstance(EvidenceLayer, object)
         tempTrainingPoints = arcsdm.workarounds_93.ExtractValuesToPoints(gp, EvidenceLayer, TrainingSites, "TPFID")
     # Process: Summarize Frequency and manage fields
+    
         #Statistics = gp.createuniquename("WtsStatistics.dbf")
         Statistics = gp.createuniquename("WtsStatistics")
         if gp.exists(Statistics): gp.Delete_management(Statistics)
