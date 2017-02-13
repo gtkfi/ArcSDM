@@ -17,13 +17,23 @@ import traceback, sys
 from arcsdm.exceptions import SDMError
 import arcpy
 import os
-
+import arcgisscripting
+    
 ToMetric = {
     'square meters to square kilometers' : 0.000001,
     'square feet to square kilometers' : 0.09290304 * 1e-6,
     'square inches to square kilometers' : 0.00064516 * 1e-6,
     'square miles to square kilometers' : 2.589988110647
     }
+    
+
+
+def execute(self, parameters, messages):
+    #Obsolete, needs refactoring!
+    gp = arcgisscripting.create() 
+    TrainingSites =  parameters[0].valueAsText        
+    Unitarea = float( parameters[1].value)        
+    appendSDMValues(gp,  Unitarea, TrainingSites)
     
     
 
@@ -265,3 +275,5 @@ def getMapUnits():
         print (msgs)
         raise
 
+        
+      

@@ -31,10 +31,80 @@ class Toolbox(object):
         self.alias = "ArcSDM" 
 
         # List of tool classes associated with this toolbox
-        self.tools = [CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool, Symbolize, ROCTool, AgterbergChengCITest, AreaFrequencyTable, rescaleraster]
+        self.tools = [CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool, Symbolize, ROCTool, AgterbergChengCITest, AreaFrequencyTable, rescaleraster, GetSDMValues]
         
 
 
+        
+        
+class GetSDMValues(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Get SDM parameters"
+        self.description = "TODO: Copy this from old toolbox"
+        self.canRunInBackground = False
+        self.category = "Utilities"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        # TODO: Multiple rasters?
+        
+        paramTrainingSites = arcpy.Parameter(
+        displayName="Training sites",
+        name="training_sites",
+        #datatype="DEFeatureClass",
+        datatype="GPFeatureLayer",
+        parameterType="Required",
+        direction="Input")
+                     
+        
+        paramUnitArea = arcpy.Parameter(
+        displayName="Unit area (km2)",
+        name="Unit_Area__sq_km_",
+        datatype="GPDouble",
+        parameterType="Required",
+        direction="Input")
+        paramUnitArea.value = "1"
+        
+                                  
+        params = [paramTrainingSites, paramUnitArea]
+        return params
+
+    def isLicensed(self):
+        """Set whether tool is licensed to execute."""
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+     
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        #3.4
+        try:
+            importlib.reload (arcsdm.sdmvalues)
+        except :
+            reload(arcsdm.sdmvalues);
+        # To list what functions does module contain
+        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
+        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
+        #messages.AddMessage("Waiting for debugger")
+        #wait_for_debugger(15);
+        #No do yet
+        arcsdm.sdmvalues.execute(self, parameters, messages)
+        return
+        
+                
+        
+        
 class rescaleraster(object):
     def __init__(self):
         self.label = "Rescale raster values to new float raster"
