@@ -397,7 +397,7 @@ def Execute(self, parameters, messages):
             #Calculate Missing Data Variance
             #gp.AddMessage("RowCount=%i"%len(rasterList))
             if len(rasterList) > 0:
-                import MissingDataVar_Func
+                import missingdatavar_func
                 gp.AddMessage("Calculating Missing Data Variance...")
     ##            MDRasters=[]
     ##            for i in range(len(rasterList)):
@@ -409,15 +409,19 @@ def Execute(self, parameters, messages):
                     if gp.exists(MDVariance): arcpy.Delete_management(MDVariance)
                     #<== Tool DOES NOT EXIST = FAIL
                     #gp.MissingDataVariance_sdm(rasterList,PostProb,MDVariance)
-                    MissingDataVar_Func.MissingDataVariance(gp,rasterList,PostProb,MDVariance)
+                    missingdatavar_func.MissingDataVariance(gp,rasterList,PostProb,MDVariance)
                     Total_Std = parameters[9].valueAsText #gp.GetParameterAsText(9)
                     ##InExpression = 'SQRT(SUM(SQR(%s),%s))' % (PostProb_Std, MDVariance)
-                    InExpression = '%s = SQRT(SUM(SQR(%s),%s))' % (Total_Std, PostProb_Std, MDVariance)  # <==RDB update to MOMA
+                    # OBsolete, replaced with raster calc
+                    #InExpression = "\"%s\" = SQRT(SUM(SQR(\"%s\"),\"%s\"))" % (Total_Std, PostProb_Std, MDVariance)  # <==RDB update to MOMA
+                    #InExpression = "SquareRoot(SUM ( Square (\"%s\"),\"%s\"))" % ( PostProb_Std, MDVariance)  # <==RDB update to MOMA
+                    InExpression = "SquareRoot( Square (\"%s\") + \"%s\")" % ( PostProb_Std, MDVariance)  # <==RDB update to MOMA
                     #gp.SetParameterAsText(8,MDVariance)
                     #gp.AddMessage(InExpression)
                     gp.AddMessage("Calculating Total STD...")
                     gp.addmessage("InExpression 3 ====> " + InExpression) # <==RDB
-                    gp.MultiOutputMapAlgebra_sa(InExpression)  # <==RDB
+                    #gp.MultiOutputMapAlgebra_sa(InExpression)  # <==RDB
+                    output_raster = gp.RasterCalculator(InExpression, Total_Std);
                     #gp.SingleOutputMapAlgebra_sa(InExpression, Total_Std)
                     #gp.SetParameterAsText(9,Total_Std)
                 except:

@@ -137,6 +137,15 @@ class rescaleraster(object):
         new_max.value = 1;
         
         
+        min_to_na = arcpy.Parameter(
+            displayName="NoData threshold value (turn all below this to NoData)",
+            name="min_to_na",
+            datatype="GPLong",
+            parameterType="Required",         
+            direction="Input")
+        min_to_na.value = -100000;
+        
+        
         
         
         output_raster = arcpy.Parameter(
@@ -165,7 +174,7 @@ class rescaleraster(object):
         
         
         
-        return [input_raster, new_min, new_max, output_raster, paramAddToMap, paramIgnoreNegative ]
+        return [input_raster, new_min, new_max, min_to_na, output_raster, paramAddToMap, paramIgnoreNegative ]
 
     def isLicensed(self):
         return True
@@ -179,12 +188,12 @@ class rescaleraster(object):
                 layer = parameters[0].valueAsText;
                 desc = arcpy.Describe(layer)
                 name = desc.file;
-                type = parameters[3].valueAsText;
+                type = parameters[4].valueAsText;
                 filename = name + "_rescaled";
                 #Update name accordingly
                 resulttmp = "%WORKSPACE%\\" + name + "_rescaled"; #Output is _W + first letter of type
                 lopullinen_nimi = arcpy.CreateUniqueName(filename)
-                parameters[3].value =  lopullinen_nimi #.replace(".","");  #Remove illegal characters
+                parameters[4].value =  lopullinen_nimi #.replace(".","");  #Remove illegal characters
         return
 
     def execute(self, parameters, messages):        

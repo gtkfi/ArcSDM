@@ -34,7 +34,8 @@ def execute(self, parameters, messages):
     TrainingSites =  parameters[0].valueAsText        
     Unitarea = float( parameters[1].value)        
     appendSDMValues(gp,  Unitarea, TrainingSites)
-    
+    arcpy.AddMessage("\n" + "="*40);
+    arcpy.AddMessage("\n")       
     
 
 # Returns prior probability against mask/training points    

@@ -8,6 +8,7 @@
 # TODO: 
 # Cleanup
 # Make negatives count/ignore negatives
+# 
 #
 # History:
 # 2.2.2017 First version added to toolbox
@@ -47,20 +48,29 @@ def execute(self, parameters, messages):
     lowervalue =parameters[1].value;
     uppervalue = parameters[2].value;
 
-    output_rastername = parameters[3].valueAsText;
-    addtomap = parameters[4].value;
-    ignorenegative = parameters[5].value;
+    nodatathreshold = parameters[3].value;
+    output_rastername = parameters[4].valueAsText;
+   
+
+    addtomap = parameters[5].value;
+    ignorenegative = parameters[6].value;
    
 
 
-    raster_array = arcpy.RasterToNumPyArray (rasteri);
+    raster_array = arcpy.RasterToNumPyArray (rasteri)#, nodata_to_value=0);
+    
+    super_threshold_indices = raster_array < nodatathreshold
+    raster_array[super_threshold_indices] = numpy.nan;
+    
+    #myprint (str(raster_array[0][0]))
 
-
-    myprint ("\n="*10 + " Rescale raster " + "="*10);
+    
+    
+    myprint ("\n" + "="*10 + " Rescale raster " + "="*10);
     myprint ("Starting rescale raster");
     
-    minimi = numpy.min(raster_array);
-    maksimi = numpy.max(raster_array);
+    minimi = numpy.nanmin(raster_array);
+    maksimi = numpy.nanmax(raster_array);
     
     if (ignorenegative):
         myprint ("   Negatives will be changed to zero..."); 
@@ -68,7 +78,7 @@ def execute(self, parameters, messages):
         raster_array[raster_array < 0] = 0;
         myprint ("      ...done");
     else:
-        minimi = numpy.min(raster_array);
+        minimi = numpy.nanmin(raster_array);
         if (minimi < 0):
             myprint ("   Negatives will be spread to new raster Min: %s" % (str(minimi)) );
             raster_array +=  numpy.abs(minimi);
@@ -78,12 +88,13 @@ def execute(self, parameters, messages):
 
     diff = uppervalue - lowervalue;
     myprint ("   Rescaling array[%s - %s] -> array[%s .. %s] " % (str(minimi), str(maksimi),  str(lowervalue), str(uppervalue)) );
-    myprint ("   max(raster_array):%s diff:%s" %( str( numpy.max(raster_array)), str(diff) ));
+    myprint ("   max(raster_array):%s diff:%s" %( str( numpy.nanmax(raster_array)), str(diff) ));
 
 
 
-    raster_array = ( raster_array / (float((numpy.max(raster_array))) ) * diff );
+    raster_array = ( raster_array / (float((numpy.nanmax(raster_array))) ) * diff );
     raster_array = raster_array + lowervalue;
+    #myprint (str(raster_array[0][0]))
 
     myprint("Calculation done.");
     #myprint (str(raster_array));
