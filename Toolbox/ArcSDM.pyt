@@ -517,7 +517,7 @@ class CalculateResponse(object):
         param_md_varianceraster = arcpy.Parameter(
         displayName="Output MD variance raster",
         name="output_md_variance_raster",
-        datatype="DEDbaseTable",
+        datatype="DERasterDataset",
         parameterType="Required",
         direction="Output")
         param_md_varianceraster.value = "%Workspace%\W_MDvar"
@@ -525,7 +525,7 @@ class CalculateResponse(object):
         param_totstddev = arcpy.Parameter(
         displayName="Output Total Std Deviation Raster",
         name="output_total_std_dev_raster",
-        datatype="DEDbaseTable",
+        datatype="DERasterDataset",
         parameterType="Required",
         direction="Output")
         param_totstddev.value = "%Workspace%\W_Tstd"
@@ -651,9 +651,11 @@ class CalculateWeightsTool(object):
                 desc = arcpy.Describe(layer)
                 name = desc.file;
                 type = parameters[3].valueAsText;
-                
+                char = type[:1];
+                if (char != 'U'):
+                    char = 'C' + char; #Output  _C + first letter of type unless it is U
                 #Update name accordingly
-                resulttmp = "%WORKSPACE%\\" + name + "_W" + type[:1]; #Output is _W + first letter of type
+                resulttmp = "%WORKSPACE%\\" + name + "_" + char; 
                 parameters[4].value =  resulttmp.replace(".","");  #Remove illegal characters
         return
 
