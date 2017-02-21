@@ -653,7 +653,10 @@ class CalculateWeightsTool(object):
                 type = parameters[3].valueAsText;
                 char = type[:1];
                 if (char != 'U'):
-                    char = 'C' + char; #Output  _C + first letter of type unless it is U
+                    if (char != 'C'):
+                        char = 'C' + char; #Output  _C + first letter of type unless it is U
+                    else:
+                        char = 'CT'; # Unless it is C, then it is CT... 
                 #Update name accordingly
                 resulttmp = "%WORKSPACE%\\" + name + "_" + char; 
                 parameters[4].value =  resulttmp.replace(".","");  #Remove illegal characters
