@@ -34,6 +34,8 @@ Status of the toolbox should be updated to wiki https://github.com/gtkfi/ArcSDM/
 The demodata and the toolbox will be separated from eachother to make downloading easier.<br>
 
 ##History:
+10.4.2017 5.00.11 Quickfix<br>
+24.2.2017 5.00.10 First release of experimental SOM toolbox.<br>
 17.2.2017 5.00.07 Fixes <br>
 2.2.2017 5.00.03 First draft version of Rescale raster -tool added<br>
 29.12.2016 Area Frequency Table -tool added to toolbox and tmp toolbox removed<br>

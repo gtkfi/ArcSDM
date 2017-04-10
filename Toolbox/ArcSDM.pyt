@@ -31,7 +31,7 @@ class Toolbox(object):
         self.alias = "ArcSDM" 
 
         # List of tool classes associated with this toolbox
-        self.tools = [CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool, Symbolize, ROCTool, AgterbergChengCITest, AreaFrequencyTable, rescaleraster, GetSDMValues]
+        self.tools = [CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool, Symbolize, ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues]
         
 
 
@@ -105,107 +105,7 @@ class GetSDMValues(object):
                 
         
         
-class rescaleraster(object):
-    def __init__(self):
-        self.label = "Rescale raster values to new float raster"
-        self.description = "Rescales raster values to a new [min .. max] float raster (typically preprocessing step for SOM calculations) "
-        self.category = "Utilities"
-        self.canRunInBackground = False
-
-    def getParameterInfo(self):
-        input_raster = arcpy.Parameter(
-            displayName="Input raster",
-            name="input_raster",
-            datatype="GPRasterLayer",
-            parameterType="Required",
-            direction="Input")
-
-        new_min = arcpy.Parameter(
-            displayName="New minimum",
-            name="new_min",
-            datatype="GPLong",
-            parameterType="Required",         
-            direction="Input")
-        new_min.value = 0;
-        
-        new_max = arcpy.Parameter(
-            displayName="New maximum",
-            name="new_max",
-            datatype="GPLong",
-            parameterType="Required",         
-            direction="Input")
-        new_max.value = 1;
-        
-        
-        min_to_na = arcpy.Parameter(
-            displayName="NoData threshold value (turn all below this to NoData)",
-            name="min_to_na",
-            datatype="GPLong",
-            parameterType="Required",         
-            direction="Input")
-        min_to_na.value = -100000;
-        
-        
-        
-        
-        output_raster = arcpy.Parameter(
-            displayName="Output rastername",
-            name="results_table",
-            datatype="DERasterDataset",
-            parameterType="Required",
-            direction="Output")
-        output_raster.value = "%workspace%\\rescaled_raster";
-        
-        paramAddToMap = arcpy.Parameter(
-        displayName="Add layer to map",
-        name="addtomap",
-        datatype="Boolean",
-        parameterType="Optional",
-        direction="Input")
-        paramAddToMap.value= True;
-        
-        paramIgnoreNegative = arcpy.Parameter(
-        displayName="Ignore negative values and replace them with zero",
-        name="ignorenegative",
-        datatype="Boolean",
-        parameterType="Optional",
-        direction="Input")
-        paramIgnoreNegative.value= True;
-        
-        
-        
-        return [input_raster, new_min, new_max, min_to_na, output_raster, paramAddToMap, paramIgnoreNegative ]
-
-    def isLicensed(self):
-        return True
-        
-    def updateParameters(self, parameters):
-        """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
-        has been changed."""
-        if parameters[0].value:
-            if parameters[0].altered:
-                layer = parameters[0].valueAsText;
-                desc = arcpy.Describe(layer)
-                name = desc.file;
-                type = parameters[4].valueAsText;
-                filename = name + "_rescaled";
-                #Update name accordingly
-                resulttmp = "%WORKSPACE%\\" + name + "_rescaled"; #Output is _W + first letter of type
-                lopullinen_nimi = arcpy.CreateUniqueName(filename)
-                parameters[4].value =  lopullinen_nimi #.replace(".","");  #Remove illegal characters
-        return
-
-    def execute(self, parameters, messages):        
-        #execute_tool(arcsdm.roctool.execute, self, parameters, messages)
-        
-        try:
-            importlib.reload (arcsdm.rescale_raster)
-        except :
-            reload(arcsdm.rescale_raster);
-        arcsdm.rescale_raster.execute (self, parameters, messages);
-        return
-                
+  
         
         
 class AreaFrequencyTable(object):
@@ -701,7 +601,7 @@ class SiteReductionTool(object):
         param2 = arcpy.Parameter(
         displayName="Unit area (sq km)",
         name="Unit_Area__sq_km_",
-        datatype="GPLong",
+        datatype="GPDouble",
         parameterType="Optional",
         direction="Input")
         

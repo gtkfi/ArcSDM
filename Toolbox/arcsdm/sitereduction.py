@@ -54,7 +54,7 @@ def ReduceSites(self, parameters, messages):
         thin = parameters[1].valueAsText == 'true'
         #messages.addMessage("debug: thin: = " + str(thin)) ;
         if thin:
-            UnitArea = float(parameters[2].valueAsText)
+            UnitArea = parameters[2].value
         random = parameters[3].valueAsText == 'true'
         
         #SDMValues.appendSDMValues(gp, UnitArea, TrainPts)
