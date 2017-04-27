@@ -265,6 +265,8 @@ def Calculate(self, parameters, messages):
                 wtsrow.SetValue('class',row.Value)
                 if CodeName != None and len(CodeName) > 0: 
                     wtsrow.Code = row.GetValue(CodeName)
+                #This related to Access Personal geodatabase bug
+                #arcpy.AddMessage("DEBUG: Rowcount:%s"%(str(row.Count)));
                 wtsrow.Count = row.Count
                 statsrows = gp.SearchCursor(Statistics,'rastervalu = %i'%row.Value)
                 if statsrows:
@@ -286,9 +288,10 @@ def Calculate(self, parameters, messages):
             while row:
                 wtsrow = wtsrows.NewRow()
                 wtsrow.rastervalu = row.Value
-                wtsrow.SetValue('class',row.Value)
+                wtsrow.SetValue('class',row.Value)                
                 if CodeName != None and len(CodeName) > 0: 
                     wtsrow.Code = row.GetValue(CodeName)
+                #arcpy.AddMessage("DEBUG: Rowcount:%s"%(str(row.Count)));
                 wtsrow.Count = row.Count
                 statsrows = gp.SearchCursor(Statistics,'rastervalu = %i'%row.Value)
                 if statsrows:

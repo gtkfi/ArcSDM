@@ -546,7 +546,7 @@ class CalculateWeightsTool(object):
         validation is performed.  This method is called whenever a parameter
         has been changed."""
         if parameters[0].value and parameters[3].value:
-            if parameters[0].altered or paramaters[3].altered:
+            if (parameters[0].altered or paramaters[3].altered) and not parameters[4].altered:
                 layer = parameters[0].valueAsText;
                 desc = arcpy.Describe(layer)
                 name = desc.file;
