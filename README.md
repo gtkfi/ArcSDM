@@ -34,6 +34,7 @@ Status of the toolbox should be updated to wiki https://github.com/gtkfi/ArcSDM/
 The demodata and the toolbox will be separated from eachother to make downloading easier.<br>
 
 ##History:
+5.4.2017 5.00.13 Multiple fixes for minor UI errors <br>
 10.4.2017 5.00.11 Quickfix<br>
 24.2.2017 5.00.10 First release of experimental SOM toolbox.<br>
 28.3.2017 Update to demodata path<br>

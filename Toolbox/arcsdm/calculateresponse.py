@@ -33,8 +33,14 @@ def Execute(self, parameters, messages):
         
         import arcsdm.sdmvalues;
         import arcsdm.workarounds_93;
-    
+        try:
+            importlib.reload (arcsdm.sdmvalues)
+            importlib.reload (arcsdm.workarounds_93);
+        except :
+            reload(arcsdm.sdmvalues);
+            reload(arcsdm.workarounds_93);        
         # Create the Geoprocessor object
+        #Todo: Refactor to arcpy.
         import arcgisscripting
 
 
@@ -64,10 +70,10 @@ def Execute(self, parameters, messages):
         
     #Getting Study Area in counts and sq. kilometers
     
-        Counts = arcsdm.sdmvalues.getMaskSize();
-        gp.AddMessage("\n"+"="*41+" Starting calculate response "+"="*41)
+        Counts = arcsdm.sdmvalues.getMaskSize(arcsdm.sdmvalues.getMapUnits(True));
+        gp.AddMessage("\n"+"="*21+" Starting calculate response "+"="*21)
         #gp.AddMessage(str(gp.CellSize))
-        CellSize = float(gp.CellSize)
+        #CellSize = float(gp.CellSize)
         Study_Area = Counts / UnitArea # getMaskSize returns mask size in sqkm now - TODO: WHy is this divided with UnitArea? (Counts * CellSize * CellSize / 1000000.0) / UnitArea
         gp.AddMessage( ("%-20s %s" % ("Study Area:",  str(Study_Area))))
 
@@ -121,18 +127,30 @@ def Execute(self, parameters, messages):
             #TODO: Do we need to consider if the file names collide with shapes? We got collision with featureclasses
             desc = arcpy.Describe(Input_Raster);
             
+            Wts_Table = Wts_Tables[i]           
+            
+            #Compare workspaces to make sure they match
+            desc2 = arcpy.Describe(Wts_Table);
+            
+            #arcpy.AddMessage(desc.workspaceType);
+            #arcpy.AddMessage(desc2.workspaceType);
+            
             
             arcpy.AddMessage("Processing " + Input_Raster);
             
             
-            outputrastername = Input_Raster + "_W";
+            outputrastername = Input_Raster.replace(".","_");
             
+            
+            outputrastername = outputrastername[:10] + "_W";
+            #outputrastername = desc.nameString + "_W2";
             # Create _W raster
             Output_Raster = gp.CreateScratchName(outputrastername, '', 'raster', gp.scratchworkspace)
             #gp.AddMessage("\n");            
             #gp.AddMessage(" Outputraster: " + outputrastername);
             
-            Wts_Table = Wts_Tables[i]           
+            
+            
             
             #Increase the count for next round
             i += 1
@@ -296,7 +314,11 @@ def Execute(self, parameters, messages):
             #++ Can't assume only a layer from ArcMap.
             ##Output_Raster = Input_Raster[:11] + "_S"
             ##Output_Raster = os.path.basename(Input_Raster)[:11] + "_S"  
-            Output_Raster = gp.CreateScratchName(os.path.basename(Input_Raster[:9]) + "_S", '', 'raster', gp.scratchworkspace)
+            stdoutputrastername = os.path.basename(Input_Raster[:9]).replace(".","_") + "_S"; # No . allowed in filegeodatgabases           
+
+            #arcpy.AddMessage("Debug:" + stdoutputrastername);
+            
+            Output_Raster = gp.CreateScratchName(stdoutputrastername, '', 'raster', gp.scratchworkspace)
             #print ("DEBUG STD1");
             Wts_Table = Wts_Tables[i]
             

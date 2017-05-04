@@ -593,9 +593,10 @@ def Calculate(self, parameters, messages):
         #TODO: Clean up all these execute errors in final version
         arcpy.AddError("\n");
         arcpy.AddMessage("Calculate weights caught arcpy.ExecuteError: ");
-        args = e.args[0];
-        args.split('\n')
-        arcpy.AddError(args);
+        if (len(e.args) > 0):
+            args = e.args[0];
+            args.split('\n')
+            arcpy.AddError(args);
                     
         arcpy.AddMessage("-------------- END EXECUTION ---------------");        
         raise arcpy.ExecuteError;   
