@@ -207,7 +207,7 @@ def Calculate(self, parameters, messages):
         Confident_Contrast = float( parameters[5].valueAsText)
         #Unitarea = float( parameters[6].valueAsText)
         Unitarea = float( parameters[6].value)
-        MissingDataValue = int( parameters[7].valueAsText)
+        MissingDataValue = long( parameters[7].valueAsText)
         #gp.AddMessage("Debug step 12");
         arcsdm.sdmvalues.appendSDMValues(gp,  Unitarea, TrainingSites)
         arcpy.AddMessage("="*10 + " Calculate weights " + "="*10)
@@ -363,7 +363,8 @@ def Calculate(self, parameters, messages):
                 wtsrow.NO_POINTS = wtsrow.Frequency
                 wtsrow.AREA_SQ_KM = wtsrow.Area # sq km
                 wtsrow.AREA_UNITS = wtsrow.AreaUnits # unit cells
-                if wtsrow.GetValue('class') is not MissingDataValue:
+                #gp.addMessage("Debug class: " + str(wtsrow.GetValue('class')));
+                if wtsrow.GetValue('class') <> MissingDataValue:  
                     totalTPs += wtsrow.Frequency
                     totalArea += wtsrow.Area
                 wtsrows.UpdateRow(wtsrow)
@@ -387,12 +388,13 @@ def Calculate(self, parameters, messages):
                 wtsrow.s_contrast = 0.0
                 wtsrow.stud_cnt = 0.0
             else:
+                #gp.addMessage("Debug:" + str((wtsrow.NO_POINTS, wtsrow.AREA_SQ_KM, Unitarea, totalTPs, totalArea, Type)));
                 wts = MakeWts(wtsrow.NO_POINTS, wtsrow.AREA_SQ_KM, Unitarea, totalTPs, totalArea, Type)
                 if not wts:
                     gp.AddError("Weights calculation aborted.")
                     raise ErrorExit
                 (wp,sp,wm,sm,c,sc,c_sc) = wts
-                #gp.AddMessage(str((wp,sp,wm,sm,c,sc,c_sc)))
+                #gp.AddMessage( "Debug out: " +  str((wp,sp,wm,sm,c,sc,c_sc)))
                 wtsrow.wplus = wp
                 wtsrow.s_wplus = sp
                 wtsrow.wminus = wm
