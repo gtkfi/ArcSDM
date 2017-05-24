@@ -34,6 +34,7 @@ Status of the toolbox should be updated to wiki https://github.com/gtkfi/ArcSDM/
 The demodata and the toolbox will be separated from eachother to make downloading easier.<br>
 
 ##History:
+17.5.2017 5.00.15 Updates and fixes <br>
 5.5.2017 5.00.14 Calculate weights error with nodata fixed <br>
 4.5.2017 5.00.13 Multiple fixes for minor UI errors <br>
 10.4.2017 5.00.11 Quickfix<br>

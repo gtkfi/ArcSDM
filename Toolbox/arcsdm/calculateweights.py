@@ -364,7 +364,8 @@ def Calculate(self, parameters, messages):
                 wtsrow.AREA_SQ_KM = wtsrow.Area # sq km
                 wtsrow.AREA_UNITS = wtsrow.AreaUnits # unit cells
                 #gp.addMessage("Debug class: " + str(wtsrow.GetValue('class')));
-                if wtsrow.GetValue('class') <> MissingDataValue:  
+                
+                if wtsrow.getValue("class") != MissingDataValue:  
                     totalTPs += wtsrow.Frequency
                     totalArea += wtsrow.Area
                 wtsrows.UpdateRow(wtsrow)
