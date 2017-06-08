@@ -3,6 +3,7 @@ import arcpy
 
 import arcsdm.somtool
 import arcsdm.rescale_raster
+import arcsdm.adaboost
 
 from arcsdm.common import execute_tool
 
@@ -20,7 +21,7 @@ class Toolbox(object):
         self.alias = "experimentaltools" 
 
         # List of tool classes associated with this toolbox
-        self.tools = [rastersom,rescaleraster]
+        self.tools = [rastersom,rescaleraster,Adaboost]
 
 class rescaleraster(object):
     def __init__(self):
@@ -224,3 +225,128 @@ class rastersom(object):
         """The source code of the tool."""
         execute_tool(arcsdm.somtool.execute, self, parameters, messages)
         return        
+
+
+
+class Adaboost(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Adaboost"
+        self.description = 'Performs Adaboost algorithm for supervised machine learning'
+        self.canRunInBackground = False
+        self.category = "Adaboost"
+
+    def getParameterInfo(self):
+
+        prospective_train_points = arcpy.Parameter(
+            displayName="Prospective Training Points",
+            name="prospective_train_points",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Input")
+        prospective_train_points.filter.list = ["Point", "Multipoint"]
+
+        non_prospective_train_points = arcpy.Parameter(
+            displayName="Non Prospective Training Points",
+            name="non_prospective_train_points",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Input")
+        non_prospective_train_points.filter.list = ["Point", "Multipoint"]
+
+        prospective_test_points = arcpy.Parameter(
+            displayName="Prospective Test Points",
+            name="prospective_test_points",
+            datatype="GPFeatureLayer",
+            parameterType="Optional",
+            direction="Input",
+            category="Test")
+        prospective_test_points.filter.list = ["Point", "Multipoint"]
+
+        non_prospective_test_points = arcpy.Parameter(
+            displayName="Non Prospective Test Points",
+            name="non_prospective_test_points",
+            datatype="GPFeatureLayer",
+            parameterType="Optional",
+            direction="Input",
+            category="Test")
+        non_prospective_test_points.filter.list = ["Point", "Multipoint"]
+
+        information_rasters = arcpy.Parameter(
+            displayName="Information Rasters",
+            name="info_rasters",
+            datatype="GPValueTable",
+            parameterType="Required",
+            direction="Input")
+        information_rasters.columns = [['GPRasterLayer', 'Information Rasters']]
+
+        num_estimators = arcpy.Parameter(
+            displayName="Number of Estimators",
+            name="num_estimators",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input",
+            category="Model")
+
+        learning_rate = arcpy.Parameter(
+            displayName="Learning Rate",
+            name="learning_rate",
+            datatype="GPDouble",
+            parameterType="Optional",
+            direction="Input",
+            category="Model")
+
+        missing_mask = arcpy.Parameter(
+            displayName="Missing Value",
+            name="missing_value",
+            datatype="GPDouble",
+            parameterType="Optional",
+            direction="Input",
+            category="Model")
+
+        output_model = arcpy.Parameter(
+            displayName="Output Model",
+            name="output_model",
+            datatype="DEFile",
+            parameterType="Optional",
+            direction="Output",
+            category="Output")
+        # TODO: Make this Optional
+        # output_model.filter.list = ['pkl']
+
+        output_map = arcpy.Parameter(
+            displayName="Output Map",
+            name="output_map",
+            datatype="DERasterDataset",
+            parameterType="Optional",
+            direction="Output",
+            category="Output")
+
+        params = [prospective_train_points, non_prospective_train_points, prospective_test_points,
+                  non_prospective_test_points, information_rasters, num_estimators, learning_rate, missing_mask,
+                  output_model, output_map]
+        return params
+
+    def isLicensed(self):
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        # if parameters[8].altered:
+            # if "\\" not in parameters[8].ValueAsText or "/" not in parameters[8].ValueAsText:
+            #     parameters[8].Value = arcpy.CreateScratchName(parameters[8].ValueAsText, ".pkl",
+            #                                                   workspace=arcpy.env.scratchFolder)
+            # if not parameters[8].ValueAsText.endswith('.pkl'):
+            #     parameters[8].ValueAsText = parameters[8].ValueAsText + '.pkl'
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        execute_tool(arcsdm.adaboost.Execute, self, parameters, messages)
+        return

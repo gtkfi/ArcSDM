@@ -11,4 +11,4 @@ Toolbox/arcsdm/__pycache__/*
 *.pyc
 data
 data/*
-
+*.idea/*
