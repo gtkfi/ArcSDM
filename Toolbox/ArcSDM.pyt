@@ -218,7 +218,7 @@ class ROCTool(object):
     def __init__(self):
         self.label = "Calculate ROC Curves and AUC Values"
         self.description = "Calculates Receiver Operator Characteristic curves and Areas Under the Curves"
-        self.category = "Roc tool"
+        self.category = "ROC Tool"
         self.canRunInBackground = False
 
     def getParameterInfo(self):
@@ -246,14 +246,15 @@ class ROCTool(object):
             direction="Input",
             multiValue=True)
 
-        table_param = arcpy.Parameter(
-            displayName="ROC Curves and AUC Values Table",
-            name="results_table",
-            datatype="DEDbaseTable",
+        folder_param = arcpy.Parameter(
+            displayName="Destination Folder",
+            name="dest_folder",
+            datatype="DEFolder",
             parameterType="Required",
-            direction="Output")
+            direction="Input")
+        folder_param.filter.list = ["File System"]
 
-        return [positives_param, negatives_param, models_param, table_param]
+        return [positives_param, negatives_param, models_param, folder_param]
 
     def isLicensed(self):
         return True

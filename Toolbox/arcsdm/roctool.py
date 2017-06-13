@@ -9,80 +9,152 @@ import os
 
 
 
-
 NUM_REALIZATIONS = 10000
 DISPLAY_INTERVAL = 1000
-    
+
+COLOR_TABLE = ["r", "b", "g", "c", "m", "y"]
+NUM_COLORS = len(COLOR_TABLE)
+
+
+
 def execute(self, parameters, messages):
-    positives_param, negatives_param, models_param, table_param = parameters
+
+    positives_param, negatives_param, models_param, output_param = parameters
+
+    arcpy.env.workspace = output_param.valueAsText
 
     positives_descr = arcpy.Describe(positives_param.valueAsText)
-    positives_x, positives_y = FetchCoordinates(positives_descr.catalogPath)
+    positives_x, positives_y = FetchCoordinates(positives_descr.catalogPath).T
 
-    negatives_descr = negatives_param.valueAsText and arcpy.Describe(negatives_param.valueAsText) or None
+    if negatives_param.valueAsText:
+        negatives_descr = arcpy.Describe(negatives_param.valueAsText)
+    else:
+        negatives_descr = None
+
+    pylab.figure()
+    handle, = pylab.plot([0, 1], [0, 1], "k--", lw=2)
+
+    legend_items = ["Random guess"]
+    plot_handles = [handle]
+
+    # Iterates through each model and calculates and plots ROC curves for them.
 
     max_rows = 0
-    tokens = models_param.valueAsText.split(";")
     model_names, roc_curves, auc_values, auc_confints = [], [], [], []
-    for i in range(len(tokens)):
-        raster_descr = arcpy.Describe(tokens[i])
 
-        _roc_curve, _roc_ints, _auc_value, _auc_confints = CalculateCurveForModel(messages, raster_descr, negatives_descr, positives_x, positives_y)
+    tokens = models_param.valueAsText.split(";")
+
+    for i in range(len(tokens)):
+
+        raster_descr = arcpy.Describe(tokens[i])
+        color = COLOR_TABLE[i % NUM_COLORS]
+
+        _roc_curve, _roc_confints, _auc_value, _auc_confints = CalculateROCCurveAndAUCValueForModel(messages, raster_descr, negatives_descr, positives_x, positives_y)
+
+        if _roc_confints:
+            pylab.fill_between(_roc_confints[0][:,0], _roc_confints[0][:,1], _roc_confints[1][:,1], color=color, alpha=0.1)
+        handle, = pylab.plot(_roc_curve[:,0], _roc_curve[:, 1], lw=2, color=color)
+
+        plot_handles.append(handle)
+        legend_items.append("%s (AUC = %.3f)" % (raster_descr.name, _auc_value))
 
         messages.addMessage("%s: AUC = %.3f." % (raster_descr.name, _auc_value))
         if _auc_confints:
             messages.addMessage("%s: 95%% confidence interval = %.3f-%.3f." % (raster_descr.name, _auc_confints[0], _auc_confints[1]))
 
-        max_rows = numpy.max([max_rows, len(_roc_curve)])
         model_names.append(raster_descr.name)
         roc_curves.append(_roc_curve)
         auc_values.append(_auc_value)
         auc_confints.append(_auc_confints)
+        max_rows = numpy.max([max_rows, len(_roc_curve)])
 
-    table_path, table_name = os.path.split(table_param.valueAsText)
-    arcpy.CreateTable_management(table_path, table_name)
-    arcpy.AddField_management(table_param.valueAsText, "MODEL", "TEXT", field_length=10)
-    arcpy.AddField_management(table_param.valueAsText, "AUC", "TEXT", field_length=10)
+    # Configures the plot and saves it.
+
+    png_path = arcpy.CreateUniqueName("results.png")
+
+    pylab.gca().set_xlim([0, 1])
+    pylab.gca().set_ylim([0, 1])
+
+    pylab.xlabel("False Positive Rate")
+    pylab.ylabel("True Positive Rate")
+
+    pylab.legend(plot_handles, legend_items, 4)
+
+    pylab.savefig(png_path)
+
+    messages.addMessage("Saved ROC curve plot to '%s'." % png_path)
+
+    # Creates a database table for storing the essential results.
+
+    table_path = arcpy.CreateUniqueName("results.dbf")
+    dbf_path, dbf_name = os.path.split(table_path)
+
+    arcpy.CreateTable_management(dbf_path, dbf_name)
+
+    arcpy.AddField_management(table_path, "MODEL", "TEXT", field_length=10)
+    arcpy.AddField_management(table_path, "AUC", "TEXT", field_length=10)
+
     if not negatives_descr:
-        arcpy.AddField_management(table_param.valueAsText, "AUC_LO", "TEXT", field_length=10)
-        arcpy.AddField_management(table_param.valueAsText, "AUC_HI", "TEXT", field_length=10)
-    for i in range(len(model_names)):
-        arcpy.AddField_management(table_param.valueAsText, "FPR_%d" % (i + 1), "DOUBLE", 20, 10, field_length=10)
-        arcpy.AddField_management(table_param.valueAsText, "TPR_%d" % (i + 1), "DOUBLE", 20, 10, field_length=10)
-    arcpy.DeleteField_management(table_param.valueAsText, "Field1")
+        arcpy.AddField_management(table_path, "AUC_LO", "TEXT", field_length=10)
+        arcpy.AddField_management(table_path, "AUC_HI", "TEXT", field_length=10)
 
-    cursor = arcpy.InsertCursor(table_param.valueAsText)
+    for i in range(len(model_names)):
+        arcpy.AddField_management(table_path, "FPR_%d" % (i + 1), "DOUBLE", 20, 10, field_length=10)
+        arcpy.AddField_management(table_path, "TPR_%d" % (i + 1), "DOUBLE", 20, 10, field_length=10)
+
+    arcpy.DeleteField_management(table_path, "Field1") # Deletes a nuisance field!?
+
+    # Populates the database table.
+
+    cursor = arcpy.InsertCursor(table_path)
+
     for i in range(max_rows):
+
         row = cursor.newRow()
+
         if i < len(model_names):
             row.setValue("MODEL", model_names[i])
             row.setValue("AUC", "%.3f" % auc_values[i])
             if not negatives_descr:
                 row.setValue("AUC_LO", "%.3f" % auc_confints[i][0])
                 row.setValue("AUC_HI", "%.3f" % auc_confints[i][1])
+
         for j in range(len(model_names)):
             if len(roc_curves[j]) > i:
                 row.setValue("FPR_%d" % (j + 1), roc_curves[j][i, 0])
                 row.setValue("TPR_%d" % (j + 1), roc_curves[j][i, 1])
+
         cursor.insertRow(row)
+
     del cursor, row
 
-    
+    messages.addMessage("Saved results database table to '%s'." % table_path)
+
+
+
 def FetchCoordinates(path):
+
     features, coords = arcpy.FeatureSet(path), []
+
     for row in arcpy.da.SearchCursor(features, ["SHAPE@XY"]):
         coords.append(row[0])
-    coords = numpy.array(coords)
-    return coords[:, 0], coords[:, 1]   
-    
-def CalculateCurveForModel(messages, raster_descr, negatives_descr, positives_x, positives_y):
+
+    return numpy.array(coords)
+
+
+
+def CalculateROCCurveAndAUCValueForModel(messages, raster_descr, negatives_descr, positives_x, positives_y):
+
     model_raster = arcpy.sa.Raster(raster_descr.catalogPath)
     raster_sampler = RasterSampler(model_raster)
 
     positives_x, positives_y, positive_sample = raster_sampler.Sample(positives_x, positives_y)
 
     if negatives_descr:
-        negatives_x, negatives_y = FetchCoordinates(negatives_descr.catalogPath)
+
+        # Uses known negatives.
+
+        negatives_x, negatives_y = FetchCoordinates(negatives_descr.catalogPath).T
         negatives_x, negatives_y, negative_sample = raster_sampler.Sample(negatives_x, negatives_y)
 
         roc_curve = CalculateROCCurve(positive_sample, negative_sample)
@@ -91,78 +163,97 @@ def CalculateCurveForModel(messages, raster_descr, negatives_descr, positives_x,
         return roc_curve, None, auc_value, None
 
     else:
-        messages.addMessage("Performing Monte Carlo simulation (%d realizations)." % self.NUM_REALIZATIONS)
+
+        # Carries out Monte Carlo simulation by creating randomly sampled negatives.
+
+        messages.addMessage("Performing Monte Carlo simulation (%d realizations)." % NUM_REALIZATIONS)
 
         fp = numpy.linspace(0, 1, 10*len(positives_x))
-        tp = numpy.zeros((self.NUM_REALIZATIONS, len(fp)))
+        tp = numpy.zeros((NUM_REALIZATIONS, len(fp)))
 
         roc_curves, auc_values = [], []
-        for i in range(self.NUM_REALIZATIONS):
+
+        for i in range(NUM_REALIZATIONS):
+
             negatives_x, negatives_y, negative_sample = raster_sampler.GenerateRandomSample(len(positives_x))
-            roc_curve = self.CalculateROCCurve(positive_sample, negative_sample)
-            auc_value = self.CalculateAUCValue(roc_curve)
+
+            roc_curve = CalculateROCCurve(positive_sample, negative_sample)
+            auc_value = CalculateAUCValue(roc_curve)
 
             roc_curves.append(roc_curve)
             auc_values.append(auc_value)
 
-            if (i + 1) % self.DISPLAY_INTERVAL == 0:
+            if (i + 1) % DISPLAY_INTERVAL == 0:
                 messages.addMessage("Realization #%d (AUC = %.3f)" % (i + 1, auc_value))
 
             tp[i, :] = numpy.interp(fp, roc_curve[:,0], roc_curve[:,1])
 
-        # Vertical statistics
+        # Calculates vertical statistics.
+
         sorted_aucs = sorted(auc_values)
 
-        lower_index = int(numpy.ceil(0.025 * self.NUM_REALIZATIONS)) - 1
-        upper_index = int(numpy.floor(0.975 * self.NUM_REALIZATIONS)) - 1
-        center_index = int(self.NUM_REALIZATIONS/2)
+        lower_index = int(numpy.ceil(0.025 * NUM_REALIZATIONS)) - 1
+        upper_index = int(numpy.floor(0.975 * NUM_REALIZATIONS)) - 1
+        center_index = int(0.5 * NUM_REALIZATIONS) - 1
 
         lower_auc, upper_auc = sorted_aucs[lower_index], sorted_aucs[upper_index]
 
         lower_roc, central_roc, upper_roc = [], [], []
+
         for i in range(len(fp)):
             sorted_tp = sorted(tp[:, i])
             lower_roc.append([fp[i], sorted_tp[lower_index]])
             central_roc.append([fp[i], sorted_tp[center_index]])
             upper_roc.append([fp[i], sorted_tp[upper_index]])
 
-        central_auc = self.CalculateAUCValue(central_roc)
+        central_auc = CalculateAUCValue(central_roc)
 
         messages.addMessage("Completed Monte Carlo simulation.")
 
         return numpy.array(central_roc), [numpy.array(upper_roc), numpy.array(lower_roc)], central_auc, [lower_auc, upper_auc]
 
-def CalculateAUCValue( roc_curve):
+
+
+def CalculateAUCValue(roc_curve):
+
     auc_value = 0
+
     for i in range(len(roc_curve)-1):
         fp1, tp1 = roc_curve[i + 0]
         fp2, tp2 = roc_curve[i + 1]
+
         triangle_base = abs(fp1 - fp2)
         average_height = (tp1 + tp2) / 2.0
+
         auc_value += triangle_base * average_height
+
     return auc_value
 
-def CalculateROCCurve( positive_sample, negative_sample):
+
+
+def CalculateROCCurve(positive_sample, negative_sample):
+
     num_positives, num_negatives = len(positive_sample), len(negative_sample)
+
+    if num_positives == 0:
+        raise ValueError("No positive samples.")
+    elif num_negatives == 0:
+        raise ValueError("No negative samples.")
 
     classifier_values = numpy.hstack((positive_sample, negative_sample))
     classifier_classes = numpy.hstack((numpy.ones(num_positives), numpy.zeros(num_negatives)))
 
-    if num_negatives == 0:
-        raise ValueError("There are no negatives.")
-    elif num_positives == 0:
-        raise ValueError("There are no positives.")
+    # Sorts the arrays so that the classifier values will be in ascending order.
 
-    temp = [(x, y) for x, y in zip(classifier_values, classifier_classes)]
-    temp = sorted(temp, key=lambda xy: xy[0], reverse=True)
+    temp = numpy.array((classifier_values, classifier_classes)).T
+    temp = temp[numpy.argsort(temp[:, 0])[::-1]]
 
-    classifier_values, classifier_classes = [xy[0] for xy in temp], [xy[1] for xy in temp]
+    classifier_values, classifier_classes = temp.T
 
     roc_curve = []
 
-    num_fp, num_tp = 0, 0
-
     prev_point = None
+    num_fp, num_tp = 0, 0
 
     for i in range(len(classifier_values)):
         next_point = (num_fp / float(num_negatives), num_tp / float(num_positives))
@@ -173,8 +264,6 @@ def CalculateROCCurve( positive_sample, negative_sample):
             num_tp += 1
         elif classifier_classes[i] == 0:
             num_fp += 1
-        else:
-            raise ValueError("Class values must be either 0 or 1, not %d." % classifier_classes[i])
 
         prev_point = next_point
 
@@ -184,8 +273,8 @@ def CalculateROCCurve( positive_sample, negative_sample):
 
     return numpy.array(roc_curve)
 
-    
-    
+
+
 class RasterSampler:
 
     NO_DATA_VALUE = -32768
