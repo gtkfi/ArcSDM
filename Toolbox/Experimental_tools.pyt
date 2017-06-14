@@ -4,6 +4,7 @@ import arcpy
 import arcsdm.somtool
 import arcsdm.rescale_raster
 import arcsdm.adaboost
+import arcsdm.SelectRandomPoints
 
 from arcsdm.common import execute_tool
 
@@ -21,7 +22,7 @@ class Toolbox(object):
         self.alias = "experimentaltools" 
 
         # List of tool classes associated with this toolbox
-        self.tools = [rastersom,rescaleraster,Adaboost]
+        self.tools = [rastersom, rescaleraster, SelectRandomPoints, Adaboost]
 
 class rescaleraster(object):
     def __init__(self):
@@ -226,7 +227,101 @@ class rastersom(object):
         execute_tool(arcsdm.somtool.execute, self, parameters, messages)
         return        
 
+class SelectRandomPoints(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Select Random Points"
+        self.description = "Selects random points far from selected points inside areas with points"
+        self.canRunInBackground = False
+        self.category = "Utilities"
 
+    def getParameterInfo(self):
+        output_workspace = arcpy.Parameter(
+            displayName="Output Workspace",
+            name="output_workspace",
+            datatype="DEWorkspace",
+            parameterType="Optional",
+            direction="Input")
+
+        output_point = arcpy.Parameter(
+            displayName="Output Point Feature Class",
+            name="output_point",
+            datatype="GPString",
+            parameterType="Required",
+            direction="Output")
+        # output_point.filter.list = ["Point", "Multipoint"]
+        # output_point.parameterDependencies = [output_workspace.name]
+
+        number_points= arcpy.Parameter(
+            displayName="Number of Random Points",
+            name="number_points",
+            datatype="GPLong",
+            parameterType="Required",
+            direction = "Input")
+
+        constraining_area = arcpy.Parameter(
+            displayName="Constraining Area",
+            name="constraining_area",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Input")
+        constraining_area.filter.list = ["Polygon"]
+
+        data_rasters = arcpy.Parameter(
+            displayName="Data Rasters",
+            name="data_rasters",
+            datatype="GPFeatureLayer",
+            parameterType="Optional",
+            direction="Input")
+        data_rasters.columns = [['GPRasterLayer', 'Information Rasters']]
+
+        excluding_points = arcpy.Parameter(
+            displayName="Excluding Points",
+            name="excluding_points",
+            datatype="GPFeatureLayer",
+            parameterType="Optional",
+            direction="Input")
+        excluding_points.filter.list = ["Point", "Multipoint"]
+
+        excluding_distance = arcpy.Parameter(
+            displayName="Excluding Distance",
+            name="excluding_distance",
+            datatype="GPLinearUnit",
+            parameterType="Optional",
+            direction="Input",
+            enabled=False)
+
+        minimum_distance = arcpy.Parameter(
+            displayName="Minimum Distance",
+            name="minimum_distance",
+            datatype="GPLinearUnit",
+            parameterType="Optional",
+            direction="Input")
+
+        params = [output_workspace, output_point, number_points, constraining_area, data_rasters, excluding_points, excluding_distance, minimum_distance ]
+        return params
+
+    def isLicensed(self):
+        """Set whether tool is licensed to execute."""
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        if parameters[5].altered:
+            parameters[6].enabled = (parameters[5].value is not None)
+
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        return execute_tool(arcsdm.SelectRandomPoints.execute, self, parameters, messages)
 
 class Adaboost(object):
     def __init__(self):
