@@ -28,6 +28,8 @@ def execute(self, parameters, messages):
 
     if negatives_param.valueAsText:
         negatives_descr = arcpy.Describe(negatives_param.valueAsText)
+        if positives_descr.spatialReference.name != negatives_descr.spatialReference.name:
+            raise ValueError("Positives and negatives have different spatial references: '%s' and '%s'." % (positives_descr.spatialReference.name, negatives_descr.spatialReference.name))
     else:
         negatives_descr = None
 
@@ -47,6 +49,9 @@ def execute(self, parameters, messages):
     for i in range(len(tokens)):
 
         raster_descr = arcpy.Describe(tokens[i])
+        if positives_descr.spatialReference.name != raster_descr.spatialReference.name:
+            raise ValueError("Positives and %s have different spatial references: '%s' and '%s'." % (raster_descr.name, positives_descr.spatialReference.name, raster_descr.spatialReference.name))
+
         color = COLOR_TABLE[i % NUM_COLORS]
 
         _roc_curve, _roc_confints, _auc_value, _auc_confints = CalculateROCCurveAndAUCValueForModel(messages, raster_descr, negatives_descr, positives_x, positives_y)
