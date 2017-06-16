@@ -25,11 +25,13 @@ def execute(self, parameters, messages):
 
     positives_descr = arcpy.Describe(positives_param.valueAsText)
     positives_x, positives_y = FetchCoordinates(positives_descr.catalogPath).T
+    positives_sref = positives_descr.spatialReference
 
     if negatives_param.valueAsText:
         negatives_descr = arcpy.Describe(negatives_param.valueAsText)
-        if positives_descr.spatialReference.name != negatives_descr.spatialReference.name:
-            raise ValueError("Positives and negatives have different spatial references: '%s' and '%s'." % (positives_descr.spatialReference.name, negatives_descr.spatialReference.name))
+        negatives_sref = positives_descr.spatialReference
+        if not SpatialReferencesAreEqual(positives_sref, negatives_sref, messages):
+            raise ValueError("Positives and negatives have different spatial references: '%s' and '%s'." % (positives_sref.name, negatives_sref.name))
     else:
         negatives_descr = None
 
@@ -49,8 +51,9 @@ def execute(self, parameters, messages):
     for i in range(len(tokens)):
 
         raster_descr = arcpy.Describe(tokens[i])
-        if positives_descr.spatialReference.name != raster_descr.spatialReference.name:
-            raise ValueError("Positives and %s have different spatial references: '%s' and '%s'." % (raster_descr.name, positives_descr.spatialReference.name, raster_descr.spatialReference.name))
+        raster_sref = raster_descr.spatialReference
+        if not SpatialReferencesAreEqual(positives_sref, raster_sref, messages):
+            raise ValueError("Positives and %s have different spatial references: '%s' and '%s'." % (raster_descr.name, positives_sref.name, raster_sref.name))
 
         color = COLOR_TABLE[i % NUM_COLORS]
 
@@ -345,3 +348,24 @@ class RasterSampler:
             sample_count += len(z)
 
         return coords[:,0], coords[:,1], values
+
+def SpatialReferencesAreEqual(sref1, sref2, messages):
+    if sref1.flattening != sref2.flattening:
+        return False
+    if sref1.semiMajorAxis != sref2.semiMajorAxis:
+        return False
+    if sref1.longitude != sref2.longitude:
+        return False
+    if sref1.projectionName != sref2.projectionName:
+        return False
+    if sref1.falseEasting != sref2.falseEasting:
+        return False
+    if sref1.falseNorthing != sref2.falseNorthing:
+        return False
+    if sref1.centralMeridian != sref2.centralMeridian:
+        return False
+    if sref1.scaleFactor != sref2.scaleFactor:
+        return False
+    if sref1.latitudeOfOrigin != sref2.latitudeOfOrigin:
+        return False
+    return True
