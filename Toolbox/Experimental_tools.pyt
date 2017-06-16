@@ -5,6 +5,7 @@ import arcsdm.somtool
 import arcsdm.rescale_raster
 import arcsdm.adaboost
 import arcsdm.SelectRandomPoints
+import arcsdm.EnrichPoints
 
 from arcsdm.common import execute_tool
 
@@ -22,7 +23,7 @@ class Toolbox(object):
         self.alias = "experimentaltools" 
 
         # List of tool classes associated with this toolbox
-        self.tools = [rastersom, rescaleraster, SelectRandomPoints, Adaboost]
+        self.tools = [rastersom, rescaleraster, SelectRandomPoints, EnrichPoints, Adaboost]
 
 class rescaleraster(object):
     def __init__(self):
@@ -322,6 +323,80 @@ class SelectRandomPoints(object):
     def execute(self, parameters, messages):
         """The source code of the tool."""
         return execute_tool(arcsdm.SelectRandomPoints.execute, self, parameters, messages)
+
+
+class EnrichPoints(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Enrich Points"
+        self.description = 'Adds data to the attribute table of the underlying rasters as well as mark them as ' \
+                           'Prospective or not and replaces/deletes missing data'
+        self.canRunInBackground = False
+        self.category = "Utilities"
+
+    def getParameterInfo(self):
+
+        deposit_points = arcpy.Parameter(
+            displayName="Deposit Points",
+            name="deposit_points",
+            datatype="GPFeatureLayer",
+            parameterType="Optional",
+            direction="Input")
+        deposit_points.filter.list = ["Point", "Multipoint"]
+
+        non_deposit_points = arcpy.Parameter(
+            displayName="Non Deposit Points",
+            name="non_deposit_points",
+            datatype="GPFeatureLayer",
+            parameterType="Optional",
+            direction="Input")
+        non_deposit_points.filter.list = ["Point", "Multipoint"]
+
+        information_rasters = arcpy.Parameter(
+            displayName="Information Rasters",
+            name="info_rasters",
+            datatype="GPValueTable",
+            parameterType="Optional",
+            direction="Input")
+        information_rasters.columns = [['GPRasterLayer', 'Information Rasters']]
+
+        missing_mask = arcpy.Parameter(
+            displayName="Missing Value",
+            name="missing_value",
+            datatype="GPDouble",
+            parameterType="Optional",
+            direction="Input")
+
+        output = arcpy.Parameter(
+            displayName="Output",
+            name="output",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Output")
+        output.filter.list = ["Point", "Multipoint"]
+
+        params = [deposit_points, non_deposit_points, information_rasters, missing_mask, output ]
+        return params
+
+    def isLicensed(self):
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        execute_tool(arcsdm.EnrichPoints.execute , self, parameters, messages)
+        return
+
 
 class Adaboost(object):
     def __init__(self):
