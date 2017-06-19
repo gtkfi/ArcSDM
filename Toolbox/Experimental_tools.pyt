@@ -6,6 +6,7 @@ import arcsdm.rescale_raster
 import arcsdm.adaboost
 import arcsdm.SelectRandomPoints
 import arcsdm.EnrichPoints
+import arcsdm.AdaboostBestParameters
 
 from arcsdm.common import execute_tool
 
@@ -23,7 +24,7 @@ class Toolbox(object):
         self.alias = "experimentaltools" 
 
         # List of tool classes associated with this toolbox
-        self.tools = [rastersom, rescaleraster, SelectRandomPoints, EnrichPoints, Adaboost]
+        self.tools = [rastersom, rescaleraster, SelectRandomPoints, EnrichPoints, AdaboostBestParameters, Adaboost]
 
 class rescaleraster(object):
     def __init__(self):
@@ -395,6 +396,171 @@ class EnrichPoints(object):
     def execute(self, parameters, messages):
         """The source code of the tool."""
         execute_tool(arcsdm.EnrichPoints.execute , self, parameters, messages)
+        return
+
+class AdaboostBestParameters(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Adaboost Best Parameters"
+        self.description = 'Makes a grid search for the paramethers with best score against test/train set'
+        self.canRunInBackground = False
+        self.category = "Adaboost"
+
+    def getParameterInfo(self):
+
+        train_points = arcpy.Parameter(
+            displayName="Train Points",
+            name="train_points",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Input")
+        train_points.filter.list = ["Point", "Multipoint"]
+
+        train_regressors = arcpy.Parameter(
+            displayName="Train Regressors",
+            name="train_regressors",
+            datatype="Field",
+            parameterType="Required",
+            direction="Input",
+            multiValue=True)
+        train_regressors.parameterDependencies = [train_points.name]
+        train_regressors.filter.list = ['Short', 'Long', 'Double', 'Float', 'Single']
+
+        train_response = arcpy.Parameter(
+            displayName="Train Response",
+            name="train_response",
+            datatype="Field",
+            parameterType="Required",
+            direction="Input")
+        train_response.parameterDependencies = [train_points.name]
+        train_response.filter.list = ['Short', 'Long', 'Double', 'Float', 'Single']
+
+        test_response = arcpy.Parameter(
+            displayName="Test Response",
+            name="test_response",
+            datatype="Field",
+            parameterType="Optional",
+            direction="Input",
+            enabled=False)
+        test_response.parameterDependencies = [train_points.name]
+        test_response.filter.list = ['Short', 'Long', 'Double', 'Float', 'Single']
+
+        num_estimators_min = arcpy.Parameter(
+            displayName="Minimum number of Estimators",
+            name="num_estimators_min",
+            datatype="GPLong",
+            parameterType="Required",
+            direction="Input",
+            category="Number of estimators")
+        num_estimators_min.value = 1
+
+        num_estimators_max = arcpy.Parameter(
+            displayName="Maximum Number of Estimators",
+            name="num_estimators_max",
+            datatype="GPLong",
+            parameterType="Required",
+            direction="Input",
+            category="Number of estimators")
+        num_estimators_max.value = 20
+
+        num_estimators_increment = arcpy.Parameter(
+            displayName="Increment of number of Estimators",
+            name="num_estimators_increment",
+            datatype="GPLong",
+            parameterType="Required",
+            direction="Input",
+            category="Number of estimators")
+        num_estimators_increment.value = 2
+
+        learning_rate_min = arcpy.Parameter(
+            displayName="Minimum learning Rate",
+            name="learning_rate_min",
+            datatype="GPDouble",
+            parameterType="Required",
+            direction="Input",
+            category="Learning Rate")
+        learning_rate_min.value = 0.5
+
+        learning_rate_max = arcpy.Parameter(
+            displayName="Maximum learning Rate",
+            name="learning_rate_max",
+            datatype="GPDouble",
+            parameterType="Required",
+            direction="Input",
+            category="Learning Rate")
+        learning_rate_max.value = 1.5
+
+        learning_rate_increment = arcpy.Parameter(
+            displayName="Increment of learning Rate",
+            name="learning_rate_increment",
+            datatype="GPDouble",
+            parameterType="Required",
+            direction="Input",
+            category="Learning Rate")
+        learning_rate_increment.value = 0.2
+
+        output_table = arcpy.Parameter(
+            displayName="Output Table",
+            name="output_table",
+            datatype="DEFile",
+            parameterType="Optional",
+            direction="Output",
+            category="Output")
+
+        plot_file = arcpy.Parameter(
+            displayName="Plot Results",
+            name="plot_file",
+            datatype="DEFile",
+            parameterType="Optional",
+            direction="Output",
+            category="Output")
+
+        params = [train_points, train_regressors, train_response, num_estimators_min,
+                  num_estimators_max, num_estimators_increment, learning_rate_min, learning_rate_max,
+                  learning_rate_increment, output_table, plot_file]
+        return params
+
+    def isLicensed(self):
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        if parameters[10].altered and not parameters[10].valueAsText.endswith(".png"):
+            parameters[10].value = parameters[10].valueAsText + ".png"
+        if parameters[9].altered and not parameters[9].valueAsText.endswith(".dbf"):
+            parameters[9].value = parameters[9].valueAsText + ".dbf"
+
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+        if any([parameters[x].altered for x in xrange(3, 6)]):
+            if parameters[3].value > parameters[4].value:
+                parameters[3].setErrorMessage("Minimum value greater than maximum")
+            elif (parameters[4].value - parameters[3].value) < parameters[5].value:
+                parameters[5].setWarningMessage("Increment greater than the interval")
+            elif parameters[3].value <= 0:
+                parameters[3].setErrorMessage("Non positive values forbidden")
+            elif parameters[5].value <= 0 and (parameters[4].value - parameters[3].value) > 0:
+                parameters[5].setErrorMessage("Non positive values forbidden")
+
+        if any([parameters[x].altered for x in xrange(6, 9)]):
+            if parameters[6].value > parameters[7].value:
+                parameters[6].setErrorMessage("Minimum value greater than maximum")
+            elif (parameters[7].value - parameters[6].value) < parameters[8].value:
+                parameters[8].setWarningMessage("Increment greater than the interval")
+            elif parameters[6].value <= 0:
+                parameters[6].setErrorMessage("Non positive values forbidden")
+            elif parameters[8].value <= 0 and (parameters[7].value - parameters[6].value) > 0:
+                parameters[8].setErrorMessage("Non positive values forbidden")
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        execute_tool(arcsdm.AdaboostBestParameters.execute, self, parameters, messages)
         return
 
 
