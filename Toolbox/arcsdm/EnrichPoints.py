@@ -1,4 +1,5 @@
 import arcpy
+#TODO: Add documentation
 
 VERBOSE = False
 if VERBOSE:
@@ -21,8 +22,8 @@ def _add_calculate_field(base, value):
         arcpy.Delete_management(scratch)
         arcpy.CopyFeatures_management(arcpy.Describe(base).catalogPath, scratch)
 
-    arcpy.AddField_management(scratch, "Prospect", "LONG", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
-    arcpy.CalculateField_management(scratch, "Prospect", str(value), "PYTHON", "")
+    arcpy.AddField_management(scratch, "Deposit", "LONG", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
+    arcpy.CalculateField_management(scratch, "Deposit", str(value), "PYTHON", "")
     return scratch
 
 
