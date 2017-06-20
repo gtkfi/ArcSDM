@@ -7,6 +7,7 @@ import arcsdm.adaboost
 import arcsdm.SelectRandomPoints
 import arcsdm.EnrichPoints
 import arcsdm.AdaboostBestParameters
+import arcsdm.AdaboostTrain
 
 from arcsdm.common import execute_tool
 
@@ -24,7 +25,8 @@ class Toolbox(object):
         self.alias = "experimentaltools" 
 
         # List of tool classes associated with this toolbox
-        self.tools = [rastersom, rescaleraster, SelectRandomPoints, EnrichPoints, AdaboostBestParameters, Adaboost]
+        self.tools = [rastersom, rescaleraster, SelectRandomPoints, EnrichPoints, AdaboostBestParameters, AdaboostTrain,
+                       Adaboost]
 
 class rescaleraster(object):
     def __init__(self):
@@ -564,6 +566,126 @@ class AdaboostBestParameters(object):
         return
 
 
+class AdaboostTrain(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Adaboost Train"
+        self.description = 'Trains a classificator using Adaboost'
+        self.canRunInBackground = False
+        self.category = "Adaboost"
+
+    def getParameterInfo(self):
+
+        train_points = arcpy.Parameter(
+            displayName="Train Points",
+            name="train_points",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Input")
+        train_points.filter.list = ["Point", "Multipoint"]
+
+        train_regressors = arcpy.Parameter(
+            displayName="Train Regressors",
+            name="train_regressors",
+            datatype="Field",
+            parameterType="Required",
+            direction="Input",
+            multiValue=True)
+        train_regressors.parameterDependencies = [train_points.name]
+        train_regressors.filter.list = ['Short', 'Long', 'Double', 'Float', 'Single']
+
+        train_response = arcpy.Parameter(
+            displayName="Train Response",
+            name="train_response",
+            datatype="Field",
+            parameterType="Required",
+            direction="Input")
+        train_response.parameterDependencies = [train_points.name]
+        train_response.filter.list = ['Short', 'Long', 'Double', 'Float', 'Single']
+
+        num_estimators = arcpy.Parameter(
+            displayName="Number of Estimators",
+            name="num_estimators",
+            datatype="GPLong",
+            parameterType="Required",
+            direction="Input")
+        num_estimators.value = 20
+        num_estimators.filter.type = "Range"
+        num_estimators.filter.list = [1, 1000]
+
+        learning_rate = arcpy.Parameter(
+            displayName="Learning Rate",
+            name="learning_rate",
+            datatype="GPDouble",
+            parameterType="Required",
+            direction="Input")
+        learning_rate.value = 1
+        learning_rate.filter.type = "Range"
+        learning_rate.filter.list = [0.0000000000001 , 10]
+
+        output_model = arcpy.Parameter(
+            displayName="Output Model",
+            name="output_model",
+            datatype="DEFile",
+            parameterType="Optional",
+            direction="Output")
+
+        leave_one_out = arcpy.Parameter(
+            displayName="Leave-one-out cross validation",
+            name="leave_one_out",
+            datatype="GPBoolean",
+            parameterType="Required",
+            direction="Output")
+        leave_one_out.value = True
+
+        params = [train_points, train_regressors, train_response, num_estimators, learning_rate, output_model,
+                  leave_one_out]
+        return params
+
+    def isLicensed(self):
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+
+        output_model = parameters[5]
+        if output_model.altered :
+            if output_model == "":
+                output_model = None
+            elif not output_model.valueAsText.endswith(".pkl"):
+                output_model.value = output_model.valueAsText + ".pkl"
+
+        return
+
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+        train_regressors = parameters[1]
+        train_response = parameters[2]
+        if (train_response.altered or train_regressors.altered) and train_regressors.valueAsText is not None :
+            for field in train_regressors.valueAsText.split(";"):
+                if field == train_response.valueAsText:
+                    train_response.setErrorMessage("{} can not be included in {}".format(train_response.displayName,
+                                                                                         train_regressors.displayName))
+
+        num_estimators = parameters[3]
+        if num_estimators.altered and num_estimators.value < 1:
+            num_estimators.value = 1
+
+        learning_rate = parameters[4]
+        if learning_rate.altered and learning_rate.value <= 0:
+            learning_rate.value = 0.1
+
+        return
+
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        execute_tool(arcsdm.AdaboostTrain.execute, self, parameters, messages)
+        return
 class Adaboost(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
