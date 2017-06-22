@@ -8,6 +8,7 @@ import arcsdm.SelectRandomPoints
 import arcsdm.EnrichPoints
 import arcsdm.AdaboostBestParameters
 import arcsdm.AdaboostTrain
+import arcsdm.ModelValidation
 
 from arcsdm.common import execute_tool
 
@@ -26,7 +27,7 @@ class Toolbox(object):
 
         # List of tool classes associated with this toolbox
         self.tools = [rastersom, rescaleraster, SelectRandomPoints, EnrichPoints, AdaboostBestParameters, AdaboostTrain,
-                       Adaboost]
+                      ModelValidation, Adaboost]
 
 class rescaleraster(object):
     def __init__(self):
@@ -682,9 +683,91 @@ class AdaboostTrain(object):
         return
 
 
+class ModelValidation(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Model Validation"
+        self.description = 'Validates a classification model with an independent test set'
+        self.canRunInBackground = False
+        self.category = "Adaboost"
+
+    def getParameterInfo(self):
+
+        input_model = arcpy.Parameter(
+            displayName="Input Model",
+            name="input_model",
+            datatype="DEFile",
+            parameterType="Required",
+            direction="Input")
+        input_model.filter.list = ['pkl']
+
+        test_points = arcpy.Parameter(
+            displayName="Test Points",
+            name="test_points",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Input")
+        test_points.filter.list = ["Point", "Multipoint"]
+
+        test_regressors = arcpy.Parameter(
+            displayName="Information Fields",
+            name="test_regressors_name",
+            datatype="GPValueTable",
+            parameterType="Required",
+            direction="Input")
+        test_regressors.columns = [['Field', 'Information Fields']]
+        test_regressors.parameterDependencies = [test_points.name]
+        test_regressors.filters[0].list = ['Short', 'Long', 'Double', 'Float', 'Single']
+
+        test_response = arcpy.Parameter(
+            displayName="Test Response",
+            name="test_response_name",
+            datatype="Field",
+            parameterType="Required",
+            direction="Input")
+        test_response.parameterDependencies = [test_points.name]
+        test_response.filter.list = ['Short', 'Long', 'Double', 'Float', 'Single']
+
+        plot_file = arcpy.Parameter(
+            displayName="Plot Results",
+            name="plot_file",
+            datatype="DEFile",
+            parameterType="Optional",
+            direction="Output")
+
+        params = [input_model, test_points, test_regressors, test_response, plot_file]
+        return params
+
+    def isLicensed(self):
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+
+        return
+
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+
+        test_regressors = parameters[2]
+        test_response = parameters[3]
+
+        if test_response.valueAsText is not None and test_regressors.valueAsText is not None :
+            for field in test_regressors.valueAsText.split(";"):
+                if field == test_response.valueAsText:
+                    test_response.setErrorMessage("{} can not be included in {}".format(test_response.displayName,
+                                                                                         test_regressors.displayName))
+                    break
+        return
+
+
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        execute_tool(arcsdm.AdaboostTrain.execute, self, parameters, messages)
+        execute_tool(arcsdm.ModelValidation.execute, self, parameters, messages)
         return
 class Adaboost(object):
     def __init__(self):
