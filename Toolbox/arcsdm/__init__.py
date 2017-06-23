@@ -1,2 +1,2 @@
-__all__ = ["sitereduction", "calculateweights", "categoricalmembership", "categoricalreclass", "tocfuzzification", "logisticregression", "rescale_raster", "adaboost"]
+__all__ = ["sitereduction", "calculateweights", "categoricalmembership", "categoricalreclass", "tocfuzzification", "logisticregression", "rescale_raster"]
 
