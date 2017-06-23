@@ -4,6 +4,7 @@ import sys
 from sklearn.externals import joblib
 import sklearn.metrics as sklm
 import matplotlib.pyplot as plt
+import EnrichPoints
 
 # TODO: Add documentation
 
@@ -25,30 +26,7 @@ def print_parameters(parameters):
 
 def _input_validation(parameters):
 
-    parameter_dic = {par.name: par for par in parameters}
-    input_model = parameter_dic["input_model"].valueAsText
-    test_regressors_name = [x.strip("'") for x in parameter_dic["test_regressors_name"].valueAsText.split(";")]
-    global MESSAGES
-
-    input_text = input_model.replace(".pkl", ".txt")
-    model_regressors = []
-    with open(input_text, "r") as f:
-        for line in f:
-            if line.startswith("Regressor:"):
-                model_regressors.append(line.split("'")[1])
-
-    if len(model_regressors) != len(test_regressors_name):
-        raise ValueError("The amount of {} does not coincide with the model ({} vs {})".format(
-            parameter_dic["test_regressors_name"].displayName, len(test_regressors_name), len(model_regressors)))
-
-    row_format = "{:^16}"*2
-    MESSAGES.AddMessage("Parameters association")
-    MESSAGES.AddMessage(row_format.format("Model","Test"))
-    for m_r, t_r in zip(model_regressors, test_regressors_name):
-        MESSAGES.AddMessage(row_format.format(m_r, t_r))
-        
     return
-
 
 def _get_fields(feature_layer, fields_name):
 
@@ -63,23 +41,44 @@ def _get_fields(feature_layer, fields_name):
 
     field = np.array([[elem * 1.0 for elem in row] for row in fi])
 
-    if not isinstance(fields_name, list):
+    if not isinstance(fields_name, list) or len(fields_name) == 1:
         field = field.flatten()
     field[field == sys.maxint] = np.NaN
 
     return field
 
 
-def _print_test_results(classifier, regressors_test, response_test):
+def _print_test_results(classification_model, test_points, test_response_name, plot_file, threshold):
     global MESSAGES
-    MESSAGES.AddMessage("Adaboost classifier with " + str(classifier.n_estimators) + " estimators and learning rate "
-                        + str(classifier.learning_rate))
 
-    predicted = classifier.predict(regressors_test)
+    scratch_files = []
+
+    try:
+        extracted_name, regressors = EnrichPoints._extract_fields(test_points, classification_model, MESSAGES)
+        scratch_files.append(extracted_name)
+        response = _get_fields(extracted_name, regressors)
+    except:
+        raise
+    finally:
+        for s_file in scratch_files:
+            arcpy.Delete_management(s_file)
+            _verbose_print("Scratch file deleted: {}".format(s_file))
+
+    response_test = _get_fields(test_points, test_response_name)
+    predicted = np.sign(response - threshold)
+    probabilities = (response - min(response)) / (max(response) - min(response))
+
+    if plot_file is not None:
+        _plot_results(classification_model, response, probabilities, response_test, threshold, plot_file)
+
+    MESSAGES.AddMessage("Accuracy : {}".format(sklm.accuracy_score(response_test, predicted)))
+    MESSAGES.AddMessage("Precision : {}".format(sklm.precision_score(response_test, predicted)))
+    MESSAGES.AddMessage("Recall: {}".format(sklm.recall_score(response_test, predicted)))
+    MESSAGES.AddMessage("Area Under the curve (AUC): {}:".format(sklm.roc_auc_score(response_test, response)))
+    MESSAGES.AddMessage(
+        "Average Precision Score: {}".format(sklm.average_precision_score(response_test, probabilities)))
+
     confusion = sklm.confusion_matrix(response_test, predicted)
-    des_func = classifier.decision_function(regressors_test)
-    probabilities = classifier.predict_proba(regressors_test)[:, classifier.classes_ == 1]
-
     MESSAGES.AddMessage("Confusion Matrix :")
     labels = ["Non Deposit", "Deposit"]
     row_format = "{:6}" + "{:^16}" * (len(labels) + 1)
@@ -88,40 +87,50 @@ def _print_test_results(classifier, regressors_test, response_test):
     for label, row in zip(labels, confusion):
         MESSAGES.AddMessage(row_format.format("", label, *row))
 
-    MESSAGES.AddMessage("Accuracy : {}".format(sklm.accuracy_score(response_test, predicted)))
-    MESSAGES.AddMessage("Precision : {}".format(sklm.precision_score(response_test, predicted)))
-    MESSAGES.AddMessage("Recall: {}".format(sklm.recall_score(response_test, predicted)))
-    MESSAGES.AddMessage("Area Under the curve (AUC): {}:".format(sklm.roc_auc_score(response_test, des_func)))
-    MESSAGES.AddMessage("Average Precision Score: {}".format(sklm.average_precision_score(response_test, probabilities)))
 
     return
 
 
-def _plot_results(classifier, regressors_test, response_test, plot_file):
+def _plot_results(classification_model, des_func, probabilities, response_test, threshold, plot_file):
 
     global MESSAGES
 
-    MESSAGES.AddMessage("Plotting Results")
+    MESSAGES.AddMessage("Plotting Results...")
 
-    des_func = classifier.decision_function(regressors_test)
-    probabilities = classifier.predict_proba(regressors_test)[:, classifier.classes_ == 1]
-
-    fpr, tpr, unused = sklm.roc_curve(response_test, des_func)
+    fpr, tpr, thresholds = sklm.roc_curve(response_test, des_func)
     pre, rec, unused = sklm.precision_recall_curve(response_test, probabilities)
 
-    fig, (ax_roc, ax_prc) = plt.subplots(2)
+    fig, ((ax_roc, ax_prc),(ax_suc, unused)) = plt.subplots(2,2, figsize=(12,12))
 
     ax_roc.plot(fpr, tpr, label="ROC Curve (AUC={0:.3f})".format(sklm.roc_auc_score(response_test, des_func)))
     ax_roc.plot([0, 1], [0, 1], linestyle='--')
     ax_roc.set_xlabel('False Positive Rate')
     ax_roc.set_ylabel("True Positive Rate")
-    ax_roc.legend(loc='lower right')
+    ax_roc.legend(loc='lower right', prop={'size':12})
 
-    ax_prc.plot(pre, rec, label="Precision-Recall Curve "
+
+    ax_prc.plot(rec, pre, label="Precision-Recall Curve "
                                 "(Area={0:.3f})".format(sklm.average_precision_score(response_test, probabilities)))
     ax_prc.set_xlabel('Recall')
     ax_prc.set_ylabel("Precision")
-    ax_prc.legend(loc='lower left')
+    ax_prc.legend(loc='lower right', prop={'size':12})
+
+    try:
+        raster_array = arcpy.RasterToNumPyArray(classification_model, nodata_to_value=np.NaN)
+    except ValueError:
+        _verbose_print("Integer type raster, changed to float")
+        raster_array = 1.0 * arcpy.RasterToNumPyArray(classification_model, nodata_to_value=sys.maxint)
+        raster_array[raster_array == sys.maxint] = np.NaN
+
+    total_area = np.sum(np.isfinite(raster_array))
+    areas = [(1.0*np.sum(raster_array > thr))/total_area for thr in thresholds]
+
+    MESSAGES.AddMessage("Proportion of prospective area: {}".format((1.0*np.sum(raster_array > threshold))/total_area))
+
+    ax_suc.plot(areas, tpr, label="Success Curve ")
+    ax_suc.set_xlabel('Proportion of area covered')
+    ax_suc.set_ylabel("True Positive Rate")
+    ax_suc.legend(loc='lower right', prop={'size':12})
 
     if not plot_file.endswith(".png"):
         plot_file += ".png"
@@ -142,21 +151,15 @@ def execute(self, parameters, messages):
     _input_validation(parameters)
 
     parameter_dic = {par.name: par for par in parameters}
-    input_model = parameter_dic["input_model"].valueAsText
     test_points = parameter_dic["test_points"].valueAsText
-    test_regressors_name = [x.strip("'") for x in parameter_dic["test_regressors_name"].valueAsText.split(";")]
+    classification_model = parameter_dic["classification_model"].valueAsText
     test_response_name = parameter_dic["test_response_name"].valueAsText
     plot_file = parameter_dic["plot_file"].valueAsText
+    threshold = parameter_dic["threshold"].value
 
-    classifier = joblib.load(input_model)
+
+    _print_test_results(classification_model, test_points, test_response_name, plot_file, threshold)
 
 
-    test_regressors = _get_fields(test_points, test_regressors_name)
-    test_response = _get_fields(test_points, test_response_name)
-
-    _print_test_results(classifier, test_regressors, test_response)
-
-    if plot_file is not None:
-        _plot_results(classifier, test_regressors, test_response, plot_file)
 
     return

@@ -692,13 +692,12 @@ class ModelValidation(object):
 
     def getParameterInfo(self):
 
-        input_model = arcpy.Parameter(
-            displayName="Input Model",
-            name="input_model",
-            datatype="DEFile",
+        classification_model = arcpy.Parameter(
+            displayName="Classification Model",
+            name="classification_model",
+            datatype="GPRasterLayer",
             parameterType="Required",
             direction="Input")
-        input_model.filter.list = ['pkl']
 
         test_points = arcpy.Parameter(
             displayName="Test Points",
@@ -707,16 +706,6 @@ class ModelValidation(object):
             parameterType="Required",
             direction="Input")
         test_points.filter.list = ["Point", "Multipoint"]
-
-        test_regressors = arcpy.Parameter(
-            displayName="Information Fields",
-            name="test_regressors_name",
-            datatype="GPValueTable",
-            parameterType="Required",
-            direction="Input")
-        test_regressors.columns = [['Field', 'Information Fields']]
-        test_regressors.parameterDependencies = [test_points.name]
-        test_regressors.filters[0].list = ['Short', 'Long', 'Double', 'Float', 'Single']
 
         test_response = arcpy.Parameter(
             displayName="Test Response",
@@ -734,7 +723,15 @@ class ModelValidation(object):
             parameterType="Optional",
             direction="Output")
 
-        params = [input_model, test_points, test_regressors, test_response, plot_file]
+        threshold = arcpy.Parameter(
+            displayName="Threshold",
+            name="threshold",
+            datatype="GPDouble",
+            parameterType="Required",
+            direction="Input")
+        threshold.value = 0.5
+
+        params = [classification_model, test_points, test_response, threshold, plot_file]
         return params
 
     def isLicensed(self):
@@ -752,15 +749,6 @@ class ModelValidation(object):
         """Modify the messages created by internal validation for each tool
         parameter.  This method is called after internal validation."""
 
-        test_regressors = parameters[2]
-        test_response = parameters[3]
-
-        if test_response.valueAsText is not None and test_regressors.valueAsText is not None :
-            for field in test_regressors.valueAsText.split(";"):
-                if field == test_response.valueAsText:
-                    test_response.setErrorMessage("{} can not be included in {}".format(test_response.displayName,
-                                                                                         test_regressors.displayName))
-                    break
         return
 
 
