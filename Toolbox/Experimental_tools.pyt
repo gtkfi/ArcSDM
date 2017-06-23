@@ -9,6 +9,7 @@ import arcsdm.EnrichPoints
 import arcsdm.AdaboostBestParameters
 import arcsdm.AdaboostTrain
 import arcsdm.ModelValidation
+import arcsdm.ApplyModel
 
 from arcsdm.common import execute_tool
 
@@ -27,7 +28,7 @@ class Toolbox(object):
 
         # List of tool classes associated with this toolbox
         self.tools = [rastersom, rescaleraster, SelectRandomPoints, EnrichPoints, AdaboostBestParameters, AdaboostTrain,
-                      ModelValidation, Adaboost]
+                      ModelValidation, ApplyModel, Adaboost]
 
 class rescaleraster(object):
     def __init__(self):
@@ -672,14 +673,12 @@ class AdaboostTrain(object):
                     train_response.setErrorMessage("{} can not be included in {}".format(train_response.displayName,
                                                                                          train_regressors.displayName))
 
-        num_estimators = parameters[3]
-        if num_estimators.altered and num_estimators.value < 1:
-            num_estimators.value = 1
+        return
 
-        learning_rate = parameters[4]
-        if learning_rate.altered and learning_rate.value <= 0:
-            learning_rate.value = 0.1
 
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        execute_tool(arcsdm.AdaboostTrain.execute, self, parameters, messages)
         return
 
 
@@ -769,6 +768,69 @@ class ModelValidation(object):
         """The source code of the tool."""
         execute_tool(arcsdm.ModelValidation.execute, self, parameters, messages)
         return
+
+
+class ApplyModel(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Apply model"
+        self.description = 'Applies a model to a series of data rasters obtain a response raster'
+        self.canRunInBackground = False
+        self.category = "Adaboost"
+
+    def getParameterInfo(self):
+
+        input_model = arcpy.Parameter(
+            displayName="Input Model",
+            name="input_model",
+            datatype="DEFile",
+            parameterType="Required",
+            direction="Input")
+        input_model.filter.list = ['pkl']
+
+        output_map = arcpy.Parameter(
+            displayName="Output Map",
+            name="output_map",
+            datatype="DERasterDataset",
+            parameterType="Required",
+            direction="Output")
+
+        information_rasters = arcpy.Parameter(
+            displayName="Information Rasters",
+            name="info_rasters",
+            datatype="GPRasterLayer",
+            parameterType="Required",
+            direction="Input",
+            multiValue=True)
+
+        params = [input_model, information_rasters, output_map]
+        return params
+
+    def isLicensed(self):
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+
+        return
+
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+
+        return
+
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        execute_tool(arcsdm.ApplyModel.execute, self, parameters, messages)
+        return
+
+
+
 class Adaboost(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
