@@ -9,6 +9,7 @@ import arcsdm.AdaboostBestParameters
 import arcsdm.AdaboostTrain
 import arcsdm.ModelValidation
 import arcsdm.ApplyModel
+import arcsdm.MulticlassSplit
 
 from arcsdm.common import execute_tool
 
@@ -27,7 +28,7 @@ class Toolbox(object):
 
         # List of tool classes associated with this toolbox
         self.tools = [rastersom, rescaleraster, SelectRandomPoints, EnrichPoints, AdaboostBestParameters, AdaboostTrain,
-                      ModelValidation, ApplyModel]
+                      ModelValidation, MulticlassSplit, ApplyModel]
 
 class rescaleraster(object):
     def __init__(self):
@@ -814,4 +815,75 @@ class ApplyModel(object):
     def execute(self, parameters, messages):
         """The source code of the tool."""
         execute_tool(arcsdm.ApplyModel.execute, self, parameters, messages)
+
+        return
+
+class MulticlassSplit(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Multiclass to Binary"
+        self.description = 'Form a multi-class polygon creates one raster per class'
+        self.canRunInBackground = False
+        self.category = "Utilities"
+
+    def getParameterInfo(self):
+
+        input_feature = arcpy.Parameter(
+            displayName="Input Feature",
+            name="input_feature",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Input")
+        input_feature.filter.list = ["Polygon"]
+
+        class_field = arcpy.Parameter(
+            displayName="Class Field",
+            name="class_field",
+            datatype="Field",
+            parameterType="Required",
+            direction="Input")
+        class_field.parameterDependencies = [input_feature.name]
+
+        output_prefix = arcpy.Parameter(
+            displayName="Output Prefix",
+            name="output_prefix",
+            datatype="DERasterDataset",
+            parameterType="Required",
+            direction="Output")
+
+        transformation = arcpy.Parameter(
+            displayName="Transformation",
+            name="transformation",
+            datatype="GPString",
+            parameterType="Required",
+            direction="Input")
+        transformation.value = "None";
+        transformation.filter.list = ["None", "Inverse", "Inverse Linear", "Binary"]
+
+
+        params = [input_feature, class_field, output_prefix, transformation]
+        return params
+
+    def isLicensed(self):
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+
+        return
+
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+
+        return
+
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        execute_tool(arcsdm.MulticlassSplit.execute, self, parameters, messages)
+
         return
