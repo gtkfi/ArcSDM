@@ -282,17 +282,17 @@ class SelectRandomPoints(object):
             direction="Input")
         data_rasters.columns = [['GPRasterLayer', 'Information Rasters']]
 
-        excluding_points = arcpy.Parameter(
-            displayName="Excluding Points",
-            name="excluding_points",
+        buffer_points = arcpy.Parameter(
+            displayName="buffer Points",
+            name="buffer_points",
             datatype="GPFeatureLayer",
             parameterType="Optional",
             direction="Input")
-        excluding_points.filter.list = ["Point", "Multipoint"]
+        buffer_points.filter.list = ["Point", "Multipoint"]
 
-        excluding_distance = arcpy.Parameter(
-            displayName="Excluding Distance",
-            name="excluding_distance",
+        buffer_distance = arcpy.Parameter(
+            displayName="buffer Distance",
+            name="buffer_distance",
             datatype="GPLinearUnit",
             parameterType="Optional",
             direction="Input",
@@ -305,7 +305,17 @@ class SelectRandomPoints(object):
             parameterType="Optional",
             direction="Input")
 
-        params = [output_workspace, output_point, number_points, constraining_area, data_rasters, excluding_points, excluding_distance, minimum_distance ]
+        select_inside = arcpy.Parameter(
+            displayName="Select inside buffer",
+            name="select_inside",
+            datatype="Boolean",
+            parameterType="Optional",
+            direction="Input",
+            enabled=False)
+        select_inside.value = False;
+
+        params = [output_workspace, output_point, number_points, constraining_area, data_rasters, buffer_points,
+                  buffer_distance, select_inside, minimum_distance ]
         return params
 
     def isLicensed(self):
@@ -318,6 +328,7 @@ class SelectRandomPoints(object):
         has been changed."""
         if parameters[5].altered:
             parameters[6].enabled = (parameters[5].value is not None)
+            parameters[7].enabled = (parameters[5].value is not None)
 
         return
 
@@ -342,21 +353,21 @@ class EnrichPoints(object):
 
     def getParameterInfo(self):
 
-        deposit_points = arcpy.Parameter(
-            displayName="Deposit Points",
-            name="deposit_points",
+        class1_points = arcpy.Parameter(
+            displayName="Class 1 Points (Deposit)",
+            name="class1_points",
             datatype="GPFeatureLayer",
             parameterType="Optional",
             direction="Input")
-        deposit_points.filter.list = ["Point", "Multipoint"]
+        class1_points.filter.list = ["Point", "Multipoint"]
 
-        non_deposit_points = arcpy.Parameter(
-            displayName="Non Deposit Points",
-            name="non_deposit_points",
+        class2_points = arcpy.Parameter(
+            displayName="Class -1 Points (Non Deposit)",
+            name="class2_points",
             datatype="GPFeatureLayer",
             parameterType="Optional",
             direction="Input")
-        non_deposit_points.filter.list = ["Point", "Multipoint"]
+        class2_points.filter.list = ["Point", "Multipoint"]
 
         information_rasters = arcpy.Parameter(
             displayName="Information Rasters",
@@ -381,7 +392,23 @@ class EnrichPoints(object):
             direction="Output")
         output.filter.list = ["Point", "Multipoint"]
 
-        params = [deposit_points, non_deposit_points, information_rasters, missing_mask, output ]
+        field_name = arcpy.Parameter(
+            displayName="Class field name",
+            name="field_name",
+            datatype="GPString",
+            parameterType="Required",
+            direction="Output")
+        field_name.value = "Deposit"
+
+        copy_data = arcpy.Parameter(
+            displayName="Copy all the information from the points",
+            name="copy_data",
+            datatype="Boolean",
+            parameterType="Optional",
+            direction="Input")
+        copy_data.value = True;
+
+        params = [class1_points, class2_points, field_name, copy_data, information_rasters, missing_mask, output ]
         return params
 
     def isLicensed(self):

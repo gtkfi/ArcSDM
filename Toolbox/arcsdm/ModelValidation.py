@@ -54,7 +54,7 @@ def _print_test_results(classification_model, test_points, test_response_name, p
     scratch_files = []
 
     try:
-        extracted_name, regressors = EnrichPoints._extract_fields(test_points, classification_model, MESSAGES)
+        extracted_name, regressors = EnrichPoints._extract_fields(test_points, classification_model)
         scratch_files.append(extracted_name)
         response = _get_fields(extracted_name, regressors)
     except:
