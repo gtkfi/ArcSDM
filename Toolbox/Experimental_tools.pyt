@@ -10,6 +10,7 @@ import arcsdm.AdaboostTrain
 import arcsdm.ModelValidation
 import arcsdm.ApplyModel
 import arcsdm.MulticlassSplit
+import arcsdm.ApplyFilter
 
 from arcsdm.common import execute_tool
 
@@ -28,7 +29,7 @@ class Toolbox(object):
 
         # List of tool classes associated with this toolbox
         self.tools = [rastersom, rescaleraster, SelectRandomPoints, EnrichPoints, AdaboostBestParameters, AdaboostTrain,
-                      ModelValidation, MulticlassSplit, ApplyModel]
+                      ModelValidation, MulticlassSplit, ApplyModel, ApplyFilter]
 
 class rescaleraster(object):
     def __init__(self):
@@ -885,5 +886,75 @@ class MulticlassSplit(object):
     def execute(self, parameters, messages):
         """The source code of the tool."""
         execute_tool(arcsdm.MulticlassSplit.execute, self, parameters, messages)
+
+        return
+
+
+class ApplyFilter(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Apply Filter"
+        self.description = 'Applies a smoothing filter to a raster'
+        self.canRunInBackground = False
+        self.category = "Utilities"
+
+    def getParameterInfo(self):
+
+        input_raster = arcpy.Parameter(
+            displayName="Input Raster",
+            name="input_raster",
+            datatype="GPRasterLayer",
+            parameterType="Required",
+            direction="Input")
+
+        output_raster = arcpy.Parameter(
+            displayName="Output Raster",
+            name="output_raster",
+            datatype="DERasterDataset",
+            parameterType="Required",
+            direction="Output")
+
+        filter_type = arcpy.Parameter(
+            displayName="Filter Type",
+            name="filter_type",
+            datatype="GPString",
+            parameterType="Required",
+            direction="Input")
+        filter_type.filter.list = ["Gaussian", "Mean", "Median"]
+
+        filter_size = arcpy.Parameter(
+            displayName="Filter Size",
+            name="filter_size",
+            datatype="GPLong",
+            parameterType="Required",
+            direction="Input")
+        filter_size.value = 5
+        filter_size.filter.type = "Range"
+        filter_size.filter.list = [1, 100]
+
+        params = [input_raster, output_raster, filter_type, filter_size]
+        return params
+
+    def isLicensed(self):
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+
+        return
+
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+
+        return
+
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        execute_tool(arcsdm.ApplyFilter.execute, self, parameters, messages)
 
         return
