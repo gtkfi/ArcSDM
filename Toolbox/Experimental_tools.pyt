@@ -6,11 +6,11 @@ import arcsdm.rescale_raster
 import arcsdm.SelectRandomPoints
 import arcsdm.EnrichPoints
 import arcsdm.AdaboostBestParameters
-import arcsdm.AdaboostTrain
 import arcsdm.ModelValidation
 import arcsdm.ApplyModel
 import arcsdm.MulticlassSplit
 import arcsdm.ApplyFilter
+import arcsdm.ModelTrain
 
 from arcsdm.common import execute_tool
 
@@ -668,8 +668,17 @@ class AdaboostTrain(object):
             direction="Output")
         leave_one_out.value = True
 
+        classifier_name = arcpy.Parameter(
+            displayName="classifier name",
+            name="classifier_name",
+            datatype="GPString",
+            parameterType="Derived",
+            direction="Output")
+        classifier_name.value = "Adaboost"
+
+
         params = [train_points, train_regressors, train_response, num_estimators, learning_rate, output_model,
-                  leave_one_out]
+                  leave_one_out, classifier_name]
         return params
 
     def isLicensed(self):
@@ -706,7 +715,7 @@ class AdaboostTrain(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        execute_tool(arcsdm.AdaboostTrain.execute, self, parameters, messages)
+        execute_tool(arcsdm.ModelTrain.execute, self, parameters, messages)
         return
 
 
