@@ -26,7 +26,7 @@ def _add_calculate_field(base, field_name, copy_data, value):
 
     if not copy_data:
         drop_field = [f.name for f in arcpy.ListFields(scratch) if not f.required]
-        _verbose_print(str(drop_field))
+        _verbose_print("Files to delete: " + str(drop_field))
         arcpy.DeleteField_management (scratch, drop_field)
 
     arcpy.AddField_management(scratch, field_name, "LONG", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
@@ -159,7 +159,7 @@ def execute(self, parameters, messages):
     parameter_dic = {par.name: par for par in parameters}
 
     class1_points = parameter_dic["class1_points"].valueAsText
-    class2_points = parameter_dic["class1_points"].valueAsText
+    class2_points = parameter_dic["class2_points"].valueAsText
     rasters_name = parameter_dic["info_rasters"].valueAsText
     missing_value = parameter_dic["missing_value"].valueAsText
     output = parameter_dic["output"].valueAsText

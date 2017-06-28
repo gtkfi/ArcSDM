@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 # TODO: Add documentation
 
-VERBOSE = True
+VERBOSE = False
 MESSAGES = None
 
 if VERBOSE:

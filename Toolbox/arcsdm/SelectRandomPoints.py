@@ -36,8 +36,10 @@ def _constrain_from_points(constrain_area, excluding_points, excluding_distance,
         _verbose_print("Scratch file created (buffer): {}".format(buffer_scratch))
         combined_scratch = arcpy.CreateScratchName("temp", workspace=arcpy.env.scratchWorkspace)
         if select_inside:
+            _verbose_print("Intersect selected")
             arcpy.Intersect_analysis([buffer_scratch, constrain_area], combined_scratch)
         else:
+            _verbose_print("Erase selected")
             arcpy.Erase_analysis(constrain_area, buffer_scratch, combined_scratch)
         _verbose_print("Scratch file created (erase): {}".format(combined_scratch))
     except:
@@ -118,7 +120,7 @@ def execute(self, parameters, messages):
     buffer_points = parameter_dic["buffer_points"].valueAsText
     buffer_distance = parameter_dic["buffer_distance"].valueAsText
     min_distance = parameter_dic["minimum_distance"].valueAsText
-    select_inside = parameter_dic["select_inside"].valueAsText
+    select_inside = parameter_dic["select_inside"].value
 
 
     scratch_files = []

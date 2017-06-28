@@ -60,19 +60,7 @@ def execute(self, parameters, messages):
         arcpy.MakeFeatureLayer_management(scratch_base, layer_scratch)
         arcpy.SelectLayerByAttribute_management(layer_scratch, "CLEAR_SELECTION")
 
-        # if calculate_distance:
-        #     def write_raster():
-        #         _verbose_print(u"{} = '{}'".format(class_field, val))
-        #         arcpy.SelectLayerByAttribute_management(layer_scratch, "NEW_SELECTION", u"{} = '{}'".format(class_field, val))
-        #         arcpy.gp.EucDistance_sa(layer_scratch, fullname)
-        # else:
-        #     arcpy.AddField_management(scratch_base, "is_something", "DOUBLE", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
-        #     def write_raster():
-        #         _verbose_print(u"!'{}'! == '{}'".format(class_field, val))
-        #         arcpy.CalculateField_management(scratch_base, "is_something", u"!'{}'! == {}".format(class_field, val), "PYTHON", "")
-        #         arcpy.PolygonToRaster_conversion(scratch_base, "is_something", fullname)
-
-        for orig_val in unique_values[:3]:
+        for orig_val in unique_values:
             unicode_val = unicode(orig_val)
             fullname = output_prefix + unicode_val.encode("ascii",'ignore').replace(" ","_")
             if " " in unicode_val:
@@ -82,10 +70,10 @@ def execute(self, parameters, messages):
                 arcpy.SelectLayerByAttribute_management(layer_scratch, "NEW_SELECTION",
                                                         u"{} = {}".format(class_field, orig_val))
             raster = arcpy.sa.EucDistance(layer_scratch)
-            if transformation == "Inverse Linear":
+            if transformation == "Inverse Linear Distance":
                 max_val = float(arcpy.GetRasterProperties_management(raster,"MAXIMUM").getOutput(0))
                 raster = 1 - (raster * 1.0) / max_val
-            elif transformation == "Inverse": # TODO : do it in python to increase precision
+            elif transformation == "Inverse Distance": # TODO : do it in python to increase precision
                 raster = 1 / (raster + 1.0)
             elif transformation == "Binary":
                 raster = raster == 0

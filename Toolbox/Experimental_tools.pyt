@@ -885,8 +885,8 @@ class MulticlassSplit(object):
             datatype="GPString",
             parameterType="Required",
             direction="Input")
-        transformation.value = "None";
-        transformation.filter.list = ["None", "Inverse", "Inverse Linear", "Binary"]
+        transformation.value = "Distance"
+        transformation.filter.list = ["Distance", "Inverse Distance", "Inverse Linear Distance", "Binary"]
 
 
         params = [input_feature, class_field, output_prefix, transformation]

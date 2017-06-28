@@ -1,10 +1,8 @@
 import arcpy
 import numpy as np
 import sys
-from sklearn.externals import joblib
 import sklearn.metrics as sklm
 import matplotlib.pyplot as plt
-import EnrichPoints
 
 # TODO: Add documentation
 
@@ -28,6 +26,7 @@ def _input_validation(parameters):
 
     return
 
+
 def _get_fields(feature_layer, fields_name):
 
     _verbose_print("feature_layer: {}".format(feature_layer))
@@ -48,13 +47,55 @@ def _get_fields(feature_layer, fields_name):
     return field
 
 
+def _extract_fields(base, rasters):
+    global MESSAGES
+    MESSAGES.AddMessage("Assigning Raster information...")
+    _verbose_print("Base: {}".format(base))
+    _verbose_print("Rasters: {}".format(rasters))
+
+    rasters = [x.strip("'") for x in rasters.split(";")]
+    scratch_files = []
+
+    try:
+        regressor_names = []
+        arcpy.SetProgressor("step", "Adding raster values to the points", min_range=0, max_range=len(rasters),
+                            step_value=1)
+        _verbose_print("Adding raster values to the points")
+        for raster in rasters:
+            try:
+                _verbose_print("Adding information of {}".format(raster))
+                extracted_name = arcpy.CreateScratchName("temp", data_type="FeatureClass",
+                                                         workspace=arcpy.env.scratchWorkspace)
+                arcpy.gp.ExtractValuesToPoints(base, raster, extracted_name, "INTERPOLATE",
+                                               "VALUE_ONLY")
+                _verbose_print("Scratch file created (merge): {}".format(extracted_name))
+                scratch_files.append(extracted_name)
+                arcpy.AlterField_management(extracted_name, "RASTERVALU", arcpy.Describe(raster).baseName)
+                regressor_names.append(arcpy.Describe(raster).baseName)
+                base = extracted_name
+                arcpy.SetProgressorPosition()
+            except:
+                MESSAGES.addErrorMessage("Problem with raster {}".format(raster))
+                raise
+        scratch_files.remove(extracted_name)
+        arcpy.SetProgressorLabel("Executing Enrich Points")
+        arcpy.ResetProgressor()
+    except:
+        raise
+    finally:
+        for s_file in scratch_files:
+            arcpy.Delete_management(s_file)
+            _verbose_print("Scratch file deleted: {}".format(s_file))
+    return extracted_name, regressor_names
+
+
 def _print_test_results(classification_model, test_points, test_response_name, plot_file, threshold):
     global MESSAGES
 
     scratch_files = []
 
     try:
-        extracted_name, regressors = EnrichPoints._extract_fields(test_points, classification_model)
+        extracted_name, regressors = _extract_fields(test_points, classification_model)
         scratch_files.append(extracted_name)
         response = _get_fields(extracted_name, regressors)
     except:
