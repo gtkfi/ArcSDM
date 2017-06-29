@@ -11,7 +11,7 @@ MESSAGES = None
 
 if VERBOSE:
     def _verbose_print(text):
-        global  MESSAGES
+        global MESSAGES
         MESSAGES.AddMessage("Verbose: " + text)
 else:
     _verbose_print = lambda *a: None
@@ -89,8 +89,67 @@ def _extract_fields(base, rasters):
     return extracted_name, regressor_names
 
 
+def _plot_results(classification_model, des_func, probabilities, response_test, threshold, plot_file):
+        global MESSAGES
+
+        MESSAGES.AddMessage("Plotting Results...")
+        _verbose_print("_print_test_results")
+        _verbose_print("classification_model: {}".format(classification_model))
+        _verbose_print("threshold: {}".format(threshold))
+        _verbose_print("plot_file: {}".format(plot_file))
+
+        fpr, tpr, thresholds = sklm.roc_curve(response_test, des_func)
+        pre, rec, unused = sklm.precision_recall_curve(response_test, probabilities)
+
+        fig, ((ax_roc, ax_prc), (ax_suc, unused)) = plt.subplots(2, 2, figsize=(12, 12))
+
+        ax_roc.plot(fpr, tpr, label="ROC Curve (AUC={0:.3f})".format(sklm.roc_auc_score(response_test, des_func)))
+        ax_roc.plot([0, 1], [0, 1], linestyle='--')
+        ax_roc.set_xlabel('False Positive Rate')
+        ax_roc.set_ylabel("True Positive Rate")
+        ax_roc.legend(loc='lower right', prop={'size': 12})
+
+        ax_prc.plot(rec, pre, label="Precision-Recall Curve "
+                                    "(Area={0:.3f})".format(sklm.average_precision_score(response_test, probabilities)))
+        ax_prc.set_xlabel('Recall')
+        ax_prc.set_ylabel("Precision")
+        ax_prc.legend(loc='lower right', prop={'size': 12})
+
+        try:
+            raster_array = arcpy.RasterToNumPyArray(classification_model, nodata_to_value=np.NaN)
+        except ValueError:
+            _verbose_print("Integer type raster, changed to float")
+            raster_array = 1.0 * arcpy.RasterToNumPyArray(classification_model, nodata_to_value=sys.maxint)
+            raster_array[raster_array == sys.maxint] = np.NaN
+
+        total_area = np.sum(np.isfinite(raster_array))
+        areas = [(1.0 * np.sum(raster_array > thr)) / total_area for thr in thresholds]
+
+        MESSAGES.AddMessage(
+            "Proportion of prospective area: {}".format((1.0 * np.sum(raster_array > threshold)) / total_area))
+
+        ax_suc.plot(areas, tpr, label="Success Curve ")
+        ax_suc.set_xlabel('Proportion of area covered')
+        ax_suc.set_ylabel("True Positive Rate")
+        ax_suc.legend(loc='lower right', prop={'size': 12})
+
+        if not plot_file.endswith(".png"):
+            plot_file += ".png"
+
+        plt.savefig(plot_file)
+        _verbose_print("Figure saved {}".format(plot_file))
+
+        return
+
+
 def _print_test_results(classification_model, test_points, test_response_name, plot_file, threshold):
     global MESSAGES
+    _verbose_print("_print_test_results")
+    _verbose_print("classification_model: {}".format(classification_model))
+    _verbose_print("test_points: {}".format(test_points))
+    _verbose_print("test_response_name: {}".format(test_response_name))
+    _verbose_print("plot_file: {}".format(plot_file))
+    _verbose_print("threshold: {}".format(threshold))
 
     scratch_files = []
 
@@ -98,6 +157,11 @@ def _print_test_results(classification_model, test_points, test_response_name, p
         extracted_name, regressors = _extract_fields(test_points, classification_model)
         scratch_files.append(extracted_name)
         response = _get_fields(extracted_name, regressors)
+        finite_elements_resp = np.isfinite(response)
+        if any(np.logical_not(finite_elements_resp)):
+            MESSAGES.addWarningMessage("Input points found in areas with NaN infinity or too large number")
+            response = response[finite_elements_resp]
+
     except:
         raise
     finally:
@@ -106,16 +170,22 @@ def _print_test_results(classification_model, test_points, test_response_name, p
             _verbose_print("Scratch file deleted: {}".format(s_file))
 
     response_test = _get_fields(test_points, test_response_name)
+    response_test = response_test[finite_elements_resp]
+    finite_elements_test = np.isfinite(response_test)
+    if any(np.logical_not(finite_elements_test)):
+        MESSAGES.addWarningMessage("Class field contains NaN infinity or too large numbers")
+        response_test = response_test[finite_elements_test]
+        response = response[finite_elements_test]
     predicted = np.sign(response - threshold)
     probabilities = (response - min(response)) / (max(response) - min(response))
 
     if plot_file is not None:
         _plot_results(classification_model, response, probabilities, response_test, threshold, plot_file)
 
-    MESSAGES.AddMessage("Accuracy : {}".format(sklm.accuracy_score(response_test, predicted)))
-    MESSAGES.AddMessage("Precision : {}".format(sklm.precision_score(response_test, predicted)))
+    MESSAGES.AddMessage("Accuracy: {}".format(sklm.accuracy_score(response_test, predicted)))
+    MESSAGES.AddMessage("Precision: {}".format(sklm.precision_score(response_test, predicted)))
     MESSAGES.AddMessage("Recall: {}".format(sklm.recall_score(response_test, predicted)))
-    MESSAGES.AddMessage("Area Under the curve (AUC): {}:".format(sklm.roc_auc_score(response_test, response)))
+    MESSAGES.AddMessage("Area Under the curve (AUC): {}".format(sklm.roc_auc_score(response_test, response)))
     MESSAGES.AddMessage(
         "Average Precision Score: {}".format(sklm.average_precision_score(response_test, probabilities)))
 
@@ -127,57 +197,6 @@ def _print_test_results(classification_model, test_points, test_response_name, p
     MESSAGES.AddMessage(row_format.format("True", "", *labels))
     for label, row in zip(labels, confusion):
         MESSAGES.AddMessage(row_format.format("", label, *row))
-
-
-    return
-
-
-def _plot_results(classification_model, des_func, probabilities, response_test, threshold, plot_file):
-
-    global MESSAGES
-
-    MESSAGES.AddMessage("Plotting Results...")
-
-    fpr, tpr, thresholds = sklm.roc_curve(response_test, des_func)
-    pre, rec, unused = sklm.precision_recall_curve(response_test, probabilities)
-
-    fig, ((ax_roc, ax_prc),(ax_suc, unused)) = plt.subplots(2,2, figsize=(12,12))
-
-    ax_roc.plot(fpr, tpr, label="ROC Curve (AUC={0:.3f})".format(sklm.roc_auc_score(response_test, des_func)))
-    ax_roc.plot([0, 1], [0, 1], linestyle='--')
-    ax_roc.set_xlabel('False Positive Rate')
-    ax_roc.set_ylabel("True Positive Rate")
-    ax_roc.legend(loc='lower right', prop={'size':12})
-
-
-    ax_prc.plot(rec, pre, label="Precision-Recall Curve "
-                                "(Area={0:.3f})".format(sklm.average_precision_score(response_test, probabilities)))
-    ax_prc.set_xlabel('Recall')
-    ax_prc.set_ylabel("Precision")
-    ax_prc.legend(loc='lower right', prop={'size':12})
-
-    try:
-        raster_array = arcpy.RasterToNumPyArray(classification_model, nodata_to_value=np.NaN)
-    except ValueError:
-        _verbose_print("Integer type raster, changed to float")
-        raster_array = 1.0 * arcpy.RasterToNumPyArray(classification_model, nodata_to_value=sys.maxint)
-        raster_array[raster_array == sys.maxint] = np.NaN
-
-    total_area = np.sum(np.isfinite(raster_array))
-    areas = [(1.0*np.sum(raster_array > thr))/total_area for thr in thresholds]
-
-    MESSAGES.AddMessage("Proportion of prospective area: {}".format((1.0*np.sum(raster_array > threshold))/total_area))
-
-    ax_suc.plot(areas, tpr, label="Success Curve ")
-    ax_suc.set_xlabel('Proportion of area covered')
-    ax_suc.set_ylabel("True Positive Rate")
-    ax_suc.legend(loc='lower right', prop={'size':12})
-
-    if not plot_file.endswith(".png"):
-        plot_file += ".png"
-
-    plt.savefig(plot_file)
-    _verbose_print("Figure saved {}".format(plot_file))
 
     return
 
@@ -198,9 +217,6 @@ def execute(self, parameters, messages):
     plot_file = parameter_dic["plot_file"].valueAsText
     threshold = parameter_dic["threshold"].value
 
-
     _print_test_results(classification_model, test_points, test_response_name, plot_file, threshold)
-
-
 
     return
