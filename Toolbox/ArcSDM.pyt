@@ -70,8 +70,13 @@ class GetSDMValues(object):
         params = [paramTrainingSites, paramUnitArea]
         return params
 
-    def isLicensed(self):
+    def isLicensed(self):    
         """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
         return True
 
     def updateParameters(self, parameters):
@@ -180,6 +185,11 @@ class AreaFrequencyTable(object):
 
     def isLicensed(self):
         """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
         return True
 
     def updateParameters(self, parameters):
@@ -257,6 +267,12 @@ class ROCTool(object):
         return [positives_param, negatives_param, models_param, folder_param]
 
     def isLicensed(self):
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
         return True
 
     def execute(self, parameters, messages):        
@@ -306,6 +322,11 @@ class Symbolize(object):
 
     def isLicensed(self):
         """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
         return True
 
     def updateParameters(self, parameters):
@@ -444,6 +465,11 @@ class CalculateResponse(object):
 
     def isLicensed(self):
         """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed        
         return True
 
     def updateParameters(self, parameters):
@@ -540,6 +566,11 @@ class CalculateWeightsTool(object):
 
     def isLicensed(self):
         """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed        
         return True
 
     def updateParameters(self, parameters):
@@ -633,6 +664,11 @@ class SiteReductionTool(object):
 
     def isLicensed(self):
         """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed        
         return True
 
     def updateParameters(self, parameters):
@@ -724,6 +760,11 @@ class CategoricalMembershipToool(object):
 
     def isLicensed(self):
         """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed        
         return True
 
     def updateParameters(self, parameters):
@@ -799,6 +840,11 @@ class CategoricalAndReclassTool(object):
 
     def isLicensed(self):
         """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed        
         return True
     
     def updateParameters(self, parameters):
@@ -879,6 +925,11 @@ class TOCFuzzificationTool(object):
 
     def isLicensed(self):
         """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed        
         return True
     
     def updateParameters(self, parameters):
@@ -1012,6 +1063,11 @@ class LogisticRegressionTool(object):
 
     def isLicensed(self):
         """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed        
         return True
 
     def updateParameters(self, parameters):
@@ -1080,6 +1136,11 @@ class AgterbergChengCITest(object):
 
     def isLicensed(self):
         """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed        
         return True
 
     def updateParameters(self, parameters):
