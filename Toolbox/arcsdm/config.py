@@ -2,3 +2,5 @@
 
 USE_PTVS_DEBUGGER = False
 RELOAD_MODULES = True
+
+VERBOSE = False

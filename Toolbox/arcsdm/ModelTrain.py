@@ -9,6 +9,7 @@ from sklearn.metrics import confusion_matrix, roc_auc_score
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression
 
+from weight_boosting import BrownBoostClassifier
 
 # TODO: Add documentation
 
@@ -169,6 +170,13 @@ def execute(self, parameters, messages):
                                         intercept_scaling=1, class_weight=class_weight, random_state=random_state,
                                         solver='liblinear', max_iter=100, multi_class='ovr', verbose=0,
                                         warm_start=False, n_jobs=1)
+
+    elif classifier_name == "Brownboost":
+        _verbose_print("BrownBoost selected")
+        countdown = parameter_dic["countdown"].value
+        classifier = BrownBoostClassifier(base_estimator=None, n_estimators=1000, learning_rate=1,
+                                          algorithm='BROWNIAN', random_state=None, countdown = countdown)
+
     else:
         raise NotImplementedError("Not implemented classifier: {}".format(classifier_name))
 
