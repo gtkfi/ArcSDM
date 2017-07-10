@@ -6,7 +6,7 @@ from timeit import default_timer as timer
 from sklearn.externals import joblib
 from sklearn.model_selection import cross_val_score, LeaveOneOut
 from sklearn.metrics import confusion_matrix, roc_auc_score
-from sklearn.ensemble import AdaBoostClassifier
+from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
@@ -113,9 +113,11 @@ def _print_train_results(classifier_name, classifier, regressors, response, regr
     MESSAGES.AddMessage(row_format.format("True", "", *labels))
     for label, row in zip(labels, confusion):
         MESSAGES.AddMessage(row_format.format("", label, *row))
-
-    MESSAGES.AddMessage("Area Under the curve (AUC): {}".format(roc_auc_score(response,
-                                                                            classifier.decision_function(regressors))))
+    if classifier_name in ["Random Forest"]:
+        des_fun = classifier.predict_proba(regressors)[:, classifier.classes_ == 1]
+    else:
+        des_fun = classifier.decision_function(regressors)
+    MESSAGES.AddMessage("Area Under the curve (AUC): {}".format(roc_auc_score(response, des_fun)))
 
     if classifier_name == "Adaboost":
         MESSAGES.AddMessage("Feature importances: ")
@@ -194,6 +196,22 @@ def execute(self, parameters, messages):
                          tol=0.001, cache_size=200, class_weight=class_weight, verbose=False, max_iter=-1,
                          decision_function_shape='ovr', random_state=random_state)
 
+    elif classifier_name == "Random Forest":
+        _verbose_print("Random Forest selected")
+        num_estimators = parameter_dic["num_estimators"].value
+        max_depth = parameter_dic["max_depth"].value
+        random_state = parameter_dic["random_state"].value
+        deposit_weight = parameter_dic["deposit_weight"].value
+        if deposit_weight is None:
+            _verbose_print("deposit_weight is None, balanced wighting will be used")
+            class_weight = "balanced"
+        else:
+            class_weight = {1: float(deposit_weight), -1: (100-float(deposit_weight))}
+
+        classifier = RandomForestClassifier(n_estimators=num_estimators, criterion='gini', max_depth=max_depth, min_samples_split=2,
+                               min_samples_leaf=1, min_weight_fraction_leaf=0.0, max_features='auto',
+                               max_leaf_nodes=None, min_impurity_split=1e-07, bootstrap=True, oob_score=False, n_jobs=1,
+                               random_state=random_state, verbose=0, warm_start=False, class_weight=class_weight)
     else:
         raise NotImplementedError("Not implemented classifier: {}".format(classifier_name))
 
