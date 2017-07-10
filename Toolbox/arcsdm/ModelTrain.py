@@ -8,6 +8,8 @@ from sklearn.model_selection import cross_val_score, LeaveOneOut
 from sklearn.metrics import confusion_matrix, roc_auc_score
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.preprocessing import StandardScaler
 
 from weight_boosting import BrownBoostClassifier
 
@@ -113,7 +115,7 @@ def _print_train_results(classifier_name, classifier, regressors, response, regr
         MESSAGES.AddMessage(row_format.format("", label, *row))
 
     MESSAGES.AddMessage("Area Under the curve (AUC): {}".format(roc_auc_score(response,
-                            classifier.predict_proba(regressors)[:, classifier.classes_ == 1].flatten())))
+                                                                            classifier.decision_function(regressors))))
 
     if classifier_name == "Adaboost":
         MESSAGES.AddMessage("Feature importances: ")
@@ -177,8 +179,32 @@ def execute(self, parameters, messages):
         classifier = BrownBoostClassifier(base_estimator=None, n_estimators=1000, learning_rate=1,
                                           algorithm='BROWNIAN', random_state=None, countdown = countdown)
 
+    elif classifier_name == "SVM":
+        penalty = parameter_dic["penalty"].value
+        kernel = str(parameter_dic["kernel"].valueAsText)
+        random_state = parameter_dic["random_state"].value
+        deposit_weight = parameter_dic["deposit_weight"].value
+        if deposit_weight is None:
+            _verbose_print("deposit_weight is None, balanced wighting will be used")
+            class_weight = "balanced"
+        else:
+            class_weight = {1: float(deposit_weight), -1: (100-float(deposit_weight))}
+
+        classifier = SVC(C=penalty, kernel=kernel, degree=3, gamma='auto', coef0=0.0, shrinking=True, probability=True,
+                         tol=0.001, cache_size=200, class_weight=class_weight, verbose=False, max_iter=-1,
+                         decision_function_shape='ovr', random_state=random_state)
+
     else:
         raise NotImplementedError("Not implemented classifier: {}".format(classifier_name))
+
+    if classifier_name in ["SVM"]:
+        normalize = parameter_dic["normalize"].value
+        if normalize:
+            scaler = StandardScaler().fit(train_regressors)
+            train_regressors = scaler.transform(train_regressors)
+            MESSAGES.AddMessage("Data normalized")
+            if output_model is not None:
+                joblib.dump(scaler, output_model.replace(".pkl", "_scale.pkl"))
 
     start = timer()
     classifier.fit(train_regressors, train_response)

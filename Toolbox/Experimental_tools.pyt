@@ -1236,3 +1236,146 @@ class BrownBoostTrain(object):
 
 
 
+class SVMTrain(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Support Vector Machine Train"
+        self.description = 'Trains a classificator using SVM'
+        self.canRunInBackground = False
+
+    def getParameterInfo(self):
+
+        train_points = arcpy.Parameter(
+            displayName="Train Points",
+            name="train_points",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Input")
+        train_points.filter.list = ["Point", "Multipoint"]
+
+        train_regressors = arcpy.Parameter(
+            displayName="Train Regressors",
+            name="train_regressors",
+            datatype="Field",
+            parameterType="Required",
+            direction="Input",
+            multiValue=True)
+        train_regressors.parameterDependencies = [train_points.name]
+        train_regressors.filter.list = ['Short', 'Long', 'Double', 'Float', 'Single']
+
+        train_response = arcpy.Parameter(
+            displayName="Train Response",
+            name="train_response",
+            datatype="Field",
+            parameterType="Required",
+            direction="Input")
+        train_response.parameterDependencies = [train_points.name]
+        train_response.filter.list = ['Short', 'Long', 'Double', 'Float', 'Single']
+
+        output_model = arcpy.Parameter(
+            displayName="Output Model",
+            name="output_model",
+            datatype="DEFile",
+            parameterType="Optional",
+            direction="Output")
+
+        leave_one_out = arcpy.Parameter(
+            displayName="Leave-one-out cross validation",
+            name="leave_one_out",
+            datatype="GPBoolean",
+            parameterType="Required",
+            direction="Output")
+        leave_one_out.value = True
+
+        classifier_name = arcpy.Parameter(
+            displayName="classifier name",
+            name="classifier_name",
+            datatype="GPString",
+            parameterType="Derived",
+            direction="Output")
+        classifier_name.value = "SVM"
+
+        deposit_weight = arcpy.Parameter(
+            displayName="Weight of Deposit Class",
+            name="deposit_weight",
+            datatype="GPDouble",
+            parameterType="Optional",
+            direction="Input")
+        deposit_weight.filter.type = "Range"
+        deposit_weight.filter.list = [0.1, 99.9]
+
+        random_state = arcpy.Parameter(
+            displayName="Random State",
+            name="random_state",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
+
+        penalty = arcpy.Parameter(
+            displayName="Penalty parameter",
+            name="penalty",
+            datatype="GPDouble",
+            parameterType="Required",
+            direction="Input")
+        penalty.value = 1.0
+
+        kernel = arcpy.Parameter(
+            displayName="Kernel",
+            name="kernel",
+            datatype="GPString",
+            parameterType="Required",
+            direction="Input")
+        kernel.value = "rbf"
+        kernel.filter.list = ['linear', 'poly', 'rbf', 'sigmoid']
+
+        normalize = arcpy.Parameter(
+            displayName="Normalize data",
+            name="normalize",
+            datatype="GPBoolean",
+            parameterType="Required",
+            direction="Output")
+        normalize.value = True
+
+        params = [train_points, train_regressors, train_response, kernel, deposit_weight, penalty, output_model,
+                  leave_one_out, classifier_name, normalize, random_state]
+        return params
+
+    def isLicensed(self):
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        parameter_dic = {par.name: par for par in parameters}
+        output_model = parameter_dic["output_model"]
+
+        if output_model.altered :
+            if not output_model.valueAsText.endswith(".pkl"):
+                output_model.value = output_model.valueAsText + ".pkl"
+
+        return
+
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+        parameter_dic = {par.name: par for par in parameters}
+        train_regressors = parameter_dic["train_regressors"]
+        train_response = parameter_dic["train_response"]
+
+        if (train_response.altered or train_regressors.altered) and train_regressors.valueAsText is not None :
+            for field in train_regressors.valueAsText.split(";"):
+                if field == train_response.valueAsText:
+                    train_response.setErrorMessage("{} can not be included in {}".format(train_response.displayName,
+                                                                                         train_regressors.displayName))
+
+        return
+
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+
+        general.execute_tool(arcsdm.ModelTrain.execute, self, parameters, messages)
+        return
+

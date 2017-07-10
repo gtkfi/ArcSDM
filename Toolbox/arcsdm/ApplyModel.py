@@ -48,6 +48,8 @@ def _input_validation(parameters):
 
 
 def _resample_rasters(rasters):
+    MESSAGES.AddMessage("Resampling rasters...")
+
     raster_list = rasters.split(";")
 
     cell_sizes = []
@@ -73,8 +75,7 @@ def _resample_rasters(rasters):
     return ";".join(out_list)
 
 
-def create_response_raster(classifier, rasters, output):
-    MESSAGES.AddMessage("Creating response raster...")
+def create_response_raster(classifier, rasters, output, scale):
     scratch_files = []
 
     try:
@@ -104,6 +105,7 @@ def create_response_raster(classifier, rasters, output):
         for s_f in scratch_files:
             arcpy.Delete_management(s_f)
             _verbose_print("Scratch file deleted {}".format(s_f))
+    MESSAGES.AddMessage("Creating response raster...")
 
     n_regr = raster_array.shape[0]
     n_rows = raster_array.shape[1]
@@ -118,7 +120,13 @@ def create_response_raster(classifier, rasters, output):
     finite_mask = np.all(np.isfinite(raster_array2), axis=1)
     nan_mask = np.logical_not(finite_mask)
     _verbose_print("{} elements will be calculated and {} let as NaN".format(sum(finite_mask), sum(nan_mask)))
-    responses = classifier.predict_proba(raster_array2[finite_mask])[:, classifier.classes_ == 1]
+    if scale is None:
+        finite_array = raster_array2[finite_mask]
+        _verbose_print("Data not normalized")
+    else:
+        finite_array = scale.transform(raster_array2[finite_mask])
+        MESSAGES.AddMessage("Data normalized")
+    responses = classifier.predict_proba(finite_array)[:, classifier.classes_ == 1]
 
     response_vector = np.empty(n_rows * n_cols)
     response_vector[finite_mask] = responses
@@ -169,7 +177,11 @@ def execute(self, parameters, messages):
     output_map = parameter_dic["output_map"].valueAsText
 
     classifier = joblib.load(input_model)
+    try:
+        scale = joblib.load(input_model.replace(".pkl", "_scale.pkl"))
+    except:
+        scale = None
 
-    create_response_raster(classifier, info_rasters, output_map)
+    create_response_raster(classifier, info_rasters, output_map, scale)
 
     return
