@@ -714,7 +714,19 @@ class SiteReductionTool(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        execute_tool(arcsdm.sitereduction.ReduceSites, self, parameters, messages)
+        #For full debugging this disabled:
+        #execute_tool(arcsdm.sitereduction.ReduceSites, self, parameters, messages)
+        try:
+            importlib.reload (arcsdm.sitereduction)
+        except :
+            reload(arcsdm.sitereduction);
+        # To list what functions does module contain
+        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
+        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
+        #messages.AddMessage("Waiting for debugger")
+        #wait_for_debugger(15);
+        #No do yet
+        arcsdm.sitereduction.ReduceSites(self, parameters, messages)
         return
         
 class CategoricalMembershipToool(object):
