@@ -61,7 +61,9 @@ def getMaskSize (mapUnits):
     try:
         desc = arcpy.Describe(arcpy.env.mask);
         #arcpy.AddMessage( "getMaskSize()");
-        if (desc.dataType == "RasterLayer"):
+        if (desc.dataType == "RasterDataset"):
+            raise arcpy.ExecuteError("RasterDataset type is not allowed as Mask!");
+        if (desc.dataType == "RasterLayer" or desc.dataType == "RasterDataset"):
             #arcpy.AddMessage( " Counting raster size");                       
             maskrows = arcpy.SearchCursor(desc.catalogpath)        
             maskrow = maskrows.next()

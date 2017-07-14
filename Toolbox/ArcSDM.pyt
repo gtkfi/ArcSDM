@@ -31,13 +31,156 @@ class Toolbox(object):
         self.alias = "ArcSDM" 
 
         # List of tool classes associated with this toolbox
-        self.tools = [CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool, Symbolize, ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues]
+        self.tools = [NeuralNetworkInputFiles, CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,
+        CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool, Symbolize, ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues]
         
 
 
+         
+class NeuralNetworkInputFiles(object):
+    
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Neural network input files"
+        self.description = "TODO: Copy this from old toolbox"
+        self.canRunInBackground = False
+        self.category = "Neural network"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        # TODO: Multiple rasters?
+        
+        paramInputRaster = arcpy.Parameter(
+        displayName="Input Unique Conditions raster",
+        name="inputraster",
+        #datatype="DEFeatureClass",
+        datatype="GPRasterLayer",
+        parameterType="Required",
+        direction="Input")
+        
+        paramTrainingSites = arcpy.Parameter(
+        displayName="Training sites",
+        name="training_sites",
+        datatype="GPFeatureLayer",
+        parameterType="Required",
+        direction="Input")
+
+        
+        paramFZMField = arcpy.Parameter(
+        displayName="TP FZM Field",
+        name="fzmfield",
+        datatype="Field",
+        parameterType="Required",
+        direction="Input")               
+        paramFZMField.parameterDependencies = [paramTrainingSites.name]                
+        
+        paramNDTrainingSites = arcpy.Parameter(
+        displayName="ND Training sites",
+        name="ndtraining_sites",
+        datatype="GPFeatureLayer",
+        parameterType="Required",
+        direction="Input")
+
+        paramNDFZMField = arcpy.Parameter(
+        displayName="ND TP FZM Field",
+        name="ndfzmfield",
+        datatype="Field",
+        parameterType="Required",
+        direction="Input")               
+        paramNDFZMField.parameterDependencies = [paramNDTrainingSites.name]                
+        
+        paramTrainingFilePrefix = arcpy.Parameter(
+        displayName="Training file prefix",
+        name="trainingfileprefix",
+        datatype="String",
+        parameterType="Required",
+        direction="Input")     
+        
+        paramClassificationFile = arcpy.Parameter(
+        displayName="Classification file",
+        name="classificationfile",
+        datatype="Boolean",
+        parameterType="Optional",
+        direction="Input")     
+        
+        paramBandStatisticsFile = arcpy.Parameter(
+        displayName="Band statistics file",
+        name="bandstatisticsfile",
+        datatype="File",
+        parameterType="Required",
+        direction="Output")     
+        
+        paramTrainFileOutput = arcpy.Parameter(
+        displayName="Train file output",
+        name="trainfileoutput",
+        datatype="File",
+        parameterType="Required",
+        direction="Output")     
+        
+        paramClassFileOutput = arcpy.Parameter(
+        displayName="Class file output",
+        name="classfileoutput",
+        datatype="File",
+        parameterType="Required",
+        direction="Output")     
         
         
-class GetSDMValues(object):
+        
+        
+        
+        paramUnitArea = arcpy.Parameter(
+        displayName="Unit area (km2)",
+        name="Unit_Area__sq_km_",
+        datatype="GPDouble",
+        parameterType="Required",
+        direction="Input")
+        paramUnitArea.value = "1"
+        
+                                  
+        params = [paramInputRaster, paramTrainingSites, paramFZMField, paramNDTrainingSites, paramNDFZMField, 
+            paramTrainingFilePrefix, paramClassificationFile,
+            paramBandStatisticsFile, paramTrainFileOutput, paramClassFileOutput]
+        return params
+
+    def isLicensed(self):    
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+     
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        #3.4
+        try:
+            importlib.reload (arcsdm.nninputfiles)
+        except :
+            reload(arcsdm.nninputfiles);
+        # To list what functions does module contain
+        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
+        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
+        #messages.AddMessage("Waiting for debugger")
+        #wait_for_debugger(15);
+        #No do yet
+        arcsdm.nninputfiles.execute(self, parameters, messages)
+        return
+        
+        
+class GetSDMValues(object):                
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Get SDM parameters"
@@ -48,15 +191,16 @@ class GetSDMValues(object):
     def getParameterInfo(self):
         """Define parameter definitions"""
         # TODO: Multiple rasters?
+               
         
         paramTrainingSites = arcpy.Parameter(
         displayName="Training sites",
         name="training_sites",
-        #datatype="DEFeatureClass",
         datatype="GPFeatureLayer",
         parameterType="Required",
         direction="Input")
-                     
+
+        
         
         paramUnitArea = arcpy.Parameter(
         displayName="Unit area (km2)",
@@ -106,11 +250,7 @@ class GetSDMValues(object):
         #No do yet
         arcsdm.sdmvalues.execute(self, parameters, messages)
         return
-        
-                
-        
-        
-  
+                                                             
         
         
 class AreaFrequencyTable(object):
