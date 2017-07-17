@@ -9,6 +9,7 @@
     
 """
 import sys, os, traceback
+import arcpy
 import arcgisscripting
 import workarounds_93
 
@@ -124,6 +125,7 @@ def getBandStatsFileMinMax( Output_statistics_file, evidence_names ):
         for evidence_name in evidence_names:
             minmaxdict[evidence_name] = {'minval':sys.maxint, 'maxval':-sys.maxint-1}
         iter_ev_names = iter(evidence_names)
+        arcpy.AddMessage("Debug: " + str(evidence_names));
         fd = open(BandFileName,"r")
         for i in range(6): fd.next()# Blow off header
         for fileline in fd:
@@ -137,7 +139,7 @@ def getBandStatsFileMinMax( Output_statistics_file, evidence_names ):
         return minmaxdict
     
     except Exception, Msg:
-        gp.AddError("Exception occurred in GetBandStatsFileMinMax.\n" + gp.GetMessages())
+        arcpy.AddError("Exception occurred in GetBandStatsFileMinMax.\n" + arcpy.GetMessages())
         # get the traceback object
         tb = sys.exc_info()[2]
         # tbinfo contains the line number that the code failed on and the code from that line
@@ -146,11 +148,11 @@ def getBandStatsFileMinMax( Output_statistics_file, evidence_names ):
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
             str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
         # generate a message string for any geoprocessing tool errors
-        msgs = "gp ERRORS:\n" + gp.GetMessages(2) + "\n"
-        gp.AddError(msgs)
+        msgs = "gp ERRORS:\n" + arcpy.GetMessages(2) + "\n"
+        arcpy.AddError(msgs)
 
         # return gp messages for use with a script tool
-        gp.AddError(pymsg)
+        arcpy.AddError(pymsg)
 
         # print messages for use in Python/PythonWin
         print pymsg
@@ -177,18 +179,18 @@ def execute(self, parameters, messages):
         gp = arcgisscripting.create()
 
         #Arguments from tool dialog
-        ucs = gp.getParameterAsText(0) #Unique Conditions raster
+        ucs = parameters[0].valueAsText #Unique Conditions raster
         #ucs_path = 'ucs_path'
         #gp.makerasterlayer_management(ucs, ucs_path)
         ucs_path = gp.describe(ucs).catalogpath
-        TPs = gp.getParameterAsText(1) #Training sites
-        FZMbrFld = gp.getParameterAsText(2) #Fuzzy membership field
-        NDTPs = gp.getParameterAsText(3) #Nondeposit training sites
-        NDFZMbrFld = gp.getParameterAsText(4) #Fuzzy membership field
+        TPs = parameters[1].valueAsText #Training sites
+        FZMbrFld = parameters[2].valueAsText #Fuzzy membership field
+        NDTPs = parameters[3].valueAsText#Nondeposit training sites
+        NDFZMbrFld = parameters[4].valueAsText #Fuzzy membership field
         #Make Train file path
-        traindta_filename = gp.getparameterastext(5) #Make train file or not
+        traindta_filename = parameters[5].valueAsText #Make train file or not
         traintable = True
-        classtable = gp.getparameter(6) # Make class file or not
+        classtable = parameters[6].value #gp.getparameter(6) # Make class file or not
         classdta_filename = None
         #Make Train file path
         if not traindta_filename:
@@ -214,7 +216,7 @@ def execute(self, parameters, messages):
         if classtable and not classdta_filename:        
             classdta_filename = gp.createuniquename(UCName + "_class" + ".dta", gp.workspace)
         #Get min/max values of evidence fields in unique conditions raster
-        BandStatsFile = gp.getparameterastext(7) #Prepared band statistics file or not
+        BandStatsFile = parameters[7].valueAsText #gp.getparameterastext(7) #Prepared band statistics file or not
         evidence_names = [row.name for row in rowgen(gp.listfields(ucs))][3:]
         if BandStatsFile:
             minmaxValues = getBandStatsFileMinMax(BandStatsFile, evidence_names)
@@ -334,33 +336,36 @@ def execute(self, parameters, messages):
             classfd_dta.writelines(class_lines)
             classfd_dta.close()
         
+    except arcpy.ExecuteError as e:
+        #TODO: Clean up all these execute errors in final version
+        arcpy.AddError("\n");
+        arcpy.AddMessage("Calculate weights caught arcpy.ExecuteError ");
+        gp.AddError(arcpy.GetMessages())
+        if len(e.args) > 0:
+            #arcpy.AddMessage("Calculate weights caught arcpy.ExecuteError: ");
+            args = e.args[0];
+            args.split('\n')
+            #arcpy.AddError(args);
+                    
+        arcpy.AddMessage("-------------- END EXECUTION ---------------");        
+        raise 
     except:
-        # Get the geoprocessing error messages
-        #
-        msgs = gp.GetMessage(0)
-        msgs += gp.GetMessages(2)
-
-        # Return gp error messages for use with a script tool
-        #
-        gp.AddError(msgs)
-
-        # Print gp error messages for use in Python/PythonWin
-        #
-        print msgs
-        # Get the traceback object
-        #
+        # get the traceback object
         tb = sys.exc_info()[2]
+        # tbinfo contains the line number that the code failed on and the code from that line
         tbinfo = traceback.format_tb(tb)[0]
+        # concatenate information together concerning the error into a message string
+        pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
+                str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
+        # generate a message string for any geoprocessing tool errors
+        msgs = "GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
+        arcpy.AddError(msgs)
 
-        # Concatenate information together concerning the error into a 
-        #   message string
-        #
-        pymsg = tbinfo + "\n" + str(sys.exc_type)+ ": " + str(sys.exc_value)
+        # return gp messages for use with a script tool
+        arcpy.AddError(pymsg)
 
-        # Return python error messages for use with a script tool
-        #
-        gp.AddError(pymsg)
+        # print messages for use in Python/PythonWin
+        print (pymsg)
+        print (msgs)
 
-        # Print Python error messages for use in Python/PythonWin
-        #
-        print pymsg
+        raise

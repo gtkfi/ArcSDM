@@ -31,11 +31,113 @@ class Toolbox(object):
         self.alias = "ArcSDM" 
 
         # List of tool classes associated with this toolbox
-        self.tools = [NeuralNetworkInputFiles, CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,
-        CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool, Symbolize, ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues]
+        self.tools = [NeuralNetworkOutputFiles, NeuralNetworkInputFiles, CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,
+        CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool, Symbolize, 
+        ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues]
         
 
 
+class NeuralNetworkOutputFiles(object):
+    
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Neural network output files"
+        self.description = "TODO: Copy this from old toolbox"
+        self.canRunInBackground = False
+        self.category = "Neural network"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        # TODO: Multiple rasters?
+        
+        paramInputRaster = arcpy.Parameter(
+        displayName="Unique Conditions raster",
+        name="inputraster",
+        #datatype="DEFeatureClass",
+        datatype="GPRasterLayer",
+        parameterType="Required",
+        direction="Input")
+        
+        paramRBFNFile = arcpy.Parameter(
+        displayName="RBFN file name, .rbn file",
+        name="rbfnfile",
+        datatype="File",
+        parameterType="Optional",
+        direction="Input")     
+        
+        paramPNNFile = arcpy.Parameter(
+        displayName="PNN file name, .pnn file",
+        name="pnnfile",
+        datatype="File",
+        parameterType="Optional",
+        direction="Input")     
+        
+        paramFuzFile = arcpy.Parameter(
+        displayName="Fuzzy Classification file name, .fuz file",
+        name="fuzfile",
+        datatype="File",
+        parameterType="Optional",
+        direction="Input")     
+        
+        paramOutputTable = arcpy.Parameter(
+        displayName="Output result table",
+        name="resulttable",
+        datatype="DeTable",
+        parameterType="Required",
+        direction="Output")     
+
+        param_outras = arcpy.Parameter(
+        displayName="Output raster",
+        name="outputraster",
+        datatype="DERasterDataset",
+        parameterType="Required",
+        direction="Output")
+        # Is this needed?
+        #param_pprb.value = "%Workspace%\neuralnetwork_outras"                      
+        # End                                       
+        params = [paramInputRaster, paramRBFNFile, paramPNNFile, paramFuzFile, paramOutputTable, param_outras]
+        return params
+
+    def isLicensed(self):    
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+     
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        #3.4
+        try:
+            importlib.reload (arcsdm.nnoutputfiles)
+        except :
+            reload(arcsdm.nnoutputfiles);
+        # To list what functions does module contain
+        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
+        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
+        #messages.AddMessage("Waiting for debugger")
+        #wait_for_debugger(15);
+        #No do yet
+        arcsdm.nnoutputfiles.execute(self, parameters, messages)
+        return
+        
+                
+        
+                
          
 class NeuralNetworkInputFiles(object):
     
@@ -108,7 +210,7 @@ class NeuralNetworkInputFiles(object):
         name="bandstatisticsfile",
         datatype="File",
         parameterType="Required",
-        direction="Output")     
+        direction="Input")     
         
         paramTrainFileOutput = arcpy.Parameter(
         displayName="Train file output",
