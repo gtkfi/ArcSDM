@@ -31,12 +31,147 @@ class Toolbox(object):
         self.alias = "ArcSDM" 
 
         # List of tool classes associated with this toolbox
-        self.tools = [NeuralNetworkOutputFiles, NeuralNetworkInputFiles, CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,
+        self.tools = [PartitionNNInputFiles, CombineNNOutputFiles, NeuralNetworkOutputFiles, NeuralNetworkInputFiles, 
+        CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,
         CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool, Symbolize, 
         ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues]
         
 
+class PartitionNNInputFiles(object):
+    
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Partition NNInput Files"
+        self.description = "Partitions Neural Network class.dta of more than 200,000 records into files of 200,000 or less."
+        self.canRunInBackground = False
+        self.category = "Neural network"
 
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        # TODO: Multiple rasters?
+        
+        paramInputFiles = arcpy.Parameter(
+        displayName="Input class.dat file",
+        name="inputfiles",
+        #datatype="DEFeatureClass",
+        datatype="File",
+        parameterType="Required",
+        direction="Input")
+        
+        params = [paramInputFiles]
+        return params
+
+    def isLicensed(self):    
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+     
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        #3.4
+        try:
+            importlib.reload (arcsdm.partition_inputnnfiles)
+        except :
+            reload(arcsdm.partition_inputnnfiles);
+        # To list what functions does module contain
+        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
+        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
+        #messages.AddMessage("Waiting for debugger")
+        #wait_for_debugger(15);
+        #No do yet
+        arcsdm.partition_inputnnfiles.execute(self, parameters, messages)
+        return
+                
+        
+        
+class CombineNNOutputFiles(object):
+    
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Combine NNOutput Files "
+        self.description = "Combines PNN, FUZ, and RBN files generated from partitions of the class.dta file."
+        self.canRunInBackground = False
+        self.category = "Neural network"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        # TODO: Multiple rasters?
+        
+        paramInputFiles = arcpy.Parameter(
+        displayName="Input RBN, FUZ, PNN files",
+        name="inputfiles",
+        #datatype="DEFeatureClass",
+        datatype="File",
+        multiValue=1,
+        parameterType="Required",
+        direction="Input")
+        
+
+        paramOutputFile = arcpy.Parameter(
+        displayName="Output file",
+        name="outputfile",
+        datatype="file",
+        parameterType="Required",
+        direction="Output")
+        params = [paramInputFiles, paramOutputFile]
+        return params
+
+    def isLicensed(self):    
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+     
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        #3.4
+        try:
+            importlib.reload (arcsdm.combine_outputnnfiles)
+        except :
+            reload(arcsdm.combine_outputnnfiles);
+        # To list what functions does module contain
+        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
+        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
+        #messages.AddMessage("Waiting for debugger")
+        #wait_for_debugger(15);
+        #No do yet
+        arcsdm.combine_outputnnfiles.execute(self, parameters, messages)
+        return
+        
+                
+        
+        
 class NeuralNetworkOutputFiles(object):
     
     def __init__(self):
