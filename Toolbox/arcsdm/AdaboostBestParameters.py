@@ -160,6 +160,7 @@ def execute(self, parameters, messages):
 
         plt.savefig(plot_file)
         _verbose_print("Figure saved {}".format(plot_file), messages)
+        plt.close(fig)
         # plt.show()
 
     # scores_std = np.std(scores,2)

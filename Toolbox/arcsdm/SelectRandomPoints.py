@@ -116,7 +116,7 @@ def execute(self, parameters, messages):
     output = parameter_dic["output_point"].valueAsText.strip("'")
     n_points = parameter_dic["number_points"].value
     constrain_area = parameter_dic["constraining_area"].valueAsText.strip("'")
-    rasters = parameter_dic["data_rasters"].valueAsText
+    rasters = parameter_dic["constraining_rasters"].valueAsText
     buffer_points = parameter_dic["buffer_points"].valueAsText
     buffer_distance = parameter_dic["buffer_distance"].valueAsText
     min_distance = parameter_dic["minimum_distance"].valueAsText
@@ -141,7 +141,14 @@ def execute(self, parameters, messages):
         else:
             rasters_scratch = _constrain_from_raster(points_scratch, rasters)
             scratch_files.append(rasters_scratch)
-        result = arcpy.CreateRandomPoints_management(out_ws, output, rasters_scratch,
+        dissolve_scratch = arcpy.CreateScratchName("temp", workspace=arcpy.env.scratchWorkspace)
+        arcpy.Dissolve_management(in_features=rasters_scratch, out_feature_class=dissolve_scratch,
+                                  multi_part="MULTI_PART")
+        scratch_files.append(dissolve_scratch)
+
+        # TODO: Somtimes, random points fall right in the border of the rasters and therefore they show null information,
+        #       an erosion needs to be added to avoid this
+        result = arcpy.CreateRandomPoints_management(out_ws, output, dissolve_scratch,
                                                      number_of_points_or_field=n_points,
                                                      minimum_allowed_distance=min_distance)
         arcpy.DefineProjection_management(result, arcpy.Describe(constrain_area).spatialReference)

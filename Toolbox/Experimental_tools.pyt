@@ -235,6 +235,7 @@ class rastersom(object):
         execute_tool(arcsdm.somtool.execute, self, parameters, messages)
         return        
 
+
 class SelectRandomPoints(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
@@ -260,12 +261,12 @@ class SelectRandomPoints(object):
         # output_point.filter.list = ["Point", "Multipoint"]
         # output_point.parameterDependencies = [output_workspace.name]
 
-        number_points= arcpy.Parameter(
+        number_points = arcpy.Parameter(
             displayName="Number of Random Points",
             name="number_points",
             datatype="GPLong",
             parameterType="Required",
-            direction = "Input")
+            direction="Input")
 
         constraining_area = arcpy.Parameter(
             displayName="Constraining Area",
@@ -275,16 +276,16 @@ class SelectRandomPoints(object):
             direction="Input")
         constraining_area.filter.list = ["Polygon"]
 
-        data_rasters = arcpy.Parameter(
-            displayName="Data Rasters",
-            name="data_rasters",
+        constraining_rasters = arcpy.Parameter(
+            displayName="Constraining Rasters",
+            name="constraining_rasters",
             datatype="GPFeatureLayer",
             parameterType="Optional",
             direction="Input")
-        data_rasters.columns = [['GPRasterLayer', 'Information Rasters']]
+        constraining_rasters.columns = [['GPRasterLayer', 'Information Rasters']]
 
         buffer_points = arcpy.Parameter(
-            displayName="buffer Points",
+            displayName="Buffer Points",
             name="buffer_points",
             datatype="GPFeatureLayer",
             parameterType="Optional",
@@ -292,7 +293,7 @@ class SelectRandomPoints(object):
         buffer_points.filter.list = ["Point", "Multipoint"]
 
         buffer_distance = arcpy.Parameter(
-            displayName="buffer Distance",
+            displayName="Buffer Distance",
             name="buffer_distance",
             datatype="GPLinearUnit",
             parameterType="Optional",
@@ -300,23 +301,23 @@ class SelectRandomPoints(object):
             enabled=False)
 
         minimum_distance = arcpy.Parameter(
-            displayName="Minimum Distance",
+            displayName="Minimum Distance Between Points",
             name="minimum_distance",
             datatype="GPLinearUnit",
             parameterType="Optional",
             direction="Input")
 
         select_inside = arcpy.Parameter(
-            displayName="Select inside buffer",
+            displayName="Select Inside Buffer",
             name="select_inside",
             datatype="Boolean",
             parameterType="Optional",
             direction="Input",
             enabled=False)
-        select_inside.value = False;
+        select_inside.value = False
 
-        params = [output_workspace, output_point, number_points, constraining_area, data_rasters, buffer_points,
-                  buffer_distance, select_inside, minimum_distance ]
+        params = [output_workspace, output_point, number_points, constraining_area, constraining_rasters, buffer_points,
+                  buffer_distance, select_inside, minimum_distance]
         return params
 
     def isLicensed(self):
@@ -340,7 +341,7 @@ class SelectRandomPoints(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        return execute_tool(arcsdm.SelectRandomPoints.execute, self, parameters, messages)
+        return general.execute_tool(arcsdm.SelectRandomPoints.execute, self, parameters, messages)
 
 
 class EnrichPoints(object):
@@ -394,7 +395,7 @@ class EnrichPoints(object):
         output.filter.list = ["Point", "Multipoint"]
 
         field_name = arcpy.Parameter(
-            displayName="Class field name",
+            displayName="Class Field Name",
             name="field_name",
             datatype="GPString",
             parameterType="Required",
@@ -402,14 +403,14 @@ class EnrichPoints(object):
         field_name.value = "Deposit"
 
         copy_data = arcpy.Parameter(
-            displayName="Copy all the information from the points",
+            displayName="Copy Fields From Points",
             name="copy_data",
             datatype="Boolean",
             parameterType="Optional",
             direction="Input")
-        copy_data.value = True;
+        copy_data.value = True
 
-        params = [class1_points, class2_points, field_name, copy_data, information_rasters, missing_mask, output ]
+        params = [class1_points, class2_points, field_name, copy_data, information_rasters, missing_mask, output]
         return params
 
     def isLicensed(self):
@@ -428,8 +429,8 @@ class EnrichPoints(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        execute_tool(arcsdm.EnrichPoints.execute , self, parameters, messages)
-        return
+        return general.execute_tool(arcsdm.EnrichPoints.execute, self, parameters, messages)
+
 
 class AdaboostBestParameters(object):
     def __init__(self):
@@ -450,7 +451,7 @@ class AdaboostBestParameters(object):
         train_points.filter.list = ["Point", "Multipoint"]
 
         train_regressors = arcpy.Parameter(
-            displayName="Train Regressors",
+            displayName="Predictor Fields",
             name="train_regressors",
             datatype="Field",
             parameterType="Required",
@@ -460,7 +461,7 @@ class AdaboostBestParameters(object):
         train_regressors.filter.list = ['Short', 'Long', 'Double', 'Float', 'Single']
 
         train_response = arcpy.Parameter(
-            displayName="Train Response",
+            displayName="Class Field",
             name="train_response",
             datatype="Field",
             parameterType="Required",
@@ -468,18 +469,8 @@ class AdaboostBestParameters(object):
         train_response.parameterDependencies = [train_points.name]
         train_response.filter.list = ['Short', 'Long', 'Double', 'Float', 'Single']
 
-        test_response = arcpy.Parameter(
-            displayName="Test Response",
-            name="test_response",
-            datatype="Field",
-            parameterType="Optional",
-            direction="Input",
-            enabled=False)
-        test_response.parameterDependencies = [train_points.name]
-        test_response.filter.list = ['Short', 'Long', 'Double', 'Float', 'Single']
-
         num_estimators_min = arcpy.Parameter(
-            displayName="Minimum number of Estimators",
+            displayName="Minimum Number of Estimators",
             name="num_estimators_min",
             datatype="GPLong",
             parameterType="Required",
@@ -497,7 +488,7 @@ class AdaboostBestParameters(object):
         num_estimators_max.value = 20
 
         num_estimators_increment = arcpy.Parameter(
-            displayName="Increment of number of Estimators",
+            displayName="Increment of Number of Estimators",
             name="num_estimators_increment",
             datatype="GPLong",
             parameterType="Required",
@@ -506,7 +497,7 @@ class AdaboostBestParameters(object):
         num_estimators_increment.value = 2
 
         learning_rate_min = arcpy.Parameter(
-            displayName="Minimum learning Rate",
+            displayName="Minimum Learning Rate",
             name="learning_rate_min",
             datatype="GPDouble",
             parameterType="Required",
@@ -515,7 +506,7 @@ class AdaboostBestParameters(object):
         learning_rate_min.value = 0.5
 
         learning_rate_max = arcpy.Parameter(
-            displayName="Maximum learning Rate",
+            displayName="Maximum Learning Rate",
             name="learning_rate_max",
             datatype="GPDouble",
             parameterType="Required",
@@ -524,7 +515,7 @@ class AdaboostBestParameters(object):
         learning_rate_max.value = 1.5
 
         learning_rate_increment = arcpy.Parameter(
-            displayName="Increment of learning Rate",
+            displayName="Increment of Learning Rate",
             name="learning_rate_increment",
             datatype="GPDouble",
             parameterType="Required",
@@ -577,7 +568,7 @@ class AdaboostBestParameters(object):
                 parameters[5].setWarningMessage("Increment greater than the interval")
             elif parameters[3].value <= 0:
                 parameters[3].setErrorMessage("Non positive values forbidden")
-            elif parameters[5].value <= 0 and (parameters[4].value - parameters[3].value) > 0:
+            elif parameters[5].value <= 0 and (parameters[4].value > parameters[3].value):
                 parameters[5].setErrorMessage("Non positive values forbidden")
 
         if any([parameters[x].altered for x in xrange(6, 9)]):
@@ -587,14 +578,13 @@ class AdaboostBestParameters(object):
                 parameters[8].setWarningMessage("Increment greater than the interval")
             elif parameters[6].value <= 0:
                 parameters[6].setErrorMessage("Non positive values forbidden")
-            elif parameters[8].value <= 0 and (parameters[7].value - parameters[6].value) > 0:
+            elif parameters[8].value <= 0 and (parameters[7].value > parameters[6].value):
                 parameters[8].setErrorMessage("Non positive values forbidden")
         return
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        execute_tool(arcsdm.AdaboostBestParameters.execute, self, parameters, messages)
-        return
+        return general.execute_tool(arcsdm.AdaboostBestParameters.execute, self, parameters, messages)
 
 
 class AdaboostTrain(object):
@@ -616,7 +606,7 @@ class AdaboostTrain(object):
         train_points.filter.list = ["Point", "Multipoint"]
 
         train_regressors = arcpy.Parameter(
-            displayName="Train Regressors",
+            displayName="Predictor Fields",
             name="train_regressors",
             datatype="Field",
             parameterType="Required",
@@ -626,7 +616,7 @@ class AdaboostTrain(object):
         train_regressors.filter.list = ['Short', 'Long', 'Double', 'Float', 'Single']
 
         train_response = arcpy.Parameter(
-            displayName="Train Response",
+            displayName="Class Field",
             name="train_response",
             datatype="Field",
             parameterType="Required",
@@ -652,7 +642,7 @@ class AdaboostTrain(object):
             direction="Input")
         learning_rate.value = 1
         learning_rate.filter.type = "Range"
-        learning_rate.filter.list = [0.0000000000001 , 10]
+        learning_rate.filter.list = [0.0000000000001, 10]
 
         output_model = arcpy.Parameter(
             displayName="Output Model",
@@ -662,7 +652,7 @@ class AdaboostTrain(object):
             direction="Output")
 
         leave_one_out = arcpy.Parameter(
-            displayName="Leave-one-out cross validation",
+            displayName="Leave-one-out Cross Validation",
             name="leave_one_out",
             datatype="GPBoolean",
             parameterType="Required",
@@ -677,7 +667,6 @@ class AdaboostTrain(object):
             direction="Output")
         classifier_name.value = "Adaboost"
 
-
         params = [train_points, train_regressors, train_response, num_estimators, learning_rate, output_model,
                   leave_one_out, classifier_name]
         return params
@@ -691,21 +680,18 @@ class AdaboostTrain(object):
         has been changed."""
 
         output_model = parameters[5]
-        if output_model.altered :
-            if output_model == "":
-                output_model = None
-            elif not output_model.valueAsText.endswith(".pkl"):
+        if output_model.altered:
+            if not output_model.valueAsText.endswith(".pkl"):
                 output_model.value = output_model.valueAsText + ".pkl"
 
         return
-
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
         parameter.  This method is called after internal validation."""
         train_regressors = parameters[1]
         train_response = parameters[2]
-        if (train_response.altered or train_regressors.altered) and train_regressors.valueAsText is not None :
+        if (train_response.altered or train_regressors.altered) and train_regressors.valueAsText is not None:
             for field in train_regressors.valueAsText.split(";"):
                 if field == train_response.valueAsText:
                     train_response.setErrorMessage("{} can not be included in {}".format(train_response.displayName,
@@ -713,11 +699,10 @@ class AdaboostTrain(object):
 
         return
 
-
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        execute_tool(arcsdm.ModelTrain.execute, self, parameters, messages)
-        return
+
+        return general.execute_tool(arcsdm.ModelTrain.execute, self, parameters, messages)
 
 
 class ModelValidation(object):
@@ -726,7 +711,6 @@ class ModelValidation(object):
         self.label = "Model Validation"
         self.description = 'Validates a classification model with an independent test set'
         self.canRunInBackground = False
-        self.category = "Adaboost"
 
     def getParameterInfo(self):
 
@@ -746,7 +730,7 @@ class ModelValidation(object):
         test_points.filter.list = ["Point", "Multipoint"]
 
         test_response = arcpy.Parameter(
-            displayName="Test Response",
+            displayName="Class Fields",
             name="test_response_name",
             datatype="Field",
             parameterType="Required",
@@ -782,18 +766,16 @@ class ModelValidation(object):
 
         return
 
-
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
         parameter.  This method is called after internal validation."""
 
         return
 
-
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        execute_tool(arcsdm.ModelValidation.execute, self, parameters, messages)
-        return
+
+        return general.execute_tool(arcsdm.ModelValidation.execute, self, parameters, messages)
 
 
 class ApplyModel(object):
@@ -802,7 +784,6 @@ class ApplyModel(object):
         self.label = "Apply model"
         self.description = 'Applies a model to a series of data rasters obtain a response raster'
         self.canRunInBackground = False
-        self.category = "Adaboost"
 
     def getParameterInfo(self):
 
@@ -842,19 +823,17 @@ class ApplyModel(object):
 
         return
 
-
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
         parameter.  This method is called after internal validation."""
 
         return
 
-
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        execute_tool(arcsdm.ApplyModel.execute, self, parameters, messages)
 
-        return
+        return general.execute_tool(arcsdm.ApplyModel.execute, self, parameters, messages)
+
 
 class MulticlassSplit(object):
     def __init__(self):
@@ -898,7 +877,6 @@ class MulticlassSplit(object):
         transformation.value = "Distance"
         transformation.filter.list = ["Distance", "Inverse Distance", "Inverse Linear Distance", "Binary"]
 
-
         params = [input_feature, class_field, output_prefix, transformation]
         return params
 
@@ -912,19 +890,15 @@ class MulticlassSplit(object):
 
         return
 
-
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
         parameter.  This method is called after internal validation."""
 
         return
 
-
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        execute_tool(arcsdm.MulticlassSplit.execute, self, parameters, messages)
-
-        return
+        return general.execute_tool(arcsdm.MulticlassSplit.execute, self, parameters, messages)
 
 
 class ApplyFilter(object):
@@ -982,19 +956,15 @@ class ApplyFilter(object):
 
         return
 
-
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
         parameter.  This method is called after internal validation."""
 
         return
 
-
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        execute_tool(arcsdm.ApplyFilter.execute, self, parameters, messages)
-
-        return
+        return general.execute_tool(arcsdm.ApplyFilter.execute, self, parameters, messages)
 
 
 class LogisticRegressionTrain(object):
@@ -1015,7 +985,7 @@ class LogisticRegressionTrain(object):
         train_points.filter.list = ["Point", "Multipoint"]
 
         train_regressors = arcpy.Parameter(
-            displayName="Train Regressors",
+            displayName="Predictor Fields",
             name="train_regressors",
             datatype="Field",
             parameterType="Required",
@@ -1025,7 +995,7 @@ class LogisticRegressionTrain(object):
         train_regressors.filter.list = ['Short', 'Long', 'Double', 'Float', 'Single']
 
         train_response = arcpy.Parameter(
-            displayName="Train Response",
+            displayName="Class Field",
             name="train_response",
             datatype="Field",
             parameterType="Required",
@@ -1041,7 +1011,7 @@ class LogisticRegressionTrain(object):
             direction="Output")
 
         leave_one_out = arcpy.Parameter(
-            displayName="Leave-one-out cross validation",
+            displayName="Leave-one-out Cross Validation",
             name="leave_one_out",
             datatype="GPBoolean",
             parameterType="Required",
@@ -1073,7 +1043,7 @@ class LogisticRegressionTrain(object):
             direction="Input")
 
         penalty = arcpy.Parameter(
-            displayName="Penalty norm",
+            displayName="Penalty Norm",
             name="penalty",
             datatype="GPString",
             parameterType="Required",
@@ -1095,12 +1065,11 @@ class LogisticRegressionTrain(object):
         parameter_dic = {par.name: par for par in parameters}
         output_model = parameter_dic["output_model"]
 
-        if output_model.altered :
+        if output_model.altered:
             if not output_model.valueAsText.endswith(".pkl"):
                 output_model.value = output_model.valueAsText + ".pkl"
 
         return
-
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
@@ -1109,7 +1078,7 @@ class LogisticRegressionTrain(object):
         train_regressors = parameter_dic["train_regressors"]
         train_response = parameter_dic["train_response"]
 
-        if (train_response.altered or train_regressors.altered) and train_regressors.valueAsText is not None :
+        if (train_response.altered or train_regressors.altered) and train_regressors.valueAsText is not None:
             for field in train_regressors.valueAsText.split(";"):
                 if field == train_response.valueAsText:
                     train_response.setErrorMessage("{} can not be included in {}".format(train_response.displayName,
@@ -1117,12 +1086,9 @@ class LogisticRegressionTrain(object):
 
         return
 
-
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        execute_tool(arcsdm.ModelTrain.execute, self, parameters, messages)
-        return
-
+        return general.execute_tool(arcsdm.ModelTrain.execute, self, parameters, messages)
 
 
 class BrownBoostTrain(object):
@@ -1144,7 +1110,7 @@ class BrownBoostTrain(object):
         train_points.filter.list = ["Point", "Multipoint"]
 
         train_regressors = arcpy.Parameter(
-            displayName="Train Regressors",
+            displayName="Predictor Fields",
             name="train_regressors",
             datatype="Field",
             parameterType="Required",
@@ -1154,7 +1120,7 @@ class BrownBoostTrain(object):
         train_regressors.filter.list = ['Short', 'Long', 'Double', 'Float', 'Single']
 
         train_response = arcpy.Parameter(
-            displayName="Train Response",
+            displayName="Class Field",
             name="train_response",
             datatype="Field",
             parameterType="Required",
@@ -1170,7 +1136,7 @@ class BrownBoostTrain(object):
             direction="Input")
         countdown.value = 10
         countdown.filter.type = "Range"
-        countdown.filter.list = [0.0000000000001 , 10]
+        countdown.filter.list = [0.0000000000001, 10]
 
         output_model = arcpy.Parameter(
             displayName="Output Model",
@@ -1180,7 +1146,7 @@ class BrownBoostTrain(object):
             direction="Output")
 
         leave_one_out = arcpy.Parameter(
-            displayName="Leave-one-out cross validation",
+            displayName="Leave-one-out Cross Validation",
             name="leave_one_out",
             datatype="GPBoolean",
             parameterType="Required",
@@ -1194,7 +1160,6 @@ class BrownBoostTrain(object):
             parameterType="Derived",
             direction="Output")
         classifier_name.value = "Brownboost"
-
 
         params = [train_points, train_regressors, train_response, countdown, output_model, leave_one_out,
                   classifier_name]
@@ -1231,9 +1196,7 @@ class BrownBoostTrain(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        general.execute_tool(arcsdm.ModelTrain.execute, self, parameters, messages)
-        return
-
+        return general.execute_tool(arcsdm.ModelTrain.execute, self, parameters, messages)
 
 
 class SVMTrain(object):
@@ -1254,7 +1217,7 @@ class SVMTrain(object):
         train_points.filter.list = ["Point", "Multipoint"]
 
         train_regressors = arcpy.Parameter(
-            displayName="Train Regressors",
+            displayName="Predictor Fields",
             name="train_regressors",
             datatype="Field",
             parameterType="Required",
@@ -1264,7 +1227,7 @@ class SVMTrain(object):
         train_regressors.filter.list = ['Short', 'Long', 'Double', 'Float', 'Single']
 
         train_response = arcpy.Parameter(
-            displayName="Train Response",
+            displayName="Class Field",
             name="train_response",
             datatype="Field",
             parameterType="Required",
@@ -1280,7 +1243,7 @@ class SVMTrain(object):
             direction="Output")
 
         leave_one_out = arcpy.Parameter(
-            displayName="Leave-one-out cross validation",
+            displayName="Leave-one-out Cross Validation",
             name="leave_one_out",
             datatype="GPBoolean",
             parameterType="Required",
@@ -1312,7 +1275,7 @@ class SVMTrain(object):
             direction="Input")
 
         penalty = arcpy.Parameter(
-            displayName="Penalty parameter",
+            displayName="Penalty Parameter",
             name="penalty",
             datatype="GPDouble",
             parameterType="Required",
@@ -1329,7 +1292,7 @@ class SVMTrain(object):
         kernel.filter.list = ['linear', 'poly', 'rbf', 'sigmoid']
 
         normalize = arcpy.Parameter(
-            displayName="Normalize data",
+            displayName="Normalize Data",
             name="normalize",
             datatype="GPBoolean",
             parameterType="Required",
@@ -1350,12 +1313,11 @@ class SVMTrain(object):
         parameter_dic = {par.name: par for par in parameters}
         output_model = parameter_dic["output_model"]
 
-        if output_model.altered :
+        if output_model.altered:
             if not output_model.valueAsText.endswith(".pkl"):
                 output_model.value = output_model.valueAsText + ".pkl"
 
         return
-
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
@@ -1364,7 +1326,7 @@ class SVMTrain(object):
         train_regressors = parameter_dic["train_regressors"]
         train_response = parameter_dic["train_response"]
 
-        if (train_response.altered or train_regressors.altered) and train_regressors.valueAsText is not None :
+        if (train_response.altered or train_regressors.altered) and train_regressors.valueAsText is not None:
             for field in train_regressors.valueAsText.split(";"):
                 if field == train_response.valueAsText:
                     train_response.setErrorMessage("{} can not be included in {}".format(train_response.displayName,
@@ -1372,15 +1334,10 @@ class SVMTrain(object):
 
         return
 
-
     def execute(self, parameters, messages):
         """The source code of the tool."""
 
-        general.execute_tool(arcsdm.ModelTrain.execute, self, parameters, messages)
-        return
-
-
-
+        return general.execute_tool(arcsdm.ModelTrain.execute, self, parameters, messages)
 
 
 class RFTrain(object):
@@ -1401,7 +1358,7 @@ class RFTrain(object):
         train_points.filter.list = ["Point", "Multipoint"]
 
         train_regressors = arcpy.Parameter(
-            displayName="Train Regressors",
+            displayName="Predictor Fields",
             name="train_regressors",
             datatype="Field",
             parameterType="Required",
@@ -1411,7 +1368,7 @@ class RFTrain(object):
         train_regressors.filter.list = ['Short', 'Long', 'Double', 'Float', 'Single']
 
         train_response = arcpy.Parameter(
-            displayName="Train Response",
+            displayName="Class Field",
             name="train_response",
             datatype="Field",
             parameterType="Required",
@@ -1427,7 +1384,7 @@ class RFTrain(object):
             direction="Output")
 
         leave_one_out = arcpy.Parameter(
-            displayName="Leave-one-out cross validation",
+            displayName="Leave-one-out Cross Validation",
             name="leave_one_out",
             datatype="GPBoolean",
             parameterType="Required",
@@ -1469,15 +1426,14 @@ class RFTrain(object):
         num_estimators.filter.list = [1, 1000]
 
         max_depth = arcpy.Parameter(
-            displayName="Max depth",
+            displayName="Max Depth",
             name="max_depth",
             datatype="GPLong",
             parameterType="Optional",
             direction="Input")
 
-
-        params = [train_points, train_regressors, train_response, num_estimators, max_depth, deposit_weight, output_model,
-                  leave_one_out, classifier_name, random_state]
+        params = [train_points, train_regressors, train_response, num_estimators, max_depth, deposit_weight,
+                  output_model, leave_one_out, classifier_name, random_state]
         return params
 
     def isLicensed(self):
@@ -1490,12 +1446,11 @@ class RFTrain(object):
         parameter_dic = {par.name: par for par in parameters}
         output_model = parameter_dic["output_model"]
 
-        if output_model.altered :
+        if output_model.altered:
             if not output_model.valueAsText.endswith(".pkl"):
                 output_model.value = output_model.valueAsText + ".pkl"
 
         return
-
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
@@ -1504,7 +1459,7 @@ class RFTrain(object):
         train_regressors = parameter_dic["train_regressors"]
         train_response = parameter_dic["train_response"]
 
-        if (train_response.altered or train_regressors.altered) and train_regressors.valueAsText is not None :
+        if (train_response.altered or train_regressors.altered) and train_regressors.valueAsText is not None:
             for field in train_regressors.valueAsText.split(";"):
                 if field == train_response.valueAsText:
                     train_response.setErrorMessage("{} can not be included in {}".format(train_response.displayName,
@@ -1512,10 +1467,7 @@ class RFTrain(object):
 
         return
 
-
     def execute(self, parameters, messages):
         """The source code of the tool."""
 
-        general.execute_tool(arcsdm.ModelTrain.execute, self, parameters, messages)
-        return
-
+        return general.execute_tool(arcsdm.ModelTrain.execute, self, parameters, messages)

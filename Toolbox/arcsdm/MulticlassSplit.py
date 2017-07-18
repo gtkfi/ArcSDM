@@ -68,7 +68,7 @@ def execute(self, parameters, messages):
                                                         u"{} = '{}'".format(class_field, orig_val))
             else:
                 arcpy.SelectLayerByAttribute_management(layer_scratch, "NEW_SELECTION",
-                                                        u"{} = {}".format(class_field, orig_val))
+                                                        u"{} = '{}'".format(class_field, orig_val))
             raster = arcpy.sa.EucDistance(layer_scratch)
             if transformation == "Inverse Linear Distance":
                 max_val = float(arcpy.GetRasterProperties_management(raster,"MAXIMUM").getOutput(0))

@@ -138,6 +138,7 @@ def _plot_results(classification_model, des_func, probabilities, response_test, 
 
         plt.savefig(plot_file)
         _verbose_print("Figure saved {}".format(plot_file))
+        plt.close(fig)
 
         return
 
