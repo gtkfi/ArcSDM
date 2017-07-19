@@ -141,7 +141,6 @@ def Execute(self, parameters, messages):
             
             outputrastername = Input_Raster.replace(".","_");
             
-            
             outputrastername = outputrastername[:10] + "_W";
             #outputrastername = desc.nameString + "_W2";
             # Create _W raster
@@ -174,19 +173,19 @@ def Execute(self, parameters, messages):
             #++ only forced the remove join but what happens if join fails?        
             #++ Need to create in-memory Raster Layer for Join
             #Check for unsigned integer raster; cannot have negative missing data
-            
             if NoDataArg != '#' and gp.describe(Input_Raster).pixeltype.upper().startswith('U'):
                 NoDataArg2 = '#'
             else:
                 NoDataArg2 = NoDataArg
-            
             #Create new rasterlayer from input raster -> Result RasterLayer
             RasterLayer = "OutRas_lyr"            
-            gp.MakeRasterLayer_management(Input_Raster,RasterLayer)
+            arcpy.MakeRasterLayer_management(Input_Raster,RasterLayer)
             
             #++ AddJoin requires and input layer or tableview not Input Raster Dataset.     
             #Join result layer with weights table
-            gp.AddJoin_management(RasterLayer,"Value",Wts_Table,"CLASS")
+            arcpy.AddJoin_management(RasterLayer,"Value",Wts_Table,"CLASS")
+            # THis is where it crashes on ISsue 44!https://github.com/gtkfi/ArcSDM/issues/44
+            #return;
             
            
             
@@ -213,9 +212,12 @@ def Execute(self, parameters, messages):
             gp.AddMessage(" Output_Raster: " + Output_Raster);
             
             gp.Lookup_sa(Temp_Raster,"WEIGHT",Output_Raster)
-            
+            #return;
             #gp.addwarning(gp.getmessages())
-            arcpy.Delete_management(RasterLayer)
+            # ISsue 44 fix
+            #arcpy.ClearWorkspaceCache_management()
+            #arcpy.Delete_management(RasterLayer)
+            
             #++ Optionally you can remove join but not necessary because join is on the layer
             #++ Better to just delete layer
     ##        #++ get name of join from the input table (without extention)
@@ -357,7 +359,8 @@ def Execute(self, parameters, messages):
             arcpy.CopyRaster_management(RasterLayer, Temp_Raster,"#","#",NoDataArg2)
             #gp.AddMessage("DEBUG STD1");
             gp.Lookup_sa(Temp_Raster,"W_STD",Output_Raster)
-            arcpy.Delete_management(RasterLayer)
+            # Issue 44 fix - no delete on temprasters
+            #arcpy.Delete_management(RasterLayer)
             #gp.AddMessage("DEBUG STD1");
             #++ Optionally you can remove join but not necessary because join is on the layer
             #++ Better to just delete layer

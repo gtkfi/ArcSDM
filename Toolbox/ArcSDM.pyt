@@ -48,7 +48,6 @@ class PartitionNNInputFiles(object):
 
     def getParameterInfo(self):
         """Define parameter definitions"""
-        # TODO: Multiple rasters?
         
         paramInputFiles = arcpy.Parameter(
         displayName="Input class.dat file",
@@ -111,7 +110,6 @@ class CombineNNOutputFiles(object):
 
     def getParameterInfo(self):
         """Define parameter definitions"""
-        # TODO: Multiple rasters?
         
         paramInputFiles = arcpy.Parameter(
         displayName="Input RBN, FUZ, PNN files",
@@ -177,13 +175,12 @@ class NeuralNetworkOutputFiles(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Neural network output files"
-        self.description = "TODO: Copy this from old toolbox"
+        self.description = "Generate files from output files of GeoXplore"
         self.canRunInBackground = False
         self.category = "Neural network"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
-        # TODO: Multiple rasters?
         
         paramInputRaster = arcpy.Parameter(
         displayName="Unique Conditions raster",
@@ -279,13 +276,12 @@ class NeuralNetworkInputFiles(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Neural network input files"
-        self.description = "TODO: Copy this from old toolbox"
+        self.description = "Use this tool to create the input ASCII files for the GeoXplore neural network. Before using this tool, the evidence must be combined into a unique conditions raster with the Combine tool and the band statistics must be obtained for all the evidence using the Band Collection Statistics tool. If desired fuzzy membership attribute can be added to each of the training sites. See the ArcMap Tools Options discussion in Usage Tips in the Help about adjusting default setting for this tool."
         self.canRunInBackground = False
         self.category = "Neural network"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
-        # TODO: Multiple rasters?
         
         paramInputRaster = arcpy.Parameter(
         displayName="Input Unique Conditions raster",
@@ -421,13 +417,13 @@ class GetSDMValues(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Get SDM parameters"
-        self.description = "TODO: Copy this from old toolbox"
+        self.description = "This tool is used to view the Environment and SDM modeling parameters that have been set by the user. All of the values reported by this tool must be set to values specific to the model to be made. Using the ESRI default values will cause SDM to fail. If the Environment is not completely set, then an error message stating \"Improper SDM setup\" will occur. The successful running of this tool does not assure that the setup is correct; only that the default values have been changed. See the Environment Settings section of the Help file for Calculate Weights for the details."
+
         self.canRunInBackground = False
         self.category = "Utilities"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
-        # TODO: Multiple rasters?
                
         
         paramTrainingSites = arcpy.Parameter(
@@ -494,13 +490,12 @@ class AreaFrequencyTable(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Area Frequency Table"
-        self.description = "TODO: Copy this from old toolbox"
+        self.description = "Create a table for charting area of evidence classes vs number of training sites."
         self.canRunInBackground = False
         self.category = "Weights of Evidence"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
-        # TODO: Multiple rasters?
         
         paramTrainingSites = arcpy.Parameter(
         displayName="Training sites",
@@ -665,7 +660,7 @@ class Symbolize(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Symbolize raster with priorprobability (classified values)"
-        self.description = "TODO: Describe this"
+        self.description = "This tool allows symbolizing prior probablity raster with predefined colorscheme from local raster_classified.lyr file"
         self.canRunInBackground = False
         self.category = "Utilities"
 
@@ -728,13 +723,12 @@ class CalculateResponse(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Calculate response"
-        self.description = "TODO: Copy this from old toolbox"
+        self.description = "Use this tool to combine the evidence weighted by their associated generalization in the weights-of-evidence table. This tool calculates the posterior probability, standard deviation (uncertainty) due to weights, variance (uncertainty) due to missing data, and the total standard deviation (uncertainty) based on the evidence and how the evidence is generalized in the associated weights-of-evidence tables.The calculations use the Weight and W_Std in the weights table from Calculate Weights."
         self.canRunInBackground = False
         self.category = "Weights of Evidence"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
-        # TODO: Multiple rasters?
         param0 = arcpy.Parameter(
         displayName="Input Raster Layer(s)",
         name="Input_evidence_raster_layers",
@@ -1348,7 +1342,7 @@ class LogisticRegressionTool(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Logistic regression"
-        self.description = "TODO: Copy this from old toolbox"
+        self.description = "This tool is a useful complement to Weights-of-Evidence Calculate Response tool as Logistic Regression does not make the assumption of conditional independence of the evidence with regards to the training sites. Using the evidence and assocaited weights tables, this tool creates the outputs the response and standard deviation rasters. The calculations are based on the Gen_Class attribute in the weights table and the type of evidence."
         self.canRunInBackground = False
         self.category = "Weights of Evidence"
 
