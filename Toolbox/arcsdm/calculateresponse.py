@@ -183,7 +183,7 @@ def Execute(self, parameters, messages):
             
             #++ AddJoin requires and input layer or tableview not Input Raster Dataset.     
             #Join result layer with weights table
-            arcpy.AddJoin_management(RasterLayer,"Value",Wts_Table,"CLASS")
+            arcpy.AddJoin_management(RasterLayer,"VALUE",Wts_Table,"CLASS")
             # THis is where it crashes on ISsue 44!https://github.com/gtkfi/ArcSDM/issues/44
             #return;
             
