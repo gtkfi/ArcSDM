@@ -79,8 +79,9 @@ def create_response_raster(classifier, rasters, output, scale):
     scratch_files = []
 
     try:
-        rasters_resampled = _resample_rasters(rasters)
-        scratch_files.extend(rasters_resampled.split(";"))
+        # rasters_resampled = _resample_rasters(rasters)
+        # scratch_files.extend(rasters_resampled.split(";"))
+        rasters_resampled = rasters
         _verbose_print("Rasters: {}".format(rasters_resampled))
         scratch_multi_rasters = arcpy.CreateScratchName("temp", workspace=arcpy.env.scratchWorkspace)
         arcpy.CompositeBands_management(rasters_resampled, scratch_multi_rasters)
