@@ -60,6 +60,15 @@ def execute(self, parameters, messages):
         arcpy.MakeFeatureLayer_management(scratch_base, layer_scratch)
         arcpy.SelectLayerByAttribute_management(layer_scratch, "CLEAR_SELECTION")
 
+        for field in arcpy.ListFields(scratch_base):
+            if field.name == class_field:
+                if field.type in ("Double", "Integer", "Single", "SmallInteger"):
+                    expression_base = u"{} = {}"
+                else:
+                    expression_base = u"{} = '{}'"
+                _verbose_print("{} is of type {}".format(class_field, field.type))
+                break
+
         for orig_val in unique_values:
             unicode_val = unicode(orig_val)
             fullname = output_prefix + unicode_val.encode("ascii",'ignore').replace(" ","_")
@@ -68,7 +77,7 @@ def execute(self, parameters, messages):
                                                         u"{} = '{}'".format(class_field, orig_val))
             else:
                 arcpy.SelectLayerByAttribute_management(layer_scratch, "NEW_SELECTION",
-                                                        u"{} = '{}'".format(class_field, orig_val))
+                                                        expression_base.format(class_field, orig_val))
             raster = arcpy.sa.EucDistance(layer_scratch)
             if transformation == "Inverse Linear Distance":
                 max_val = float(arcpy.GetRasterProperties_management(raster,"MAXIMUM").getOutput(0))
