@@ -3,6 +3,7 @@
 # Todo: alert about scratch space
 
 import arcpy
+import os
 
 VERBOSE = False
 MESSAGES = None
@@ -109,11 +110,7 @@ def execute(self, parameters, messages):
     print_parameters(parameters)
     parameter_dic = {par.name: par for par in parameters}
 
-    out_ws = parameter_dic["output_workspace"].valueAsText
-    if out_ws is None:
-        MESSAGES.AddMessage("Using Scratch Space")
-        out_ws = arcpy.env.scratchWorkspace
-    output = parameter_dic["output_point"].valueAsText.strip("'")
+    output = parameter_dic["output_points"].valueAsText.strip("'")
     n_points = parameter_dic["number_points"].value
     constrain_area = parameter_dic["constraining_area"].valueAsText.strip("'")
     rasters = parameter_dic["constraining_rasters"].valueAsText
@@ -122,6 +119,7 @@ def execute(self, parameters, messages):
     min_distance = parameter_dic["minimum_distance"].valueAsText
     select_inside = parameter_dic["select_inside"].value
 
+    out_ws , out_f = os.path.split(output)
 
     scratch_files = []
     try:
@@ -148,7 +146,7 @@ def execute(self, parameters, messages):
 
         # TODO: Somtimes, random points fall right in the border of the rasters and therefore they show null information,
         #       an erosion needs to be added to avoid this
-        result = arcpy.CreateRandomPoints_management(out_ws, output, dissolve_scratch,
+        result = arcpy.CreateRandomPoints_management(out_ws, out_f, dissolve_scratch,
                                                      number_of_points_or_field=n_points,
                                                      minimum_allowed_distance=min_distance)
         arcpy.DefineProjection_management(result, arcpy.Describe(constrain_area).spatialReference)

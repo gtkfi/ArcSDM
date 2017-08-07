@@ -245,21 +245,15 @@ class SelectRandomPoints(object):
         self.category = "Utilities"
 
     def getParameterInfo(self):
-        output_workspace = arcpy.Parameter(
-            displayName="Output Workspace",
-            name="output_workspace",
-            datatype="DEWorkspace",
-            parameterType="Optional",
-            direction="Input")
 
-        output_point = arcpy.Parameter(
-            displayName="Output Point Feature Class",
-            name="output_point",
-            datatype="GPString",
+        output_points = arcpy.Parameter(
+            displayName="Output Points Feature Class",
+            name="output_points",
+            datatype="GPFeatureLayer",
             parameterType="Required",
             direction="Output")
-        # output_point.filter.list = ["Point", "Multipoint"]
-        # output_point.parameterDependencies = [output_workspace.name]
+        output_points.filter.list = ["Point", "Multipoint"]
+        #output_point.parameterDependencies = [output_workspace.name]
 
         number_points = arcpy.Parameter(
             displayName="Number of Random Points",
@@ -316,7 +310,7 @@ class SelectRandomPoints(object):
             enabled=False)
         select_inside.value = False
 
-        params = [output_workspace, output_point, number_points, constraining_area, constraining_rasters, buffer_points,
+        params = [output_points, number_points, constraining_area, constraining_rasters, buffer_points,
                   buffer_distance, select_inside, minimum_distance]
         return params
 
@@ -328,9 +322,10 @@ class SelectRandomPoints(object):
         """Modify the values and properties of parameters before internal
         validation is performed.  This method is called whenever a parameter
         has been changed."""
-        if parameters[5].altered:
-            parameters[6].enabled = (parameters[5].value is not None)
-            parameters[7].enabled = (parameters[5].value is not None)
+        parameter_dic = {par.name: par for par in parameters}
+
+        parameter_dic["buffer_distance"].enabled = (parameter_dic["buffer_points"].value is not None)
+        parameter_dic["select_inside"].enabled = (parameter_dic["buffer_points"].value is not None)
 
         return
 
@@ -399,7 +394,7 @@ class EnrichPoints(object):
             name="field_name",
             datatype="GPString",
             parameterType="Required",
-            direction="Output")
+            direction="Input")
         field_name.value = "Deposit"
 
         copy_data = arcpy.Parameter(
@@ -656,7 +651,7 @@ class AdaboostTrain(object):
             name="leave_one_out",
             datatype="GPBoolean",
             parameterType="Required",
-            direction="Output")
+            direction="Input")
         leave_one_out.value = True
 
         classifier_name = arcpy.Parameter(
@@ -1015,7 +1010,7 @@ class LogisticRegressionTrain(object):
             name="leave_one_out",
             datatype="GPBoolean",
             parameterType="Required",
-            direction="Output")
+            direction="Input")
         leave_one_out.value = True
 
         classifier_name = arcpy.Parameter(
@@ -1150,7 +1145,7 @@ class BrownBoostTrain(object):
             name="leave_one_out",
             datatype="GPBoolean",
             parameterType="Required",
-            direction="Output")
+            direction="Input")
         leave_one_out.value = True
 
         classifier_name = arcpy.Parameter(
@@ -1247,7 +1242,7 @@ class SVMTrain(object):
             name="leave_one_out",
             datatype="GPBoolean",
             parameterType="Required",
-            direction="Output")
+            direction="Input")
         leave_one_out.value = True
 
         classifier_name = arcpy.Parameter(
@@ -1388,7 +1383,7 @@ class RFTrain(object):
             name="leave_one_out",
             datatype="GPBoolean",
             parameterType="Required",
-            direction="Output")
+            direction="Input")
         leave_one_out.value = True
 
         classifier_name = arcpy.Parameter(
