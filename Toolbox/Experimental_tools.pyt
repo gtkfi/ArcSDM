@@ -30,7 +30,7 @@ class Toolbox(object):
         # List of tool classes associated with this toolbox
         self.tools = [rastersom, rescaleraster, CreateRandomPoints, EnrichPoints, AdaboostBestParameters, AdaboostTrain,
                       ModelValidation, MulticlassSplit, ApplyModel, ApplyFilter, LogisticRegressionTrain, SVMTrain,
-                      BrownBoostTrain, RFTrain]
+                      BrownBoostTrain, RFTrain, SelectRandomPoints]
 
 class rescaleraster(object):
     def __init__(self):
@@ -1466,3 +1466,112 @@ class RFTrain(object):
         """The source code of the tool."""
 
         return general.execute_tool(arcsdm.ModelTrain.execute, self, parameters, messages)
+
+class SelectRandomPoints(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Select Random Points"
+        self.description = "Selects given proportion of points of a given data layer"
+        self.canRunInBackground = False
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        points = arcpy.Parameter(
+            displayName="Points",
+            name="points",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Input")
+        points.filter.list = ["Point", "Multipoint"]
+
+        selection_percentage = arcpy.Parameter(
+            displayName="Selection Percentage",
+            name="selection_percentage",
+            datatype="GPLong",
+            parameterType="Required",
+            direction="Input")
+        selection_percentage.value = 10
+        selection_percentage.filter.type = "Range"
+        selection_percentage.filter.list = [1, 99]
+
+        selected_points = arcpy.Parameter(
+            displayName="Selected Points",
+            name="selected_points",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Output")
+        selected_points.filter.list = ["Point", "Multipoint"]
+
+        non_selected_points = arcpy.Parameter(
+            displayName="Non Selected Points",
+            name="non_selected_points",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Output")
+        non_selected_points.filter.list = ["Point", "Multipoint"]
+
+        params = [points,selection_percentage,selected_points,non_selected_points]
+        return params
+
+    def isLicensed(self):
+        """Set whether tool is licensed to execute."""
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        parameter_dic = {par.name: par for par in parameters}
+
+        selected_points = parameter_dic["selected_points"]
+        non_selected_points = parameter_dic["non_selected_points"]
+
+        if selected_points is not  None and non_selected_points is not None and selected_points==non_selected_points:
+            selected_points.setErrorMessage("Both outputs have the same name")
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+
+        parameter_dic = {par.name: par for par in parameters}
+
+        points = parameter_dic["points"].valueAsText
+        selection_percentage = int(parameter_dic["selection_percentage"].value)
+        selected_points = parameter_dic["selected_points"].valueAsText
+        non_selected_points = parameter_dic["non_selected_points"].valueAsText
+
+
+        if selection_percentage > 100:
+            print "percent is greater than 100"
+            return
+        if selection_percentage < 0:
+            print "percent is less than zero"
+            return
+
+        import random
+        fc = arcpy.Describe(points).catalogPath
+        featureCount = float(arcpy.GetCount_management(fc).getOutput(0))
+        count = int(featureCount * float(selection_percentage) / float(100))
+        if not count:
+            arcpy.SelectLayerByAttribute_management(points, "CLEAR_SELECTION")
+            return
+        oids = [oid for oid, in arcpy.da.SearchCursor(fc, "OID@")]
+        oidFldName = arcpy.Describe(points).OIDFieldName
+        delimOidFld = arcpy.AddFieldDelimiters(points, oidFldName)
+        randOids = random.sample(oids, count)
+        oidsStr = ", ".join(map(str, randOids))
+        sql = "{0} IN ({1})".format(delimOidFld, oidsStr)
+
+        arcpy.MakeFeatureLayer_management(fc, "selection_lyr")
+        arcpy.SelectLayerByAttribute_management("selection_lyr", "NEW_SELECTION", sql)
+        arcpy.CopyFeatures_management("selection_lyr", selected_points)
+        if non_selected_points is not None:
+            arcpy.SelectLayerByAttribute_management("selection_lyr", "SWITCH_SELECTION", )
+            arcpy.CopyFeatures_management("selection_lyr", non_selected_points)
+
+        return
