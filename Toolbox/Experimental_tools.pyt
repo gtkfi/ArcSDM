@@ -3,7 +3,7 @@ import arcpy
 
 import arcsdm.somtool
 import arcsdm.rescale_raster
-import arcsdm.SelectRandomPoints
+import arcsdm.CreateRandomPoints
 import arcsdm.EnrichPoints
 import arcsdm.AdaboostBestParameters
 import arcsdm.ModelValidation
@@ -28,7 +28,7 @@ class Toolbox(object):
         self.alias = "experimentaltools" 
 
         # List of tool classes associated with this toolbox
-        self.tools = [rastersom, rescaleraster, SelectRandomPoints, EnrichPoints, AdaboostBestParameters, AdaboostTrain,
+        self.tools = [rastersom, rescaleraster, CreateRandomPoints, EnrichPoints, AdaboostBestParameters, AdaboostTrain,
                       ModelValidation, MulticlassSplit, ApplyModel, ApplyFilter, LogisticRegressionTrain, SVMTrain,
                       BrownBoostTrain, RFTrain]
 
@@ -236,11 +236,11 @@ class rastersom(object):
         return        
 
 
-class SelectRandomPoints(object):
+class CreateRandomPoints(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
-        self.label = "Select Random Points"
-        self.description = "Selects random points far from selected points inside areas with points"
+        self.label = "Create Random Points"
+        self.description = "Creates random points far from selected points inside areas with information"
         self.canRunInBackground = False
         self.category = "Utilities"
 
@@ -336,7 +336,7 @@ class SelectRandomPoints(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        return general.execute_tool(arcsdm.SelectRandomPoints.execute, self, parameters, messages)
+        return general.execute_tool(arcsdm.CreateRandomPoints.execute, self, parameters, messages)
 
 
 class EnrichPoints(object):
