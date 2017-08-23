@@ -36,6 +36,7 @@ def execute(self, parameters, messages):
     class_field = parameter_dic["class_field"].valueAsText
     output_prefix = parameter_dic["output_prefix"].valueAsText
     transformation = parameter_dic["transformation"].valueAsText
+    max_distance = parameter_dic["max_distance"].value
 
     scratch_files = []
 
@@ -79,6 +80,9 @@ def execute(self, parameters, messages):
                 arcpy.SelectLayerByAttribute_management(layer_scratch, "NEW_SELECTION",
                                                         expression_base.format(class_field, orig_val))
             raster = arcpy.sa.EucDistance(layer_scratch)
+            if max_distance is not None:
+                raster = ( raster + max_distance - arcpy.sa.Abs(raster - max_distance)) / 2
+
             if transformation == "Inverse Linear Distance":
                 max_val = float(arcpy.GetRasterProperties_management(raster,"MAXIMUM").getOutput(0))
                 raster = 1 - (raster * 1.0) / max_val
@@ -86,6 +90,8 @@ def execute(self, parameters, messages):
                 raster = 1 / (raster + 1.0)
             elif transformation == "Binary":
                 raster = raster == 0
+            elif transformation == "Logarithmic":
+                raster = arcpy.sa.Ln(raster +1 )
 
             raster.save(fullname)
             _verbose_print("Output file created: {}".format(fullname))

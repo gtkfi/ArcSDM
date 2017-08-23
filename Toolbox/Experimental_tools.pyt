@@ -870,9 +870,16 @@ class MulticlassSplit(object):
             parameterType="Required",
             direction="Input")
         transformation.value = "Distance"
-        transformation.filter.list = ["Distance", "Inverse Distance", "Inverse Linear Distance", "Binary"]
+        transformation.filter.list = ["Distance", "Inverse Distance", "Inverse Linear Distance", "Binary", "Logarithmic"]
 
-        params = [input_feature, class_field, output_prefix, transformation]
+        max_distance = arcpy.Parameter(
+            displayName="Maximum distance",
+            name="max_distance",
+            datatype="GPDouble",
+            parameterType="Optional",
+            direction="Input")
+
+        params = [input_feature, class_field, output_prefix, transformation, max_distance]
         return params
 
     def isLicensed(self):
