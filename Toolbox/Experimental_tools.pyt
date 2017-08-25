@@ -273,10 +273,10 @@ class CreateRandomPoints(object):
         constraining_rasters = arcpy.Parameter(
             displayName="Constraining Rasters",
             name="constraining_rasters",
-            datatype="GPFeatureLayer",
+            datatype="GPRasterLayer",
             parameterType="Optional",
             direction="Input")
-        constraining_rasters.columns = [['GPRasterLayer', 'Information Rasters']]
+
 
         buffer_points = arcpy.Parameter(
             displayName="Buffer Points",
@@ -369,10 +369,9 @@ class EnrichPoints(object):
         information_rasters = arcpy.Parameter(
             displayName="Information Rasters",
             name="info_rasters",
-            datatype="GPValueTable",
+            datatype="GPRasterLayer",
             parameterType="Optional",
             direction="Input")
-        information_rasters.columns = [['GPRasterLayer', 'Information Rasters']]
 
         missing_mask = arcpy.Parameter(
             displayName="Missing Value",
@@ -802,8 +801,7 @@ class ApplyModel(object):
             name="info_rasters",
             datatype="GPRasterLayer",
             parameterType="Required",
-            direction="Input",
-            multiValue=True)
+            direction="Input")
 
         params = [input_model, information_rasters, output_map]
         return params

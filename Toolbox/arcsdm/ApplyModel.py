@@ -24,8 +24,16 @@ def print_parameters(parameters):
 def _input_validation(parameters):
     parameter_dic = {par.name: par for par in parameters}
     input_model = parameter_dic["input_model"].valueAsText
-    test_regressors_name = [x.strip("'") for x in parameter_dic["info_rasters"].valueAsText.split(";")]
+    rasters = parameter_dic["info_rasters"].valueAsText
     global MESSAGES
+
+    oldws = arcpy.env.workspace  # Save previous workspace
+    # Get raster objects from band names
+    raster_path = arcpy.Describe(rasters.strip("'")).catalogPath
+    arcpy.env.workspace = raster_path
+    rasters_list = arcpy.ListRasters()
+    arcpy.env.workspace = oldws  # Restore previous workspace
+
 
     input_text = input_model.replace(".pkl", ".txt")
     model_regressors = []
@@ -34,14 +42,14 @@ def _input_validation(parameters):
             if line.startswith("Regressor:"):
                 model_regressors.append(line.split("'")[1])
 
-    if len(model_regressors) != len(test_regressors_name):
+    if len(model_regressors) != len(rasters_list):
         raise ValueError("The amount of {} does not coincide with the model ({} vs {})".format(
-            parameter_dic["info_rasters"].displayName, len(test_regressors_name), len(model_regressors)))
+            parameter_dic["info_rasters"].displayName, len(rasters_list), len(model_regressors)))
 
     row_format = "{:^16}" * 2
     MESSAGES.AddMessage("Parameters association")
     MESSAGES.AddMessage(row_format.format("Model", "Rasters"))
-    for m_r, t_r in zip(model_regressors, test_regressors_name):
+    for m_r, t_r in zip(model_regressors, rasters_list):
         MESSAGES.AddMessage(row_format.format(m_r, t_r))
 
     return
@@ -76,36 +84,21 @@ def _resample_rasters(rasters):
 
 
 def create_response_raster(classifier, rasters, output, scale):
-    scratch_files = []
 
+    spatial_reference = arcpy.Describe(rasters).spatialReference
+
+    raster = arcpy.Raster(rasters)
+
+    lower_left_corner = arcpy.Point(raster.extent.XMin, raster.extent.YMin)
+    x_cell_size = raster.meanCellWidth
+    y_cell_size = raster.meanCellHeight
     try:
-        # rasters_resampled = _resample_rasters(rasters)
-        # scratch_files.extend(rasters_resampled.split(";"))
-        rasters_resampled = rasters
-        _verbose_print("Rasters: {}".format(rasters_resampled))
-        scratch_multi_rasters = arcpy.CreateScratchName("temp", workspace=arcpy.env.scratchWorkspace)
-        arcpy.CompositeBands_management(rasters_resampled, scratch_multi_rasters)
-        _verbose_print("Scratch file created (CompositeBands) {}".format(scratch_multi_rasters))
-        scratch_files.append(scratch_multi_rasters)
-        spatial_reference = arcpy.Describe(scratch_multi_rasters).spatialReference
+        raster_array = arcpy.RasterToNumPyArray(rasters, nodata_to_value=np.NaN)
+    except ValueError:
+        _verbose_print("Integer type raster, changed to float")
+        raster_array = 1.0 * arcpy.RasterToNumPyArray(rasters, nodata_to_value=sys.maxint)
+        raster_array[raster_array == sys.maxint] = np.NaN
 
-        raster = arcpy.Raster(scratch_multi_rasters)
-
-        lower_left_corner = arcpy.Point(raster.extent.XMin, raster.extent.YMin)
-        x_cell_size = raster.meanCellWidth
-        y_cell_size = raster.meanCellHeight
-        try:
-            raster_array = arcpy.RasterToNumPyArray(scratch_multi_rasters, nodata_to_value=np.NaN)
-        except ValueError:
-            _verbose_print("Integer type raster, changed to float")
-            raster_array = 1.0 * arcpy.RasterToNumPyArray(scratch_multi_rasters, nodata_to_value=sys.maxint)
-            raster_array[raster_array == sys.maxint] = np.NaN
-    except:
-        raise
-    finally:
-        for s_f in scratch_files:
-            arcpy.Delete_management(s_f)
-            _verbose_print("Scratch file deleted {}".format(s_f))
     MESSAGES.AddMessage("Creating response raster...")
 
     n_regr = raster_array.shape[0]

@@ -63,7 +63,14 @@ def _constrain_from_raster(constrain_area, rasters):
     _verbose_print("rasters: {}".format(rasters))
 
     scratch_files = []
-    rasters = [x.strip("'") for x in rasters.split(";")]
+
+    oldws = arcpy.env.workspace  # Save previous workspace
+    # Get raster objects from band names
+    raster_path = arcpy.Describe(rasters.strip("'")).catalogPath
+    arcpy.env.workspace = raster_path
+    rasters = [os.path.join(raster_path, b) for b in arcpy.ListRasters()]
+    arcpy.env.workspace = oldws     # Restore previous workspace
+    _verbose_print("Rasters list: {}".format(str(rasters)))
 
     arcpy.SetProgressor("step", "Restricting area from missings", min_range=0, max_range=len(rasters),
                         step_value=1)
@@ -90,7 +97,6 @@ def _constrain_from_raster(constrain_area, rasters):
         _verbose_print("Scratch file created (intersect): {}".format(domain_scratch))
 
     except:
-        _verbose_print("Error constraining from rasters")
         raise
 
     finally:
