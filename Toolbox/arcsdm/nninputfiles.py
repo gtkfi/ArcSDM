@@ -23,17 +23,29 @@ def rowgen( rows ):
 
 def getSelectedRows( sites, extr_sites ):
     """ extr_sites created by ExtractValuesToPoints tool in ArcGIS 9.3 are ALL selected """
-    if gp.GetCount_management(sites) < gp.GetCount_management(extr_sites):
+    if arcpy.GetCount_management(sites) < arcpy.GetCount_management(extr_sites):
         #This can happen in ArcGIS 9.3 and ScriptVersion 9.2 
-        sitesrows = rowgen(gp.searchcursor(sites))
-        fids = '"FID" IN ('
+        sitesrows = rowgen(arcpy.SearchCursor(sites))
+        field_names = [f.name for f in arcpy.ListFields(sites)]
+        geodb = False;
+        if ('OBJECTID' in field_names):    
+            arcpy.AddMessage("Object contains OBJECTID and is geodatabase feature");
+            geodb = True;
+            fids = '"OBJECTID" IN ('        
+        else:
+            arcpy.AddMessage("Object contains FID and is of type shape");
+            fids = '"FID" IN ('
+                   
         fidlist = []
         for siterow in sitesrows:
-            fidlist.append(siterow.fid)
+            if (geodb):
+                fidlist.append(siterow.objectid)                
+            else:
+                fidlist.append(siterow.fid)
         fids += ",".join(map(str,fidlist)) + ")"
         #print len(fidlist), fids
-        return rowgen(gp.searchcursor(extr_sites, fids))
-    return rowgen(gp.searchcursor(extr_sites))
+        return rowgen(arcpy.SearchCursor(extr_sites, fids))
+    return rowgen(arcpy.SearchCursor(extr_sites))
 
 def MaxFZMforUC( TPs, TP_RasVals, RasValFld, FZMbrFld, TPFID ):
     ''' Get maximum fuzzy membership from among given UC/RASTERVALU in TP_RasVals
@@ -47,7 +59,7 @@ def MaxFZMforUC( TPs, TP_RasVals, RasValFld, FZMbrFld, TPFID ):
         TPFID_Dict = {}
         TPFZM_Dict = {}
         for sel_row in getSelectedRows(TPs, TP_RasVals):
-            rasval = sel_row.GetValue(RasValFld)
+            rasval = sel_row.getValue(RasValFld)
             if rasval in TP_Dict:        
                 TP_Dict[rasval] += 1
                 if FZMbrFld:
@@ -74,11 +86,11 @@ def MaxFZMforUC( TPs, TP_RasVals, RasValFld, FZMbrFld, TPFID ):
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
             str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
         # generate a message string for any geoprocessing tool errors
-        msgs = "gp ERRORS:\n" + gp.GetMessages(2) + "\n"
-        gp.AddError(msgs)
+        msgs = "gp ERRORS:\n" + arcpy.GetMessages(2) + "\n"
+        arcpy.AddError(msgs)
 
         # return gp messages for use with a script tool
-        gp.AddError(pymsg)
+        arcpy.AddError(pymsg)
 
         # print messages for use in Python/PythonWin
         print pymsg
@@ -89,7 +101,7 @@ def getMinMaxValues( uc, evidence_names ):
     minmaxdict = {}
     for evidence_name in evidence_names:
         minmaxdict[evidence_name] = {'minval':sys.maxint, 'maxval':-sys.maxint-1}
-    for ucrow in rowgen(gp.searchcursor(uc)):
+    for ucrow in rowgen(arcpy.SearchCursor(uc)):
         for evidence_name in evidence_names:
             evidence_value = ucrow.getValue(evidence_name)
             if evidence_value < minmaxdict[evidence_name]['minval']:
@@ -125,7 +137,7 @@ def getBandStatsFileMinMax( Output_statistics_file, evidence_names ):
         for evidence_name in evidence_names:
             minmaxdict[evidence_name] = {'minval':sys.maxint, 'maxval':-sys.maxint-1}
         iter_ev_names = iter(evidence_names)
-        arcpy.AddMessage("Debug: " + str(evidence_names));
+        #arcpy.AddMessage("Debug: " + str(evidence_names));
         fd = open(BandFileName,"r")
         for i in range(6): fd.next()# Blow off header
         for fileline in fd:
@@ -176,8 +188,15 @@ def composeDTAline( lineno, TPFid, unique_condition, value_list, fuzzy_mbrshp):
     
 def execute(self, parameters, messages):
     try:       
+        arcpy.AddMessage("\n"+"="*21+" Starting Neural network inputfiles "+"="*21)
         gp = arcgisscripting.create()
-
+        import arcsdm.workarounds_93;
+        try:
+            importlib.reload (arcsdm.sdmvalues)
+            importlib.reload (arcsdm.workarounds_93);
+        except :
+            reload(arcsdm.sdmvalues);
+            reload(arcsdm.workarounds_93);        
         #Arguments from tool dialog
         ucs = parameters[0].valueAsText #Unique Conditions raster
         #ucs_path = 'ucs_path'
@@ -188,9 +207,11 @@ def execute(self, parameters, messages):
         NDTPs = parameters[3].valueAsText#Nondeposit training sites
         NDFZMbrFld = parameters[4].valueAsText #Fuzzy membership field
         #Make Train file path
-        traindta_filename = parameters[5].valueAsText #Make train file or not
+        #Todo: PArameter 5 is missing!
+        #Todo: Parameter 6 is missing! 
+        traindta_filename = parameters[7].valueAsText #Make train file or not
         traintable = True
-        classtable = parameters[6].value #gp.getparameter(6) # Make class file or not
+        classtable = parameters[6].valueAsText #gp.getparameter(6) # Make class file or not
         classdta_filename = None
         #Make Train file path
         if not traindta_filename:
@@ -210,11 +231,13 @@ def execute(self, parameters, messages):
         traindta_filename = UCName + "_train"
         OutWrkSpc = gp.Workspace
         traindta_filename = gp.createuniquename(traindta_filename + ".dta", OutWrkSpc)
+        arcpy.AddMessage("%-20s %s " % ("Traindata filename",  traindta_filename))
+        
         if classtable:
             classdta_filename = traindta_filename.replace('_train', '_class')
         #Make Class file path
         if classtable and not classdta_filename:        
-            classdta_filename = gp.createuniquename(UCName + "_class" + ".dta", gp.workspace)
+            classdta_filename = gp.createuniquename(UCName + "_class" + ".dta", OutWrkSpc)
         #Get min/max values of evidence fields in unique conditions raster
         BandStatsFile = parameters[7].valueAsText #gp.getparameterastext(7) #Prepared band statistics file or not
         evidence_names = [row.name for row in rowgen(gp.listfields(ucs))][3:]
@@ -232,8 +255,8 @@ def execute(self, parameters, messages):
         #Derive other values
         RasValFld = NDRasValFld = 'RASTERVALU'
         #Feature classes to be gotten with Extract tool
-        TP_RasVals = WorkArounds_93.ExtractValuesToPoints(gp, ucs, TPs, 'TPFID')
-        NDTP_RasVals = WorkArounds_93.ExtractValuesToPoints(gp, ucs, NDTPs, 'NDTPFID')    
+        TP_RasVals = workarounds_93.ExtractValuesToPoints(gp, ucs, TPs, 'TPFID')
+        NDTP_RasVals = workarounds_93.ExtractValuesToPoints(gp, ucs, NDTPs, 'NDTPFID')    
         TP_Dict, TPFID_Dict, TPFZM_Dict = MaxFZMforUC( TPs, TP_RasVals, RasValFld, FZMbrFld, 'TPFID' )
         NDTP_Dict, NDTPFID_Dict, NDTPFZM_Dict = MaxFZMforUC( NDTPs, NDTP_RasVals, NDRasValFld, NDFZMbrFld, 'NDTPFID' )
         CellSize = float(gp.cellsize)

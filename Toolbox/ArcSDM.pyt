@@ -24,8 +24,7 @@ from imp import reload;
 
 class Toolbox(object):
     def __init__(self):
-        """Define the toolbox (the name of the toolbox is the name of the
-        .pyt file)."""
+        """Define the toolbox (the name of the toolbox is the name of the .pyt file)."""
         
         self.label = "ArcSDM Tools"
         self.alias = "ArcSDM" 
@@ -300,10 +299,10 @@ class NeuralNetworkInputFiles(object):
 
         
         paramFZMField = arcpy.Parameter(
-        displayName="TP FZM Field",
+        displayName="TP Fuzzy membership field",
         name="fzmfield",
         datatype="Field",
-        parameterType="Required",
+        parameterType="Optional",
         direction="Input")               
         paramFZMField.parameterDependencies = [paramTrainingSites.name]                
         
@@ -315,10 +314,10 @@ class NeuralNetworkInputFiles(object):
         direction="Input")
 
         paramNDFZMField = arcpy.Parameter(
-        displayName="ND TP FZM Field",
+        displayName="ND TP Fuzzy membership field",
         name="ndfzmfield",
         datatype="Field",
-        parameterType="Required",
+        parameterType="Optional",
         direction="Input")               
         paramNDFZMField.parameterDependencies = [paramNDTrainingSites.name]                
         
@@ -340,7 +339,7 @@ class NeuralNetworkInputFiles(object):
         displayName="Band statistics file",
         name="bandstatisticsfile",
         datatype="File",
-        parameterType="Required",
+        parameterType="Optional",
         direction="Input")     
         
         paramTrainFileOutput = arcpy.Parameter(

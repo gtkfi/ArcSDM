@@ -4,4 +4,5 @@ xcopy /e .\data\* work
 move .\work\arcsdm_orig.aprx .\work\ArcSDM_Work.aprx
 move .\work\ArcSDM_Desktop_orig.mxd .\work\ArcSDM_Desktop_work.mxd
 move .\work\ArcGisPro2_orig.aprx .\work\ArcGisPro2_work.aprx 
- 
+move .\work\MPM_DemoData.mxd .\work\MPM_DemoData_work.mxd 
+  
