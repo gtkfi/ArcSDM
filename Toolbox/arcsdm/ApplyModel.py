@@ -120,7 +120,12 @@ def create_response_raster(classifier, rasters, output, scale):
     else:
         finite_array = scale.transform(raster_array2[finite_mask])
         MESSAGES.AddMessage("Data normalized")
-    responses = classifier.predict_proba(finite_array)[:, classifier.classes_ == 1]
+    if getattr(classifier, "decision_function", None) is None:
+        _verbose_print("Decision function not available, probabilities used instead")
+        responses = classifier.predict_proba(finite_array)[:, classifier.classes_ == 1]
+    else:
+        _verbose_print("Decision function used")
+        responses = classifier.decision_function(finite_array)
 
     response_vector = np.empty(n_rows * n_cols)
     response_vector[finite_mask] = responses
