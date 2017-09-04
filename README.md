@@ -18,7 +18,7 @@ alt="How to download and extract the toolbox" width="240" height="180" border="1
 
 
 ### Demodata <br>
-Download the demodata as a zip package from here: https://www.dropbox.com/s/gy3328ty9c4455o/ArcSdm_DemoData.zip?dl=0  <br>
+Download the demodata as a zip package from here: https://www.dropbox.com/s/aq1ltwj2xldwkgs/ArcSDM%20Demodata.zip?dl=0  <br>
 Open and save the zip optionally to your ArcSDM toolbox installation folder as "Data" folder. Then click "initworkdir.bat" to create (or overwrite older) working copy. <br>
 
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=4rU1oDqEUrQ
@@ -34,6 +34,7 @@ Status of the toolbox should be updated to wiki https://github.com/gtkfi/ArcSDM/
 The demodata and the toolbox will be separated from eachother to make downloading easier.<br>
 
 ##History:
+4.9.2017 5.00.22 Updates, fixes and new demodata<br>
 17.5.2017 5.00.15 Updates and fixes <br>
 5.5.2017 5.00.14 Calculate weights error with nodata fixed <br>
 4.5.2017 5.00.13 Multiple fixes for minor UI errors <br>
