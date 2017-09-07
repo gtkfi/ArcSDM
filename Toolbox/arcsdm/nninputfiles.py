@@ -11,7 +11,7 @@
 import sys, os, traceback
 import arcpy
 import arcgisscripting
-import workarounds_93
+import arcsdm.workarounds_93
 
 def rowgen( rows ):
     rows.reset()
@@ -77,7 +77,7 @@ def MaxFZMforUC( TPs, TP_RasVals, RasValFld, FZMbrFld, TPFID ):
         ##                                     TPFZM_Dict[key]))
         return TP_Dict, TPFID_Dict, TPFZM_Dict
 
-    except Exception, Msg:
+    except:
         # get the traceback object
         tb = sys.exc_info()[2]
         # tbinfo contains the line number that the code failed on and the code from that line
@@ -93,8 +93,8 @@ def MaxFZMforUC( TPs, TP_RasVals, RasValFld, FZMbrFld, TPFID ):
         arcpy.AddError(pymsg)
 
         # print messages for use in Python/PythonWin
-        print pymsg
-        print msgs
+        print (pymsg)
+        print (msgs)
         raise
 
 def getMinMaxValues( uc, evidence_names ):
@@ -150,7 +150,7 @@ def getBandStatsFileMinMax( Output_statistics_file, evidence_names ):
         fd.close()
         return minmaxdict
     
-    except Exception, Msg:
+    except:
         arcpy.AddError("Exception occurred in GetBandStatsFileMinMax.\n" + arcpy.GetMessages())
         # get the traceback object
         tb = sys.exc_info()[2]
@@ -167,8 +167,8 @@ def getBandStatsFileMinMax( Output_statistics_file, evidence_names ):
         arcpy.AddError(pymsg)
 
         # print messages for use in Python/PythonWin
-        print pymsg
-        print msgs
+        print (pymsg)
+        print (msgs)
         raise
 
 def getValuesList( evidence_values, minmaxValues ):

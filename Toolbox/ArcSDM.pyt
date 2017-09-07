@@ -14,6 +14,7 @@ import arcsdm.roctool
 import arcsdm.acterbergchengci
 import arcsdm.rescale_raster;
 from arcsdm.areafrequency import Execute
+import arcsdm.nninputfiles
 
 from arcsdm.common import execute_tool
 
