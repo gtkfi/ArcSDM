@@ -255,8 +255,8 @@ def execute(self, parameters, messages):
         #Derive other values
         RasValFld = NDRasValFld = 'RASTERVALU'
         #Feature classes to be gotten with Extract tool
-        TP_RasVals = workarounds_93.ExtractValuesToPoints(gp, ucs, TPs, 'TPFID')
-        NDTP_RasVals = workarounds_93.ExtractValuesToPoints(gp, ucs, NDTPs, 'NDTPFID')    
+        TP_RasVals = arcsdm.workarounds_93.ExtractValuesToPoints(gp, ucs, TPs, 'TPFID')
+        NDTP_RasVals = arcsdm.workarounds_93.ExtractValuesToPoints(gp, ucs, NDTPs, 'NDTPFID')    
         TP_Dict, TPFID_Dict, TPFZM_Dict = MaxFZMforUC( TPs, TP_RasVals, RasValFld, FZMbrFld, 'TPFID' )
         NDTP_Dict, NDTPFID_Dict, NDTPFZM_Dict = MaxFZMforUC( NDTPs, NDTP_RasVals, NDRasValFld, NDFZMbrFld, 'NDTPFID' )
         CellSize = float(gp.cellsize)
