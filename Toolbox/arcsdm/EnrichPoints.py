@@ -26,7 +26,7 @@ def _add_calculate_field(base, field_name, copy_data, value):
 
     if not copy_data:
         drop_field = [f.name for f in arcpy.ListFields(scratch) if not f.required]
-        _verbose_print("Files to delete: " + str(drop_field))
+        _verbose_print("Fields to delete: " + str(drop_field))
         arcpy.DeleteField_management (scratch, drop_field)
 
     arcpy.AddField_management(scratch, field_name, "LONG", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
@@ -67,7 +67,6 @@ def _merge_fields(deposits_name, non_deposits_name, field_name, copy_data):
             arcpy.Merge_management([deposit_scratch, non_deposit_scratch], merged_name)
             _verbose_print("Scratch file created (merge): {}".format(merged_name))
             _verbose_print("Total Number of points {}".format(arcpy.GetCount_management(merged_name).getOutput(0)))
-            return merged_name
     except:
         raise
     finally:
@@ -83,40 +82,13 @@ def _extract_fields(base, rasters):
     _verbose_print("Base: {}".format(base))
     _verbose_print("Rasters: {}".format(rasters))
 
-    rasters = [x.strip("'") for x in rasters.split(";")]
-    scratch_files = []
+    old_fields = arcpy.ListFields(base)
 
-    try:
-        regressor_names = []
-        arcpy.SetProgressor("step", "Adding raster values to the points", min_range=0, max_range=len(rasters),
-                            step_value=1)
-        _verbose_print("Adding raster values to the points")
-        for raster in rasters:
-            try:
-                _verbose_print("Adding information of {}".format(raster))
-                extracted_name = arcpy.CreateScratchName("temp", data_type="FeatureClass",
-                                                         workspace=arcpy.env.scratchWorkspace)
-                arcpy.gp.ExtractValuesToPoints(base, raster, extracted_name, "INTERPOLATE",
-                                               "VALUE_ONLY")
-                _verbose_print("Scratch file created (merge): {}".format(extracted_name))
-                scratch_files.append(extracted_name)
-                arcpy.AlterField_management(extracted_name, "RASTERVALU", arcpy.Describe(raster).baseName)
-                regressor_names.append(arcpy.Describe(raster).baseName)
-                base = extracted_name
-                arcpy.SetProgressorPosition()
-            except:
-                MESSAGES.addErrorMessage("Problem with raster {}".format(raster))
-                raise
-        scratch_files.remove(extracted_name)
-        arcpy.SetProgressorLabel("Executing Enrich Points")
-        arcpy.ResetProgressor()
-    except:
-        raise
-    finally:
-        for s_file in scratch_files:
-            arcpy.Delete_management(s_file)
-            _verbose_print("Scratch file deleted: {}".format(s_file))
-    return extracted_name, regressor_names
+    arcpy.sa.ExtractMultiValuesToPoints (base, rasters)
+
+    regressor_names = [n.name for n in arcpy.ListFields(base) if n not in old_fields]
+
+    return base, regressor_names
 
 
 def _clean_data(base, regressor_names, missing_value):
@@ -182,7 +154,7 @@ def execute(self, parameters, messages):
             extracted_name = merged_name
         else:
             extracted_name, regressors = _extract_fields(merged_name, rasters_name)
-            scratch_files.append(extracted_name)
+            # scratch_files.append(extracted_name)
             _clean_data(extracted_name, regressors, missing_value)
 
         arcpy.CopyFeatures_management(extracted_name, output)
