@@ -52,16 +52,21 @@ def _samme_proba(estimator, n_classes, X):
                               * log_proba.sum(axis=1)[:, np.newaxis])
 
 
-def solve_de(r, hypothesis, response, s, c, v=0.01):
+def solve_de(r, hypothesis, response, s, c, v=0.001):
     hy = np.multiply(hypothesis, response)
     def dif_eq_const(a, t):
         return diff_eq(a,t, hy, r, s, c)
-    h = 0.01
+    h = s
     a = t = 0
     for i in xrange(1000):
-        val_a, val_t, gamma = rk4_step(dif_eq_const,a,t,h)
+        val_t, val_t2 = rk4_step(dif_eq_const,a,t,h)
+        if abs(val_t - val_t2) > v:
+            h /= 2
+            continue
+        val_a = a + h
+        gamma = dif_eq_const(val_a,val_t)
         if val_t >= s:
-            return a + h*(val_t-s)/(val_t-t), s
+            return a + h*(s-t)/(val_t-t), s
         if gamma < v:
             if gamma < 0:
                 h /= 2
@@ -77,9 +82,9 @@ def rk4_step(f, x, y, h):
     k2 = h * f(x + 0.5 * h, y + 0.5 * k1)
     k3 = h * f(x + 0.5 * h, y + 0.5 * k2)
     k4 = h * f(x + h, y + k3)
-    vx = x + h
-    vy = y + (k1 + k2 + k2 + k3 + k3 + k4) / 6
-    return vx, vy, f(vx,vy)
+    vy = y + 1. * (k1 + k2 + k2 + k3 + k3 + k4) / 6
+    vy2 = y + 1. * k1
+    return  vy, vy2
 
 def diff_eq(a, t, hy, r, s, c):
     exponential = np.exp(-((r + a * hy + s - t) ** 2) / c)
@@ -150,7 +155,7 @@ class BrownBoostClassifier(BaseWeightBoosting, ClassifierMixin):
                  n_estimators=50,
                  learning_rate=1.,
                  algorithm='SAMME.R',
-                 countdown=10,
+                 countdown=10.,
                  random_state=None
                  ):
 
@@ -160,7 +165,7 @@ class BrownBoostClassifier(BaseWeightBoosting, ClassifierMixin):
             learning_rate=learning_rate,
             random_state=random_state)
 
-        self.countdown = countdown
+        self.countdown = 1. * countdown
         self.algorithm = algorithm
 
     def fit(self, X, y, sample_weight=None):
@@ -385,7 +390,7 @@ class BrownBoostClassifier(BaseWeightBoosting, ClassifierMixin):
         if estimator_error >= 1. - (1. / n_classes):
             self.estimators_.pop(-1)
             if len(self.estimators_) == 0:
-                raise ValueError('BaseClassifier in AdaBoostClassifier '
+                raise ValueError('BaseClassifier in BrownBoostClassifier '
                                  'ensemble is worse than random, ensemble '
                                  'can not be fit.')
             return None, None, None
