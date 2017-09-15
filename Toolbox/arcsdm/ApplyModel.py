@@ -101,9 +101,13 @@ def create_response_raster(classifier, rasters, output, scale):
 
     MESSAGES.AddMessage("Creating response raster...")
 
+    if raster_array.ndim == 2:
+        raster_array = np.reshape(raster_array,[1]+ list(raster_array.shape))
+
     n_regr = raster_array.shape[0]
     n_rows = raster_array.shape[1]
     n_cols = raster_array.shape[2]
+    _verbose_print("{} regressors of shape {} x {}".format(n_regr,n_rows,n_cols))
 
     raster_array2 = np.empty([n_rows, n_cols, n_regr])
     for raster_index in xrange(n_regr):
@@ -135,6 +139,7 @@ def create_response_raster(classifier, rasters, output, scale):
     response_raster = arcpy.NumPyArrayToRaster(response_array, lower_left_corner=lower_left_corner,
                                                x_cell_size=x_cell_size, y_cell_size=y_cell_size, value_to_nodata=-9)
     response_raster.save(output)
+    # Known bug: if the output name is too long (the name not the path) then arcpy shows "unexpected error"
     MESSAGES.AddMessage("Raster file created in " + output)
     arcpy.DefineProjection_management(output, spatial_reference)
 
