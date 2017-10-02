@@ -7,6 +7,7 @@ Spatial Data Modeler 5 for ArcGis pro<Br>
 
 If you want to work against your own data, you can download just the toolbox. If you want to try, evaluate and experiment with ArcSdm you can download our demodata separately from the main package. <br>
 
+ArcSDM wiki contains upto date howtopage: https://github.com/gtkfi/ArcSDM/wiki/Howto-start
 
 
 ### Toolbox <br>
