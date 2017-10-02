@@ -31,10 +31,11 @@ alt="How to download and extract the toolbox" width="240" height="180" border="1
 <br>
 Status of the toolbox should be updated to wiki https://github.com/gtkfi/ArcSDM/wiki/Toolbox-details <bR>
 
-##News: 
+## News: 
 The demodata and the toolbox will be separated from eachother to make downloading easier.<br>
 
-##History:
+## History:
+2.10.2017 Updating wiki and this page, cleaning up. <br>
 4.9.2017 5.00.22 Updates, fixes and new demodata<br>
 17.5.2017 5.00.15 Updates and fixes <br>
 5.5.2017 5.00.14 Calculate weights error with nodata fixed <br>
