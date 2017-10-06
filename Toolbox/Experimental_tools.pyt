@@ -28,7 +28,7 @@ class Toolbox(object):
         self.alias = "experimentaltools" 
 
         # List of tool classes associated with this toolbox
-        self.tools = [rastersom, rescaleraster, CreateRandomPoints, EnrichPoints, AdaboostBestParameters, AdaboostTrain,
+        self.tools = [rastersom, rescaleraster, CreateRandomPoints, EnrichPoints, AdaboostTrain,
                       ModelValidation, MulticlassSplit, ApplyModel, ApplyFilter, LogisticRegressionTrain, SVMTrain,
                       BrownBoostTrain, RFTrain, SelectRandomPoints]
 
@@ -237,6 +237,24 @@ class rastersom(object):
 
 
 class CreateRandomPoints(object):
+    """ 
+    Create Random Points tool
+        Creates a set of random points in a given area. The area is calculated restricting to zones with full 
+            information and inside/outside buffer areas 
+        
+        Parameters:
+            output_points:(Point) Name of the output file with the created points
+            number_points:(Long) Number of random points to be created
+            constraining_area:(Polygon) Mayor constraining area 
+            constraining_rasters:(Multiband Raster) Information rasters, the selection area will be constrained to 
+                zones with finite values. Empty for no restriction.
+            buffer_points:(Point) The selection of points will maintain a minimum/maximum distance to these points.
+                Empty for no restriction.
+            buffer_distance:(Linear Unit) Size of the buffer area around buffer points. Empty for no restriction.
+            select_inside:(Boolean) Choose If the created points will be inside (TRUE) or outside (False) the buffer 
+                area. Ignored if no points are given.
+            minimum_distance:(Linear Unit) Minimum distance between points. Distance of 0 if empty
+    """
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Create Random Points"
@@ -253,7 +271,6 @@ class CreateRandomPoints(object):
             parameterType="Required",
             direction="Output")
         output_points.filter.list = ["Point", "Multipoint"]
-        #output_point.parameterDependencies = [output_workspace.name]
 
         number_points = arcpy.Parameter(
             displayName="Number of Random Points",
@@ -323,7 +340,7 @@ class CreateRandomPoints(object):
         validation is performed.  This method is called whenever a parameter
         has been changed."""
         parameter_dic = {par.name: par for par in parameters}
-
+        # Activate buffer_distance and select_inside just if buffer_points has value
         parameter_dic["buffer_distance"].enabled = (parameter_dic["buffer_points"].value is not None)
         parameter_dic["select_inside"].enabled = (parameter_dic["buffer_points"].value is not None)
 
@@ -340,6 +357,21 @@ class CreateRandomPoints(object):
 
 
 class EnrichPoints(object):
+    """ 
+        Enrich Points Points tool
+            Labels two sets of points with values 1, -1, merges them in a single feature, assigns them the value of 
+                the given rasters and delete/impute missing data
+            Parameters:
+                class1_points: (Points) Points of labeled class 1 (Usually deposits) (Empty for no points of this class)
+                class2_points: (Points) Points of labeled class -1 (Usually non-deposits) (Empty for no points of this 
+                    class)
+                field_name: (String) Name of the class field to be assigned 
+                copy_data: (Boolean) Select if the previously existent information of the points is kept (True) or 
+                    omitted (False) 
+                information_rasters: (Multiband Raster) Raster with information to be assing to the points
+                missing_mask: Number to be imputed to missing values (Empty to delete missing values) 
+                output: (Points) Name of the output file 
+        """
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Enrich Points"
@@ -427,6 +459,25 @@ class EnrichPoints(object):
 
 
 class AdaboostBestParameters(object):
+    """     WARNING: Not maintained tool, unexpected errors are likely  :WARNING
+        Adaboost Best Parameters tool
+            Makes a grid search with the best parameters for the Adaboost model, outputs a table with the accuracy 
+                scores for each test and the respective plot
+                 
+            Parameters:
+                train_points: (Points) Points to be used as training points 
+                train_regressors: (Field) Fields with the names of fields to be used as regressors 
+                train_response: (Field) Field with the name of the response or class  
+                num_estimators_min: (Integer) Minimum number of estimators 
+                num_estimators_max: (Integer) Maximum number of estimators  
+                num_estimators_increment: (Integer) Step-size of the number of estimators 
+                learning_rate_min: (Float) Minimum learning rate 
+                learning_rate_max: (Float) Maximum learning rate 
+                learning_rate_increment: (Float) increment  
+                output_table: Name of the table to be output  
+                plot_file: Name of the file with the plots
+      
+    """
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Adaboost Best Parameters"
@@ -545,6 +596,7 @@ class AdaboostBestParameters(object):
         """Modify the values and properties of parameters before internal
         validation is performed.  This method is called whenever a parameter
         has been changed."""
+        # Force the output files to the adequate extension
         if parameters[10].altered and not parameters[10].valueAsText.endswith(".png"):
             parameters[10].value = parameters[10].valueAsText + ".png"
         if parameters[9].altered and not parameters[9].valueAsText.endswith(".dbf"):
@@ -582,6 +634,22 @@ class AdaboostBestParameters(object):
 
 
 class AdaboostTrain(object):
+    """
+        Adaboost Train Tool
+            Creates and trains a model using adaboost
+            Parameters:
+                train_points: (Points) Points that will be used for the training 
+                train_regressors: (Field) Name of the regressors fields that will be used for the training 
+                train_response: (Field) Name of the response/class field that will be used for the training 
+                num_estimators: (Integer) Number of estimators to be used 
+                learning_rate: (Float) Learning rate of the model 
+                output_model: (File path) Name of the file where the model will be stored
+                leave_one_out: (Boolean) Choose between test with leave-one-out (true) or 3-fold cross-validation (false)  
+                classifier_name: (String) Adaptor parameter for further calculations, value always has to be "Adaboost"
+                          
+        For more information about the model visit 
+        http://scikit-learn.org/stable/modules/generated/sklearn.ensemble.AdaBoostClassifier.html
+    """
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Adaboost Train"
@@ -591,6 +659,8 @@ class AdaboostTrain(object):
 
     def getParameterInfo(self):
 
+        # TODO: Move repeated parameters to an general function (train_points, train_regressors, train_response,
+        #       output_model, leave_one_out, classifier_name)
         train_points = arcpy.Parameter(
             displayName="Train Points",
             name="train_points",
@@ -673,6 +743,8 @@ class AdaboostTrain(object):
         validation is performed.  This method is called whenever a parameter
         has been changed."""
 
+        # TODO: Move all this to a general function
+        # Enforce file extension
         output_model = parameters[5]
         if output_model.altered:
             if not output_model.valueAsText.endswith(".pkl"):
@@ -683,6 +755,8 @@ class AdaboostTrain(object):
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
         parameter.  This method is called after internal validation."""
+        # Check if the response field is not include in the regressors
+        # TODO: Move all this to a general function
         train_regressors = parameters[1]
         train_response = parameters[2]
         if (train_response.altered or train_regressors.altered) and train_regressors.valueAsText is not None:
@@ -700,6 +774,17 @@ class AdaboostTrain(object):
 
 
 class ModelValidation(object):
+    """
+        Model validation Tool
+            Performs evaluation test of the response map and outputs the results
+            Parameters:
+                classification_model: (Raster) Respnse function made by a model 
+                test_points: (Points) Points to be ued for the evaluation 
+                test_response: (Field) Name of the field that contains real classification 
+                threshold: Threshold point to differentiate prospective from non-prospective. Under this amount is 
+                    considered non-prospective and over this is considered prospective 
+                plot_file: (Path) Name of the file where the plots will be created. (Empty for no output) 
+    """
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Model Validation"
@@ -773,6 +858,15 @@ class ModelValidation(object):
 
 
 class ApplyModel(object):
+    """
+        Apply Model tool
+            Generates the response map from a previously trained model
+            Parameters:
+                input_model:(.pkl file) Pickled file created by on of the train tools 
+                information_rasters: (Multiband rasters) Rasters  to be used to generate the response, they must be the 
+                    same as the the ones for the training 
+                output_map: (Raster) Name of the output response raster 
+    """
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Apply model"
@@ -829,6 +923,19 @@ class ApplyModel(object):
 
 
 class MulticlassSplit(object):
+    """
+        Multi Class Split tool
+            Generate distance maps with the distance to each seat of polygons grouped by a certain field. Additionally 
+            apply transformations to the values
+            Parameters: 
+                input_feature: (Polygon) Feature class with the polygons to be considered 
+                class_field: (Field) Field that classifies the polygons into groups, the minimum distance to the 
+                    polygon of that class will be calculated 
+                output_prefix: (path) Prefix to be given to each of the output rasters, the postfix will be given by 
+                    the value in the class_field
+                transformation: (string) Transformation to be applied to the resultant distance.
+                max_distance: (Float) All the values greater the max_distance will be assigned to max_distance
+    """
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Multiclass to Binary"
@@ -902,6 +1009,15 @@ class MulticlassSplit(object):
 
 
 class ApplyFilter(object):
+    """ Warning: Tool not maintained
+        Apply filter tool
+            Applies a filter to any raster
+            Parameters:
+                input_raster: (Raster) Raster to be filtered 
+                output_raster: (Raster) Name of the filter to be output after filtering 
+                filter_type: (String) Type of filter to be applied 
+                filter_size: (Integer) Number of cells for the kernel of the filter
+    """
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Apply Filter"
@@ -968,6 +1084,24 @@ class ApplyFilter(object):
 
 
 class LogisticRegressionTrain(object):
+    """
+        Logistic Regression Train Tool
+            Creates and trains a model using Logistic regression
+            Parameters:
+                train_points: (Points) Points that will be used for the training 
+                train_regressors: (Field) Name of the regressors fields that will be used for the training 
+                train_response: (Field) Name of the response/class field that will be used for the training 
+                output_model: (File path) Name of the file where the model will be stored
+                leave_one_out: (Boolean) Choose between test with leave-one-out (true) or 3-fold cross-validation (false)  
+                classifier_name: (String) Adaptor parameter for further calculations, value always has to be 
+                    "Logistic Regression"
+                deposit_weight: (Integer) weight to be given to the deposits to deal with unbalanced data 
+                penalty: (string) type of norm for the penalty 
+                random_state: (Integer) seed for random generator, useful to obtain reproducible results 
+                
+        For more information about the model visit 
+        http://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html
+    """
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Logistic Regression Train"
@@ -976,6 +1110,8 @@ class LogisticRegressionTrain(object):
 
     def getParameterInfo(self):
 
+        # TODO: Move repeated parameters to an general function (train_points, train_regressors, train_response,
+        #       output_model, leave_one_out, classifier_name)
         train_points = arcpy.Parameter(
             displayName="Train Points",
             name="train_points",
@@ -1062,9 +1198,11 @@ class LogisticRegressionTrain(object):
         """Modify the values and properties of parameters before internal
         validation is performed.  This method is called whenever a parameter
         has been changed."""
+        # TODO: Move all this to a general function
         parameter_dic = {par.name: par for par in parameters}
         output_model = parameter_dic["output_model"]
 
+        # Enforce file extension
         if output_model.altered:
             if not output_model.valueAsText.endswith(".pkl"):
                 output_model.value = output_model.valueAsText + ".pkl"
@@ -1078,6 +1216,7 @@ class LogisticRegressionTrain(object):
         train_regressors = parameter_dic["train_regressors"]
         train_response = parameter_dic["train_response"]
 
+        # Check if the response field is not include in the regressors
         if (train_response.altered or train_regressors.altered) and train_regressors.valueAsText is not None:
             for field in train_regressors.valueAsText.split(";"):
                 if field == train_response.valueAsText:
@@ -1092,6 +1231,19 @@ class LogisticRegressionTrain(object):
 
 
 class BrownBoostTrain(object):
+    """
+         BrownBoost Train Tool
+            Creates and trains a model using BrownBoost
+            Parameters:
+                train_points: (Points) Points that will be used for the training 
+                train_regressors: (Field) Name of the regressors fields that will be used for the training 
+                train_response: (Field) Name of the response/class field that will be used for the training 
+                output_model: (File path) Name of the file where the model will be stored
+                leave_one_out: (Boolean) Choose between test with leave-one-out (true) or 3-fold cross-validation (false)  
+                classifier_name: (String) Adaptor parameter for further calculations, value always has to be "Brownboost"
+                
+                countdown: (Float) Initial value of the countdown timer
+    """
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "BrownBoost Train"
@@ -1101,6 +1253,8 @@ class BrownBoostTrain(object):
 
     def getParameterInfo(self):
 
+        # TODO: Move repeated parameters to an general function (train_points, train_regressors, train_response,
+        #       output_model, leave_one_out, classifier_name)
         train_points = arcpy.Parameter(
             displayName="Train Points",
             name="train_points",
@@ -1172,6 +1326,7 @@ class BrownBoostTrain(object):
         """Modify the values and properties of parameters before internal
         validation is performed.  This method is called whenever a parameter
         has been changed."""
+        # TODO: Move all this to a general function
         parameter_dic = {par.name: par for par in parameters}
         output_model = parameter_dic["output_model"]
 
@@ -1184,10 +1339,12 @@ class BrownBoostTrain(object):
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
         parameter.  This method is called after internal validation."""
+        # TODO: Move all this to a general function
         parameter_dic = {par.name: par for par in parameters}
         train_regressors = parameter_dic["train_regressors"]
         train_response = parameter_dic["train_response"]
 
+        # Check if the response field is not include in the regressors
         if (train_response.altered or train_regressors.altered) and train_regressors.valueAsText is not None:
             for field in train_regressors.valueAsText.split(";"):
                 if field == train_response.valueAsText:
@@ -1200,6 +1357,27 @@ class BrownBoostTrain(object):
 
 
 class SVMTrain(object):
+    """
+        Support Vector Machine Train Tool
+            Creates and trains a model using Support Vector Machine
+            Parameters:
+                train_points: (Points) Points that will be used for the training 
+                train_regressors: (Field) Name of the regressors fields that will be used for the training 
+                train_response: (Field) Name of the response/class field that will be used for the training 
+                output_model: (File path) Name of the file where the model will be stored
+                leave_one_out: (Boolean) Choose between test with leave-one-out (true) or 3-fold cross-validation (false)  
+                classifier_name: (String) Adaptor parameter for further calculations, value always has to be "SVM"
+                
+                kernel: (String) Kernel to be used  
+                deposit_weight: (Integer) weight to be given to the deposits to deal with unbalanced data 
+                penalty: (string) type of norm for the penalty 
+                random_state:(Integer) seed for random generator, useful to obtain reproducible results 
+                normalize: (Boolean) Indicates if the data needs to be normalized (True) or not (False). Notice that 
+                    SVM is sensitive linear transformations  
+                    
+        For more information about the model visit 
+        http://scikit-learn.org/stable/modules/generated/sklearn.svm.SVC.html
+    """
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Support Vector Machine Train"
@@ -1208,6 +1386,8 @@ class SVMTrain(object):
 
     def getParameterInfo(self):
 
+        # TODO: Move repeated parameters to an general function (train_points, train_regressors, train_response,
+        #       output_model, leave_one_out, classifier_name)
         train_points = arcpy.Parameter(
             displayName="Train Points",
             name="train_points",
@@ -1310,9 +1490,11 @@ class SVMTrain(object):
         """Modify the values and properties of parameters before internal
         validation is performed.  This method is called whenever a parameter
         has been changed."""
+        # TODO: Move all this to a general function
         parameter_dic = {par.name: par for par in parameters}
         output_model = parameter_dic["output_model"]
 
+        # Enforce file extension
         if output_model.altered:
             if not output_model.valueAsText.endswith(".pkl"):
                 output_model.value = output_model.valueAsText + ".pkl"
@@ -1322,10 +1504,12 @@ class SVMTrain(object):
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
         parameter.  This method is called after internal validation."""
+        # TODO: Move all this to a general function
         parameter_dic = {par.name: par for par in parameters}
         train_regressors = parameter_dic["train_regressors"]
         train_response = parameter_dic["train_response"]
 
+        # Check if the response field is not include in the regressors
         if (train_response.altered or train_regressors.altered) and train_regressors.valueAsText is not None:
             for field in train_regressors.valueAsText.split(";"):
                 if field == train_response.valueAsText:
@@ -1341,6 +1525,26 @@ class SVMTrain(object):
 
 
 class RFTrain(object):
+    """
+        Random Forest Train Tool
+            Creates and trains a model using Random Forest
+            Parameters:
+                train_points: (Points) Points that will be used for the training 
+                train_regressors: (Field) Name of the regressors fields that will be used for the training 
+                train_response: (Field) Name of the response/class field that will be used for the training 
+                output_model: (File path) Name of the file where the model will be stored
+                leave_one_out: (Boolean) Choose between test with leave-one-out (true) or 3-fold cross-validation (false)  
+                classifier_name: (String) Adaptor parameter for further calculations, value always has to be 
+                    "Random Forest"
+                
+                num_estimators: (Integer) Number of trees to be trained 
+                max_depth: (Integer) max depth of the trained trees 
+                deposit_weight: (Integer) weight to be given to the deposits to deal with unbalanced data 
+                random_state:(Integer) seed for random generator, useful to obtain reproducible results 
+                
+        For more information about the model visit 
+        http://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html
+    """
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Random Forest Train"
@@ -1349,6 +1553,8 @@ class RFTrain(object):
 
     def getParameterInfo(self):
 
+        # TODO: Move repeated parameters to an general function (train_points, train_regressors, train_response,
+        #       output_model, leave_one_out, classifier_name)
         train_points = arcpy.Parameter(
             displayName="Train Points",
             name="train_points",
@@ -1443,9 +1649,11 @@ class RFTrain(object):
         """Modify the values and properties of parameters before internal
         validation is performed.  This method is called whenever a parameter
         has been changed."""
+        # TODO: Move all this to a general function
         parameter_dic = {par.name: par for par in parameters}
         output_model = parameter_dic["output_model"]
 
+        # Enforce file extension
         if output_model.altered:
             if not output_model.valueAsText.endswith(".pkl"):
                 output_model.value = output_model.valueAsText + ".pkl"
@@ -1455,10 +1663,12 @@ class RFTrain(object):
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
         parameter.  This method is called after internal validation."""
+        # TODO: Move all this to a general function
         parameter_dic = {par.name: par for par in parameters}
         train_regressors = parameter_dic["train_regressors"]
         train_response = parameter_dic["train_response"]
 
+        # Check if the response field is not include in the regressors
         if (train_response.altered or train_regressors.altered) and train_regressors.valueAsText is not None:
             for field in train_regressors.valueAsText.split(";"):
                 if field == train_response.valueAsText:
@@ -1473,6 +1683,17 @@ class RFTrain(object):
         return general.execute_tool(arcsdm.ModelTrain.execute, self, parameters, messages)
 
 class SelectRandomPoints(object):
+    """
+         Select Random Points tool
+            Makes a aleatory selection of points from a feature and saves them, as well the non-selected points can be 
+                saved
+            Parameters: 
+                points: Set of points to make the selection
+                selection_percentage: percentage of points to be in the selection,
+                selected_points: (path) Name of the feature that will contain the selected points
+                non_selected_points: (path) Name of the feature that will contain the non-selected points. Empty for 
+                    not output
+    """
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Select Random Points"
@@ -1531,6 +1752,7 @@ class SelectRandomPoints(object):
         selected_points = parameter_dic["selected_points"]
         non_selected_points = parameter_dic["non_selected_points"]
 
+        # Avoid Both outputs with the same name
         if selected_points is not  None and non_selected_points is not None and selected_points==non_selected_points:
             selected_points.setErrorMessage("Both outputs have the same name")
         return
