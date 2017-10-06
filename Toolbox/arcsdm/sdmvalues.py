@@ -127,6 +127,10 @@ def appendSDMValues(gp, unitCell, TrainPts):
         arcpy.AddMessage("%-20s %s" % ("", data[0]) ); 
         if not gp.workspace:
             gp.adderror('Workspace not set')
+            raise arcpy.ExecuteError("Workspace not set!");
+        if not (arcpy.Exists(gp.workspace)):
+            gp.adderror('Workspace %s not found'%(gp.workspace))
+            raise arcpy.ExecuteError('Workspace %s not found'%(gp.workspace));
         desc = arcpy.Describe(gp.workspace)
         gp.addmessage("%-20s %s (%s)" % ("Workspace: ", gp.workspace, desc.workspaceType));
         

@@ -222,6 +222,7 @@ def Calculate(self, parameters, messages):
     # Process: Summarize Frequency and manage fields
     
         #Statistics = gp.createuniquename("WtsStatistics.dbf")
+        
         Statistics = gp.createuniquename("WtsStatistics")
         if gp.exists(Statistics): gp.Delete_management(Statistics)
         gp.Statistics_analysis(tempTrainingPoints, Statistics, "rastervalu sum" ,"rastervalu")
@@ -581,12 +582,13 @@ def Calculate(self, parameters, messages):
                 WgtsTblRow = WgtsTblRows.Next()
         del WgtsTblRow, WgtsTblRows
         gp.AddMessage("Done creating table.")
-        #gp.AddWarning("Success: %s"%Success)
+        gp.AddWarning("Success: %s"%Success)
      #Delete extraneous fields
         gp.DeleteField_management(wtstable, "area;areaunits;count;rastervalu;frequency;sum_raster")
      #Set Output Parameter
         gp.SetParameterAsText(4, gp.Describe(wtstable).CatalogPath)
-        #gp.SetParameter(8, Success)
+        arcpy.AddMessage("Setting success parameter..")
+        arcpy.SetParameterAsText(8, Success)
         
     except ErrorExit:
         Success = 0  # Invalid Table: Error

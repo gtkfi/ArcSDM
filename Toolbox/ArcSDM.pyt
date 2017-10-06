@@ -15,6 +15,7 @@ import arcsdm.acterbergchengci
 import arcsdm.rescale_raster;
 from arcsdm.areafrequency import Execute
 import arcsdm.nninputfiles
+import arcsdm.grand_wofe_lr
 
 from arcsdm.common import execute_tool
 
@@ -34,7 +35,121 @@ class Toolbox(object):
         self.tools = [PartitionNNInputFiles, CombineNNOutputFiles, NeuralNetworkOutputFiles, NeuralNetworkInputFiles, 
         CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,
         CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool, Symbolize, 
-        ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues]
+        ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues, GrandWofe]
+
+
+class GrandWofe(object):
+    
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Grand WOFE"
+        self.description = "From list of Evidence layers generate weights tables and output rasters from Calculate Respons and Logistic Regression."
+        self.canRunInBackground = False
+        self.category = "Weights of Evidence"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        
+        param1 = arcpy.Parameter(
+        displayName="Grand WOFE name",
+        name="wofename",
+        #datatype="DEFeatureClass",
+        datatype="String",
+        parameterType="Required",
+        direction="Input")
+        
+        param2 = arcpy.Parameter(
+        displayName="Input raster names",
+        name="rasternames",
+        #datatype="DEFeatureClass",
+        datatype="GPRasterLayer",
+        multiValue=1,        
+        parameterType="Required",
+        direction="Input")
+        
+        param3 = arcpy.Parameter(
+        displayName="Input raster types",
+        name="rastertypes",
+        #datatype="DEFeatureClass",
+        datatype="String",
+        #multiValue=1,        
+        parameterType="Required",
+        direction="Input")
+        
+        paramTrainingPoints = arcpy.Parameter(
+        displayName="Training points",
+        name="Training_points",
+        datatype="GPFeatureLayer",
+        parameterType="Required",
+        direction="Input")
+        
+        paramIgnoreMissing = arcpy.Parameter(
+        displayName="Ignore missing data",
+        name="Ignore missing data",
+        datatype="Boolean",
+        parameterType="Optional",
+        direction="Output")
+        #paramIgnoreMissing.value= false;
+        
+        paramContrast = arcpy.Parameter(
+        displayName="Contrast Confidence Level",
+        name="contrast",
+        datatype="GPDouble",
+        parameterType="Required",
+        direction="Input")
+        paramContrast.value = "2"
+        
+        paramUnitArea = arcpy.Parameter(
+        displayName="Unit area (km2)",
+        name="Unit_Area__sq_km_",
+        datatype="GPDouble",
+        parameterType="Required",
+        direction="Input")
+        paramUnitArea.value = "1"
+        
+        
+        
+        params = [param1, param2, param3, paramTrainingPoints, paramIgnoreMissing, paramContrast, paramUnitArea ]
+        return params
+
+    def isLicensed(self):    
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+     
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        #3.4
+        try:
+            importlib.reload (arcsdm.grand_wofe_lr)
+        except :
+            reload(arcsdm.grand_wofe_lr);
+        # To list what functions does module contain
+        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
+        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
+        #messages.AddMessage("Waiting for debugger")
+        #wait_for_debugger(15);
+        #No do yet
+        arcsdm.grand_wofe_lr.execute(self, parameters, messages)
+        return
+                
+        
         
 
 class PartitionNNInputFiles(object):
@@ -583,12 +698,6 @@ class AreaFrequencyTable(object):
             importlib.reload (arcsdm.areafrequency)
         except :
             reload(arcsdm.areafrequency);
-        # To list what functions does module contain
-        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
-        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
-        #messages.AddMessage("Waiting for debugger")
-        #wait_for_debugger(15);
-        #No do yet
         arcsdm.areafrequency.Execute(self, parameters, messages)
         return
         
@@ -771,7 +880,7 @@ class CalculateResponse(object):
         name="Ignore missing data",
         datatype="Boolean",
         parameterType="Optional",
-        direction="Output")
+        direction="Input")
         #paramIgnoreMissing.value= false;
         
         param3 = arcpy.Parameter(
@@ -780,7 +889,7 @@ class CalculateResponse(object):
         datatype="GPLong",
         
         #parameterType="Required",
-        direction="Output")
+        direction="Input")
         param3.value= -99;
 
         param4 = arcpy.Parameter(
@@ -899,7 +1008,7 @@ class CalculateWeightsTool(object):
         direction="Input")
         param2.filter.type = "ValueList";
         param2.filter.list = ["Descending", "Ascending", "Categorical", "Unique"];
-        param2.value = "Descending";
+        param2.value = "";
         
         param3 = arcpy.Parameter(
         displayName="Output weights table",
@@ -931,8 +1040,18 @@ class CalculateWeightsTool(object):
         parameterType="Required",
         direction="Input")
         param6.value = "-99";
-                                  
-        params = [param0, param1, paramTrainingPoints, param2, param3, param4, param5, param6]
+                          
+
+        paramSuccess = arcpy.Parameter(
+        displayName="Success",
+        name="success",
+        datatype="Boolean",
+        parameterType="Optional",
+        direction="Output")
+
+
+                          
+        params = [param0, param1, paramTrainingPoints, param2, param3, param4, param5, param6, paramSuccess]
         return params
 
     def isLicensed(self):
@@ -1390,7 +1509,7 @@ class LogisticRegressionTool(object):
         name="Missing_Data_Value",
         datatype="GPLong",
         parameterType="Required",
-        direction="Output")
+        direction="Input")
         param3.value= -99;
 
         param4 = arcpy.Parameter(
