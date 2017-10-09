@@ -25,6 +25,7 @@ if PY34:
     def _reload_module(name):
         importlib.reload(name)
 
+# TODO: This is repeated in all tools, better link them to this function
 # Verbose prints to give more information about the execution *In development*
 if cfg.VERBOSE:
     def verbose_print(text, messages):
