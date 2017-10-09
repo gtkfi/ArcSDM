@@ -29,7 +29,7 @@ class Toolbox(object):
 
         # List of tool classes associated with this toolbox
         self.tools = [rastersom, rescaleraster, CreateRandomPoints, EnrichPoints, AdaboostTrain,
-                      ModelValidation, MulticlassSplit, ApplyModel, ApplyFilter, LogisticRegressionTrain, SVMTrain,
+                      ModelValidation, MulticlassSplit, ApplyModel, LogisticRegressionTrain, SVMTrain,
                       BrownBoostTrain, RFTrain, SelectRandomPoints]
 
 class rescaleraster(object):
@@ -260,7 +260,7 @@ class CreateRandomPoints(object):
         self.label = "Create Random Points"
         self.description = "Creates random points far from selected points inside areas with information"
         self.canRunInBackground = False
-        self.category = "Utilities"
+        self.category = "Preprocessing"
 
     def getParameterInfo(self):
 
@@ -378,7 +378,7 @@ class EnrichPoints(object):
         self.description = 'Adds data to the attribute table of the underlying rasters as well as mark them as ' \
                            'Prospective or not and replaces/deletes missing data'
         self.canRunInBackground = False
-        self.category = "Utilities"
+        self.category = "Preprocessing"
 
     def getParameterInfo(self):
 
@@ -655,7 +655,7 @@ class AdaboostTrain(object):
         self.label = "Adaboost Train"
         self.description = 'Trains a classificator using Adaboost'
         self.canRunInBackground = False
-        self.category = "Adaboost"
+        self.category = "Modelling"
 
     def getParameterInfo(self):
 
@@ -872,6 +872,7 @@ class ApplyModel(object):
         self.label = "Apply model"
         self.description = 'Applies a model to a series of data rasters obtain a response raster'
         self.canRunInBackground = False
+        self.category = "Modelling"
 
     def getParameterInfo(self):
 
@@ -941,7 +942,7 @@ class MulticlassSplit(object):
         self.label = "Multiclass to Binary"
         self.description = 'Form a multi-class polygon creates one raster per class'
         self.canRunInBackground = False
-        self.category = "Utilities"
+        self.category = "Preprocessing"
 
     def getParameterInfo(self):
 
@@ -1107,6 +1108,7 @@ class LogisticRegressionTrain(object):
         self.label = "Logistic Regression Train"
         self.description = 'Trains a classificator using Logistic regression'
         self.canRunInBackground = False
+        self.category = "Modelling"
 
     def getParameterInfo(self):
 
@@ -1249,7 +1251,7 @@ class BrownBoostTrain(object):
         self.label = "BrownBoost Train"
         self.description = 'Trains a classificator using BrownBoost'
         self.canRunInBackground = False
-        self.category = "Adaboost"
+        self.category = "Modelling"
 
     def getParameterInfo(self):
 
@@ -1383,6 +1385,7 @@ class SVMTrain(object):
         self.label = "Support Vector Machine Train"
         self.description = 'Trains a classificator using SVM'
         self.canRunInBackground = False
+        self.category = "Modelling"
 
     def getParameterInfo(self):
 
@@ -1550,6 +1553,7 @@ class RFTrain(object):
         self.label = "Random Forest Train"
         self.description = 'Trains a classificator using Random Forest'
         self.canRunInBackground = False
+        self.category = "Modelling"
 
     def getParameterInfo(self):
 
@@ -1699,6 +1703,7 @@ class SelectRandomPoints(object):
         self.label = "Select Random Points"
         self.description = "Selects given proportion of points of a given data layer"
         self.canRunInBackground = False
+        self.category = "Preprocessing"
 
     def getParameterInfo(self):
         """Define parameter definitions"""

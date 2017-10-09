@@ -196,7 +196,7 @@ def execute(self, parameters, messages):
 
     scratch_files = []
     try:
-        # Compy constrain area to avoid modificatiotions to the original
+        # constrain area to avoid modifications to the original
         constrain_scratch = arcpy.CreateScratchName("temp", workspace=arcpy.env.scratchWorkspace)
         arcpy.CopyFeatures_management(arcpy.Describe(constrain_area).catalogPath, constrain_scratch)
         scratch_files.append(constrain_scratch)
@@ -215,7 +215,7 @@ def execute(self, parameters, messages):
         else:
             rasters_scratch = _constrain_from_raster(points_scratch, rasters)
             scratch_files.append(rasters_scratch)
-        # Disolve the polygon into a single object to make the selection
+        # Dissolve the polygon into a single object to make the selection
         dissolve_scratch = arcpy.CreateScratchName("temp", workspace=arcpy.env.scratchWorkspace)
         arcpy.Dissolve_management(in_features=rasters_scratch, out_feature_class=dissolve_scratch,
                                   multi_part="MULTI_PART")
