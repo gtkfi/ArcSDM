@@ -197,8 +197,8 @@ def execute(self, parameters, messages):
             Takes a set of deposits and non-deposits, labels them and adds the information of the rasters in a 
                 single feature 
         :param parameters: parameters object with all the parameters from the python-tool. It contains:
-            class1_points: Name of the feature labeled as 1
-            class2_points: Name of the feature labeled as 1
+            class1_points: Name of the feature labelled as 1
+            class2_points: Name of the feature labelled as 1
             rasters_name: Multiband raster with the information to be included in the points  
             missing_value: Imputed value for missings. If none then the point gets deleted 
             output: Name of the unique feature with the data 

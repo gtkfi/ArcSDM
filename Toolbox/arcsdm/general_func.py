@@ -48,7 +48,7 @@ def print_parameters(parameters, messages):
 def _reload_modules(messages, modules):
     """
         _reload_modules
-            Reloads the necesary modules for the execution of the tool 
+            Reloads the necessary modules for the execution of the tool 
             
     :param messages: messages object to print in the console, must implement AddMessage 
     :param modules: list with modules to be updated 

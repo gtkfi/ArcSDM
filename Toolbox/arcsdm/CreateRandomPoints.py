@@ -76,7 +76,7 @@ def _constrain_from_points(constrain_area, excluding_points, excluding_distance,
         _verbose_print("Error constraining from points")
         raise
     finally:
-        # This process creates files that will not bee needed and are erased at the end of the execution or when  an error is found
+        # This process creates files that will not be needed and are erased at the end of the execution or when  an error is found
         for s_file in scratch_files:
             _verbose_print("Scratch file deleted: {}".format(s_file))
             arcpy.Delete_management(s_file)
@@ -164,12 +164,12 @@ def execute(self, parameters, messages):
         :param parameters: parameters object with all the parameters from the python-tool. It contains:
             output: Name of the file where the points will be stored 
             n_points: number of random points to be created 
-            constrain_area: Original constraining area used as baseline for further constrains
+            constrain_area: Original constraining area used as baseline for further constraints
             rasters: Information rasters that will be used to restrict to areas with full information 
             buffer_points: The random points will maintain a minimal/maximal distance to these points
             buffer_distance: Distance away buffer points
             min_distance: Minimal distance along created points 
-            select_inside: Boolean to  create the points inside the area (True) or out side the area (False) 
+            select_inside: Boolean to  create the points inside the area (True) or outside the area (False) 
         :param messages: messages object to print in the console, must implement AddMessage
          
         :return: None

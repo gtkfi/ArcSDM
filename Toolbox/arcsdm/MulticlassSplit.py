@@ -55,7 +55,7 @@ def execute(self, parameters, messages):
             It creates as many rasters as unique values in the given field 
         :param parameters: parameters object with all the parameters from the python-tool. It contains:
             input_feature = Feature class to be split 
-            class_field = Name of the fiel that will group the geometries
+            class_field = Name of the field that will group the geometries
             output_prefix = Prefix of the maps to be output, the final name will be [prefix][field value]
             transformation = Transformation to be made to the distance measure 
             max_distance = Threshold value, values greater than this wil be cut down to this 

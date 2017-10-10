@@ -87,9 +87,9 @@ def create_response_raster(classifier, rasters, output, scale):
             Uses a classifier in a multiband raster to obtain the response raster
             
         :param classifier: Classifier object previously trained
-        :param rasters: Multiband raster with the information to be put in the classifer 
+        :param rasters: Multiband raster with the information to be put in the classifier 
         :param output: Name of the file for the response raster
-        :param scale: Objec with the transformation to be done to normalize the data. If None, then no transformation 
+        :param scale: Object with the transformation to be done to normalize the data. If None, then no transformation 
             is made
         :return: None 
     """
@@ -101,7 +101,7 @@ def create_response_raster(classifier, rasters, output, scale):
     lower_left_corner = arcpy.Point(raster.extent.XMin, raster.extent.YMin)
     x_cell_size = raster.meanCellWidth
     y_cell_size = raster.meanCellHeight
-    # Import the multiband raster to numpy array if the raster is of type integer it will trow an error because of the
+    # Import the multiband raster to numpy array if the raster is of type integer it will throw an error because of the
     # NaN values, then is imported wit NaNs as maximum integers, casted to float and then the NaNs applied
     try:
         raster_array = arcpy.RasterToNumPyArray(rasters, nodata_to_value=np.NaN)
@@ -112,7 +112,7 @@ def create_response_raster(classifier, rasters, output, scale):
 
     MESSAGES.AddMessage("Creating response raster...")
 
-    # If it is a single band then the raster must be reshaped as a tri-dimensional numpy array
+    # If it is a single band, then the raster must be reshaped as a tri-dimensional numpy array
     if raster_array.ndim == 2:
         raster_array = np.reshape(raster_array,[1]+ list(raster_array.shape))
 
@@ -129,7 +129,7 @@ def create_response_raster(classifier, rasters, output, scale):
     # The matrix is reshaped from 3D to 2D
     raster_array2 = np.reshape(raster_array2, [n_rows * n_cols, n_regr])
 
-    # Create a mask where the values of all regressors are finite, the calculations will be made just there
+    # Create a mask where the values of all regressors are finite. The calculations will be made just there
     finite_mask = np.all(np.isfinite(raster_array2), axis=1)
     nan_mask = np.logical_not(finite_mask)
     _verbose_print("{} elements will be calculated and {} let as NaN".format(sum(finite_mask), sum(nan_mask)))
@@ -187,7 +187,7 @@ def _get_fields(feature_layer, fields_name):
     # Cast to floating point numbers
     field = np.array([[elem * 1.0 for elem in row] for row in fi])
 
-    # If only one field is given the matrix needs to be flatten to a vector
+    # If only one field is given the matrix needs to be flattened  to a vector
     if not isinstance(fields_name, list):
         field = field.flatten()
     # Assign NAN to the numbers with maximum integer value

@@ -73,7 +73,7 @@ def _get_fields(feature_layer, fields_name):
     # Cast to floating point numbers
     field = np.array([[elem * 1.0 for elem in row] for row in fi])
 
-    # If only one field is given the matrix needs to be flatten to a vector
+    # If only one field is given the matrix needs to be flattened  to a vector
     if not isinstance(fields_name, list) or len(fields_name) == 1:
         field = field.flatten()
     # Assign NAN to the numbers with maximum integer value
@@ -87,7 +87,7 @@ def _extract_fields(base, rasters):
     _extract_fields 
         Extracts the values of rasters to add the information of its value to the given points 
     :param base: Set of points to add the information
-    :param rasters: Rastes with the information 
+    :param rasters: Rasters with the information 
     :return: name of the feature with the information, name of the added fields
     """
     global MESSAGES
@@ -158,7 +158,7 @@ def _plot_results(classification_model, des_func, probabilities, response_test, 
     pre, rec, unused = sklm.precision_recall_curve(response_test, probabilities)
     # Create figure for plots
     fig, ((ax_roc, ax_prc), (ax_suc, unused)) = plt.subplots(2, 2, figsize=(12, 12))
-    # Create roc plot
+    # Create ROC plot
     ax_roc.plot(fpr, tpr, label="ROC Curve (AUC={0:.3f})".format(sklm.roc_auc_score(response_test, des_func)))
     ax_roc.plot([0, 1], [0, 1], linestyle='--')
     ax_roc.set_xlabel('False Positive Rate')
@@ -171,7 +171,7 @@ def _plot_results(classification_model, des_func, probabilities, response_test, 
     ax_prc.set_ylabel("Precision")
     ax_prc.legend(loc='lower right', prop={'size': 12})
 
-    # Import the raster for data bout the prospective areas
+    # Import the raster for data about the prospective areas
     try:
         raster_array = arcpy.RasterToNumPyArray(classification_model, nodata_to_value=np.NaN)
     except ValueError:
@@ -195,7 +195,7 @@ def _plot_results(classification_model, des_func, probabilities, response_test, 
     # Save figure
     plt.savefig(plot_file)
     _verbose_print("Figure saved {}".format(plot_file))
-    # Close figure. this is important, otherwise arcMAP sends an error when is closed
+    # Close figure. This is important, otherwise arcMAP sends an error when is closed
     plt.close(fig)
 
     return
@@ -283,13 +283,13 @@ def _print_test_results(classification_model, test_points, test_response_name, p
 def execute(self, parameters, messages):
     """
         Model Validation Tool
-            Evaulates a model in a raster format and delivers results of the tests 
+            Evaluates a model in a raster format and delivers results of the tests 
             
         :param parameters: parameters object with all the parameters from the python-tool. It contains:
             test_points: Point to be evaluated 
             classification_model: Raster with the response function of the model 
-            test_response_name: Field in the test points tha indicates the belonging class 
-            plot_file: Path of file to save the plots. Null value does no output any file 
+            test_response_name: Field in the test points that indicates the belonging class 
+            plot_file: Path of the file to save the plots. Null value does no output any file 
             threshold: Threshold value. Responses higher than this value are considered prospective and under this 
         value are non-prospective
         :param messages: messages object to print in the console, must implement AddMessage

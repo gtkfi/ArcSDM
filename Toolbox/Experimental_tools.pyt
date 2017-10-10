@@ -362,13 +362,13 @@ class EnrichPoints(object):
             Labels two sets of points with values 1, -1, merges them in a single feature, assigns them the value of 
                 the given rasters and delete/impute missing data
             Parameters:
-                class1_points: (Points) Points of labeled class 1 (Usually deposits) (Empty for no points of this class)
-                class2_points: (Points) Points of labeled class -1 (Usually non-deposits) (Empty for no points of this 
+                class1_points: (Points) Points of labelled class 1 (Usually deposits) (Empty for no points of this class)
+                class2_points: (Points) Points of labelled class -1 (Usually non-deposits) (Empty for no points of this 
                     class)
                 field_name: (String) Name of the class field to be assigned 
                 copy_data: (Boolean) Select if the previously existent information of the points is kept (True) or 
                     omitted (False) 
-                information_rasters: (Multiband Raster) Raster with information to be assing to the points
+                information_rasters: (Multiband Raster) Raster with information to be assigned to the points
                 missing_mask: Number to be imputed to missing values (Empty to delete missing values) 
                 output: (Points) Name of the output file 
         """
@@ -635,7 +635,7 @@ class AdaboostBestParameters(object):
 
 class AdaboostTrain(object):
     """
-        Adaboost Train Tool
+        AdaBoost Train Tool
             Creates and trains a model using adaboost
             Parameters:
                 train_points: (Points) Points that will be used for the training 
@@ -645,7 +645,7 @@ class AdaboostTrain(object):
                 learning_rate: (Float) Learning rate of the model 
                 output_model: (File path) Name of the file where the model will be stored
                 leave_one_out: (Boolean) Choose between test with leave-one-out (true) or 3-fold cross-validation (false)  
-                classifier_name: (String) Adaptor parameter for further calculations, value always has to be "Adaboost"
+                classifier_name: (String) Adaptor parameter for further calculations, value always has to be "AdaBoost"
                           
         For more information about the model visit 
         http://scikit-learn.org/stable/modules/generated/sklearn.ensemble.AdaBoostClassifier.html
@@ -653,7 +653,7 @@ class AdaboostTrain(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Adaboost Train"
-        self.description = 'Trains a classificator using Adaboost'
+        self.description = 'Trains a classifier using Adaboost'
         self.canRunInBackground = False
         self.category = "Modelling"
 
@@ -755,7 +755,7 @@ class AdaboostTrain(object):
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
         parameter.  This method is called after internal validation."""
-        # Check if the response field is not include in the regressors
+        # Check if the response field is not included in the regressors
         # TODO: Move all this to a general function
         train_regressors = parameters[1]
         train_response = parameters[2]
@@ -778,8 +778,8 @@ class ModelValidation(object):
         Model validation Tool
             Performs evaluation test of the response map and outputs the results
             Parameters:
-                classification_model: (Raster) Respnse function made by a model 
-                test_points: (Points) Points to be ued for the evaluation 
+                classification_model: (Raster) Response function made by a model 
+                test_points: (Points) Points to be used for the evaluation 
                 test_response: (Field) Name of the field that contains real classification 
                 threshold: Threshold point to differentiate prospective from non-prospective. Under this amount is 
                     considered non-prospective and over this is considered prospective 
@@ -862,9 +862,9 @@ class ApplyModel(object):
         Apply Model tool
             Generates the response map from a previously trained model
             Parameters:
-                input_model:(.pkl file) Pickled file created by on of the train tools 
+                input_model:(.pkl file) Pickled file created by one of the train tools 
                 information_rasters: (Multiband rasters) Rasters  to be used to generate the response, they must be the 
-                    same as the the ones for the training 
+                    same as the ones for the training 
                 output_map: (Raster) Name of the output response raster 
     """
     def __init__(self):
@@ -925,14 +925,14 @@ class ApplyModel(object):
 
 class MulticlassSplit(object):
     """
-        Multi Class Split tool
-            Generate distance maps with the distance to each seat of polygons grouped by a certain field. Additionally 
+        Multi-Class Split tool
+            Generate distance maps with the distance to each set of polygons grouped by a certain field. Additionally 
             apply transformations to the values
             Parameters: 
                 input_feature: (Polygon) Feature class with the polygons to be considered 
                 class_field: (Field) Field that classifies the polygons into groups, the minimum distance to the 
                     polygon of that class will be calculated 
-                output_prefix: (path) Prefix to be given to each of the output rasters, the postfix will be given by 
+                output_prefix: (path) Prefix to be given to each of the output rasters. The postfix will be given by 
                     the value in the class_field
                 transformation: (string) Transformation to be applied to the resultant distance.
                 max_distance: (Float) All the values greater the max_distance will be assigned to max_distance
@@ -1106,7 +1106,7 @@ class LogisticRegressionTrain(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Logistic Regression Train"
-        self.description = 'Trains a classificator using Logistic regression'
+        self.description = 'Trains a classifier using Logistic regression'
         self.canRunInBackground = False
         self.category = "Modelling"
 
@@ -1249,7 +1249,7 @@ class BrownBoostTrain(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "BrownBoost Train"
-        self.description = 'Trains a classificator using BrownBoost'
+        self.description = 'Trains a classifier using BrownBoost'
         self.canRunInBackground = False
         self.category = "Modelling"
 
@@ -1383,7 +1383,7 @@ class SVMTrain(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Support Vector Machine Train"
-        self.description = 'Trains a classificator using SVM'
+        self.description = 'Trains a classifier using SVM'
         self.canRunInBackground = False
         self.category = "Modelling"
 
@@ -1544,14 +1544,14 @@ class RFTrain(object):
                 max_depth: (Integer) max depth of the trained trees 
                 deposit_weight: (Integer) weight to be given to the deposits to deal with unbalanced data 
                 random_state:(Integer) seed for random generator, useful to obtain reproducible results 
-                
+
         For more information about the model visit 
         http://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html
     """
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Random Forest Train"
-        self.description = 'Trains a classificator using Random Forest'
+        self.description = 'Trains a classifier using Random Forest'
         self.canRunInBackground = False
         self.category = "Modelling"
 
@@ -1689,7 +1689,7 @@ class RFTrain(object):
 class SelectRandomPoints(object):
     """
          Select Random Points tool
-            Makes a aleatory selection of points from a feature and saves them, as well the non-selected points can be 
+            Makes an aleatory selection of points from a feature and saves them, as well the non-selected points can be 
                 saved
             Parameters: 
                 points: Set of points to make the selection
@@ -1768,7 +1768,18 @@ class SelectRandomPoints(object):
         return
 
     def execute(self, parameters, messages):
-        """The source code of the tool."""
+        """
+            Select random Points tool
+            Selects randomly a subset of points and saves them in a feature class, additionally,
+             it can save the non-selected points 
+            :param parameters: parameters object with all the parameters from the python-tool. It contains:
+                points: universe of points to make the selection
+                selection_percentage: Percentage of the universe to be selected 
+                selected_points: Name of the feature with the selected points
+                non_selected_points: Name of the feature with the non-selected points
+            :param messages: Messages object given by the tool 
+        :return: 
+        """
 
         parameter_dic = {par.name: par for par in parameters}
 

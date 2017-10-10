@@ -97,7 +97,7 @@ def _get_fields(feature_layer, fields_name):
 def _save_model(classifier_name, classifier, output_model, train_points, train_regressors_name):
     """
         _save_model
-            Saves the model to a file as well as some information about the model in a a text file
+            Saves the model to a file as well as some information about the model in a text file
              
         :param classifier_name: Name of the classifier method 
         :param classifier: Classifier object to be saved 
@@ -140,7 +140,7 @@ def _print_train_results(classifier_name, classifier, regressors, response, regr
         :param regressors: numpy array with the regressors used to train the model
         :param response: numpy array with the response used to train the model
         :param regressor_names: List with the name of the regressors
-        :param leave_one_out: Boolean, true to perform leave-one-out cross validation, otherwise perform default cross 
+        :param leave_one_out: Boolean, true to perform leave-one-out cross-validation, otherwise perform default cross 
             validation
         :return: None 
     """
@@ -154,7 +154,7 @@ def _print_train_results(classifier_name, classifier, regressors, response, regr
                                                                       str(classifier.get_params()).replace("'", "")))
 
     if leave_one_out:
-        # create a leave-one-out instance to execute the cross validation
+        # create a leave-one-out instance to execute the cross-validation
         loo = LeaveOneOut()
         start = timer()
         cv_score = cross_val_score(classifier, regressors, response, cv=loo.split(regressors))
@@ -189,7 +189,7 @@ def _print_train_results(classifier_name, classifier, regressors, response, regr
         des_fun = classifier.decision_function(regressors)
     MESSAGES.AddMessage("Area Under the curve (AUC): {}".format(roc_auc_score(response, des_fun)))
 
-    # Give the importance ot the features if it is supportted
+    # Give the importance of the features if it is supported
     # TODO: Generalize to anything that does have feature_importances_ "Easier to ask for forgiveness than permission"
     if classifier_name == "Adaboost":
         MESSAGES.AddMessage("Feature importances: ")
@@ -207,11 +207,11 @@ def _print_train_results(classifier_name, classifier, regressors, response, regr
 def execute(self, parameters, messages):
     """
         Model Train tool
-            Trains one of the predefined models with they respective parameters. This tool should be executed from a 
+            Trains one of the predefined models with their respective parameters. This tool should be executed from a 
                 python toolbox 
-            Currently supports for: Adaboost(SAMME), BrownBoost, logistic regression, random forest and support vector machine
+            Currently supports for Adaboost(SAMME), BrownBoost, logistic regression, random forest and support vector machine
             New models need to have implemented the methods  fit, get_params, predict and one of predict_proba or decision_function
-            Additionally it can implement feature_importances_ 
+            Additionally, it can implement feature_importances_ 
             
         :param parameters: parameters object with all the parameters from the python-tool. It necessarily contains
             train_points: (Points) Points that will be used for the training 
@@ -352,7 +352,7 @@ def execute(self, parameters, messages):
     else:
         raise NotImplementedError("Not implemented classifier: {}".format(classifier_name))
 
-    # Some classifiers ned the data be normalized before training, this is done here
+    # Some classifiers need the data be normalized before training, this is done here
     if classifier_name in ["SVM"]:
         normalize = parameter_dic["normalize"].value
         if normalize:
