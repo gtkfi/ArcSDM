@@ -4,28 +4,26 @@ This module contains weight boosting estimators for both classification and
 regression.
 The module structure is the following:
 - The ``BaseWeightBoosting`` base class implements a common ``fit`` method
-  for all the estimators in the module. Regression and classification
-  only differ from each other in the loss function that is optimized.
-- ``AdaBoostClassifier`` implements adaptive boosting (AdaBoost-SAMME) for
-  classification problems.
-- ``AdaBoostRegressor`` implements adaptive boosting (AdaBoost.R2) for
-  regression problems.
+  for all the estimators in the module. 
+
 """
 
-# Authors: Noel Dawe <noel@dawe.me>
-#          Gilles Louppe <g.louppe@gmail.com>
-#          Hamzeh Alsalhi <ha258@cornell.edu>
-#          Arnaud Joly <arnaud.v.joly@gmail.com>
-#
+
+# Authors: Irving Cabrera <irvcaza@gmail.com>
+# Based on the code from scikit-learn
+# https://github.com/scikit-learn/scikit-learn/blob/ef5cb84a/sklearn/ensemble/weight_boosting.py
 # License: BSD 3 clause
-# TODO: Redo documentation
-# TODO: Clean up object
+# Sources
+# [1] C. Z. Irving Gibran, "The Use of Boosting Methods for Mineral Prospectivity Mapping within the ArcGIS Platform"
+#       Technische Universitat Munchen, 2017.
+# [2] Y. Freund, "An adaptive version of the boost by majority algorithm" Machine learning, vol. 43, no. 3,
+#       pp. 293-318, 2001.
+
 
 import numpy as np
-from numpy.core.umath_tests import inner1d
 
 from sklearn.base import ClassifierMixin
-from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.utils.validation import has_fit_parameter, check_is_fitted
 from sklearn.ensemble.weight_boosting import BaseWeightBoosting
 
@@ -34,43 +32,52 @@ __all__ = [
 ]
 
 
-def _samme_proba(estimator, n_classes, X):
-    """Calculate algorithm 4, step 2, equation c) of Zhu et al [1].
-    References
-    ----------
-    .. [1] J. Zhu, H. Zou, S. Rosset, T. Hastie, "Multi-class AdaBoost", 2009.
-    """
-    proba = estimator.predict_proba(X)
-
-    # Displace zero probabilities so the log is defined.
-    # Also fix negative elements which may occur with
-    # negative sample weights.
-    proba[proba < np.finfo(proba.dtype).eps] = np.finfo(proba.dtype).eps
-    log_proba = np.log(proba)
-
-    return (n_classes - 1) * (log_proba - (1. / n_classes)
-                              * log_proba.sum(axis=1)[:, np.newaxis])
-
-
 def solve_de(r, hypothesis, response, s, c, v=0.001):
+    """
+        Solves the differential equation to obtain the assigned weight and the time discount for BrownBoost algorithm
+            
+    :param r: array-like of shape = [n_samples]
+        Contains the weights from previous boosting step
+    :param hypothesis: array-like of shape = [n_samples]
+        Contains the prediction done by the weak classifier
+    :param response: array-like of shape = [n_samples]
+        Contains the real classification of the samples
+    :param s: Float 
+        Remaining time of the algorithm
+    :param c: Float 
+        Initial time given to the algorithm 
+    :param v: Float
+        Small number to be used as stop criteria
+         
+    :return: 
+        a : Value of the wight to be assigned to the weak classifier
+        s : Time to be discouted 
+    """
     hy = np.multiply(hypothesis, response)
+    # Simplify the original equation fixing the constant values
     def dif_eq_const(a, t):
         return diff_eq(a,t, hy, r, s, c)
     h = s
     a = t = 0
+    # A maximum number of steps wil be performed before the differential equation is considered unsolved
     for i in xrange(1000):
+        # Perform one Runge-Kutta step
         val_t, val_t2 = rk4_step(dif_eq_const,a,t,h)
+        # If the difference between RK4 and Euler is too big, reduce the step size
         if abs(val_t - val_t2) > v:
             h /= 2
             continue
         val_a = a + h
         gamma = dif_eq_const(val_a,val_t)
+        # If the discunted time is bigger tha the available, reduce the values to maximum available
         if val_t >= s:
             return a + h*(s-t)/(val_t-t), s
+
         if gamma < v:
             if gamma < 0:
                 h /= 2
                 continue
+            # If the function is close to zero but positive, terminate
             return val_a, val_t
         a = val_a
         t = val_t
@@ -78,6 +85,16 @@ def solve_de(r, hypothesis, response, s, c, v=0.001):
     raise ArithmeticError("Solution of differential equation not found")
 
 def rk4_step(f, x, y, h):
+    """
+        Realizes a Runge-Kutta step and gives the value of the 
+    :param f: Function to be evaluated 
+    :param x: Value of the dependent variable
+    :param y: Value of the independent variable
+    :param h: Step size 
+    :return: 
+        vy: Value of the approximation to the solution by RK4
+        vy: Value of the approximation to the solution by forward euler
+    """
     k1 = h * f(x, y)
     k2 = h * f(x + 0.5 * h, y + 0.5 * k1)
     k3 = h * f(x + 0.5 * h, y + 0.5 * k2)
@@ -87,6 +104,10 @@ def rk4_step(f, x, y, h):
     return  vy, vy2
 
 def diff_eq(a, t, hy, r, s, c):
+    # Differential equation to be solved to obtain the weights and the reduction in time
+    #           dt                 SUM _(x,y in T) e ^ (-(r_i(x,y)+\alpha h_i(x) y + s_i - t)^2/c) h_i(x) y
+    #       ---------- = \gamma = --------------------------------------------------------------------------
+    #        d \alpha                  SUM _(x,y in T) e ^ (-(r_i(x,y)+\alpha h_i(x) y + s_i - t)^2/c)
     exponential = np.exp(-((r + a * hy + s - t) ** 2) / c)
     numerator = sum(np.multiply(exponential, hy))
     denominator = sum(exponential)
@@ -94,62 +115,7 @@ def diff_eq(a, t, hy, r, s, c):
 
 
 class BrownBoostClassifier(BaseWeightBoosting, ClassifierMixin):
-    """An AdaBoost classifier.
-    An AdaBoost [1] classifier is a meta-estimator that begins by fitting a
-    classifier on the original dataset and then fits additional copies of the
-    classifier on the same dataset but where the weights of incorrectly
-    classified instances are adjusted such that subsequent classifiers focus
-    more on difficult cases.
-    This class implements the algorithm known as AdaBoost-SAMME [2].
-    Read more in the :ref:`User Guide <adaboost>`.
-    Parameters
-    ----------
-    base_estimator : object, optional (default=DecisionTreeClassifier)
-        The base estimator from which the boosted ensemble is built.
-        Support for sample weighting is required, as well as proper `classes_`
-        and `n_classes_` attributes.
-    n_estimators : integer, optional (default=50)
-        The maximum number of estimators at which boosting is terminated.
-        In case of perfect fit, the learning procedure is stopped early.
-    learning_rate : float, optional (default=1.)
-        Learning rate shrinks the contribution of each classifier by
-        ``learning_rate``. There is a trade-off between ``learning_rate`` and
-        ``n_estimators``.
-    algorithm : {'SAMME', 'SAMME.R'}, optional (default='SAMME.R')
-        If 'SAMME.R' then use the SAMME.R real boosting algorithm.
-        ``base_estimator`` must support calculation of class probabilities.
-        If 'SAMME' then use the SAMME discrete boosting algorithm.
-        The SAMME.R algorithm typically converges faster than SAMME,
-        achieving a lower test error with fewer boosting iterations.
-    random_state : int, RandomState instance or None, optional (default=None)
-        If int, random_state is the seed used by the random number generator;
-        If RandomState instance, random_state is the random number generator;
-        If None, the random number generator is the RandomState instance used
-        by `np.random`.
-    Attributes
-    ----------
-    estimators_ : list of classifiers
-        The collection of fitted sub-estimators.
-    classes_ : array of shape = [n_classes]
-        The classes labels.
-    n_classes_ : int
-        The number of classes.
-    estimator_weights_ : array of floats
-        Weights for each estimator in the boosted ensemble.
-    estimator_errors_ : array of floats
-        Classification error for each estimator in the boosted
-        ensemble.
-    feature_importances_ : array of shape = [n_features]
-        The feature importances if supported by the ``base_estimator``.
-    See also
-    --------
-    AdaBoostRegressor, GradientBoostingClassifier, DecisionTreeClassifier
-    References
-    ----------
-    .. [1] Y. Freund, R. Schapire, "A Decision-Theoretic Generalization of
-           on-Line Learning and an Application to Boosting", 1995.
-    .. [2] J. Zhu, H. Zou, S. Rosset, T. Hastie, "Multi-class AdaBoost", 2009.
-    """
+
     def __init__(self,
                  base_estimator=None,
                  n_estimators=50,
@@ -186,14 +152,13 @@ class BrownBoostClassifier(BaseWeightBoosting, ClassifierMixin):
             Returns self.
         """
         # Check that algorithm is supported
-        if self.algorithm not in ('SAMME', 'SAMME.R', 'BROWNIAN'):
+        if self.algorithm not in ('BROWNIAN'):
             raise ValueError("algorithm %s is not supported" % self.algorithm)
 
-        if self.algorithm == 'BROWNIAN':
-            # The initial prediction values of all examples is zero r1(x,y)=0.
-            # Initialize remaining time s1=c.
-            self.prediction_values = np.zeros_like(y)
-            self.remaining_time = self.countdown
+        # The initial prediction values of all examples is zero r1(x,y)=0.
+        # Initialize remaining time s1=c.
+        self.prediction_values = np.zeros_like(y)
+        self.remaining_time = self.countdown
 
         # Fit
         return BaseWeightBoosting.fit(self, X, y, sample_weight)
@@ -203,23 +168,13 @@ class BrownBoostClassifier(BaseWeightBoosting, ClassifierMixin):
         BaseWeightBoosting._validate_estimator(self,
             default=DecisionTreeClassifier(max_depth=1))
 
-        #  SAMME-R requires predict_proba-enabled base estimators
-        if self.algorithm == 'SAMME.R':
-            if not hasattr(self.base_estimator_, 'predict_proba'):
-                raise TypeError(
-                    "AdaBoostClassifier with algorithm='SAMME.R' requires "
-                    "that the weak learner supports the calculation of class "
-                    "probabilities with a predict_proba method.\n"
-                    "Please change the base estimator or set "
-                    "algorithm='SAMME' instead.")
         if not has_fit_parameter(self.base_estimator_, "sample_weight"):
             raise ValueError("%s doesn't support sample_weight."
                              % self.base_estimator_.__class__.__name__)
 
     def _boost(self, iboost, X, y, sample_weight, random_state):
         """Implement a single boost.
-        Perform a single boost according to the real multi-class SAMME.R
-        algorithm or to the discrete SAMME algorithm and return the updated
+        Perform a single boost according to the BrownBoost algorithm and return the updated
         sample weights.
         Parameters
         ----------
@@ -246,122 +201,34 @@ class BrownBoostClassifier(BaseWeightBoosting, ClassifierMixin):
             The classification error for the current boost.
             If None then boosting has terminated early.
         """
-        if self.algorithm == 'SAMME.R':
-            return self._boost_real(iboost, X, y, sample_weight, random_state)
+        return self._boost_brownian(iboost, X, y, sample_weight, random_state)
 
-        elif self.algorithm == "SAMME":
-            return self._boost_discrete(iboost, X, y, sample_weight,
-                                        random_state)
-        elif self.algorithm == "BROWNIAN":
-            return self._boost_brownian(iboost, X, y, sample_weight, random_state)
-
-    def _boost_real(self, iboost, X, y, sample_weight, random_state):
-        """Implement a single boost using the SAMME.R real algorithm."""
-        estimator = self._make_estimator(random_state=random_state)
-
-        estimator.fit(X, y, sample_weight=sample_weight)
-
-        y_predict_proba = estimator.predict_proba(X)
-
-        if iboost == 0:
-            self.classes_ = getattr(estimator, 'classes_', None)
-            self.n_classes_ = len(self.classes_)
-
-        y_predict = self.classes_.take(np.argmax(y_predict_proba, axis=1),
-                                       axis=0)
-
-        # Instances incorrectly classified
-        incorrect = y_predict != y
-
-        # Error fraction
-        estimator_error = np.mean(
-            np.average(incorrect, weights=sample_weight, axis=0))
-
-        # Stop if classification is perfect
-        if estimator_error <= 0:
-            return sample_weight, 1., 0.
-
-        # Construct y coding as described in Zhu et al [2]:
-        #
-        #    y_k = 1 if c == k else -1 / (K - 1)
-        #
-        # where K == n_classes_ and c, k in [0, K) are indices along the second
-        # axis of the y coding with c being the index corresponding to the true
-        # class label.
-        n_classes = self.n_classes_
-        classes = self.classes_
-        y_codes = np.array([-1. / (n_classes - 1), 1.])
-        y_coding = y_codes.take(classes == y[:, np.newaxis])
-
-        # Displace zero probabilities so the log is defined.
-        # Also fix negative elements which may occur with
-        # negative sample weights.
-        proba = y_predict_proba  # alias for readability
-        proba[proba < np.finfo(proba.dtype).eps] = np.finfo(proba.dtype).eps
-
-        # Boost weight using multi-class AdaBoost SAMME.R alg
-        estimator_weight = (-1. * self.learning_rate
-                                * (((n_classes - 1.) / n_classes) *
-                                   inner1d(y_coding, np.log(y_predict_proba))))
-
-        # Only boost the weights if it will fit again
-        if not iboost == self.n_estimators - 1:
-            # Only boost positive weights
-            sample_weight *= np.exp(estimator_weight *
-                                    ((sample_weight > 0) |
-                                     (estimator_weight < 0)))
-
-        return sample_weight, 1., estimator_error
-
-    def _boost_discrete(self, iboost, X, y, sample_weight, random_state):
-        """Implement a single boost using the SAMME discrete algorithm."""
-        estimator = self._make_estimator(random_state=random_state)
-
-        estimator.fit(X, y, sample_weight=sample_weight)
-
-        y_predict = estimator.predict(X)
-
-        if iboost == 0:
-            self.classes_ = getattr(estimator, 'classes_', None)
-            self.n_classes_ = len(self.classes_)
-
-        # Instances incorrectly classified
-        incorrect = y_predict != y
-
-        # Error fraction
-        estimator_error = np.mean(
-            np.average(incorrect, weights=sample_weight, axis=0))
-
-        # Stop if classification is perfect
-        if estimator_error <= 0:
-            return sample_weight, 1., 0.
-
-        n_classes = self.n_classes_
-
-        # Stop if the error is at least as bad as random guessing
-        if estimator_error >= 1. - (1. / n_classes):
-            self.estimators_.pop(-1)
-            if len(self.estimators_) == 0:
-                raise ValueError('BaseClassifier in AdaBoostClassifier '
-                                 'ensemble is worse than random, ensemble '
-                                 'can not be fit.')
-            return None, None, None
-
-        # Boost weight using multi-class AdaBoost SAMME alg
-        estimator_weight = self.learning_rate * (
-            np.log((1. - estimator_error) / estimator_error) +
-            np.log(n_classes - 1.))
-
-        # Only boost the weights if I will fit again
-        if not iboost == self.n_estimators - 1:
-            # Only boost positive weights
-            sample_weight *= np.exp(estimator_weight * incorrect *
-                                    ((sample_weight > 0) |
-                                     (estimator_weight < 0)))
-
-        return sample_weight, estimator_weight, estimator_error
 
     def _boost_brownian(self, iboost, X, y, sample_weight, random_state):
+        """
+            Make a boosting step for Using BrownBoost Algorithm
+            
+        :param iboost: Boosting Iteration  
+        :param X: {array-like, sparse matrix} of shape = [n_samples, n_features]
+            The training input samples. Sparse matrix can be CSC, CSR, COO,
+            DOK, or LIL. DOK and LIL are converted to CSR.
+        :param y: array-like of shape = [n_samples]
+            The target values (class labels).
+        :param sample_weight: array-like of shape = [n_samples]
+            The current sample weights.
+        :param random_state: numpy.RandomState
+            The current random number generator
+        :return: 
+        sample_weight : array-like of shape = [n_samples] or None
+            The reweighted sample weights.
+            If None then boosting has terminated early.
+        estimator_weight : float
+            The weight for the current boost.
+            If None then boosting has terminated early.
+        estimator_error : float
+            The classification error for the current boost.
+            If None then boosting has terminated early.
+        """
 
         s = self.remaining_time
         if s <= 0:
@@ -492,16 +359,10 @@ class BrownBoostClassifier(BaseWeightBoosting, ClassifierMixin):
 
         n_classes = self.n_classes_
         classes = self.classes_[:, np.newaxis]
-        pred = None
 
-        if self.algorithm == 'SAMME.R':
-            # The weights are all 1. for SAMME.R
-            pred = sum(_samme_proba(estimator, n_classes, X)
-                       for estimator in self.estimators_)
-        else:   # self.algorithm == "SAMME"
-            pred = sum((estimator.predict(X) == classes).T * w
-                       for estimator, w in zip(self.estimators_,
-                                               self.estimator_weights_))
+        pred = sum((estimator.predict(X) == classes).T * w
+                   for estimator, w in zip(self.estimators_,
+                                           self.estimator_weights_))
 
         pred /= self.estimator_weights_.sum()
         if n_classes == 2:
@@ -540,12 +401,8 @@ class BrownBoostClassifier(BaseWeightBoosting, ClassifierMixin):
                                      self.estimators_):
             norm += weight
 
-            if self.algorithm == 'SAMME.R':
-                # The weights are all 1. for SAMME.R
-                current_pred = _samme_proba(estimator, n_classes, X)
-            else:  # elif self.algorithm == "SAMME":
-                current_pred = estimator.predict(X)
-                current_pred = (current_pred == classes).T * weight
+            current_pred = estimator.predict(X)
+            current_pred = (current_pred == classes).T * weight
 
             if pred is None:
                 pred = current_pred
@@ -580,14 +437,9 @@ class BrownBoostClassifier(BaseWeightBoosting, ClassifierMixin):
         n_classes = self.n_classes_
         X = self._validate_X_predict(X)
 
-        if self.algorithm == 'SAMME.R':
-            # The weights are all 1. for SAMME.R
-            proba = sum(_samme_proba(estimator, n_classes, X)
-                        for estimator in self.estimators_)
-        else:   # self.algorithm == "SAMME" or self.algorithm == "BRAWNIAN"
-            proba = sum(estimator.predict_proba(X) * w
-                        for estimator, w in zip(self.estimators_,
-                                                self.estimator_weights_))
+        proba = sum(estimator.predict_proba(X) * w
+                    for estimator, w in zip(self.estimators_,
+                                            self.estimator_weights_))
 
         proba /= self.estimator_weights_.sum()
         proba = np.exp((1. / (n_classes - 1)) * proba)
@@ -627,11 +479,7 @@ class BrownBoostClassifier(BaseWeightBoosting, ClassifierMixin):
                                      self.estimators_):
             norm += weight
 
-            if self.algorithm == 'SAMME.R':
-                # The weights are all 1. for SAMME.R
-                current_proba = _samme_proba(estimator, n_classes, X)
-            else:  # elif self.algorithm == "SAMME":
-                current_proba = estimator.predict_proba(X) * weight
+            current_proba = estimator.predict_proba(X) * weight
 
             if proba is None:
                 proba = current_proba
