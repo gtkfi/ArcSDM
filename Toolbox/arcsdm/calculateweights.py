@@ -207,7 +207,7 @@ def Calculate(self, parameters, messages):
         Confident_Contrast = float( parameters[5].valueAsText)
         #Unitarea = float( parameters[6].valueAsText)
         Unitarea = float( parameters[6].value)
-        MissingDataValue = long( parameters[7].valueAsText)
+        MissingDataValue = int( parameters[7].valueAsText) # Python 3 fix, long -> int
         #gp.AddMessage("Debug step 12");
         arcsdm.sdmvalues.appendSDMValues(gp,  Unitarea, TrainingSites)
         arcpy.AddMessage("="*10 + " Calculate weights " + "="*10)
@@ -222,6 +222,7 @@ def Calculate(self, parameters, messages):
     # Process: Summarize Frequency and manage fields
     
         #Statistics = gp.createuniquename("WtsStatistics.dbf")
+        
         Statistics = gp.createuniquename("WtsStatistics")
         if gp.exists(Statistics): gp.Delete_management(Statistics)
         gp.Statistics_analysis(tempTrainingPoints, Statistics, "rastervalu sum" ,"rastervalu")
@@ -364,7 +365,8 @@ def Calculate(self, parameters, messages):
                 wtsrow.AREA_SQ_KM = wtsrow.Area # sq km
                 wtsrow.AREA_UNITS = wtsrow.AreaUnits # unit cells
                 #gp.addMessage("Debug class: " + str(wtsrow.GetValue('class')));
-                if wtsrow.GetValue('class') <> MissingDataValue:  
+                
+                if wtsrow.getValue("class") != MissingDataValue:  
                     totalTPs += wtsrow.Frequency
                     totalArea += wtsrow.Area
                 wtsrows.UpdateRow(wtsrow)
@@ -580,12 +582,13 @@ def Calculate(self, parameters, messages):
                 WgtsTblRow = WgtsTblRows.Next()
         del WgtsTblRow, WgtsTblRows
         gp.AddMessage("Done creating table.")
-        #gp.AddWarning("Success: %s"%Success)
+        gp.AddWarning("Success: %s"%Success)
      #Delete extraneous fields
         gp.DeleteField_management(wtstable, "area;areaunits;count;rastervalu;frequency;sum_raster")
      #Set Output Parameter
         gp.SetParameterAsText(4, gp.Describe(wtstable).CatalogPath)
-        #gp.SetParameter(8, Success)
+        arcpy.AddMessage("Setting success parameter..")
+        arcpy.SetParameterAsText(8, Success)
         
     except ErrorExit:
         Success = 0  # Invalid Table: Error

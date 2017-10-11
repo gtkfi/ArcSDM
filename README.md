@@ -7,6 +7,7 @@ Spatial Data Modeler 5 for ArcGis pro<Br>
 
 If you want to work against your own data, you can download just the toolbox. If you want to try, evaluate and experiment with ArcSdm you can download our demodata separately from the main package. <br>
 
+ArcSDM wiki contains upto date howtopage: https://github.com/gtkfi/ArcSDM/wiki/Howto-start
 
 
 ### Toolbox <br>
@@ -18,7 +19,7 @@ alt="How to download and extract the toolbox" width="240" height="180" border="1
 
 
 ### Demodata <br>
-Download the demodata as a zip package from here: https://www.dropbox.com/s/io5cjvrf2h351at/ArcSdm_DemoData.zip?dl=0  <br>
+Download the demodata as a zip package from here: https://www.dropbox.com/s/aq1ltwj2xldwkgs/ArcSDM%20Demodata.zip?dl=0  <br>
 Open and save the zip optionally to your ArcSDM toolbox installation folder as "Data" folder. Then click "initworkdir.bat" to create (or overwrite older) working copy. <br>
 
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=4rU1oDqEUrQ
@@ -30,10 +31,14 @@ alt="How to download and extract the toolbox" width="240" height="180" border="1
 <br>
 Status of the toolbox should be updated to wiki https://github.com/gtkfi/ArcSDM/wiki/Toolbox-details <bR>
 
-##News: 
+## News: 
 The demodata and the toolbox will be separated from eachother to make downloading easier.<br>
 
-##History:
+## History:
+6.10.2017 5.00.22 GrandWofe and various fixes
+2.10.2017 Updating wiki and this page, cleaning up. <br>
+4.9.2017 5.00.22 Updates, fixes and new demodata<br>
+17.5.2017 5.00.15 Updates and fixes <br>
 5.5.2017 5.00.14 Calculate weights error with nodata fixed <br>
 4.5.2017 5.00.13 Multiple fixes for minor UI errors <br>
 10.4.2017 5.00.11 Quickfix<br>

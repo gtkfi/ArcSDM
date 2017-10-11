@@ -14,6 +14,8 @@ import arcsdm.roctool
 import arcsdm.acterbergchengci
 import arcsdm.rescale_raster;
 from arcsdm.areafrequency import Execute
+import arcsdm.nninputfiles
+import arcsdm.grand_wofe_lr
 
 from arcsdm.common import execute_tool
 
@@ -24,39 +26,529 @@ from imp import reload;
 
 class Toolbox(object):
     def __init__(self):
-        """Define the toolbox (the name of the toolbox is the name of the
-        .pyt file)."""
+        """Define the toolbox (the name of the toolbox is the name of the .pyt file)."""
         
         self.label = "ArcSDM Tools"
         self.alias = "ArcSDM" 
 
         # List of tool classes associated with this toolbox
-        self.tools = [CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool, Symbolize, ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues]
-        
+        self.tools = [PartitionNNInputFiles, CombineNNOutputFiles, NeuralNetworkOutputFiles, NeuralNetworkInputFiles, 
+        CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,
+        CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool, Symbolize, 
+        ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues, GrandWofe]
 
 
+class GrandWofe(object):
+    
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Grand WOFE"
+        self.description = "From list of Evidence layers generate weights tables and output rasters from Calculate Respons and Logistic Regression."
+        self.canRunInBackground = False
+        self.category = "Weights of Evidence"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        
+        param1 = arcpy.Parameter(
+        displayName="Grand WOFE name",
+        name="wofename",
+        #datatype="DEFeatureClass",
+        datatype="String",
+        parameterType="Required",
+        direction="Input")
+        
+        param2 = arcpy.Parameter(
+        displayName="Input raster names",
+        name="rasternames",
+        #datatype="DEFeatureClass",
+        datatype="GPRasterLayer",
+        multiValue=1,        
+        parameterType="Required",
+        direction="Input")
+        
+        param3 = arcpy.Parameter(
+        displayName="Input raster types",
+        name="rastertypes",
+        #datatype="DEFeatureClass",
+        datatype="String",
+        #multiValue=1,        
+        parameterType="Required",
+        direction="Input")
+        
+        paramTrainingPoints = arcpy.Parameter(
+        displayName="Training points",
+        name="Training_points",
+        datatype="GPFeatureLayer",
+        parameterType="Required",
+        direction="Input")
+        
+        paramIgnoreMissing = arcpy.Parameter(
+        displayName="Ignore missing data",
+        name="Ignore missing data",
+        datatype="Boolean",
+        parameterType="Optional",
+        direction="Output")
+        #paramIgnoreMissing.value= false;
+        
+        paramContrast = arcpy.Parameter(
+        displayName="Contrast Confidence Level",
+        name="contrast",
+        datatype="GPDouble",
+        parameterType="Required",
+        direction="Input")
+        paramContrast.value = "2"
+        
+        paramUnitArea = arcpy.Parameter(
+        displayName="Unit area (km2)",
+        name="Unit_Area__sq_km_",
+        datatype="GPDouble",
+        parameterType="Required",
+        direction="Input")
+        paramUnitArea.value = "1"
         
         
-class GetSDMValues(object):
+        
+        params = [param1, param2, param3, paramTrainingPoints, paramIgnoreMissing, paramContrast, paramUnitArea ]
+        return params
+
+    def isLicensed(self):    
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+     
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        #3.4
+        try:
+            importlib.reload (arcsdm.grand_wofe_lr)
+        except :
+            reload(arcsdm.grand_wofe_lr);
+        # To list what functions does module contain
+        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
+        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
+        #messages.AddMessage("Waiting for debugger")
+        #wait_for_debugger(15);
+        #No do yet
+        arcsdm.grand_wofe_lr.execute(self, parameters, messages)
+        return
+                
+        
+        
+
+class PartitionNNInputFiles(object):
+    
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Partition NNInput Files"
+        self.description = "Partitions Neural Network class.dta of more than 200,000 records into files of 200,000 or less."
+        self.canRunInBackground = False
+        self.category = "Neural network"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        
+        paramInputFiles = arcpy.Parameter(
+        displayName="Input class.dat file",
+        name="inputfiles",
+        #datatype="DEFeatureClass",
+        datatype="File",
+        parameterType="Required",
+        direction="Input")
+        
+        params = [paramInputFiles]
+        return params
+
+    def isLicensed(self):    
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+     
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        #3.4
+        try:
+            importlib.reload (arcsdm.partition_inputnnfiles)
+        except :
+            reload(arcsdm.partition_inputnnfiles);
+        # To list what functions does module contain
+        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
+        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
+        #messages.AddMessage("Waiting for debugger")
+        #wait_for_debugger(15);
+        #No do yet
+        arcsdm.partition_inputnnfiles.execute(self, parameters, messages)
+        return
+                
+        
+        
+class CombineNNOutputFiles(object):
+    
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Combine NNOutput Files "
+        self.description = "Combines PNN, FUZ, and RBN files generated from partitions of the class.dta file."
+        self.canRunInBackground = False
+        self.category = "Neural network"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        
+        paramInputFiles = arcpy.Parameter(
+        displayName="Input RBN, FUZ, PNN files",
+        name="inputfiles",
+        #datatype="DEFeatureClass",
+        datatype="File",
+        multiValue=1,
+        parameterType="Required",
+        direction="Input")
+        
+
+        paramOutputFile = arcpy.Parameter(
+        displayName="Output file",
+        name="outputfile",
+        datatype="file",
+        parameterType="Required",
+        direction="Output")
+        params = [paramInputFiles, paramOutputFile]
+        return params
+
+    def isLicensed(self):    
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+     
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        #3.4
+        try:
+            importlib.reload (arcsdm.combine_outputnnfiles)
+        except :
+            reload(arcsdm.combine_outputnnfiles);
+        # To list what functions does module contain
+        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
+        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
+        #messages.AddMessage("Waiting for debugger")
+        #wait_for_debugger(15);
+        #No do yet
+        arcsdm.combine_outputnnfiles.execute(self, parameters, messages)
+        return
+        
+                
+        
+        
+class NeuralNetworkOutputFiles(object):
+    
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Neural network output files"
+        self.description = "Generate files from output files of GeoXplore"
+        self.canRunInBackground = False
+        self.category = "Neural network"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        
+        paramInputRaster = arcpy.Parameter(
+        displayName="Unique Conditions raster",
+        name="inputraster",
+        #datatype="DEFeatureClass",
+        datatype="GPRasterLayer",
+        parameterType="Required",
+        direction="Input")
+        
+        paramRBFNFile = arcpy.Parameter(
+        displayName="RBFN file name, .rbn file",
+        name="rbfnfile",
+        datatype="File",
+        parameterType="Optional",
+        direction="Input")     
+        
+        paramPNNFile = arcpy.Parameter(
+        displayName="PNN file name, .pnn file",
+        name="pnnfile",
+        datatype="File",
+        parameterType="Optional",
+        direction="Input")     
+        
+        paramFuzFile = arcpy.Parameter(
+        displayName="Fuzzy Classification file name, .fuz file",
+        name="fuzfile",
+        datatype="File",
+        parameterType="Optional",
+        direction="Input")     
+        
+        paramOutputTable = arcpy.Parameter(
+        displayName="Output result table",
+        name="resulttable",
+        datatype="DeTable",
+        parameterType="Required",
+        direction="Output")     
+
+        param_outras = arcpy.Parameter(
+        displayName="Output raster",
+        name="outputraster",
+        datatype="DERasterDataset",
+        parameterType="Required",
+        direction="Output")
+        # Is this needed?
+        #param_pprb.value = "%Workspace%\neuralnetwork_outras"                      
+        # End                                       
+        params = [paramInputRaster, paramRBFNFile, paramPNNFile, paramFuzFile, paramOutputTable, param_outras]
+        return params
+
+    def isLicensed(self):    
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+     
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        #3.4
+        try:
+            importlib.reload (arcsdm.nnoutputfiles)
+        except :
+            reload(arcsdm.nnoutputfiles);
+        # To list what functions does module contain
+        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
+        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
+        #messages.AddMessage("Waiting for debugger")
+        #wait_for_debugger(15);
+        #No do yet
+        arcsdm.nnoutputfiles.execute(self, parameters, messages)
+        return
+        
+                
+        
+                
+         
+class NeuralNetworkInputFiles(object):
+    
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Neural network input files"
+        self.description = "Use this tool to create the input ASCII files for the GeoXplore neural network. Before using this tool, the evidence must be combined into a unique conditions raster with the Combine tool and the band statistics must be obtained for all the evidence using the Band Collection Statistics tool. If desired fuzzy membership attribute can be added to each of the training sites. See the ArcMap Tools Options discussion in Usage Tips in the Help about adjusting default setting for this tool."
+        self.canRunInBackground = False
+        self.category = "Neural network"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        
+        paramInputRaster = arcpy.Parameter(
+        displayName="Input Unique Conditions raster",
+        name="inputraster",
+        #datatype="DEFeatureClass",
+        datatype="GPRasterLayer",
+        parameterType="Required",
+        direction="Input")
+        
+        paramTrainingSites = arcpy.Parameter(
+        displayName="Training sites",
+        name="training_sites",
+        datatype="GPFeatureLayer",
+        parameterType="Required",
+        direction="Input")
+
+        
+        paramFZMField = arcpy.Parameter(
+        displayName="TP Fuzzy membership field",
+        name="fzmfield",
+        datatype="Field",
+        parameterType="Optional",
+        direction="Input")               
+        paramFZMField.parameterDependencies = [paramTrainingSites.name]                
+        
+        paramNDTrainingSites = arcpy.Parameter(
+        displayName="ND Training sites",
+        name="ndtraining_sites",
+        datatype="GPFeatureLayer",
+        parameterType="Required",
+        direction="Input")
+
+        paramNDFZMField = arcpy.Parameter(
+        displayName="ND TP Fuzzy membership field",
+        name="ndfzmfield",
+        datatype="Field",
+        parameterType="Optional",
+        direction="Input")               
+        paramNDFZMField.parameterDependencies = [paramNDTrainingSites.name]                
+        
+        paramTrainingFilePrefix = arcpy.Parameter(
+        displayName="Training file prefix",
+        name="trainingfileprefix",
+        datatype="String",
+        parameterType="Required",
+        direction="Input")     
+        
+        paramClassificationFile = arcpy.Parameter(
+        displayName="Classification file",
+        name="classificationfile",
+        datatype="Boolean",
+        parameterType="Optional",
+        direction="Input")     
+        
+        paramBandStatisticsFile = arcpy.Parameter(
+        displayName="Band statistics file",
+        name="bandstatisticsfile",
+        datatype="File",
+        parameterType="Optional",
+        direction="Input")     
+        
+        paramTrainFileOutput = arcpy.Parameter(
+        displayName="Train file output",
+        name="trainfileoutput",
+        datatype="File",
+        parameterType="Required",
+        direction="Output")     
+        
+        paramClassFileOutput = arcpy.Parameter(
+        displayName="Class file output",
+        name="classfileoutput",
+        datatype="File",
+        parameterType="Required",
+        direction="Output")     
+        
+        
+        
+        
+        
+        paramUnitArea = arcpy.Parameter(
+        displayName="Unit area (km2)",
+        name="Unit_Area__sq_km_",
+        datatype="GPDouble",
+        parameterType="Required",
+        direction="Input")
+        paramUnitArea.value = "1"
+        
+                                  
+        params = [paramInputRaster, paramTrainingSites, paramFZMField, paramNDTrainingSites, paramNDFZMField, 
+            paramTrainingFilePrefix, paramClassificationFile,
+            paramBandStatisticsFile, paramTrainFileOutput, paramClassFileOutput]
+        return params
+
+    def isLicensed(self):    
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+     
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        #3.4
+        try:
+            importlib.reload (arcsdm.nninputfiles)
+        except :
+            reload(arcsdm.nninputfiles);
+        # To list what functions does module contain
+        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
+        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
+        #messages.AddMessage("Waiting for debugger")
+        #wait_for_debugger(15);
+        #No do yet
+        arcsdm.nninputfiles.execute(self, parameters, messages)
+        return
+        
+        
+class GetSDMValues(object):                
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Get SDM parameters"
-        self.description = "TODO: Copy this from old toolbox"
+        self.description = "This tool is used to view the Environment and SDM modeling parameters that have been set by the user. All of the values reported by this tool must be set to values specific to the model to be made. Using the ESRI default values will cause SDM to fail. If the Environment is not completely set, then an error message stating \"Improper SDM setup\" will occur. The successful running of this tool does not assure that the setup is correct; only that the default values have been changed. See the Environment Settings section of the Help file for Calculate Weights for the details."
+
         self.canRunInBackground = False
         self.category = "Utilities"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
-        # TODO: Multiple rasters?
+               
         
         paramTrainingSites = arcpy.Parameter(
         displayName="Training sites",
         name="training_sites",
-        #datatype="DEFeatureClass",
         datatype="GPFeatureLayer",
         parameterType="Required",
         direction="Input")
-                     
+
+        
         
         paramUnitArea = arcpy.Parameter(
         displayName="Unit area (km2)",
@@ -70,8 +562,13 @@ class GetSDMValues(object):
         params = [paramTrainingSites, paramUnitArea]
         return params
 
-    def isLicensed(self):
+    def isLicensed(self):    
         """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
         return True
 
     def updateParameters(self, parameters):
@@ -101,24 +598,19 @@ class GetSDMValues(object):
         #No do yet
         arcsdm.sdmvalues.execute(self, parameters, messages)
         return
-        
-                
-        
-        
-  
+                                                             
         
         
 class AreaFrequencyTable(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Area Frequency Table"
-        self.description = "TODO: Copy this from old toolbox"
+        self.description = "Create a table for charting area of evidence classes vs number of training sites."
         self.canRunInBackground = False
         self.category = "Weights of Evidence"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
-        # TODO: Multiple rasters?
         
         paramTrainingSites = arcpy.Parameter(
         displayName="Training sites",
@@ -180,6 +672,11 @@ class AreaFrequencyTable(object):
 
     def isLicensed(self):
         """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
         return True
 
     def updateParameters(self, parameters):
@@ -201,12 +698,6 @@ class AreaFrequencyTable(object):
             importlib.reload (arcsdm.areafrequency)
         except :
             reload(arcsdm.areafrequency);
-        # To list what functions does module contain
-        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
-        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
-        #messages.AddMessage("Waiting for debugger")
-        #wait_for_debugger(15);
-        #No do yet
         arcsdm.areafrequency.Execute(self, parameters, messages)
         return
         
@@ -218,7 +709,7 @@ class ROCTool(object):
     def __init__(self):
         self.label = "Calculate ROC Curves and AUC Values"
         self.description = "Calculates Receiver Operator Characteristic curves and Areas Under the Curves"
-        self.category = "Roc tool"
+        self.category = "ROC Tool"
         self.canRunInBackground = False
 
     def getParameterInfo(self):
@@ -246,16 +737,23 @@ class ROCTool(object):
             direction="Input",
             multiValue=True)
 
-        table_param = arcpy.Parameter(
-            displayName="ROC Curves and AUC Values Table",
-            name="results_table",
-            datatype="DEDbaseTable",
+        folder_param = arcpy.Parameter(
+            displayName="Destination Folder",
+            name="dest_folder",
+            datatype="DEFolder",
             parameterType="Required",
-            direction="Output")
+            direction="Input")
+        folder_param.filter.list = ["File System"]
 
-        return [positives_param, negatives_param, models_param, table_param]
+        return [positives_param, negatives_param, models_param, folder_param]
 
     def isLicensed(self):
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
         return True
 
     def execute(self, parameters, messages):        
@@ -271,7 +769,7 @@ class Symbolize(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Symbolize raster with priorprobability (classified values)"
-        self.description = "TODO: Describe this"
+        self.description = "This tool allows symbolizing prior probablity raster with predefined colorscheme from local raster_classified.lyr file"
         self.canRunInBackground = False
         self.category = "Utilities"
 
@@ -305,6 +803,11 @@ class Symbolize(object):
 
     def isLicensed(self):
         """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
         return True
 
     def updateParameters(self, parameters):
@@ -329,13 +832,12 @@ class CalculateResponse(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Calculate response"
-        self.description = "TODO: Copy this from old toolbox"
+        self.description = "Use this tool to combine the evidence weighted by their associated generalization in the weights-of-evidence table. This tool calculates the posterior probability, standard deviation (uncertainty) due to weights, variance (uncertainty) due to missing data, and the total standard deviation (uncertainty) based on the evidence and how the evidence is generalized in the associated weights-of-evidence tables.The calculations use the Weight and W_Std in the weights table from Calculate Weights."
         self.canRunInBackground = False
         self.category = "Weights of Evidence"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
-        # TODO: Multiple rasters?
         param0 = arcpy.Parameter(
         displayName="Input Raster Layer(s)",
         name="Input_evidence_raster_layers",
@@ -378,7 +880,7 @@ class CalculateResponse(object):
         name="Ignore missing data",
         datatype="Boolean",
         parameterType="Optional",
-        direction="Output")
+        direction="Input")
         #paramIgnoreMissing.value= false;
         
         param3 = arcpy.Parameter(
@@ -387,7 +889,7 @@ class CalculateResponse(object):
         datatype="GPLong",
         
         #parameterType="Required",
-        direction="Output")
+        direction="Input")
         param3.value= -99;
 
         param4 = arcpy.Parameter(
@@ -443,6 +945,11 @@ class CalculateResponse(object):
 
     def isLicensed(self):
         """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed        
         return True
 
     def updateParameters(self, parameters):
@@ -501,7 +1008,7 @@ class CalculateWeightsTool(object):
         direction="Input")
         param2.filter.type = "ValueList";
         param2.filter.list = ["Descending", "Ascending", "Categorical", "Unique"];
-        param2.value = "Descending";
+        param2.value = "";
         
         param3 = arcpy.Parameter(
         displayName="Output weights table",
@@ -533,12 +1040,27 @@ class CalculateWeightsTool(object):
         parameterType="Required",
         direction="Input")
         param6.value = "-99";
-                                  
-        params = [param0, param1, paramTrainingPoints, param2, param3, param4, param5, param6]
+                          
+
+        paramSuccess = arcpy.Parameter(
+        displayName="Success",
+        name="success",
+        datatype="Boolean",
+        parameterType="Optional",
+        direction="Output")
+
+
+                          
+        params = [param0, param1, paramTrainingPoints, param2, param3, param4, param5, param6, paramSuccess]
         return params
 
     def isLicensed(self):
         """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed        
         return True
 
     def updateParameters(self, parameters):
@@ -632,6 +1154,11 @@ class SiteReductionTool(object):
 
     def isLicensed(self):
         """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed        
         return True
 
     def updateParameters(self, parameters):
@@ -677,7 +1204,19 @@ class SiteReductionTool(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        execute_tool(arcsdm.sitereduction.ReduceSites, self, parameters, messages)
+        #For full debugging this disabled:
+        #execute_tool(arcsdm.sitereduction.ReduceSites, self, parameters, messages)
+        try:
+            importlib.reload (arcsdm.sitereduction)
+        except :
+            reload(arcsdm.sitereduction);
+        # To list what functions does module contain
+        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
+        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
+        #messages.AddMessage("Waiting for debugger")
+        #wait_for_debugger(15);
+        #No do yet
+        arcsdm.sitereduction.ReduceSites(self, parameters, messages)
         return
         
 class CategoricalMembershipToool(object):
@@ -723,6 +1262,11 @@ class CategoricalMembershipToool(object):
 
     def isLicensed(self):
         """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed        
         return True
 
     def updateParameters(self, parameters):
@@ -798,6 +1342,11 @@ class CategoricalAndReclassTool(object):
 
     def isLicensed(self):
         """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed        
         return True
     
     def updateParameters(self, parameters):
@@ -878,6 +1427,11 @@ class TOCFuzzificationTool(object):
 
     def isLicensed(self):
         """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed        
         return True
     
     def updateParameters(self, parameters):
@@ -907,7 +1461,7 @@ class LogisticRegressionTool(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Logistic regression"
-        self.description = "TODO: Copy this from old toolbox"
+        self.description = "This tool is a useful complement to Weights-of-Evidence Calculate Response tool as Logistic Regression does not make the assumption of conditional independence of the evidence with regards to the training sites. Using the evidence and assocaited weights tables, this tool creates the outputs the response and standard deviation rasters. The calculations are based on the Gen_Class attribute in the weights table and the type of evidence."
         self.canRunInBackground = False
         self.category = "Weights of Evidence"
 
@@ -955,7 +1509,7 @@ class LogisticRegressionTool(object):
         name="Missing_Data_Value",
         datatype="GPLong",
         parameterType="Required",
-        direction="Output")
+        direction="Input")
         param3.value= -99;
 
         param4 = arcpy.Parameter(
@@ -1011,6 +1565,11 @@ class LogisticRegressionTool(object):
 
     def isLicensed(self):
         """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed        
         return True
 
     def updateParameters(self, parameters):
@@ -1079,6 +1638,11 @@ class AgterbergChengCITest(object):
 
     def isLicensed(self):
         """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed        
         return True
 
     def updateParameters(self, parameters):

@@ -30,7 +30,7 @@ def execute(self, parameters, messages):
     mxd = arcpy.mapping.MapDocument("CURRENT")
     df = arcpy.mapping.ListDataFrames(mxd, "")[0]
     lyr = arcpy.mapping.ListLayers(mxd, rastername, df)[0]
-    prob = arcsdm.sdmvalues.getPriorProb(trainpts, unitcell)
+    prob = arcsdm.sdmvalues.getPriorProb(trainpts, unitcell,arcsdm.sdmvalues.getMapUnits() )
     arcpy.AddMessage("%-20s %s" % ("Probability: ",  str(prob)));
     arcpy.AddMessage("Applying raster symbology to classified values from lyr file... ");
     arcpy.ApplySymbologyFromLayer_management(lyr, Temp_Symbology)
