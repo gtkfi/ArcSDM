@@ -1790,10 +1790,10 @@ class SelectRandomPoints(object):
 
 
         if selection_percentage > 100:
-            print "percent is greater than 100"
+            print ("percent is greater than 100")
             return
         if selection_percentage < 0:
-            print "percent is less than zero"
+            print ("percent is less than zero")
             return
 
         import random

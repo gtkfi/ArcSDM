@@ -4,6 +4,7 @@
     Recode from the original by Tero Rönkkö / Geological survey of Finland
    
     History: 
+    3.11.2017 Updated categorical calculations when perfect correlation exists as described in issue 66
     27.9.2016 Calculate weights output cleaned
     23.9.2016 Goes through
     12.8.2016 First running version for pyt. Shapefile training points and output?
@@ -90,7 +91,9 @@ def MakeWts(patternNTP, patternArea, unit, totalNTP, totalArea, Type):
                 #db = 0.01
                 return tuple([0.0]*7)
             elif db == ds:
-                db -= 0.01 # Won't work when s-b < ds-db
+                #As with issue #66 suggests - replaced with db -=.99:
+                #db -= 0.01 # Won't work when s-b < ds-db 
+                db -= 0.99
                 #return tuple([0.0]*7)
         else: # Ascending and Descending generalization
             if db ==0: #no accumulation
