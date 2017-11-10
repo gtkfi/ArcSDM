@@ -492,7 +492,7 @@ def Calculate(self, parameters, messages):
                         WgtsTblRow = WgtsTblRows.Next()        
                     #gp.AddMessage("Set OUT rows.")
                 else:
-                    gp.AddWarning("No row Contrast for type %s satisfied the user confidence contrast = %s"%(Type,Confident_Contrast))
+                    gp.AddWarning("No Contrast for type %s satisfied the user defined confidence level %s"%(Type,Confident_Contrast))
                     gp.AddWarning("Table %s is incomplete."%wtstable)
                     #gp.Delete(wtstable)
                     Success = 0 # Invalid Table: No confidence

@@ -68,7 +68,7 @@ class GrandWofe(object):
         direction="Input")
         
         param3 = arcpy.Parameter(
-        displayName="Input raster types",
+        displayName="Input raster types (separate by semicolon ;)",
         name="rastertypes",
         #datatype="DEFeatureClass",
         datatype="String",
