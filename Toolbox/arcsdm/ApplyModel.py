@@ -123,7 +123,7 @@ def create_response_raster(classifier, rasters, output, scale):
 
     # The raster looping must be done in the last dimension
     raster_array2 = np.empty([n_rows, n_cols, n_regr])
-    for raster_index in xrange(n_regr):
+    for raster_index in range(n_regr):
         raster_array2[:, :, raster_index] = raster_array[raster_index, :, :]
 
     # The matrix is reshaped from 3D to 2D

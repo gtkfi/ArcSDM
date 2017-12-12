@@ -8,7 +8,7 @@
 import sys
 import arcpy
 import traceback
-import arcsdm.config as cfg
+from . import config as cfg
 
 PY2 = sys.version_info[0] == 2
 PY34 = sys.version_info[0:2] >= (3, 4)

@@ -68,7 +68,7 @@ def _get_fields(feature_layer, fields_name):
         fi = arcpy.da.FeatureClassToNumPyArray(feature_layer, fields_name)
     except TypeError:
         _verbose_print("Failed importing with nans, possibly a integer feature class")
-        fi = arcpy.da.FeatureClassToNumPyArray(feature_layer, fields_name, null_value=sys.maxint)
+        fi = arcpy.da.FeatureClassToNumPyArray(feature_layer, fields_name, null_value=sys.maxsize)
 
     # Cast to floating point numbers
     field = np.array([[elem * 1.0 for elem in row] for row in fi])
@@ -77,7 +77,7 @@ def _get_fields(feature_layer, fields_name):
     if not isinstance(fields_name, list) or len(fields_name) == 1:
         field = field.flatten()
     # Assign NAN to the numbers with maximum integer value
-    field[field == sys.maxint] = np.NaN
+    field[field == sys.maxsize] = np.NaN
 
     return field
 
@@ -176,8 +176,8 @@ def _plot_results(classification_model, des_func, probabilities, response_test, 
         raster_array = arcpy.RasterToNumPyArray(classification_model, nodata_to_value=np.NaN)
     except ValueError:
         _verbose_print("Integer type raster, changed to float")
-        raster_array = 1.0 * arcpy.RasterToNumPyArray(classification_model, nodata_to_value=sys.maxint)
-        raster_array[raster_array == sys.maxint] = np.NaN
+        raster_array = 1.0 * arcpy.RasterToNumPyArray(classification_model, nodata_to_value=sys.maxsize)
+        raster_array[raster_array == sys.maxsize] = np.NaN
     # Calculate prospective area
     total_area = np.sum(np.isfinite(raster_array))
     areas = [(1.0 * np.sum(raster_array > thr)) / total_area for thr in thresholds]
