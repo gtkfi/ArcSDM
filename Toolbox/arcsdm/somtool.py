@@ -8,7 +8,7 @@
 
 import arcpy;
 import numpy;
-from arcsdm.minisom import MiniSom    
+from .minisom import MiniSom    
 from datetime import datetime
 import itertools;
 import random;
