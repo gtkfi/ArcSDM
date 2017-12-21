@@ -1585,6 +1585,10 @@ class LogisticRegressionTool(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
+        try:
+            importlib.reload (arcsdm.logisticregression)
+        except :
+            reload(arcsdm.logisticregression);
         execute_tool(arcsdm.logisticregression.Execute, self, parameters, messages)
         return
 

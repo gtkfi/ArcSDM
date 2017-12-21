@@ -18,6 +18,13 @@ from arcsdm import sdmvalues
 from arcsdm import workarounds_93
 from arcsdm.floatingrasterarray import FloatRasterSearchcursor
 
+
+debuglevel = 1;
+#Debug write
+def dwrite(message):
+    if (debuglevel > 0):
+        arcpy.AddMessage(" | Debug: " + message) 
+
 # TODO: This should be in external file - like all other common things TR 
 def CheckEnvironment():
     arcpy.AddMessage("Checking environment...");
@@ -38,23 +45,80 @@ def Execute(self, parameters, messages):
     # Load required toolboxes...
 
     # Script arguments...
-    try:
-        unitCell = parameters[5].value
-        CheckEnvironment();
-        if unitCell < (float(gp.CellSize)/1000.0)**2:
-            unitCell = (float(gp.CellSize)/1000.0)**2
-            gp.AddWarning('Unit Cell area is less than area of Study Area cells.\n'+
-                        'Setting Unit Cell to area of study area cells: %.0f sq km.'%unitCell)
+    #try:
+    #Print out SDM environmental values
+    
+    
+    unitCell = parameters[5].value
+    CheckEnvironment();
+    #Get Training sites feature layer
+    TrainPts = parameters[3].valueAsText
+    #gp.AddMessage('TrainPts: %s'%(str(TrainPts)))
+    
+    sdmvalues.appendSDMValues(gp, unitCell, TrainPts)
+    arcpy.AddMessage("---------- Logistic Regression -------------")
+    
+    if unitCell < (float(gp.CellSize)/1000.0)**2:
+        unitCell = (float(gp.CellSize)/1000.0)**2
+        gp.AddWarning('Unit Cell area is less than area of Study Area cells.\n'+
+                    'Setting Unit Cell to area of study area cells: %.0f sq km.'%unitCell)
+    
+    #Get evidence layer names
+    Input_Rasters = parameters[0].valueAsText
+    
+    #Get evidence layer types
+    Evidence_types = parameters[1].valueAsText
+   
+    #Get weights tables names
+    Wts_Tables = parameters[2].valueAsText
+    
+    
+    #Get missing data values
+    MissingDataValue = parameters[4].valueAsText
+    
+    # 0 Inputrasters, 1 Evidencetypes, 2 Wts_Tables, 3 trainpts, 4 Missing datavalue, 5 Unitcell
+    fnNew = parameters[6].valueAsText
+    fnNew2 = parameters[7].valueAsText
+    outRaster1 =  parameters[8].valueAsText
+    outRaster2 =  parameters[9].valueAsText
+    outRaster3 =  parameters[10].valueAsText
+                    
+    
+    result = logisticregression(Input_Rasters, Evidence_types , Wts_Tables, TrainPts, MissingDataValue, unitCell, fnNew, fnNew2, outRaster1, outRaster2, outRaster3 );
+    
+    
+    
+    #Add t0 display
+    #gp.SetParameterAsText(6, tbl)
+    arcpy.SetParameterAsText(6,result[0])
+    #gp.SetParameterAsText(7, gp.describe(vTabLR2).catalogpath)
+    arcpy.SetParameterAsText(7, result[1]); 
+    #gp.SetParameterAsText(8, outRaster1)
+    arcpy.SetParameterAsText(8, result[2])
+    #gp.SetParameterAsText(9, outRaster2)
+    arcpy.SetParameterAsText(9, result[3])
+    #gp.SetParameterAsText(10, outRaster3)
+    arcpy.SetParameterAsText(10, result[4])
 
-        #Get evidence layer names
-        Input_Rasters = parameters[0].valueAsText.split(';')
+        
+        
+def logisticregression(Input_Rasters, Evidence_types, Wts_Tables, TrainPts, MissingDataValue, unitCell, fnNew, fnNew2, outRaster1, outRaster2, outRaster3 ):
+    try:
+        gp = arcgisscripting.create()
+    
+        Input_Rasters = Input_Rasters.split(';')
         #Remove group layer names 
         for i, s in enumerate(Input_Rasters):
             Input_Rasters[i] = arcpy.Describe( s.strip("'")).file;
         gp.AddMessage("Input rasters: " + str(Input_Rasters))
-
-        #Get evidence layer types
-        Evidence_types = parameters[1].valueAsText.lower().split(';')
+        
+        Wts_Tables = Wts_Tables.split(';')
+        gp.AddMessage('Wts_Tables: %s'%(str(Wts_Tables)))
+        if len(Wts_Tables) != len(Wts_Tables):
+            gp.AddError("Not enough weights tables!")
+            raise Exception
+            
+        Evidence_types = Evidence_types.lower().split(';')
         gp.AddMessage('Evidence_types: %s'%(str(Evidence_types)))
         if len(Evidence_types) != len(Input_Rasters):
             gp.AddError("Not enough Evidence types!")
@@ -63,56 +127,61 @@ def Execute(self, parameters, messages):
             if not evtype[0] in 'ofc':
                 gp.AddError("Incorrect Evidence type: %s"%evtype)
                 raise Exception
-        #Get weights tables names
-        Wts_Tables = parameters[2].valueAsText.split(';')
-        gp.AddMessage('Wts_Tables: %s'%(str(Wts_Tables)))
-        if len(Wts_Tables) != len(Wts_Tables):
-            gp.AddError("Not enough weights tables!")
-            raise Exception
-        #Get Training sites feature layer
-        TrainPts = parameters[3].valueAsText
-        gp.AddMessage('TrainPts: %s'%(str(TrainPts)))
-        #Get missing data values
-        MissingDataValue = parameters[4].valueAsText
+            
+        
         lstMD = [MissingDataValue for ras in Input_Rasters]
-        gp.AddMessage('MissingDataValue: %s'%(str(MissingDataValue)))
+        arcpy.AddMessage('MissingDataValue: %s'%(str(MissingDataValue)))
         #Get output raster name
         thmUC = gp.createscratchname("tmp_UCras", '', 'raster',   gp.scratchworkspace)
-
-        #Print out SDM environmental values
-        sdmvalues.appendSDMValues(gp, unitCell, TrainPts)
-
+        
+        #dwrite ( str(Input_Rasters))
+        
         #Create Generalized Class tables
         Wts_Rasters = []
         mdidx = 0
-        gp.AddMessage("Creating Generalized Class rasters.")
+        arcpy.AddMessage("Creating Generalized Class rasters.")
         for Input_Raster, Wts_Table in zip(Input_Rasters, Wts_Tables):
             Output_Raster = gp.CreateScratchName(os.path.basename(Input_Raster[:9]) + "_G", '', 'raster', gp.scratchworkspace)            
-            gp.AddMessage('Output_Raster: %s'%(str(Output_Raster)))
+            gp.AddMessage('  Output_Raster: %s'%(str(Output_Raster)))
         #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
             #++ Need to create in-memory Raster Layer for AddJoin
             RasterLayer = "OutRas_lyr"
-            gp.makerasterlayer(Input_Raster, RasterLayer)
-            gp.AddJoin_management(RasterLayer, "Value", Wts_Table, "CLASS")
+            arcpy.MakeRasterLayer_management(Input_Raster, RasterLayer)
+            arcpy.AddJoin_management(RasterLayer, "Value", Wts_Table, "CLASS")
             Temp_Raster = gp.CreateScratchName('temp_ras', '', 'raster',  gp.scratchworkspace)
-            gp.AddMessage('Temp_Raster: %s'%(str(Temp_Raster)))
-            gp.CopyRaster_management(RasterLayer, Temp_Raster)
-            gp.Lookup_sa(Temp_Raster, "GEN_CLASS", Output_Raster)
-            gp.delete(RasterLayer)
+            arcpy.AddMessage('    Temp_Raster: %s'%(str(Temp_Raster)))
+            dwrite ("1");
+            arcpy.CopyRaster_management(RasterLayer, Temp_Raster)
+            dwrite ("2");
+            rasteri = arcpy.sa.Lookup(Temp_Raster, "GEN_CLASS")
+            dwrite ("3");
+            
+            rasteri.save (Output_Raster);
+            dwrite ("4");
+            
+            arcpy.Delete_management(RasterLayer)
         #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
             #gp.AddMessage(Output_Raster + " exists: " + str(gp.Exists(Output_Raster)))
             if not gp.Exists(Output_Raster):
                 gp.AddError(Output_Raster + " does not exist.")
                 raise Exception
+           
             Wts_Rasters.append(gp.Describe(Output_Raster).CatalogPath)
+            #Need to calculate statistics for the rasters for next step (combine)
+            arcpy.AddMessage("  Calculating statistics for %s ..."%(Output_Raster) );
+            arcpy.CalculateStatistics_management(gp.Describe(Output_Raster).CatalogPath);
+            
         #Create the Unique Conditions raster from Generalized Class rasters
-    ##    #>>>> Comment out for testing >>>>>>>>>>>>>>>>>>>>>>>>>>
-        Input_Combine_rasters = ";".join(Wts_Rasters)
+        ##    #>>>> Comment out for testing >>>>>>>>>>>>>>>>>>>>>>>>>>
+        #Input_Combine_rasters = ";".join(Wts_Rasters) #No ; anymore
+        Input_Combine_rasters = Wts_Rasters
         #Combine created Wts_Rasters and add to TOC
-        #gp.AddMessage('Combining...%s'%Input_rasters)
+        dwrite('Combining...%s'%Input_Combine_rasters)
+        
         if gp.exists(thmUC): gp.delete_management(thmUC)
-        gp.Combine_sa(Input_Combine_rasters, thmUC)
-    ##    #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        combined = arcpy.sa.Combine(Input_Combine_rasters)
+        combined.save(thmUC)
+        ##    #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         #gp.AddMessage('Combine done...')
 
         #Get UC lists from combined raster
@@ -254,20 +323,20 @@ def Execute(self, parameters, messages):
                     #gp.AddError("elOT=%s"%elOT)
                 ot[j] = elOT
         #gp.AddMessage('ot=%s'%(str(ot)))
-    ##' Loop through the unique conditions, substituting
-    ##' the weighted average of known classes for missing data
-    ##' and 'expanding' multi-class free data themes to
-    ##' a series of binary themes
-    ##'----------------------------------------------
+        ##' Loop through the unique conditions, substituting
+        ##' the weighted average of known classes for missing data
+        ##' and 'expanding' multi-class free data themes to
+        ##' a series of binary themes
+        ##'----------------------------------------------
         #gp.AddMessage('lstWA: %s'%lstWA)
         for i in range(nmbUC):
             numPoints = lstPnts[i]
-    ##        #>>> This is a kluge for problem in case.dat for sdmlr.exe
-    ##        if numPoints == 0: continue
-    ##        #Fractional numpoints is not accepted
-    ##        #This means that UC area had no extracted points,
-    ##        #and should not be a case here.
-    ##        #<<< End kluge for case.dat
+        ##        #>>> This is a kluge for problem in case.dat for sdmlr.exe
+        ##        if numPoints == 0: continue
+        ##        #Fractional numpoints is not accepted
+        ##        #This means that UC area had no extracted points,
+        ##        #and should not be a case here.
+        ##        #<<< End kluge for case.dat
             wLine = ""
             wLine = wLine + ('%-10d'%(i+1))
             j = 0
@@ -312,8 +381,8 @@ def Execute(self, parameters, messages):
             fCase.write(wLine + '\n')
             getNmbET = False
         fCase.close()
-    ##' Write a parameter file to the ArcView extension directory
-    ##'----------------------------------------------
+        ##' Write a parameter file to the ArcView extension directory
+        ##'----------------------------------------------
         strF1 = "param.dat"
         fnParam = os.path.join(arcpy.env.scratchFolder, strF1) #param.dat file
         fParam = open(fnParam, 'w')
@@ -325,8 +394,8 @@ def Execute(self, parameters, messages):
         fParam.write("%d %g\n" %(nmbET, unitCell))
         fParam.close()
 
-    ### RunLR ------------------------------------------------------------------------------------------------------------
-    #Check input files
+        ### RunLR ------------------------------------------------------------------------------------------------------------
+        #Check input files
         #Check input files exist
         #Paramfile = os.path.join(gp.scratchworkspace, 'param.dat')
         Paramfile = os.path.join(arcpy.env.scratchFolder, 'param.dat')
@@ -369,7 +438,7 @@ def Execute(self, parameters, messages):
             raise Exception
         #gp.AddMessage("Finished running Logistic Regression")
 
-    ###ReadLRResults -------------------------------------------------------------------------------------------------------
+        ###ReadLRResults -------------------------------------------------------------------------------------------------------
 
         thmuc = thmUC
         vTabUC = 'thmuc_lr'
@@ -388,7 +457,7 @@ def Execute(self, parameters, messages):
             raise 'Open error'
         read = 0
         #fnNew = gp.GetParameterAsText(6)
-        fnNew = parameters[6].valueAsText
+        #fnNew = parameters[6].valueAsText
         tblbn = os.path.basename(fnNew)
         [tbldir, tblfn] = os.path.split(fnNew)
         if tbldir.endswith(".gdb"):
@@ -439,27 +508,27 @@ def Execute(self, parameters, messages):
         del vTabLRrow, vTabLRrows
         #gp.AddMessage('Created table to hold logistic regression results: %s'%fnNew)
 
-    ##' Get the coefficients file
-    ##'----------------------------------------------
+        ##' Get the coefficients file
+        ##'----------------------------------------------
         strFN2 = "logco.dat"
         fnLR2 = os.path.join(arcpy.env.scratchFolder, strFN2)
-    ##  ' Open file for reading
-    ##  '----------------------------------------------
+        ##  ' Open file for reading
+        ##  '----------------------------------------------
         #gp.AddMessage("Opening Logistic Regression coefficients Results: %s"%fnLR2)
         fLR2 = open(fnLR2, "r")
         read = 0
-    ##  ' Expand object tag list of theme, field, value combos
-    ##  '----------------------------------------------
+        ##  ' Expand object tag list of theme, field, value combos
+        ##  '----------------------------------------------
         #gp.AddMessage('Expanding object tag list of theme, field, value combos')
         lstLabels = []
         for el in ot:
             for e in el:
                 lstLabels.append(e.replace(' ', ''))
         #gp.AddMessage('lstLabels: %s'%lstLabels)
-    ##  ' Make vtab to hold theme coefficients
-    ##  '----------------------------------------------
+        ##  ' Make vtab to hold theme coefficients
+        ##  '----------------------------------------------
         #fnNew2 = gp.GetParameterAsText(7)
-        fnNew2 = parameters[7].valueAsText
+        #fnNew2 = parameters[7].valueAsText
         tblbn = os.path.basename(fnNew2)
         [tbldir, tblfn] = os.path.split(fnNew2)
         if tbldir.endswith(".gdb"):
@@ -483,7 +552,7 @@ def Execute(self, parameters, messages):
         strLine = fLR2.readline()
         i = 0
         first = 1
-        #gp.AddMessage("Reading Logistic Regression Coefficients Results: %s"%fnLR2)
+        gp.AddMessage("Reading Logistic Regression Coefficients Results: %s"%fnLR2)
         vTabLR2rows = gp.InsertCursor(vTabLR2)
         print ("Starting to read LR_Coeff")
         while strLine:
@@ -534,7 +603,10 @@ def Execute(self, parameters, messages):
         cmbrl = 'cmbrl'
         gp.makerasterlayer_management(cmb, cmbrl)
         #tbl = gp.GetParameterAsText(6)
-        tbl = parameters[6].valueAsText
+        
+        #Why is this again here?
+        #tbl = parameters[6].valueAsText
+        tbl = fnNew; # This was recalled before as fnNew?
         tbltv = 'tbltv'
         gp.maketableview_management(tbl, tbltv)
         gp.addjoin_management(cmbrl, 'Value', tbltv, 'ID')
@@ -544,10 +616,7 @@ def Execute(self, parameters, messages):
         #outRaster1 = gp.GetParameterAsText(8)
         #outRaster2 = gp.GetParameterAsText(9)
         #outRaster3 =  gp.GetParameterAsText(10)
-        outRaster1 =  parameters[8].valueAsText
-        outRaster2 =  parameters[9].valueAsText
-        outRaster3 =  parameters[10].valueAsText
-        gp.addmessage("="*41+'\n'+"="*41)
+        #gp.addmessage("="*41+'\n'+"="*41)
         ##template = {'cmbrl':cmb_cpy}
         ##InExp = "CON(%(cmbrl)s.LRPOSTPROB >= 0, %(cmbrl)s.LRPOSTPROB, 0)"%template
         ##gp.SingleOutputMapAlgebra_sa(InExp, outRaster1)
@@ -561,18 +630,12 @@ def Execute(self, parameters, messages):
         gp.Con_sa(cmb_cpy,cmb_cpy+".LR_STD_DEV",outRaster2,"0","LR_STD_DEV > 0")
         gp.Con_sa(cmb_cpy,cmb_cpy+".LRTVALUE",outRaster3,"0","LRTVALUE > 0")
 
-        #Add t0 display
-        #gp.SetParameterAsText(6, tbl)
-        arcpy.SetParameterAsText(6,tbl)
-        #gp.SetParameterAsText(7, gp.describe(vTabLR2).catalogpath)
-        arcpy.SetParameterAsText(7, gp.describe(vTabLR2).catalogpath)
-        #gp.SetParameterAsText(8, outRaster1)
-        arcpy.SetParameterAsText(8, outRaster1)
-        #gp.SetParameterAsText(9, outRaster2)
-        arcpy.SetParameterAsText(9, outRaster2)
-        #gp.SetParameterAsText(10, outRaster3)
-        arcpy.SetParameterAsText(10, outRaster3)
+        ###### These to return parameters
+        
+        return [ tbl, gp.describe(vTabLR2).catalogpath,  outRaster1,  outRaster2,  outRaster3]
+        
     except arcpy.ExecuteError as e:
+        dwrite ("Excepting as ExecuteError in logistic regression")
         arcpy.AddError("\n");
         arcpy.AddMessage("Caught ExecuteError in logistic regression. Details:");
         args = e.args[0];
@@ -587,6 +650,7 @@ def Execute(self, parameters, messages):
         arcpy.AddError(msgs)
         raise 
     except:
+        dwrite ("Excepting in logistic regression")
         # get the traceback object
         tb = sys.exc_info()[2]
          # tbinfo contains the line number that the code failed on and the code from that line

@@ -227,10 +227,11 @@ def Calculate(self, parameters, messages):
         #Statistics = gp.createuniquename("WtsStatistics.dbf")
         
         Statistics = gp.createuniquename("WtsStatistics")
-        if gp.exists(Statistics): gp.Delete_management(Statistics)
-        gp.Statistics_analysis(tempTrainingPoints, Statistics, "rastervalu sum" ,"rastervalu")
+        if gp.exists(Statistics): 
+            gp.Delete_management(Statistics)
+        arcpy.Statistics_analysis(tempTrainingPoints, Statistics, "rastervalu sum" ,"rastervalu")
     # Process: Create the table
-            
+        
         gp.CreateTable_management(os.path.dirname(wtstable), os.path.basename(wtstable), Statistics)
         
         gp.AddField_management (wtstable, "Count", "long") 

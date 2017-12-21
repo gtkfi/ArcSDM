@@ -26,16 +26,22 @@
 
 # Import system modules
 import sys, os, traceback, arcgisscripting, string, operator,arcsdm
+import arcsdm.logisticregression
 import arcpy
 
-debuglevel = 0;
+debuglevel = 1;
 #Debug write
 def dwrite(message):
     if (debuglevel > 0):
-        arcpy.AddMessage("Debug: " + message) 
+        arcpy.AddMessage(" | Debug: " + message) 
 
 def execute(self, parameters, messages):
 
+    import arcsdm.logisticregression;
+    try:
+        importlib.reload (arcsdm.logisticregression)
+    except :
+        reload(arcsdm.logisticregression);
 
     # Create the Geoprocessor object
     gp = arcgisscripting.create()
@@ -87,10 +93,17 @@ def execute(self, parameters, messages):
         dwrite(str(Evidence_Data_Types));
         dwrite(str(Evidence_Rasters));
         arcpy.AddMessage("========== Starting GrandWofe ====================" );
-            
+        
+        arcpy.AddMessage(" ");
+        arcpy.AddMessage("---------- Preparing data ------------")
+        arcpy.ImportToolbox(tbxpath)
+        
+        #
+        # Prepare data: Calculate weights
+        #
         for Evidence_Raster_Layer, Evidence_Data_Type in zip(Evidence_Rasters, Evidence_Data_Types):            
             prefix = Evidence_Raster_Layer + Grand_WOFE_Name
-            arcpy.AddMessage("Calculating weights for %s (%s)..."%(Evidence_Raster_Layer,Evidence_Data_Type  ));
+            arcpy.AddMessage("Running Calculate weights for %s (%s)..."%(Evidence_Raster_Layer,Evidence_Data_Type  ));
             if Evidence_Data_Type.startswith('o'):
                 Wts_Table_Types = ['Ascending','Descending']
             else: Wts_Table_Types = ['Categorical']
@@ -100,22 +113,18 @@ def execute(self, parameters, messages):
                 filename = prefix + suffix; # + '.dbf' NO DBF anymore
                 unique_name = gp.createuniquename(filename, gp.workspace)
                 Output_Weights_Table = unique_name
-                dwrite(gp.ValidateTablename(prefix + suffix) )
+                #dwrite(gp.ValidateTablename(prefix + suffix) )
+                arcpy.AddMessage( " Creating %s weights table..."%(Wts_Table_Type))
+                #dwrite('%s Exists: %s'%(Output_Weights_Table,gp.exists(Output_Weights_Table)))
                 
-                dwrite('%s Exists: %s'%(Output_Weights_Table,gp.exists(Output_Weights_Table)))
-                arcpy.ImportToolbox(tbxpath)
-                
-                # Temporarily print directory
-                #gp.addmessage(dir(arcpy));
-                #gp.addmessage("Calling calculate weights...")
-                dwrite( " raster layer name: " + Evidence_Raster_Layer);
-                
+                #dwrite( " raster layer name: " + Evidence_Raster_Layer);
+                #arcpy.AddMessage("trainingpoints";
                 result = arcpy.CalculateWeightsTool_ArcSDM ( Evidence_Raster_Layer, Evidence_Raster_Code_Field, \
                                                Input_Training_Sites_Feature_Class, Wts_Table_Type, Output_Weights_Table, \
                                                Confidence_Level_of_Studentized_Contrast, \
                                                Unit_Area__sq_km_, Missing_Data_Value)
+                gp.addwarning('Result: %s'%result)
                 arcpy.AddMessage("     ...done");        
-                gp.addwarning('Result: %s\n'%result)
                 #gp.addmessage("Done...")
                 #gp.addmessage(result);
                 
@@ -128,12 +137,13 @@ def execute(self, parameters, messages):
                     OutSet.append(str(Output)) # Save name of output table for display kluge
                 else:
                     gp.addmessage('Invalid Wts Table: %s'%Output.strip())
-                #arcpy.AddMessage("\n")
                 
         #Get list of valid tables for each input raster
         raster_tables = {}
-        #arcpy.AddMessage("     ...done");
         
+        # End calculate weights
+        #
+        #########################
         for Evidence_Raster_Layer, Output_Weights_Table in List_Wts_Tables:
             #gp.addmessage(str((evidence_layer, wts_table)))
             if Evidence_Raster_Layer in raster_tables:
@@ -164,15 +174,32 @@ def execute(self, parameters, messages):
                     valid_raster_datatypes.append(Evidence_Data_Type)
                     tables.append(raster_tables[Evidence_Raster_Layer])
             #Get ranges for number of tables for each evidence layer (in input evidence order)
-            ranges = map(range,map(len, tables))
-            #gp.addmessage(str(ranges))
+            # Py 3.4 fixes here:
+            ranges = list(map(range,list(map(len, tables))))
+            dwrite("Tables: " + str(tables));
+            dwrite("Ranges: " + str(ranges))
             #Get combinations of valid wts table for input evidence_rasters
             Weights_Tables_Per_Test = nested_fors(ranges, tables, len(tables))
+            
+            # End prepare data
+            ###################
+            arcpy.AddMessage(" ... Done preparing data")
+            
+            #
+            # Test parts 
+            #
+            ##########################
+            dwrite("Weights_Tables_Per_Test: " + str(Weights_Tables_Per_Test))            
+            
             for Testnum, Weights_Tables in enumerate(Weights_Tables_Per_Test):
-                gp.addmessage("------ Running tests... (%s) ------" %(Testnum))
+                
+                arcpy.AddMessage("_"); # TODO: Remove these stupid extra strings, they are here for debugging readclearance only TR        
+                arcpy.AddMessage("------ Running tests... (%s) ------" %(Testnum))
+                
                 # Process: Calculate Response...
                 Test = chr(ord('A')+Testnum)
-                dwrite (str(Weights_Tables));
+                dwrite ("Weights_Tables: " + str(Weights_Tables));
+                
                 Weights_Tables =  ";".join(Weights_Tables)
                 prefix = Grand_WOFE_Name[1:] + Test
                 gp.addMessage("%s: Response & Logistic Regression: %s,%s\n"%(Test, ";".join(valid_rasters), Weights_Tables))
@@ -183,13 +210,15 @@ def execute(self, parameters, messages):
                 Output_Confidence_Raster = gp.createuniquename(prefix + "_conf", gp.workspace)
                 #gp.AddToolbox(tbxpath)
                 #dwrite (str(dir(arcpy)))
-                gp.addMessage(" Calculating response... ");
-                out_paths = arcpy.CalculateResponse_ArcSDM(";".join(valid_rasters), Weights_Tables, Input_Training_Sites_Feature_Class, \
+                paramrasters = ";".join(valid_rasters);
+                
+                dwrite ("Paramrasters: " + paramrasters);
+                gp.addMessage("\n Calculating response...  ");
+                out_paths = arcpy.CalculateResponse_ArcSDM(paramrasters, Weights_Tables, Input_Training_Sites_Feature_Class, \
                                  Ignore_Missing_Data, Missing_Data_Value, Unit_Area__sq_km_, Output_Post_Prob_Raster, Output_Prob_Std_Dev_Raster, \
                                  Output_MD_Variance_Raster, Output_Total_Std_Dev_Raster, Output_Confidence_Raster)
                 # Set the actual output parameters
-                gp.addMessage("       ...done");
-                
+               
                 actualoutput = []
                 dwrite (str(out_paths));
                 dwrite ("Outputcount: " + str(out_paths.outputCount))
@@ -207,33 +236,51 @@ def execute(self, parameters, messages):
                 #Append delimited string to list
                 OutSet.append(out_paths) # Save name of output raster dataset for kluge
                 dwrite (" Outset: " + str(OutSet));
-            
+                gp.addMessage("       ...done");
+                
+                #
                 # Process: Logistic Regression...
-                Output_Polynomial_Table = gp.createuniquename(prefix + "_lrpoly.dbf", gp.workspace)
-                Output_Coefficients_Table = gp.createuniquename(prefix + "_lrcoef.dbf", gp.workspace)
+                #
+                ##################################
+                # These were .dbf files before
+                Output_Polynomial_Table = gp.createuniquename(prefix + "_lrpoly", gp.workspace)
+                Output_Coefficients_Table = gp.createuniquename(prefix + "_lrcoef", gp.workspace)
                 Output_Post_Probability_raster = gp.createuniquename(prefix + "_lrpprb", gp.workspace)
                 Output_Standard_Deviation_raster = gp.createuniquename(prefix + "_lrstd", gp.workspace)
                 Output_LR_Confidence_raster = gp.createuniquename(prefix + "_lrconf", gp.workspace)
                 #gp.AddToolbox(tbxpath)
                 gp.addMessage(" Running logistic regression...");
                 
-                out_paths = arcpy.LogisticRegressionTool_ArcSDM(";".join(valid_rasters), ";".join(valid_raster_datatypes), Weights_Tables, Input_Training_Sites_Feature_Class,
+                lrparamvalidrasters = ";".join(valid_rasters);
+                dwrite ("lrparamvalidrasters: " + str(lrparamvalidrasters));
+                lrparamdatatypes = ";".join(valid_raster_datatypes);
+                dwrite ("lrparamdatatypes: " + lrparamdatatypes);
+                dwrite ("Weights_Tables: " + Weights_Tables)
+               
+                #Lets call this way
+                #arcsdm.logisticregression.Execute(self, "", messages)
+                #out_paths = arcpy.LogisticRegressionTool_ArcSDM(lrparamvalidrasters, lrparamdatatypes, Weights_Tables, Input_Training_Sites_Feature_Class,
+                #                 Missing_Data_Value, Unit_Area__sq_km_, Output_Polynomial_Table, Output_Coefficients_Table,
+                #                 Output_Post_Probability_raster, Output_Standard_Deviation_raster, Output_LR_Confidence_raster)
+                out_paths = arcsdm.logisticregression.logisticregression(lrparamvalidrasters, lrparamdatatypes, Weights_Tables, Input_Training_Sites_Feature_Class,
                                  Missing_Data_Value, Unit_Area__sq_km_, Output_Polynomial_Table, Output_Coefficients_Table,
                                  Output_Post_Probability_raster, Output_Standard_Deviation_raster, Output_LR_Confidence_raster)
-                dwrite(str(out_paths.status))                
-                gp.addMessage("     ...done ");
+                                                 
+                #dwrite(str(out_paths.status))                
                 
+                gp.addMessage("     ...done running Logistic regression");
+                dwrite ("Outpaths:" + str(out_paths))
                 # Set the output parameters
                 #Append delimited string to list
-                for i in range(0,out_paths.outputCount):
-                    dwrite ("Output: " + str(out_paths.getOutput(i)))               
-                    OutSet.append(out_paths.getOutput(i))
+                for i in range(0,len(out_paths)):
+                    dwrite ("Output: " + str(out_paths[i])) #.getOutput(i)))               
+                    OutSet.append(out_paths[i]) #.getOutput(i))
                 #OutSet.append(out_paths) # Save name of output raster dataset for kluge
                 #Set output parameters
                 #gp.addmessage("==== ====")
-                dwrite(str(out_paths.status))
-                    
-            """Kluge because Geoprocessor can't handle variable number of ouputs"""
+                #dwrite("Outpaths.status: " + str(out_paths.status))
+            
+            #Kludge because Geoprocessor can't handle variable number of ouputs
             dwrite (" Outset: " + str(OutSet));
             OutSet = ';'.join(OutSet)
             
@@ -249,14 +296,18 @@ def execute(self, parameters, messages):
             gp.AddError('No Valid Weights Tables: Stopped.')
 
     except:
+        dwrite (" Excepting in GrandWofe");
         # get the traceback object
         tb = sys.exc_info()[2]
         # tbinfo contains the line number that the code failed on and the code from that line
         tbinfo = traceback.format_tb(tb)[0]
         # concatenate information together concerning the error into a message string
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-            str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
+            str(sys.exc_info())#+ ": " + str(sys.exc_value) + "\n"
         # generate a message string for any geoprocessing tool errors
+        #if len(arcpy.GetMessages(0))>0:
+        #    dwrite(" ======== Output from crashed tool: ======== " )
+        #    dwrite(arcpy.GetMessages(0))
         if len(gp.GetMessages(2)) > 0:
             msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"
             gp.AddError(msgs)
