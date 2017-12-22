@@ -59,6 +59,14 @@ gp.CheckOutExtension("spatial")
 
 class ErrorExit(Exception): pass
 
+
+debuglevel = 0;
+#Debug write
+def dwrite(message):
+    if (debuglevel > 0):
+        arcpy.AddMessage(" |CW Debug: " + message) 
+
+        
 def MakeWts(patternNTP, patternArea, unit, totalNTP, totalArea, Type):
     """
                     >>> Graeme's Fortran algorithm - Appendix II <<<
@@ -177,6 +185,39 @@ def MakeWts(patternNTP, patternArea, unit, totalNTP, totalArea, Type):
             
 # Load arguments...
 def Calculate(self, parameters, messages):
+    import arcsdm.sdmvalues;
+    import arcsdm.workarounds_93;
+    try:
+        importlib.reload (arcsdm.sdmvalues)
+        importlib.reload (arcsdm.workarounds_93);
+    except :
+        reload(arcsdm.sdmvalues);
+        reload(arcsdm.workarounds_93);       
+    EvidenceLayer = parameters[0].valueAsText
+    CodeName =  parameters[1].valueAsText #gp.GetParameterAsText(1)
+    TrainingSites =  parameters[2].valueAsText
+    Type =  parameters[3].valueAsText
+    wtstable = parameters[4].valueAsText;
+    Confident_Contrast = float( parameters[5].valueAsText)
+    #Unitarea = float( parameters[6].valueAsText)
+    Unitarea = float( parameters[6].value)
+    MissingDataValue = int( parameters[7].valueAsText) # Python 3 fix, long -> int
+                
+    arcsdm.sdmvalues.appendSDMValues(gp,  Unitarea, TrainingSites)
+        
+    result = CalculateWeights(EvidenceLayer, CodeName, TrainingSites, Type, wtstable, Confident_Contrast, Unitarea, MissingDataValue)
+    arcpy.SetParameterAsText(4, result[0])
+    arcpy.AddMessage("Setting success parameter..")
+    #Parametering doesn't work for somereason
+    dwrite ("Parameter8" + parameters[8].valueAsText)
+    dwrite ("Result1" + str(result[1]))
+    
+    arcpy.SetParameter(8, result[1]) # This doesn't work!!!!
+    dwrite ("Parameter8" + parameters[8].valueAsText)
+        
+
+# Do the actual work, to be called from wofe as return parameters do not work
+def CalculateWeights(EvidenceLayer, CodeName, TrainingSites, Type, wtstable, Confident_Contrast, Unitarea, MissingDataValue):
     import importlib;
     try:
         import arcsdm.sdmvalues;
@@ -189,17 +230,13 @@ def Calculate(self, parameters, messages):
             reload(arcsdm.workarounds_93);        
         gp.OverwriteOutput = 1
         gp.LogHistory = 1
-        EvidenceLayer = parameters[0].valueAsText
+        
         valuetype = gp.GetRasterProperties (EvidenceLayer, 'VALUETYPE')
         valuetypes = {1:'Integer', 2:'Float'}
         #if valuetype != 1:
         if valuetype > 8:  # <==RDB  07/01/2010 - new  integer valuetype property value for arcgis version 10
             gp.adderror('Not an integer-type raster')
             raise ErrorExit
-        CodeName =  parameters[1].valueAsText #gp.GetParameterAsText(1)
-        TrainingSites =  parameters[2].valueAsText
-        Type =  parameters[3].valueAsText
-        wtstable = parameters[4].valueAsText;
         
         # If using non gdb database, lets add .dbf
         wdesc = arcpy.Describe(gp.workspace)
@@ -207,12 +244,8 @@ def Calculate(self, parameters, messages):
             wtstable += ".dbf";
         
         
-        Confident_Contrast = float( parameters[5].valueAsText)
-        #Unitarea = float( parameters[6].valueAsText)
-        Unitarea = float( parameters[6].value)
-        MissingDataValue = int( parameters[7].valueAsText) # Python 3 fix, long -> int
         #gp.AddMessage("Debug step 12");
-        arcsdm.sdmvalues.appendSDMValues(gp,  Unitarea, TrainingSites)
+        dwrite ("MissingDataValue=" + str(MissingDataValue))
         arcpy.AddMessage("="*10 + " Calculate weights " + "="*10)
     # Process: ExtractValuesToPoints
         arcpy.AddMessage ("%-20s %s (%s)" %("Creating table:" , wtstable, Type ));
@@ -590,9 +623,8 @@ def Calculate(self, parameters, messages):
      #Delete extraneous fields
         gp.DeleteField_management(wtstable, "area;areaunits;count;rastervalu;frequency;sum_raster")
      #Set Output Parameter
-        gp.SetParameterAsText(4, gp.Describe(wtstable).CatalogPath)
-        arcpy.AddMessage("Setting success parameter..")
-        arcpy.SetParameterAsText(8, Success)
+        return [gp.Describe(wtstable).CatalogPath, Success];
+        
         
     except ErrorExit:
         Success = 0  # Invalid Table: Error
