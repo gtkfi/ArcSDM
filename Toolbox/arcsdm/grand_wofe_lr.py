@@ -29,7 +29,7 @@ import sys, os, traceback, arcgisscripting, string, operator,arcsdm
 import arcsdm.logisticregression
 import arcpy
 
-debuglevel = 1;
+debuglevel = 0;
 #Debug write
 def dwrite(message):
     if (debuglevel > 0):

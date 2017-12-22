@@ -19,7 +19,7 @@ from arcsdm import workarounds_93
 from arcsdm.floatingrasterarray import FloatRasterSearchcursor
 
 
-debuglevel = 1;
+debuglevel = 0;
 #Debug write
 def dwrite(message):
     if (debuglevel > 0):
@@ -450,7 +450,7 @@ def logisticregression(Input_Rasters, Evidence_types, Wts_Tables, TrainPts, Miss
         if not gp.Exists(strFnLR):
             gp.AddError("Reading Logistic Regression Results\nCould not find file: %s"%strFnLR)
             raise 'Existence error'
-        #gp.AddMessage("Opening Logistic Regression Results: %s"%strFnLR)
+        gp.AddMessage("Opening Logistic Regression Results: %s"%strFnLR)
         fLR = open(strFnLR, "r")
         if not fLR:
             gp.AddError("Input Error - Unable to open the file: %s for reading." %strFnLR)
@@ -461,6 +461,7 @@ def logisticregression(Input_Rasters, Evidence_types, Wts_Tables, TrainPts, Miss
         tblbn = os.path.basename(fnNew)
         [tbldir, tblfn] = os.path.split(fnNew)
         if tbldir.endswith(".gdb"):
+            dwrite ("This is GDB file")
             tblfn = tblfn[:-4] if tblfn.endswith(".dbf") else tblfn
             fnNew = fnNew[:-4] if fnNew.endswith(".dbf") else fnNew
             tblbn = tblbn[:-4] if tblbn.endswith(".dbf") else tblbn
