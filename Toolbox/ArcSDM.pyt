@@ -138,8 +138,10 @@ class GrandWofe(object):
         #3.4
         try:
             importlib.reload (arcsdm.grand_wofe_lr)
+            importlib.reload (arcsdm.calculateweights)
         except :
             reload(arcsdm.grand_wofe_lr);
+            reload (arcsdm.calculateweights)
         # To list what functions does module contain
         #messages.addWarningMessage(dir(arcsdm.SiteReduction));
         #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
@@ -1045,7 +1047,7 @@ class CalculateWeightsTool(object):
         paramSuccess = arcpy.Parameter(
         displayName="Success",
         name="success",
-        datatype="Boolean",
+        datatype="GPLong",
         parameterType="Optional",
         direction="Output")
 
