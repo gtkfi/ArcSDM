@@ -23,7 +23,7 @@ debuglevel = 0;
 #Debug write
 def dwrite(message):
     if (debuglevel > 0):
-        arcpy.AddMessage(" | Debug: " + message) 
+        arcpy.AddMessage(" |LR Debug: " + message) 
 
 # TODO: This should be in external file - like all other common things TR 
 def CheckEnvironment():
@@ -481,6 +481,7 @@ def logisticregression(Input_Rasters, Evidence_types, Wts_Tables, TrainPts, Miss
         gp.AddField_management(fnNew, 'LRTValue', 'Double', "#", "#", "#", "LR_TValue")
         gp.DeleteField_management(fnNew, "Field1")
         vTabLR = fnNew
+        #dwrite ("Trying to read " + fLR
         strLine = fLR.readline()
         vTabUCrows = workarounds_93.rowgen(gp.SearchCursor(vTabUC))
         #vTabUCrow = vTabUCrows.Next()
@@ -488,7 +489,7 @@ def logisticregression(Input_Rasters, Evidence_types, Wts_Tables, TrainPts, Miss
         #while vTabUCrow:
         for vTabUCrow in vTabUCrows: ttl += 1
             #vTabUCrow = vTabUCrows.Next()
-        #gp.AddMessage("Reading Logistic Regression Results: %s"%strFnLR)
+        dwrite("Reading Logistic Regression Results: %s"%strFnLR)
         vTabLRrows = gp.InsertCursor(vTabLR)
         while strLine:
             print (strLine);

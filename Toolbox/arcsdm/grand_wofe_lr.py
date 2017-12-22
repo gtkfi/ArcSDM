@@ -33,13 +33,13 @@ debuglevel = 0;
 #Debug write
 def dwrite(message):
     if (debuglevel > 0):
-        arcpy.AddMessage(" | Debug: " + message) 
+        arcpy.AddMessage(" |GW Debug: " + message) 
 
 def execute(self, parameters, messages):
 
     import arcsdm.logisticregression;
     try:
-        importlib.reload (arcsdm.logisticregression)
+        importlib.reload (arcsdm.logisticregression)        
     except :
         reload(arcsdm.logisticregression);
 
@@ -76,7 +76,7 @@ def execute(self, parameters, messages):
         List_Wts_Tables = []
         suffixes = {'Ascending':'_CA','Descending':'_CD','Categorical':'_CT'}
         Missing_Data_Value = -99
-        Evidence_Raster_Code_Field = ''
+        Evidence_Raster_Code_Field = ""
         OutSet = [] #List of output datasets
         dwrite('set local variables')
 
@@ -105,7 +105,8 @@ def execute(self, parameters, messages):
             prefix = Evidence_Raster_Layer + Grand_WOFE_Name
             arcpy.AddMessage("Running Calculate weights for %s (%s)..."%(Evidence_Raster_Layer,Evidence_Data_Type  ));
             if Evidence_Data_Type.startswith('o'):
-                Wts_Table_Types = ['Ascending','Descending']
+            
+                Wts_Table_Types = ['Ascending', 'Descending'] #To test wether single file works
             else: Wts_Table_Types = ['Categorical']
                 
             for Wts_Table_Type in Wts_Table_Types:
@@ -119,28 +120,53 @@ def execute(self, parameters, messages):
                 
                 #dwrite( " raster layer name: " + Evidence_Raster_Layer);
                 #arcpy.AddMessage("trainingpoints";
-                result = arcpy.CalculateWeightsTool_ArcSDM ( Evidence_Raster_Layer, Evidence_Raster_Code_Field, \
-                                               Input_Training_Sites_Feature_Class, Wts_Table_Type, Output_Weights_Table, \
+                #Parametring doesn't work, calling straight
+                #result = arcpy.CalculateWeightsTool_ArcSDM ( \
+                #                               Evidence_Raster_Layer, \
+                #                               Evidence_Raster_Code_Field, \
+                #                               Input_Training_Sites_Feature_Class, \
+                #                               Wts_Table_Type, \
+                #                               Output_Weights_Table, \
+                #                               Confidence_Level_of_Studentized_Contrast, \
+                #                               Unit_Area__sq_km_, \
+                #                               Missing_Data_Value, 0)
+                result = arcsdm.calculateweights.CalculateWeights ( \
+                                               Evidence_Raster_Layer, \
+                                               Evidence_Raster_Code_Field, \
+                                               Input_Training_Sites_Feature_Class, \
+                                               Wts_Table_Type, \
+                                               Output_Weights_Table, \
                                                Confidence_Level_of_Studentized_Contrast, \
-                                               Unit_Area__sq_km_, Missing_Data_Value)
-                gp.addwarning('Result: %s'%result)
+                                               Unit_Area__sq_km_, \
+                                               Missing_Data_Value)
+                                             
+                #gp.addwarning('Result: %s'%result)
+                #dwrite ("Output:" + arcpy.GetMessages(0));
                 arcpy.AddMessage("     ...done");        
                 #gp.addmessage("Done...")
                 #gp.addmessage(result);
                 
                 #Output, Success = result.split(';')
-                Success = "True" # horrible fix...
-                Output = result.getOutput(0);
-                if Success.strip().lower() == 'true':
+                Success = result[1]  # "True" 
+                dwrite ("result:" + str(result))#.getOutput(0))  )#str(len(result)))
+                #dwrite ("result.getOutput(0):" + str(result.inputCount));
+                #dwrite ("result.getOutput(0):" + str(result.getInput(6)));
+                
+                #dwrite ("result.getOutput(0):" + str(result.getOutput(0)));
+                #dwrite ("result.getOutput(1):" + str(result.getOutput(1)));
+                #This needs fik
+                Output = result[0];
+                
+                if result > 0 : #Success.strip().lower() == 'true':
                     List_Wts_Tables.append((Evidence_Raster_Layer, Output))
-                    #gp.addmessage('Valid Wts Table: %s'%Output_Weights_Table)
+                    gp.addmessage('Valid Wts Table: %s'%Output_Weights_Table)
                     OutSet.append(str(Output)) # Save name of output table for display kluge
                 else:
                     gp.addmessage('Invalid Wts Table: %s'%Output.strip())
                 
         #Get list of valid tables for each input raster
         raster_tables = {}
-        
+        #raise arcsdm.executeerror;
         # End calculate weights
         #
         #########################
