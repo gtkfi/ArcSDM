@@ -109,7 +109,8 @@ def MakeWts(patternNTP, patternArea, unit, totalNTP, totalArea, Type):
                 return tuple([0.0]*7)
             elif db == ds: #Maximum accumulation
                 #return tuple([0.0]*7)
-                db -= 0.01 # Won't work when s-b < ds-db
+                #db -= 0.01 # Won't work when s-b < ds-db
+                db -= 0.99 #This fix on Issue 66 continued TR
         # Fix b so can compute W- when db = MaxTPs
         if (s - b) <= (ds - db):  b = s + db - ds - 0.01
         # Warning if cannot compute W+
@@ -619,7 +620,7 @@ def CalculateWeights(EvidenceLayer, CodeName, TrainingSites, Type, wtstable, Con
                 WgtsTblRow = WgtsTblRows.Next()
         del WgtsTblRow, WgtsTblRows
         gp.AddMessage("Done creating table.")
-        gp.AddWarning("Success: %s"%Success)
+        #gp.AddWarning("Success: %s"%Success)
      #Delete extraneous fields
         gp.DeleteField_management(wtstable, "area;areaunits;count;rastervalu;frequency;sum_raster")
      #Set Output Parameter

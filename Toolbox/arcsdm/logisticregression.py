@@ -110,16 +110,16 @@ def logisticregression(Input_Rasters, Evidence_types, Wts_Tables, TrainPts, Miss
         #Remove group layer names 
         for i, s in enumerate(Input_Rasters):
             Input_Rasters[i] = arcpy.Describe( s.strip("'")).file;
-        gp.AddMessage("Input rasters: " + str(Input_Rasters))
+        #gp.AddMessage("Input rasters: " + str(Input_Rasters))
         
         Wts_Tables = Wts_Tables.split(';')
-        gp.AddMessage('Wts_Tables: %s'%(str(Wts_Tables)))
+        #gp.AddMessage('Wts_Tables: %s'%(str(Wts_Tables)))
         if len(Wts_Tables) != len(Wts_Tables):
             gp.AddError("Not enough weights tables!")
             raise Exception
             
         Evidence_types = Evidence_types.lower().split(';')
-        gp.AddMessage('Evidence_types: %s'%(str(Evidence_types)))
+        #gp.AddMessage('Evidence_types: %s'%(str(Evidence_types)))
         if len(Evidence_types) != len(Input_Rasters):
             gp.AddError("Not enough Evidence types!")
             raise Exception

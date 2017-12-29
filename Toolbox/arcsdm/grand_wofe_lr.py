@@ -115,7 +115,7 @@ def execute(self, parameters, messages):
                 unique_name = gp.createuniquename(filename, gp.workspace)
                 Output_Weights_Table = unique_name
                 #dwrite(gp.ValidateTablename(prefix + suffix) )
-                arcpy.AddMessage( " Creating %s weights table..."%(Wts_Table_Type))
+                #arcpy.AddMessage( " Creating %s weights table..."%(Wts_Table_Type))
                 #dwrite('%s Exists: %s'%(Output_Weights_Table,gp.exists(Output_Weights_Table)))
                 
                 #dwrite( " raster layer name: " + Evidence_Raster_Layer);
@@ -142,7 +142,7 @@ def execute(self, parameters, messages):
                                              
                 #gp.addwarning('Result: %s'%result)
                 #dwrite ("Output:" + arcpy.GetMessages(0));
-                arcpy.AddMessage("     ...done");        
+                #arcpy.AddMessage("     ...done");        
                 #gp.addmessage("Done...")
                 #gp.addmessage(result);
                 
@@ -159,10 +159,10 @@ def execute(self, parameters, messages):
                 
                 if result > 0 : #Success.strip().lower() == 'true':
                     List_Wts_Tables.append((Evidence_Raster_Layer, Output))
-                    gp.addmessage('Valid Wts Table: %s'%Output_Weights_Table)
+                    gp.addmessage('  ... table ok\n'); #Valid Wts Table: %s'%Output_Weights_Table)
                     OutSet.append(str(Output)) # Save name of output table for display kluge
                 else:
-                    gp.addmessage('Invalid Wts Table: %s'%Output.strip())
+                    arcpy.AddWarning('Skipping result table, not valid!'); #Invalid Wts Table: %s'%Output.strip())
                 
         #Get list of valid tables for each input raster
         raster_tables = {}
@@ -219,7 +219,7 @@ def execute(self, parameters, messages):
             
             for Testnum, Weights_Tables in enumerate(Weights_Tables_Per_Test):
                 
-                arcpy.AddMessage("_"); # TODO: Remove these stupid extra strings, they are here for debugging readclearance only TR        
+                arcpy.AddMessage(""); 
                 arcpy.AddMessage("------ Running tests... (%s) ------" %(Testnum))
                 
                 # Process: Calculate Response...
