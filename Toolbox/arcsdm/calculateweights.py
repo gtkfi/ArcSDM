@@ -210,11 +210,11 @@ def Calculate(self, parameters, messages):
     arcpy.SetParameterAsText(4, result[0])
     arcpy.AddMessage("Setting success parameter..")
     #Parametering doesn't work for somereason
-    dwrite ("Parameter8" + parameters[8].valueAsText)
+    #dwrite ("Parameter8" + parameters[8].valueAsText)
     dwrite ("Result1" + str(result[1]))
     
-    arcpy.SetParameter(8, result[1]) # This doesn't work!!!!
-    dwrite ("Parameter8" + parameters[8].valueAsText)
+    arcpy.SetParameter(8, result[1]) # This output parametering doesn't work in 10.4.1!!!!
+    #dwrite ("Parameter8" + parameters[8].valueAsText)
         
 
 # Do the actual work, to be called from wofe as return parameters do not work
