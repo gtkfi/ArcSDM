@@ -1094,7 +1094,14 @@ class CalculateWeightsTool(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        execute_tool(arcsdm.calculateweights.Calculate, self, parameters, messages)
+        try:
+            importlib.reload (arcsdm.calculateweights)
+        except :
+            reload(arcsdm.calculateweights);
+        
+        #Temporarily like this to make it work
+        arcsdm.calculateweights.Calculate(self, parameters, messages)
+        #execute_tool(arcsdm.calculateweights.Calculate, self, parameters, messages)
         return
 
         

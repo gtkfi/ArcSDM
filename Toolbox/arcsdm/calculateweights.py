@@ -205,16 +205,22 @@ def Calculate(self, parameters, messages):
     MissingDataValue = int( parameters[7].valueAsText) # Python 3 fix, long -> int
                 
     arcsdm.sdmvalues.appendSDMValues(gp,  Unitarea, TrainingSites)
-        
-    result = CalculateWeights(EvidenceLayer, CodeName, TrainingSites, Type, wtstable, Confident_Contrast, Unitarea, MissingDataValue)
-    arcpy.SetParameterAsText(4, result[0])
-    arcpy.AddMessage("Setting success parameter..")
-    #Parametering doesn't work for somereason
-    #dwrite ("Parameter8" + parameters[8].valueAsText)
-    dwrite ("Result1" + str(result[1]))
     
-    arcpy.SetParameter(8, result[1]) # This output parametering doesn't work in 10.4.1!!!!
-    #dwrite ("Parameter8" + parameters[8].valueAsText)
+    try:
+        result = CalculateWeights(EvidenceLayer, CodeName, TrainingSites, Type, wtstable, Confident_Contrast, Unitarea, MissingDataValue)     
+    except:
+        #This is not working.... :(
+        sys.exit(1);
+    #arcpy.AddMessage(result);
+    if (result is not None):
+        arcpy.SetParameterAsText(4, result[0])
+        arcpy.AddMessage("Setting success parameter..")
+        #Parametering doesn't work for somereason
+        #dwrite ("Parameter8" + parameters[8].valueAsText)
+        dwrite ("Result1" + str(result[1]))
+        
+        arcpy.SetParameter(8, result[1]) # This output parametering doesn't work in 10.4.1!!!!
+        #dwrite ("Parameter8" + parameters[8].valueAsText)
         
 
 # Do the actual work, to be called from wofe as return parameters do not work
@@ -241,15 +247,19 @@ def CalculateWeights(EvidenceLayer, CodeName, TrainingSites, Type, wtstable, Con
         
         # If using non gdb database, lets add .dbf
         wdesc = arcpy.Describe(gp.workspace)
+        outdir = os.path.dirname(wtstable);
         if (wdesc.workspaceType == "FileSystem"):
             wtstable += ".dbf";
+            wtstable = wtstable.split('\\', 1)[-1]
+            outdir = wdesc.path + "\\";
+            wtstable = outdir + wtstable;
         
         
         #gp.AddMessage("Debug step 12");
         dwrite ("MissingDataValue=" + str(MissingDataValue))
         arcpy.AddMessage("="*10 + " Calculate weights " + "="*10)
     # Process: ExtractValuesToPoints
-        arcpy.AddMessage ("%-20s %s (%s)" %("Creating table:" , wtstable, Type ));
+        arcpy.AddMessage ("%-20s %s (%s)" %("Creating table:" ,  wtstable, Type ));
         
         
         #tempTrainingPoints = gp.createscratchname("OutPoints", "FC", "shapefile", gp.scratchworkspace)
@@ -266,7 +276,7 @@ def CalculateWeights(EvidenceLayer, CodeName, TrainingSites, Type, wtstable, Con
         arcpy.Statistics_analysis(tempTrainingPoints, Statistics, "rastervalu sum" ,"rastervalu")
     # Process: Create the table
         
-        gp.CreateTable_management(os.path.dirname(wtstable), os.path.basename(wtstable), Statistics)
+        gp.CreateTable_management(outdir, os.path.basename(wtstable), Statistics)
         
         gp.AddField_management (wtstable, "Count", "long") 
         gp.AddField_management (wtstable, "Area", 'double')
@@ -628,9 +638,10 @@ def CalculateWeights(EvidenceLayer, CodeName, TrainingSites, Type, wtstable, Con
         
         
     except ErrorExit:
-        Success = 0  # Invalid Table: Error
+        Success = 0  # Invalid Table: Error        
         gp.SetParameter(8, Success)
         print ('Aborting wts calculation')
+        
     except arcpy.ExecuteError as e:
         #TODO: Clean up all these execute errors in final version
         arcpy.AddError("\n");
