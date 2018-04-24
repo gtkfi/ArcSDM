@@ -24,6 +24,15 @@ import arcpy;
 import gc;
 import importlib;
 
+
+debuglevel = 0;
+#Debug write
+def dwrite(message):
+    if (debuglevel > 0):
+        arcpy.AddMessage("Debug: " + message)
+        #arcpy.AddError("DebugError:" + message)
+
+
 def Execute(self, parameters, messages):
 
 
@@ -117,7 +126,6 @@ def Execute(self, parameters, messages):
         
         gp.AddMessage("\nCreating weight rasters ")
         arcpy.AddMessage("=" * 41);
-
         for Input_Raster in Input_Rasters:
             #<== RDB
             #++ Needs to be able to extract input raster name from full path.
@@ -179,11 +187,13 @@ def Execute(self, parameters, messages):
             else:
                 NoDataArg2 = NoDataArg
             #Create new rasterlayer from input raster -> Result RasterLayer
-            RasterLayer = "OutRas_lyr"            
+            RasterLayer = "OutRas_lyr"
             arcpy.MakeRasterLayer_management(Input_Raster,RasterLayer)
             
             #++ AddJoin requires and input layer or tableview not Input Raster Dataset.     
             #Join result layer with weights table
+            dwrite ("Layer and Rasterlayer: " + Input_Raster + " " + RasterLayer);
+            dwrite ("WTs_layer: " + Wts_Table)
             arcpy.AddJoin_management(RasterLayer,"VALUE",Wts_Table,"CLASS")
             # THis is where it crashes on ISsue 44!https://github.com/gtkfi/ArcSDM/issues/44
             #return;

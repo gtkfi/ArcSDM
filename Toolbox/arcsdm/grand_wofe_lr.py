@@ -31,6 +31,7 @@
 import sys, os, traceback, arcgisscripting, string, operator,arcsdm
 import arcpy
 
+#Set to one while debugging
 debuglevel = 0;
 #Debug write
 def dwrite(message):
@@ -40,6 +41,7 @@ def dwrite(message):
 def execute(self, parameters, messages):
 
 
+    
     # Create the Geoprocessor object
     gp = arcgisscripting.create()
 
@@ -129,7 +131,24 @@ def execute(self, parameters, messages):
                 
                 #Output, Success = result.split(';')
                 Success = "True" # horrible fix...
-                Output = result.getOutput(0) + ".dbf";
+                outputfilename = result.getOutput(0);
+                
+                #TODO: filegeodatabase support! No .dbf there.
+                #dbf file-extension fix
+                # Testing workspace
+                desc = arcpy.Describe(gp.workspace)
+                
+                Output = outputfilename;
+                
+                
+                if not(outputfilename.endswith('.dbf')):
+                    Output = outputfilename #+ ".dbf";
+                    #Geodatabase....
+                if  desc.workspaceType == "FileSystem":
+                    Output = outputfilename + ".dbf";
+                    dwrite ("Workspace is filesystem - adding dbf")
+                    
+            
                 if Success.strip().lower() == 'true':
                     List_Wts_Tables.append((Evidence_Raster_Layer, Output))
                     #gp.addmessage('Valid Wts Table: %s'%Output_Weights_Table)
@@ -171,8 +190,13 @@ def execute(self, parameters, messages):
                     valid_rasters.append(Evidence_Raster_Layer)
                     valid_raster_datatypes.append(Evidence_Data_Type)
                     tables.append(raster_tables[Evidence_Raster_Layer])
+            
             #Get ranges for number of tables for each evidence layer (in input evidence order)
-            ranges = map(range,map(len, tables))
+            # Py 3.4 fixes here:
+            ranges = list(map(range,list(map(len, tables))))
+            dwrite("Tables: " + str(tables));
+            dwrite("Ranges: " + str(ranges))
+            #ranges = map(range,map(len, tables))
             #gp.addmessage(str(ranges))
             #Get combinations of valid wts table for input evidence_rasters
             Weights_Tables_Per_Test = nested_fors(ranges, tables, len(tables))
@@ -180,7 +204,7 @@ def execute(self, parameters, messages):
                 gp.addmessage("------ Running tests... (%s) ------" %(Testnum))
                 # Process: Calculate Response...
                 Test = Testnum
-                dwrite (str(Weights_Tables));
+                dwrite ("Weight tables: " + str(Weights_Tables));
                 Weights_Tables =  ";".join(Weights_Tables)
                 prefix = Grand_WOFE_Name[1:] + str(Test)
                 gp.addMessage("%s: Response & Logistic Regression: %s,%s\n"%(Test, ";".join(valid_rasters), Weights_Tables))
@@ -259,6 +283,15 @@ def execute(self, parameters, messages):
     except:
         # get the traceback object
         tb = sys.exc_info()[2]
+        #e = sys.exc_info()[1]
+        #dwrite(e.args[0])
+    
+        # If using this code within a script tool, AddError can be used to return messages 
+        #   back to a script tool.  If not, AddError will have no effect.
+        #arcpy.AddError(e.args[0])
+        ## Begin old.
+        
+        
         # tbinfo contains the line number that the code failed on and the code from that line
         tbinfo = traceback.format_tb(tb)[0]
         # concatenate information together concerning the error into a message string
