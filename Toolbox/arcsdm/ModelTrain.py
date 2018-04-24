@@ -26,7 +26,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
 
-from .weight_boosting import BrownBoostClassifier
+from weight_boosting import BrownBoostClassifier
 
 # Global Name for the messages object and be called from any function
 MESSAGES = None
@@ -80,7 +80,7 @@ def _get_fields(feature_layer, fields_name):
         fi = arcpy.da.FeatureClassToNumPyArray(feature_layer, fields_name)
     except TypeError:
         _verbose_print("Failed importing with nans, possibly a integer feature class")
-        fi = arcpy.da.FeatureClassToNumPyArray(feature_layer, fields_name, null_value=sys.maxsize)
+        fi = arcpy.da.FeatureClassToNumPyArray(feature_layer, fields_name, null_value=sys.maxint)
 
     # Cast to floating point numbers
     field = np.array([[elem * 1.0 for elem in row] for row in fi])
@@ -89,7 +89,7 @@ def _get_fields(feature_layer, fields_name):
     if not isinstance(fields_name, list):
         field = field.flatten()
     # Assign NAN to the numbers with maximum integer value
-    field[field == sys.maxsize] = np.NaN
+    field[field == sys.maxint] = np.NaN
 
     return field
 

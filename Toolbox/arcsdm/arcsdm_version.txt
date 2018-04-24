@@ -1,4 +1,4 @@
-ArcSdm 5.00.28 for ArcGis (Pro and Desktop)
+ArcSdm 5.01.01 for ArcGis (Pro and Desktop)
 
 ## The following lines will and should not be printed as output as version info!
 
@@ -8,5 +8,5 @@ Janne Kallunki, GTK 2016-2017, janne.kallunki@gtk.fi
 Tero Rönkkö, GTK 2016-2017, tero.ronkko@gtk.fi
 Kimmo Korhonen, GTK 2016-2017, kimmo.korhonen@gtk.fi
 Irving Cabrera, 2017, irvcaza@gmail.com
-
+Arianne Ford, Kenex Ltd. 2018
 

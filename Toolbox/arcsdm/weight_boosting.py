@@ -60,7 +60,7 @@ def solve_de(r, hypothesis, response, s, c, v=0.001):
     h = s
     a = t = 0
     # A maximum number of steps wil be performed before the differential equation is considered unsolved
-    for i in range(1000):
+    for i in xrange(1000):
         # Perform one Runge-Kutta step
         val_t, val_t2 = rk4_step(dif_eq_const,a,t,h)
         # If the difference between RK4 and Euler is too big, reduce the step size
