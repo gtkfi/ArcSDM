@@ -1,4 +1,4 @@
-Ôªøimport sys
+import sys
 import arcpy
 
 import arcsdm.sitereduction
@@ -68,7 +68,7 @@ class GrandWofe(object):
         direction="Input")
         
         param3 = arcpy.Parameter(
-        displayName="Input raster types (separate by semicolon ;)",
+        displayName="Input raster types (use a, d, or c and separate by semicolon ;)",
         name="rastertypes",
         #datatype="DEFeatureClass",
         datatype="String",
@@ -84,8 +84,8 @@ class GrandWofe(object):
         direction="Input")
         
         paramIgnoreMissing = arcpy.Parameter(
-        displayName="Ignore missing data",
-        name="Ignore missing data",
+        displayName="Ignore missing data (must be set to -99)",
+        name="Ignore missing data (-99)",
         datatype="Boolean",
         parameterType="Optional",
         direction="Output")
@@ -109,7 +109,7 @@ class GrandWofe(object):
         
         
         
-        params = [param1, param2, param3, paramTrainingPoints, paramIgnoreMissing, paramContrast, paramUnitArea ]
+        params = [param1, param2, param3, paramTrainingPoints, paramIgnoreMissing, paramContrast, paramUnitArea]
         return params
 
     def isLicensed(self):    
@@ -138,10 +138,8 @@ class GrandWofe(object):
         #3.4
         try:
             importlib.reload (arcsdm.grand_wofe_lr)
-            importlib.reload (arcsdm.calculateweights)
         except :
             reload(arcsdm.grand_wofe_lr);
-            reload (arcsdm.calculateweights)
         # To list what functions does module contain
         #messages.addWarningMessage(dir(arcsdm.SiteReduction));
         #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
@@ -1047,7 +1045,7 @@ class CalculateWeightsTool(object):
         paramSuccess = arcpy.Parameter(
         displayName="Success",
         name="success",
-        datatype="GPLong",
+        datatype="Boolean",
         parameterType="Optional",
         direction="Output")
 
@@ -1094,14 +1092,7 @@ class CalculateWeightsTool(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        try:
-            importlib.reload (arcsdm.calculateweights)
-        except :
-            reload(arcsdm.calculateweights);
-        
-        #Temporarily like this to make it work
-        arcsdm.calculateweights.Calculate(self, parameters, messages)
-        #execute_tool(arcsdm.calculateweights.Calculate, self, parameters, messages)
+        execute_tool(arcsdm.calculateweights.Calculate, self, parameters, messages)
         return
 
         
@@ -1136,7 +1127,7 @@ class SiteReductionTool(object):
         parameterType="Optional",
         direction="Input")
         
-# T√§m√§ vois olla hyvinkin valintalaatikko?
+# T‰m‰ vois olla hyvinkin valintalaatikko?
         param3 = arcpy.Parameter(
         displayName="Random selection",
         name="Random_selection",
@@ -1470,7 +1461,7 @@ class LogisticRegressionTool(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Logistic regression"
-        self.description = "This tool is a useful complement to Weights-of-Evidence Calculate Response tool as Logistic Regression does not make the assumption of conditional independence of the evidence with regards to the training sites. Using the evidence and assocaited weights tables, this tool creates the outputs the response and standard deviation rasters. The calculations are based on the Gen_Class attribute in the weights table and the type of evidence."
+        self.description = "This tool is a useful complement to Weights-of-Evidence Calculate Response tool as Logistic Regression does not make the assumption of conditional independence of the evidence with regards to the training sites. Using the evidence and assocaited weights tables, this tool creates the outputs the response and standard deviation rasters. The calculations are based on the Gen_Class attribute in the weights table and the type of evidence. Please note that the Logistic Regression tool accepts a maximum of 6,000 unique conditions or it fails. Also note that there is an upper limit of 100,000 unit cells per class in each evidence raster layer. If a class in an evidence raster goes above this, the script contains a function to increase the unit cell size to ensure an upper limit of 100,000. These issues are unable to be fixed due to a hard coded limitation in the Logistic Regression executable sdmlr.exe."
         self.canRunInBackground = False
         self.category = "Weights of Evidence"
 
@@ -1494,7 +1485,7 @@ class LogisticRegressionTool(object):
         param1.parameterDependencies = ["0"];
         
         #param1.filter.type = "ValueList";
-        #param1.filter.list = ["o", "c"];
+        #param1.filter.list = ["o", "c", "a", "d"];
         #param1.value = "o";
         
         paramInputWeights = arcpy.Parameter(
@@ -1594,10 +1585,6 @@ class LogisticRegressionTool(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        try:
-            importlib.reload (arcsdm.logisticregression)
-        except :
-            reload(arcsdm.logisticregression);
         execute_tool(arcsdm.logisticregression.Execute, self, parameters, messages)
         return
 
