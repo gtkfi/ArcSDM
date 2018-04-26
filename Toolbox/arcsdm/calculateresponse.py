@@ -23,19 +23,28 @@ import arcsdm.sdmvalues;
 import arcpy;
 import gc;
 import importlib;
-
+import sys
 
 debuglevel = 0;
 #Debug write
+
+def testdebugfile():
+    import sys;
+    import os;
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    if (os.path.isfile(dir_path + "/DEBUG")):
+        return 1;            
+    
+
 def dwrite(message):
-    if (debuglevel > 0):
+    debug = testdebugfile();
+    if (debuglevel > 0 or debug > 0):
         arcpy.AddMessage("Debug: " + message)
         #arcpy.AddError("DebugError:" + message)
 
 
 def Execute(self, parameters, messages):
-
-
+    
     try:
         # Import system modules
         import sys, os, math, traceback;
@@ -219,10 +228,12 @@ def Execute(self, parameters, messages):
                 gp.AddMessage("Deleted tempraster");
             
             #Copy created and joined raster to temp_raster
-            gp.CopyRaster_management(RasterLayer,Temp_Raster,'#','#',NoDataArg2)
-            gp.AddMessage(" Output_Raster: " + Output_Raster);
+            arcpy.CopyRaster_management(RasterLayer,Temp_Raster,'#','#',NoDataArg2)
+            arcpy.AddMessage(" Output_Raster: " + Output_Raster);
             
-            gp.Lookup_sa(Temp_Raster,"WEIGHT",Output_Raster)
+            #gp.Lookup_sa(Temp_Raster,"WEIGHT",Output_Raster)
+            outras = arcpy.sa.Lookup(Temp_Raster,"WEIGHT")
+            outras.save(Output_Raster);
             #return;
             #gp.addwarning(gp.getmessages())
             # ISsue 44 fix

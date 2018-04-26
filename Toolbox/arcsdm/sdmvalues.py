@@ -125,6 +125,10 @@ def appendSDMValues(gp, unitCell, TrainPts):
             data=myfile.readlines()
         #Print version information
         arcpy.AddMessage("%-20s %s" % ("", data[0]) ); 
+        installinfo = arcpy.GetInstallInfo ();
+
+        arcpy.AddMessage("%-20s %s (%s)" % ("Arcgis environment: ", installinfo['ProductName'] , installinfo['Version'] ));
+        
         if not gp.workspace:
             gp.adderror('Workspace not set')
             raise arcpy.ExecuteError("Workspace not set!");
