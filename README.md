@@ -35,7 +35,8 @@ Status of the toolbox should be updated to wiki https://github.com/gtkfi/ArcSDM/
 The demodata and the toolbox will be separated from eachother to make downloading easier.<br>
 
 ## History:
-6.10.2017 5.00.22 GrandWofe and various fixes
+26.4.2018 5.01.01 Merged code by Tachyon-work to master-branch.<br>
+6.10.2017 5.00.22 GrandWofe and various fixes<br>
 2.10.2017 Updating wiki and this page, cleaning up. <br>
 4.9.2017 5.00.22 Updates, fixes and new demodata<br>
 17.5.2017 5.00.15 Updates and fixes <br>
