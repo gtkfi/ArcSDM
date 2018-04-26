@@ -5,6 +5,7 @@
     History:
     4/2016 Conversion started - TR
     9/2016 Conversion started to Python toolbox TR
+    01/2018 Bug fixes for 10.x - Arianne Ford
     
 
     Spatial Data Modeller for ESRI* ArcGIS 9.2
@@ -22,6 +23,15 @@ import arcsdm.sdmvalues;
 import arcpy;
 import gc;
 import importlib;
+
+
+debuglevel = 0;
+#Debug write
+def dwrite(message):
+    if (debuglevel > 0):
+        arcpy.AddMessage("Debug: " + message)
+        #arcpy.AddError("DebugError:" + message)
+
 
 def Execute(self, parameters, messages):
 
@@ -116,7 +126,6 @@ def Execute(self, parameters, messages):
         
         gp.AddMessage("\nCreating weight rasters ")
         arcpy.AddMessage("=" * 41);
-
         for Input_Raster in Input_Rasters:
             #<== RDB
             #++ Needs to be able to extract input raster name from full path.
@@ -141,10 +150,10 @@ def Execute(self, parameters, messages):
             
             outputrastername = Input_Raster.replace(".","_");
             
-            outputrastername = outputrastername[:10] + "_W";
+            outputrastername = outputrastername[:10] + "W";
             #outputrastername = desc.nameString + "_W2";
             # Create _W raster
-            Output_Raster = gp.CreateScratchName(outputrastername, '', 'raster', gp.scratchworkspace)
+            Output_Raster = gp.CreateScratchName(outputrastername, '', 'rst', gp.scratchworkspace)
             #gp.AddMessage("\n");            
             #gp.AddMessage(" Outputraster: " + outputrastername);
             
@@ -178,11 +187,13 @@ def Execute(self, parameters, messages):
             else:
                 NoDataArg2 = NoDataArg
             #Create new rasterlayer from input raster -> Result RasterLayer
-            RasterLayer = "OutRas_lyr"            
+            RasterLayer = "OutRas_lyr"
             arcpy.MakeRasterLayer_management(Input_Raster,RasterLayer)
             
             #++ AddJoin requires and input layer or tableview not Input Raster Dataset.     
             #Join result layer with weights table
+            dwrite ("Layer and Rasterlayer: " + Input_Raster + " " + RasterLayer);
+            dwrite ("WTs_layer: " + Wts_Table)
             arcpy.AddJoin_management(RasterLayer,"VALUE",Wts_Table,"CLASS")
             # THis is where it crashes on ISsue 44!https://github.com/gtkfi/ArcSDM/issues/44
             #return;
@@ -194,7 +205,7 @@ def Execute(self, parameters, messages):
             # Note! ScratchFolder doesn't seem to work            
             #Note Scratch these:
             #Temp_Raster = os.path.join(arcpy.env.scratchWorkspace,'temp_raster')
-            Temp_Raster = gp.CreateScratchName('temp_raster', '', 'raster', gp.scratchworkspace)
+            Temp_Raster = gp.CreateScratchName('tmp_rst', '', 'rst', gp.scratchworkspace)
             #gp.AddMessage(" RasterLayer=" + RasterLayer);
             gp.AddMessage(" Temp_Raster=" + Temp_Raster);
             gp.AddMessage(" Wts_Table=" + Wts_Table);
@@ -285,17 +296,17 @@ def Execute(self, parameters, messages):
             ##InExpression = "EXP(%s) / (1.0 + EXP(%s))" %(InExpressionPLOG,InExpressionPLOG)
             
             #Pre arcgis pro expression
-            #InExpression = "%s = EXP(%s) / (1.0 + EXP(%s))" %(PostProb,InExpressionPLOG,InExpressionPLOG)  # <==RDB update to MOMA  07/01/2010
+            #InExpression = "%s = Exp(%s) / (1.0 + Exp(%s))" %(PostProb,InExpressionPLOG,InExpressionPLOG)  # <==RDB update to MOMA  07/01/2010
             InExpression = "Exp(%s) / (1.0 + Exp(%s))" %(InExpressionPLOG,InExpressionPLOG)  
-            #gp.AddMessage("InExpression = " + str(InExpression))
-            gp.addmessage("InExpression 1 ====> "  + InExpression) # <==RDB  07/01/2010
+            gp.AddMessage("InExpression = " + str(InExpression))
+            #gp.addmessage("InExpression 1 ====> "  + InExpression) # <==RDB  07/01/2010
             # Fix: This is obsolete
             #gp.MultiOutputMapAlgebra_sa(InExpression)  # <==RDB  07/01/2010
             gp.AddMessage("Postprob: " + PostProb);
-            output_raster = gp.RasterCalculator(InExpression, PostProb);
+            #output_raster = gp.RasterCalculator(InExpression, PostProb);
             #output_raster.save(postprob)
-            #gp.SingleOutputMapAlgebra_sa(InExpression, PostProb)
-            #gp.SetParameterAsText(6, PostProb)
+            gp.SingleOutputMapAlgebra_sa(InExpression, PostProb)
+            gp.SetParameterAsText(6, PostProb)
         except:
             gp.AddError(gp.getMessages(2))
             raise
@@ -316,11 +327,11 @@ def Execute(self, parameters, messages):
             #++ Can't assume only a layer from ArcMap.
             ##Output_Raster = Input_Raster[:11] + "_S"
             ##Output_Raster = os.path.basename(Input_Raster)[:11] + "_S"  
-            stdoutputrastername = os.path.basename(Input_Raster[:9]).replace(".","_") + "_S"; # No . allowed in filegeodatgabases           
+            stdoutputrastername = os.path.basename(Input_Raster[:9]).replace(".","_") + "S"; # No . allowed in filegeodatgabases           
 
             #arcpy.AddMessage("Debug:" + stdoutputrastername);
             
-            Output_Raster = gp.CreateScratchName(stdoutputrastername, '', 'raster', gp.scratchworkspace)
+            Output_Raster = gp.CreateScratchName(stdoutputrastername, '', 'rst', gp.scratchworkspace)
             #print ("DEBUG STD1");
             Wts_Table = Wts_Tables[i]
             
@@ -346,13 +357,13 @@ def Execute(self, parameters, messages):
             # Folder doesn't seem to do the trick...
             #Temp_Raster = os.path.join(arcpy.env.scratchFolder,'temp_raster')
             #Temp_Raster = os.path.join(arcpy.env.scratchWorkspace,'temp_raster2')
-            Temp_Raster = gp.CreateScratchName('temp_raster', '', 'raster', gp.scratchworkspace)
+            Temp_Raster = gp.CreateScratchName('tmp_rst', '', 'rst', gp.scratchworkspace)
             
             if gp.exists(Temp_Raster): 
                 arcpy.Delete_management(Temp_Raster)
                 gc.collect();
                 arcpy.ClearWorkspaceCache_management()
-                gp.AddMessage("Tmpraster deleted.");
+                gp.AddMessage("Tmprst deleted.");
             gp.AddMessage("RasterLayer=" + RasterLayer);
             gp.AddMessage("Temp_Raster=" + Temp_Raster);
             
@@ -390,7 +401,7 @@ def Execute(self, parameters, messages):
         else:
             SUM_args_list = []
             for Std_Raster in Std_Rasters:
-                SUM_args_list.append("Square(\"%s\")" % Std_Raster)
+                SUM_args_list.append("SQR(\"%s\")" % Std_Raster)
             #SUM_args = ",".join(SUM_args_list)
             SUM_args = " + ".join(SUM_args_list);
             gp.AddMessage("Sum_args: " + SUM_args + "\n" + "="*41);
@@ -399,16 +410,16 @@ def Execute(self, parameters, messages):
        
             Constant = 1.0 / float(numTPs)
             ##InExpression = "SQRT(SQR(%s) * (%s + SUM(%s)))" %(PostProb,Constant,SUM_args)
-            #InExpression = "SQRT(SQR(%s) * (%s + SUM(%s)))" %(PostProb,Constant,SUM_args)  # PRe ARcGis pro
-            InExpression = "SquareRoot(Square(\"%s\") * (%s +(%s)))" %(PostProb,Constant,SUM_args)  
+            InExpression = "SQRT(SQR(%s) * (%s + SUM(%s)))" %(PostProb,Constant,SUM_args)  # PRe ARcGis pro
+            #InExpression = "SquareRoot(Square(\"%s\") * (%s +(%s)))" %(PostProb,Constant,SUM_args)  
             gp.AddMessage("InExpression = " + str(InExpression))
         #SQRT(SUM(SQR(rclssb2_md_S),SQR(kbgeol2_md_S)))
         try:
             gp.addmessage("InExpression 2 ====> " + InExpression) # <==RDB
             #gp.MultiOutputMapAlgebra_sa(InExpression)   # <==RDB  07/01/2010
-            output_raster = gp.RasterCalculator(InExpression, PostProb_Std);
-            #gp.SingleOutputMapAlgebra_sa(InExpression, PostProb_Std)
-            #gp.SetParameterAsText(7,PostProb_Std)
+            #output_raster = gp.RasterCalculator(InExpression, PostProb_Std);
+            gp.SingleOutputMapAlgebra_sa(InExpression, PostProb_Std)
+            gp.SetParameterAsText(7,PostProb_Std)
         except:
             gp.AddError(gp.getMessages(2))
             raise
@@ -436,19 +447,19 @@ def Execute(self, parameters, messages):
                     #gp.MissingDataVariance_sdm(rasterList,PostProb,MDVariance)
                     missingdatavar_func.MissingDataVariance(gp,rasterList,PostProb,MDVariance)
                     Total_Std = parameters[9].valueAsText #gp.GetParameterAsText(9)
-                    ##InExpression = 'SQRT(SUM(SQR(%s),%s))' % (PostProb_Std, MDVariance)
+                    InExpression = 'SQRT(SUM(SQR(%s),%s))' % (PostProb_Std, MDVariance)
                     # OBsolete, replaced with raster calc
                     #InExpression = "\"%s\" = SQRT(SUM(SQR(\"%s\"),\"%s\"))" % (Total_Std, PostProb_Std, MDVariance)  # <==RDB update to MOMA
                     #InExpression = "SquareRoot(SUM ( Square (\"%s\"),\"%s\"))" % ( PostProb_Std, MDVariance)  # <==RDB update to MOMA
-                    InExpression = "SquareRoot( Square (\"%s\") + \"%s\")" % ( PostProb_Std, MDVariance)  # <==RDB update to MOMA
+                    #InExpression = "SquareRoot( Square (\"%s\") + \"%s\")" % ( PostProb_Std, MDVariance)  # <==RDB update to MOMA
                     #gp.SetParameterAsText(8,MDVariance)
                     #gp.AddMessage(InExpression)
                     gp.AddMessage("Calculating Total STD...")
                     gp.addmessage("InExpression 3 ====> " + InExpression) # <==RDB
                     #gp.MultiOutputMapAlgebra_sa(InExpression)  # <==RDB
-                    output_raster = gp.RasterCalculator(InExpression, Total_Std);
-                    #gp.SingleOutputMapAlgebra_sa(InExpression, Total_Std)
-                    #gp.SetParameterAsText(9,Total_Std)
+                    #output_raster = gp.RasterCalculator(InExpression, Total_Std);
+                    gp.SingleOutputMapAlgebra_sa(InExpression, Total_Std)
+                    gp.SetParameterAsText(9,Total_Std)
                 except:
                     gp.AddError(gp.getMessages(2))
                     raise
@@ -465,21 +476,21 @@ def Execute(self, parameters, messages):
         #PostProb1 / PP_Std
     ##    PostProbRL = os.path.join( gp.Workspace, "PostProbRL")
     ##    gp.MakeRasterLayer_management(PostProb,PostProbRL)
-        PostProbRL = gp.describe(PostProb).catalogpath
+        #PostProbRL = gp.describe(PostProb).catalogpath
     ##    PostProb_StdRL = os.path.join( gp.Workspace, "PostProb_StdRL")
     ##    gp.MakeRasterLayer_management(Total_Std, PostProb_StdRL)
-        PostProb_StdRL = gp.describe(Total_Std).catalogpath
+        #PostProb_StdRL = gp.describe(Total_Std).catalogpath
         Confidence = parameters[10].valueAsText #gp.GetParameterAsText(10)
         #InExpression = PostProbRL + " / " + PostProb_StdRL
-        #InExpression = "%s = %s / %s" %(Confidence,PostProbRL,PostProb_StdRL)  # PreARcGis pro
-        InExpression = '"%s" / "%s"' %(PostProbRL,PostProb_StdRL)  # <==RDB update to MOMA
+        InExpression = "%s / %s" %(PostProb,PostProb_Std)  # PreARcGis pro
+        #InExpression = '"%s" / "%s"' %(PostProbRL,PostProb_StdRL)  # <==RDB update to MOMA
         #gp.AddMessage("InExpression = " + str(InExpression))
         gp.addmessage("InExpression 4====> " + InExpression) # <==RDB
         try: 
             #gp.MultiOutputMapAlgebra_sa(InExpression)  # <==RDB
-            output_raster = arcpy.gp.RasterCalculator_sa(InExpression, Confidence);
-            #gp.SingleOutputMapAlgebra_sa(InExpression, Confidence)
-            #gp.SetParameterAsText(10,Confidence)
+            #output_raster = arcpy.gp.RasterCalculator_sa(InExpression, Confidence);
+            gp.SingleOutputMapAlgebra_sa(InExpression, Confidence)
+            gp.SetParameterAsText(10,Confidence)
         except:
             gp.AddError(gp.getMessages(2))
             raise

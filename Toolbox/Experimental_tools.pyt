@@ -1789,6 +1789,13 @@ class SelectRandomPoints(object):
         non_selected_points = parameter_dic["non_selected_points"].valueAsText
 
 
+        if selection_percentage > 100:
+            print ("percent is greater than 100")
+            return
+        if selection_percentage < 0:
+            print ("percent is less than zero")
+            return
+
         import random
         fc = arcpy.Describe(points).catalogPath
         featureCount = float(arcpy.GetCount_management(fc).getOutput(0))

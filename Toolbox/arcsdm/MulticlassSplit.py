@@ -117,12 +117,8 @@ def execute(self, parameters, messages):
 
         for orig_val in unique_values:
             # File names just accept unicode names, for values not in unicode a transformation is done
-            try:
-                unicode_val = unicode(orig_val)
-                fullname = output_prefix + unicode_val.encode("ascii",'ignore').replace(" ","_")
-            except NameError:
-                unicode_val = str(orig_val)
-                fullname = output_prefix + unicode_val.replace(" ","_")
+            unicode_val = unicode(orig_val)
+            fullname = output_prefix + unicode_val.encode("ascii",'ignore').replace(" ","_")
             if " " in unicode_val:
                 arcpy.SelectLayerByAttribute_management(layer_scratch, "NEW_SELECTION",
                                                         u"{} = '{}'".format(class_field, orig_val))

@@ -2,6 +2,7 @@
 """
     Calculate Weights - ArcSDM 5 for ArcGis pro 
     Recode from the original by Tero Rönkkö / Geological survey of Finland
+    Update by Arianne Ford, Kenex Ltd. 2018
    
     History: 
     3.11.2017 Updated categorical calculations when perfect correlation exists as described in issue 66
@@ -9,7 +10,8 @@
     23.9.2016 Goes through
     12.8.2016 First running version for pyt. Shapefile training points and output?
     1.8.2016 Python toolbox version started
-    12.12.2016 Fixes 
+    12.12.2016 Fixes
+    09/01/2018 Bug fixes for 10.x, fixed perfect correlation issues, introduced patch for b-db<=0 - Arianne Ford, Kenex Ltd.
     
     
     
@@ -59,14 +61,6 @@ gp.CheckOutExtension("spatial")
 
 class ErrorExit(Exception): pass
 
-
-debuglevel = 0;
-#Debug write
-def dwrite(message):
-    if (debuglevel > 0):
-        arcpy.AddMessage(" |CW Debug: " + message) 
-
-        
 def MakeWts(patternNTP, patternArea, unit, totalNTP, totalArea, Type):
     """
                     >>> Graeme's Fortran algorithm - Appendix II <<<
@@ -103,20 +97,26 @@ def MakeWts(patternNTP, patternArea, unit, totalNTP, totalArea, Type):
                 #db -= 0.01 # Won't work when s-b < ds-db 
                 db -= 0.99
                 #return tuple([0.0]*7)
+            elif db == 0.001:
+                db = ds
+                db -= 0.99
         else: # Ascending and Descending generalization
             if db ==0: #no accumulation
                 #db = 0.01
                 return tuple([0.0]*7)
             elif db == ds: #Maximum accumulation
                 #return tuple([0.0]*7)
-                #db -= 0.01 # Won't work when s-b < ds-db
-                db -= 0.99 #This fix on Issue 66 continued TR
+                db -= 0.99 # Won't work when s-b < ds-db
         # Fix b so can compute W- when db = MaxTPs
-        if (s - b) <= (ds - db):  b = s + db - ds - 0.01
+        if (s - b) <= (ds - db):  b = s + db - ds - 0.99
         # Warning if cannot compute W+
         if (b-db) <= 0.0:
-            gp.addwarning( 'More than one TP per Unitcell in pattern.')
-            return tuple([0.0]*7)
+            #fix pattern area if area less than unit size
+            b = db + 1
+            #gp.addwarning( 'More than one TP per Unitcell in pattern.')
+            #return tuple([0.0]*7)
+
+
         #<<<<<<<<<<<<<<<<<<End of traps
         
         db = float(db)
@@ -186,45 +186,6 @@ def MakeWts(patternNTP, patternArea, unit, totalNTP, totalArea, Type):
             
 # Load arguments...
 def Calculate(self, parameters, messages):
-    import arcsdm.sdmvalues;
-    import arcsdm.workarounds_93;
-    try:
-        importlib.reload (arcsdm.sdmvalues)
-        importlib.reload (arcsdm.workarounds_93);
-    except :
-        reload(arcsdm.sdmvalues);
-        reload(arcsdm.workarounds_93);       
-    EvidenceLayer = parameters[0].valueAsText
-    CodeName =  parameters[1].valueAsText #gp.GetParameterAsText(1)
-    TrainingSites =  parameters[2].valueAsText
-    Type =  parameters[3].valueAsText
-    wtstable = parameters[4].valueAsText;
-    Confident_Contrast = float( parameters[5].valueAsText)
-    #Unitarea = float( parameters[6].valueAsText)
-    Unitarea = float( parameters[6].value)
-    MissingDataValue = int( parameters[7].valueAsText) # Python 3 fix, long -> int
-                
-    arcsdm.sdmvalues.appendSDMValues(gp,  Unitarea, TrainingSites)
-    
-    try:
-        result = CalculateWeights(EvidenceLayer, CodeName, TrainingSites, Type, wtstable, Confident_Contrast, Unitarea, MissingDataValue)     
-    except:
-        #This is not working.... :(
-        sys.exit(1);
-    #arcpy.AddMessage(result);
-    if (result is not None):
-        arcpy.SetParameterAsText(4, result[0])
-        arcpy.AddMessage("Setting success parameter..")
-        #Parametering doesn't work for somereason
-        #dwrite ("Parameter8" + parameters[8].valueAsText)
-        dwrite ("Result1" + str(result[1]))
-        
-        arcpy.SetParameter(8, result[1]) # This output parametering doesn't work in 10.4.1!!!!
-        #dwrite ("Parameter8" + parameters[8].valueAsText)
-        
-
-# Do the actual work, to be called from wofe as return parameters do not work
-def CalculateWeights(EvidenceLayer, CodeName, TrainingSites, Type, wtstable, Confident_Contrast, Unitarea, MissingDataValue):
     import importlib;
     try:
         import arcsdm.sdmvalues;
@@ -237,29 +198,33 @@ def CalculateWeights(EvidenceLayer, CodeName, TrainingSites, Type, wtstable, Con
             reload(arcsdm.workarounds_93);        
         gp.OverwriteOutput = 1
         gp.LogHistory = 1
-        
+        EvidenceLayer = parameters[0].valueAsText
         valuetype = gp.GetRasterProperties (EvidenceLayer, 'VALUETYPE')
         valuetypes = {1:'Integer', 2:'Float'}
         #if valuetype != 1:
         if valuetype > 8:  # <==RDB  07/01/2010 - new  integer valuetype property value for arcgis version 10
             gp.adderror('Not an integer-type raster')
             raise ErrorExit
+        CodeName =  parameters[1].valueAsText #gp.GetParameterAsText(1)
+        TrainingSites =  parameters[2].valueAsText
+        Type =  parameters[3].valueAsText
+        wtstable = parameters[4].valueAsText;
         
         # If using non gdb database, lets add .dbf
         wdesc = arcpy.Describe(gp.workspace)
-        outdir = os.path.dirname(wtstable);
         if (wdesc.workspaceType == "FileSystem"):
             wtstable += ".dbf";
-            wtstable = wtstable.split('\\', 1)[-1]
-            outdir = wdesc.path + "\\";
-            wtstable = outdir + wtstable;
         
         
+        Confident_Contrast = float( parameters[5].valueAsText)
+        #Unitarea = float( parameters[6].valueAsText)
+        Unitarea = float( parameters[6].value)
+        MissingDataValue = int( parameters[7].valueAsText) # Python 3 fix, long -> int
         #gp.AddMessage("Debug step 12");
-        dwrite ("MissingDataValue=" + str(MissingDataValue))
+        arcsdm.sdmvalues.appendSDMValues(gp,  Unitarea, TrainingSites)
         arcpy.AddMessage("="*10 + " Calculate weights " + "="*10)
     # Process: ExtractValuesToPoints
-        arcpy.AddMessage ("%-20s %s (%s)" %("Creating table:" ,  wtstable, Type ));
+        arcpy.AddMessage ("%-20s %s (%s)" %("Creating table:" , wtstable, Type ));
         
         
         #tempTrainingPoints = gp.createscratchname("OutPoints", "FC", "shapefile", gp.scratchworkspace)
@@ -271,12 +236,11 @@ def CalculateWeights(EvidenceLayer, CodeName, TrainingSites, Type, wtstable, Con
         #Statistics = gp.createuniquename("WtsStatistics.dbf")
         
         Statistics = gp.createuniquename("WtsStatistics")
-        if gp.exists(Statistics): 
-            gp.Delete_management(Statistics)
-        arcpy.Statistics_analysis(tempTrainingPoints, Statistics, "rastervalu sum" ,"rastervalu")
+        if gp.exists(Statistics): gp.Delete_management(Statistics)
+        gp.Statistics_analysis(tempTrainingPoints, Statistics, "rastervalu sum" ,"rastervalu")
     # Process: Create the table
-        
-        gp.CreateTable_management(outdir, os.path.basename(wtstable), Statistics)
+            
+        gp.CreateTable_management(os.path.dirname(wtstable), os.path.basename(wtstable), Statistics)
         
         gp.AddField_management (wtstable, "Count", "long") 
         gp.AddField_management (wtstable, "Area", 'double')
@@ -578,7 +542,7 @@ def CalculateWeights(EvidenceLayer, CodeName, TrainingSites, Type, wtstable, Con
           
                     #Calculate Wts from Out Area and Out TPs for combined Out Rows
                     if Out_Num>0:
-                        if Out_NumTPs == 0: Out_NumTPs = 0.01
+                        if Out_NumTPs == 0: Out_NumTPs = 0.001
                         Wts = MakeWts(float(Out_NumTPs), Out_Area, Unitarea, totalTPs, totalArea, Type)
                         if not Wts:
                             gp.AddError("Weights calculation aborted.")
@@ -607,8 +571,8 @@ def CalculateWeights(EvidenceLayer, CodeName, TrainingSites, Type, wtstable, Con
                             gp.AddError("Categorical: Class value of the outside generalized class is same as an inside class.")
                             raise ErrorExit
                         WgtsTblRow.Gen_Class = Out_Gen_Class
-                        WgtsTblRow.Weight = Wts[0]
-                        WgtsTblRow.W_Std = Wts[1]
+                        WgtsTblRow.Weight = Wts[2]
+                        WgtsTblRow.W_Std = Wts[3]
                     WgtsTblRows.UpdateRow(WgtsTblRow)
                     #gp.AddMessage("Class=" + str(WgtsTblRow.Class))
                     WgtsTblRow = WgtsTblRows.Next()
@@ -630,18 +594,18 @@ def CalculateWeights(EvidenceLayer, CodeName, TrainingSites, Type, wtstable, Con
                 WgtsTblRow = WgtsTblRows.Next()
         del WgtsTblRow, WgtsTblRows
         gp.AddMessage("Done creating table.")
-        #gp.AddWarning("Success: %s"%Success)
+        gp.AddWarning("Success: %s"%Success)
      #Delete extraneous fields
         gp.DeleteField_management(wtstable, "area;areaunits;count;rastervalu;frequency;sum_raster")
      #Set Output Parameter
-        return [gp.Describe(wtstable).CatalogPath, Success];
-        
+        gp.SetParameterAsText(4, gp.Describe(wtstable).CatalogPath)
+        arcpy.AddMessage("Setting success parameter..")
+        arcpy.SetParameterAsText(8, Success)
         
     except ErrorExit:
-        Success = 0  # Invalid Table: Error        
+        Success = 0  # Invalid Table: Error
         gp.SetParameter(8, Success)
         print ('Aborting wts calculation')
-        
     except arcpy.ExecuteError as e:
         #TODO: Clean up all these execute errors in final version
         arcpy.AddError("\n");

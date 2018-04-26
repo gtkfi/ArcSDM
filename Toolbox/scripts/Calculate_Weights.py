@@ -73,7 +73,7 @@ def MakeWts(patternNTP, patternArea, unit, totalNTP, totalArea, Type):
                 #db = 0.01
                 return tuple([0.0]*7)
             elif db == ds:
-                db -= 0.01 # Won't work when s-b < ds-db
+                db -= 0.99 # Won't work when s-b < ds-db
                 #return tuple([0.0]*7)
         else: # Ascending and Descending generalization
             if db ==0: #no accumulation
@@ -81,9 +81,9 @@ def MakeWts(patternNTP, patternArea, unit, totalNTP, totalArea, Type):
                 return tuple([0.0]*7)
             elif db == ds: #Maximum accumulation
                 #return tuple([0.0]*7)
-                db -= 0.01 # Won't work when s-b < ds-db
+                db -= 0.99 # Won't work when s-b < ds-db
         # Fix b so can compute W- when db = MaxTPs
-        if (s - b) <= (ds - db):  b = s + db - ds - 0.01
+        if (s - b) <= (ds - db):  b = s + db - ds - 0.99
         # Warning if cannot compute W+
         if (b-db) <= 0.0:
             gp.addwarning( 'More than one TP per Unitcell in pattern.')

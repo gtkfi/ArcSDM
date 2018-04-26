@@ -26,11 +26,6 @@ ToMetric = {
     'square miles to square kilometers' : 2.589988110647
     }
     
-debuglevel = 0;
-#Debug write
-def dwrite(message):
-    if (debuglevel > 0):
-        arcpy.AddMessage(" |SValues Debug: " + message) 
 
 
 def execute(self, parameters, messages):
@@ -66,13 +61,10 @@ def getMaskSize (mapUnits):
     try:
         desc = arcpy.Describe(arcpy.env.mask);
         #arcpy.AddMessage( "getMaskSize()");
-        #if (desc.dataType == "RasterDataset"):
-        #    raise arcpy.ExecuteError("RasterDataset type is not allowed as Mask!");
+        if (desc.dataType == "RasterDataset"):
+            raise arcpy.ExecuteError("RasterDataset type is not allowed as Mask!");
         if (desc.dataType == "RasterLayer" or desc.dataType == "RasterDataset"):
             #arcpy.AddMessage( " Counting raster size");                       
-            dwrite(desc.catalogpath)
-            tmp = arcpy.env.scratchWorkspace + "\tmp"
-            #r = arcpy.MakeRasterLayer_management(desc.catalogpath)#, "#", "feature.shp", "1")
             maskrows = arcpy.SearchCursor(desc.catalogpath)        
             maskrow = maskrows.next()
             count =  0
@@ -133,9 +125,6 @@ def appendSDMValues(gp, unitCell, TrainPts):
             data=myfile.readlines()
         #Print version information
         arcpy.AddMessage("%-20s %s" % ("", data[0]) ); 
-        info = arcpy.GetInstallInfo();
-        fullinfo = info['ProductName'] + " " + info ['Version']; # Append also arcgis version
-        arcpy.AddMessage("%-20s %s" % ("ArcGis version:", fullinfo) );  
         if not gp.workspace:
             gp.adderror('Workspace not set')
             raise arcpy.ExecuteError("Workspace not set!");
