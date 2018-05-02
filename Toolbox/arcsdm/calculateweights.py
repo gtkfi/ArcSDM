@@ -212,8 +212,10 @@ def Calculate(self, parameters, messages):
         
         # If using non gdb database, lets add .dbf
         wdesc = arcpy.Describe(gp.workspace)
+        
         if (wdesc.workspaceType == "FileSystem"):
-            wtstable += ".dbf";
+            if not(wtstable.endswith('.dbf')):
+                wtstable += ".dbf";
         
         
         Confident_Contrast = float( parameters[5].valueAsText)
@@ -256,11 +258,11 @@ def Calculate(self, parameters, messages):
         gp.AddField_management(wtstable,"WMINUS","double","10","4","#","W-")
         gp.AddField_management(wtstable,"S_WMINUS","double","10","4","#","W- Std")
         gp.AddField_management(wtstable,"CONTRAST","double","10","4","#","Contrast")
-        gp.AddField_management(wtstable,"S_CONTRAST","double","10","4","#","Contrast Std")
-        gp.AddField_management(wtstable,"STUD_CNT","double","10","4","#","Studentized Contrast")
-        gp.AddField_management(wtstable,"GEN_CLASS","long","#","#","#","Generalized Class")
-        gp.AddField_management(wtstable,"WEIGHT","double","10","6","#","Generalized Weight")
-        gp.AddField_management(wtstable,"W_STD","double","10","6","#","Generalized Weight Std")
+        gp.AddField_management(wtstable,"S_CONTRAST","double","10","4","#","Contrast_Std")
+        gp.AddField_management(wtstable,"STUD_CNT","double","10","4","#","Studentized_Contrast")
+        gp.AddField_management(wtstable,"GEN_CLASS","long","#","#","#","Generalized_Class")
+        gp.AddField_management(wtstable,"WEIGHT","double","10","6","#","Generalized_Weight")
+        gp.AddField_management(wtstable,"W_STD","double","10","6","#","Generalized_Weight_Std")
         OIDName = gp.Describe(wtstable).OIDFieldName
 
         #Fill output table rows depending on Type    
@@ -594,7 +596,7 @@ def Calculate(self, parameters, messages):
                 WgtsTblRow = WgtsTblRows.Next()
         del WgtsTblRow, WgtsTblRows
         gp.AddMessage("Done creating table.")
-        gp.AddWarning("Success: %s"%Success)
+        gp.AddMessage("Success: %s"%Success)
      #Delete extraneous fields
         gp.DeleteField_management(wtstable, "area;areaunits;count;rastervalu;frequency;sum_raster")
      #Set Output Parameter

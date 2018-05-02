@@ -1,4 +1,10 @@
 # -*- coding: utf-8 -*-
+
+# ArcSDM 5 Common and general functions
+#
+# Janne Kallunki, GTK, 2017
+# Tero Ronkko, GTK, 2018
+
 import sys, os, traceback
 import arcpy
 import arcsdm.config as cfg
@@ -12,6 +18,17 @@ if PY2:
 if PY34:
     import importlib
 
+    
+def testandwarn_arcgispro():
+    installinfo = arcpy.GetInstallInfo ();
+    if (installinfo['ProductName'] == "ArcGISPro"):
+        arcpy.AddWarning("This tool does not work properly on ArcGISPro!");
+        return True;
+    else:
+        return False;
+        
+        
+    
 def reload_arcsdm_modules(messages):
     arcsdm_modules = [m.__name__ for m in sys.modules.values() if m and m.__name__.startswith(__package__)]
     for m in arcsdm_modules:

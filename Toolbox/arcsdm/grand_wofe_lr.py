@@ -31,12 +31,31 @@
 import sys, os, traceback, arcgisscripting, string, operator,arcsdm
 import arcpy
 
-#Set to one while debugging
-debuglevel = 0;
+
+
+
+#Set to one while debugging (Or add DEBUG file to arcsdm directory)
 #Debug write
-def dwrite(message):
+debuglevel = 0;
+
+def  testdebugfile():
+    returnvalue = 0;
+    import sys;
+    import os;
     if (debuglevel > 0):
-        arcpy.AddMessage("Debug: " + message) 
+        returnvalue = 1;
+    else:
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        if (os.path.isfile(dir_path + "/DEBUG")):
+            returnvalue =  1;            
+    return returnvalue;
+
+def dwrite(message):
+    debug = testdebugfile();
+    if (debuglevel > 0 or debug > 0):
+        arcpy.AddMessage("Debug: " + message)
+
+
 
 def execute(self, parameters, messages):
 
@@ -107,36 +126,52 @@ def execute(self, parameters, messages):
                 
             for Wts_Table_Type in Wts_Table_Types:
                 suffix = suffixes[Wts_Table_Type]
+                
                 filename = prefix + suffix; # + '.dbf' NO DBF anymore
+                desc = arcpy.Describe(gp.workspace)
+                
+                if  desc.workspaceType == "FileSystem":
+                    if not(filename.endswith('.dbf')):
+                        filename = filename + ".dbf";
+                    dwrite ("Filename is a file - adding dbf")
+                    
                 unique_name = gp.createuniquename(filename, gp.workspace)
                 Output_Weights_Table = unique_name
-                dwrite(gp.ValidateTablename(prefix + suffix) )
+                #dwrite("Validate: " + gp.ValidateTablename(prefix + suffix) )
                 
-                dwrite('%s Exists: %s'%(Output_Weights_Table,gp.exists(Output_Weights_Table)))
                 arcpy.ImportToolbox(tbxpath)
                 
                 # Temporarily print directory
                 #gp.addmessage(dir(arcpy));
                 #gp.addmessage("Calling calculate weights...")
-                dwrite( " raster layer name: " + Evidence_Raster_Layer);
+                dwrite( " Evidence raster layer name: " + Evidence_Raster_Layer);
+                dwrite(' Output table name: %s Exists already: %s'%(Output_Weights_Table,gp.exists(Output_Weights_Table)))
                 
                 result = arcpy.CalculateWeightsTool_ArcSDM ( Evidence_Raster_Layer, Evidence_Raster_Code_Field, \
                                                Input_Training_Sites_Feature_Class, Wts_Table_Type, Output_Weights_Table, \
                                                Confidence_Level_of_Studentized_Contrast, \
                                                Unit_Area__sq_km_, Missing_Data_Value)
                 arcpy.AddMessage("     ...done");        
-                gp.addwarning('Result: %s\n'%result)
+                gp.AddMessage('Result: %s\n'%result)
                 #gp.addmessage("Done...")
                 #gp.addmessage(result);
                 
                 #Output, Success = result.split(';')
                 Success = "True" # horrible fix...
                 outputfilename = result.getOutput(0);
+                warning = result.getMessages(1);
+                
+                dwrite(warning);
+                if(len(warning)>0):
+                    arcpy.AddWarning(warning);
+                    Success = "False";
+                    #Should stop here?
+              
+                
                 
                 #TODO: filegeodatabase support! No .dbf there.
                 #dbf file-extension fix
                 # Testing workspace
-                desc = arcpy.Describe(gp.workspace)
                 
                 Output = outputfilename;
                 
@@ -145,7 +180,8 @@ def execute(self, parameters, messages):
                     Output = outputfilename #+ ".dbf";
                     #Geodatabase....
                 if  desc.workspaceType == "FileSystem":
-                    Output = outputfilename + ".dbf";
+                    if not(outputfilename.endswith('.dbf')):
+                        Output = outputfilename + ".dbf";
                     dwrite ("Workspace is filesystem - adding dbf")
                     
             

@@ -29,12 +29,15 @@ debuglevel = 0;
 #Debug write
 
 def testdebugfile():
+    returnvalue = 0; #This because python sucks in detecting outputs from functions
     import sys;
     import os;
+    if (debuglevel > 0):
+        return 1;
     dir_path = os.path.dirname(os.path.realpath(__file__))
     if (os.path.isfile(dir_path + "/DEBUG")):
         return 1;            
-    
+    return returnvalue;
 
 def dwrite(message):
     debug = testdebugfile();
@@ -67,7 +70,7 @@ def Execute(self, parameters, messages):
 
         # Check out any necessary licenses
         gp.CheckOutExtension("spatial")
-
+    
         ''' Parameters '''
         
         Evidence = parameters[0].valueAsText #gp.GetParameterAsText(0)
@@ -77,6 +80,8 @@ def Execute(self, parameters, messages):
         MissingDataValue = parameters[4].value #gp.GetParameter(4)
         #Cleanup extramessages after stuff
         #gp.AddMessage('Got arguments' )
+        arcsdm.common.testandwarn_arcgispro();
+        
         if IgnoreMsgData: # for nodata argument to CopyRaster tool
             NoDataArg = MissingDataValue
         else:
@@ -232,8 +237,11 @@ def Execute(self, parameters, messages):
             arcpy.AddMessage(" Output_Raster: " + Output_Raster);
             
             #gp.Lookup_sa(Temp_Raster,"WEIGHT",Output_Raster)
+            #This doesn't work in ArcGis Pro
+            
             outras = arcpy.sa.Lookup(Temp_Raster,"WEIGHT")
             outras.save(Output_Raster);
+            
             #return;
             #gp.addwarning(gp.getmessages())
             # ISsue 44 fix
@@ -268,10 +276,14 @@ def Execute(self, parameters, messages):
         ''' Post Logit Raster '''
         
         gp.AddMessage( "\n" + "Getting Post Logit raster...\n" + "=" * 41)
+        
         # This used to be comma separated, now +
+        
+        
         Input_Data_Str = ' + '.join('"{0}"'.format(w) for w in Wts_Rasters) #must be comma delimited string list
         arcpy.AddMessage(" Input_data_str: " + Input_Data_Str)
         Constant = math.log(Prior_prob/(1.0 - Prior_prob))
+        
         if len(Wts_Rasters) == 1:
             InExpressionPLOG = "%s + %s" %(Constant,Input_Data_Str)
         else:
@@ -315,8 +327,12 @@ def Execute(self, parameters, messages):
             #gp.MultiOutputMapAlgebra_sa(InExpression)  # <==RDB  07/01/2010
             gp.AddMessage("Postprob: " + PostProb);
             #output_raster = gp.RasterCalculator(InExpression, PostProb);
-            #output_raster.save(postprob)
+            #output_raster.save(postprob)            
             gp.SingleOutputMapAlgebra_sa(InExpression, PostProb)
+            #Pro/10 this needs to be done differently....
+            #output_raster = arcpy.sa.RasterCalculator(InExpression, PostProb);
+            #output_raster.save(postprob)            
+            
             gp.SetParameterAsText(6, PostProb)
         except:
             gp.AddError(gp.getMessages(2))
