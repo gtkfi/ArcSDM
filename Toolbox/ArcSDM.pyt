@@ -88,7 +88,7 @@ class GrandWofe(object):
         name="Ignore missing data (-99)",
         datatype="Boolean",
         parameterType="Optional",
-        direction="Output")
+        direction="Input")
         #paramIgnoreMissing.value= false;
         
         paramContrast = arcpy.Parameter(
@@ -106,6 +106,8 @@ class GrandWofe(object):
         parameterType="Required",
         direction="Input")
         paramUnitArea.value = "1"
+        
+       
         
         
         
@@ -140,12 +142,6 @@ class GrandWofe(object):
             importlib.reload (arcsdm.grand_wofe_lr)
         except :
             reload(arcsdm.grand_wofe_lr);
-        # To list what functions does module contain
-        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
-        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
-        #messages.AddMessage("Waiting for debugger")
-        #wait_for_debugger(15);
-        #No do yet
         arcsdm.grand_wofe_lr.execute(self, parameters, messages)
         return
                 
@@ -203,12 +199,7 @@ class PartitionNNInputFiles(object):
             importlib.reload (arcsdm.partition_inputnnfiles)
         except :
             reload(arcsdm.partition_inputnnfiles);
-        # To list what functions does module contain
-        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
-        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
-        #messages.AddMessage("Waiting for debugger")
-        #wait_for_debugger(15);
-        #No do yet
+        
         arcsdm.partition_inputnnfiles.execute(self, parameters, messages)
         return
                 
@@ -273,12 +264,6 @@ class CombineNNOutputFiles(object):
             importlib.reload (arcsdm.combine_outputnnfiles)
         except :
             reload(arcsdm.combine_outputnnfiles);
-        # To list what functions does module contain
-        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
-        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
-        #messages.AddMessage("Waiting for debugger")
-        #wait_for_debugger(15);
-        #No do yet
         arcsdm.combine_outputnnfiles.execute(self, parameters, messages)
         return
         
@@ -373,12 +358,6 @@ class NeuralNetworkOutputFiles(object):
             importlib.reload (arcsdm.nnoutputfiles)
         except :
             reload(arcsdm.nnoutputfiles);
-        # To list what functions does module contain
-        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
-        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
-        #messages.AddMessage("Waiting for debugger")
-        #wait_for_debugger(15);
-        #No do yet
         arcsdm.nnoutputfiles.execute(self, parameters, messages)
         return
         
@@ -518,12 +497,8 @@ class NeuralNetworkInputFiles(object):
             importlib.reload (arcsdm.nninputfiles)
         except :
             reload(arcsdm.nninputfiles);
-        # To list what functions does module contain
-        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
-        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
         #messages.AddMessage("Waiting for debugger")
         #wait_for_debugger(15);
-        #No do yet
         arcsdm.nninputfiles.execute(self, parameters, messages)
         return
         
@@ -590,12 +565,8 @@ class GetSDMValues(object):
             importlib.reload (arcsdm.sdmvalues)
         except :
             reload(arcsdm.sdmvalues);
-        # To list what functions does module contain
-        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
-        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
         #messages.AddMessage("Waiting for debugger")
         #wait_for_debugger(15);
-        #No do yet
         arcsdm.sdmvalues.execute(self, parameters, messages)
         return
                                                              

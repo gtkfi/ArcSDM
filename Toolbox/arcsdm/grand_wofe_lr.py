@@ -159,6 +159,8 @@ def execute(self, parameters, messages):
                 #Output, Success = result.split(';')
                 Success = "True" # horrible fix...
                 outputfilename = result.getOutput(0);
+                tmp = result.getOutput(1);
+                dwrite ("Result: " + str(tmp));
                 warning = result.getMessages(1);
                 
                 dwrite(warning);
@@ -237,9 +239,9 @@ def execute(self, parameters, messages):
             #Get combinations of valid wts table for input evidence_rasters
             Weights_Tables_Per_Test = nested_fors(ranges, tables, len(tables))
             for Testnum, Weights_Tables in enumerate(Weights_Tables_Per_Test):
-                gp.addmessage("------ Running tests... (%s) ------" %(Testnum))
+                Test = Testnum + 1
+                gp.addmessage("------ Running tests... (%s) ------" %(Test))
                 # Process: Calculate Response...
-                Test = Testnum
                 dwrite ("Weight tables: " + str(Weights_Tables));
                 Weights_Tables =  ";".join(Weights_Tables)
                 prefix = Grand_WOFE_Name[1:] + str(Test)

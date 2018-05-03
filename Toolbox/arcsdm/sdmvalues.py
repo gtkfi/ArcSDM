@@ -18,6 +18,7 @@ from arcsdm.exceptions import SDMError
 import arcpy
 import os
 import arcgisscripting
+import numpy;
     
 ToMetric = {
     'square meters to square kilometers' : 0.000001,
@@ -27,9 +28,31 @@ ToMetric = {
     }
     
 
+debuglevel = 0;
+
+#This is initially -1
+globalmasksize = -1; 
+    
+def testdebugfile():
+    returnvalue = 0; #This because python sucks in detecting outputs from functions
+    import sys;
+    import os;
+    if (debuglevel > 0):
+        return 1;
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    if (os.path.isfile(dir_path + "/DEBUG")):
+        return 1;            
+    return returnvalue;
+
+def dwrite(message):
+    debug = testdebugfile();
+    if (debuglevel > 0 or debug > 0):
+        arcpy.AddMessage("Debug: " + message)    
+    
 
 def execute(self, parameters, messages):
     #Obsolete, needs refactoring!
+    dwrite ("Starting sdmvalues");
     gp = arcgisscripting.create() 
     TrainingSites =  parameters[0].valueAsText        
     Unitarea = float( parameters[1].value)        
@@ -44,7 +67,7 @@ def getPriorProb(TrainPts ,unitCell, mapUnits) :
     num_tps = arcpy.GetCount_management(TrainPts)
     #arcpy.AddMessage("%-20s %s"% ('amount:' ,num_tps))
     #arcpy.addmessage("%-20s %s" % ("Unit Cell Area:", "{}km^2, Cells in area: {} ".format(unitCell,num_unit_cells)))
-        
+    
     total_area = getMaskSize(mapUnits) # Now the getMaskSize returns it correctly in sqkm   : * cellsize **2 * conversion
       #gp.addMessage("Debug));
     unitCell = float(unitCell)
@@ -59,18 +82,44 @@ def getPriorProb(TrainPts ,unitCell, mapUnits) :
 #Return mask size in sqkm
 def getMaskSize (mapUnits):
     try:
+        #if globalmasksize is > 0, use that:
+        global globalmasksize;
+        if (globalmasksize > 0):
+            return globalmasksize;
         desc = arcpy.Describe(arcpy.env.mask);
         #arcpy.AddMessage( "getMaskSize()");
         if (desc.dataType == "RasterDataset"):
             raise arcpy.ExecuteError("RasterDataset type is not allowed as Mask!");
         if (desc.dataType == "RasterLayer" or desc.dataType == "RasterDataset"):
-            #arcpy.AddMessage( " Counting raster size");                       
-            maskrows = arcpy.SearchCursor(desc.catalogpath)        
-            maskrow = maskrows.next()
-            count =  0
-            while maskrow:
-                count += maskrow.count
-                maskrow = maskrows.next()
+            dwrite( " Counting raster size");                       
+            dwrite("   File: " + desc.catalogpath);
+            tulos = arcpy.GetRasterProperties_management (desc.catalogpath, "COLUMNCOUNT");
+            tulos2 = arcpy.GetRasterProperties_management (desc.catalogpath, "ROWCOUNT");
+            #dwrite (str(tulos.getOutput(0)));
+            #dwrite (str(tulos2.getOutput(0)));
+            rows = int(tulos2.getOutput(0));
+            columns = int(tulos.getOutput(0));
+            
+            #count = rows * columns;
+            
+            raster_array = arcpy.RasterToNumPyArray (desc.catalogpath, nodata_to_value=-9999);
+            #Calculate only on single level...
+            # There is no simple way to calculate nodata... so using numpy! TR
+            count = 0;
+            dwrite ("    Iterating through mask in numpy..." + str(columns) + "x" + str(rows));
+            for i in range(0,int(rows)):
+                for j in range (0, int(columns)):
+                    if (raster_array[i][j] <>-9999):
+                        count = count+1;
+            dwrite( "     count:" + str(count));
+            
+            
+            #maskrows = arcpy.SearchCursor(desc.catalogpath)        
+            #maskrow = maskrows.next()
+            #count =  0
+            #while maskrow:
+            #    count += maskrow.count
+            #    maskrow = maskrows.next()
             cellsize = float( str(arcpy.env.cellSize.replace(",",".")) )             
             count = count * (cellsize * cellsize);
           
@@ -95,6 +144,7 @@ def getMaskSize (mapUnits):
             #arcpy.AddMessage("Debug:" + str(multiplier));
             #count = count * multiplier;
         #arcpy.AddMessage("Size: " + str(count));
+        globalmasksize = count;
         return count
     except arcpy.ExecuteError as e:
             
@@ -285,4 +335,4 @@ def getMapUnits(silent=False):
         arcpy.AddError(errors)
 
         
-      
+  

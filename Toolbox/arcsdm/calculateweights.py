@@ -437,7 +437,7 @@ def Calculate(self, parameters, messages):
         ds = gp.GetCount_management(tempTrainingPoints) #TP selected
         #gp.AddMessage("ds="+str(ds))
 
-        Success = 1 #Assume Valid Table: Has confident classes
+        Success = True #Assume Valid Table: Has confident classes
         if Type in ("Ascending", "Descending", "Categorical"):
             #gp.AddMessage("Generalizing " + Type + "...")
             if Type != "Categorical": #i.e., Ascending or Descending
@@ -506,7 +506,7 @@ def Calculate(self, parameters, messages):
                     gp.AddWarning("No Contrast for type %s satisfied the user defined confidence level %s"%(Type,Confident_Contrast))
                     gp.AddWarning("Table %s is incomplete."%wtstable)
                     #gp.Delete(wtstable)
-                    Success = 0 # Invalid Table: No confidence
+                    Success = False # Invalid Table: No confidence
         
             else: #Categorical
                 #Get Wts and Wts_Std for class values outside confidence
@@ -581,7 +581,7 @@ def Calculate(self, parameters, messages):
                 if In_Num == 0:
                     gp.AddWarning("No row Contrast for type %s satisfied the user confidence contrast = %s"%(Type,Confident_Contrast))
                     gp.AddWarning("Table %s is incomplete."%wtstable)
-                    Success = 0  # Invalid Table: fails confidence test
+                    Success = False  # Invalid Table: fails confidence test
         #end of Categorical generalization
         else: #Type is Unique
             #gp.AddMessage("Setting Unique Generalization")
@@ -596,7 +596,7 @@ def Calculate(self, parameters, messages):
                 WgtsTblRow = WgtsTblRows.Next()
         del WgtsTblRow, WgtsTblRows
         gp.AddMessage("Done creating table.")
-        gp.AddMessage("Success: %s"%Success)
+        gp.AddMessage("Success: %s"%str(Success))
      #Delete extraneous fields
         gp.DeleteField_management(wtstable, "area;areaunits;count;rastervalu;frequency;sum_raster")
      #Set Output Parameter
@@ -605,8 +605,8 @@ def Calculate(self, parameters, messages):
         arcpy.SetParameterAsText(8, Success)
         
     except ErrorExit:
-        Success = 0  # Invalid Table: Error
-        gp.SetParameter(8, Success)
+        Success = False  # Invalid Table: Error
+        gp.SetParameterAsText(8, Success)
         print ('Aborting wts calculation')
     except arcpy.ExecuteError as e:
         #TODO: Clean up all these execute errors in final version
