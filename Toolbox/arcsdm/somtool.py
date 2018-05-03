@@ -8,7 +8,7 @@
 
 import arcpy;
 import numpy;
-from minisom import MiniSom    
+from arcsdm.minisom import MiniSom    
 from datetime import datetime
 import itertools;
 import random;
@@ -233,7 +233,7 @@ def execute(self, parameters, messages):
     #myRasterBlock.save("d:\\arcgis\\database.gdb\\tulos");
     myRasterBlock.save(output_rastername);
 
-    arcpy.SetParameter(1, myRasterBlock)    ;
+    arcpy.SetParameter(5, myRasterBlock)    ;
 
                 
 

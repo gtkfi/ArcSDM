@@ -26,7 +26,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
 
-from weight_boosting import BrownBoostClassifier
+from arcsdm.weight_boosting import BrownBoostClassifier
 
 # Global Name for the messages object and be called from any function
 MESSAGES = None
