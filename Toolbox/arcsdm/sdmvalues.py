@@ -101,7 +101,6 @@ def getMaskSize (mapUnits):
             columns = int(tulos.getOutput(0));
             
             #count = rows * columns;
-            
             raster_array = arcpy.RasterToNumPyArray (desc.catalogpath, nodata_to_value=-9999);
             #Calculate only on single level...
             # There is no simple way to calculate nodata... so using numpy! TR
@@ -109,7 +108,7 @@ def getMaskSize (mapUnits):
             dwrite ("    Iterating through mask in numpy..." + str(columns) + "x" + str(rows));
             for i in range(0,int(rows)):
                 for j in range (0, int(columns)):
-                    if (raster_array[i][j] <>-9999):
+                    if (raster_array[i][j] != -9999):
                         count = count+1;
             dwrite( "     count:" + str(count));
             
