@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 """
 
+      
     Logistic Regression for two or more evidence layers.
     Converted for ArcSDM 5 - ArcGis PRO
-    2016 Tero Rönkkö / GTK
+    2016-2018 Tero Rönkkö / GTK
     Updated by Arianne Ford, Kenex Ltd. 2018 - bug fixes for 10.x, allowing ascending and descending types for evidence.
 
+    Todo: Make it work with filegeodatabases
+    
     Spatial Data Modeller for ESRI* ArcGIS 9.3
     Copyright 2009
     Gary L Raines, Reno, NV, USA: production and certification
@@ -18,6 +21,35 @@ import arcgisscripting
 from arcsdm import sdmvalues
 from arcsdm import workarounds_93
 from arcsdm.floatingrasterarray import FloatRasterSearchcursor
+import arcsdm.common
+
+PY2 = sys.version_info[0] == 2
+PY34 = sys.version_info[0:2] >= (3, 4)
+
+if PY2:
+    from imp import reload;
+if PY34:
+    import importlib
+
+
+    
+debuglevel = 0;
+
+def testdebugfile():
+    returnvalue = 0; #This because python sucks in detecting outputs from functions
+    import sys;
+    import os;
+    if (debuglevel > 0):
+        return 1;
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    if (os.path.isfile(dir_path + "/DEBUG")):
+        return 1;            
+    return returnvalue;
+
+def dwrite(message):
+    debug = testdebugfile();
+    if (debuglevel > 0 or debug > 0):
+        arcpy.AddMessage("Debug: " + message)    
 
 # TODO: This should be in external file - like all other common things TR 
 def CheckEnvironment():
@@ -29,10 +61,18 @@ def CheckEnvironment():
 
 
 def Execute(self, parameters, messages):
+    if PY2:
+        reload(arcsdm.common)
+    if PY34:
+        importlib.reload(arcsdm.common)
     gp = arcgisscripting.create()
     # Check out any necessary licenses
     gp.CheckOutExtension("spatial")
 
+    if arcsdm.common.testandwarn_filegeodatabase_environment():        
+        return;
+        
+    
     gp.OverwriteOutput = 1
     gp.LogHistory = 1
 
@@ -52,6 +92,8 @@ def Execute(self, parameters, messages):
         #Remove group layer names 
         for i, s in enumerate(Input_Rasters):
             Input_Rasters[i] = arcpy.Describe( s.strip("'")).file;
+            if arcsdm.common.testandwarn_filegeodatabase_source(s):
+                return;
         gp.AddMessage("Input rasters: " + str(Input_Rasters))
 
         #Get evidence layer types
@@ -67,6 +109,10 @@ def Execute(self, parameters, messages):
         #Get weights tables names
         Wts_Tables = parameters[2].valueAsText.split(';')
         gp.AddMessage('Wts_Tables: %s'%(str(Wts_Tables)))
+        for i, s in enumerate(Wts_Tables):                  
+            arcpy.AddMessage(s);
+            if arcsdm.common.testandwarn_filegeodatabase_source(s):
+                return;
         if len(Wts_Tables) != len(Wts_Tables):
             gp.AddError("Not enough weights tables!")
             raise Exception

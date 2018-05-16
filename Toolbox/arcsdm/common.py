@@ -28,6 +28,31 @@ def testandwarn_arcgispro():
         return False;
         
         
+def testandwarn_filegeodatabase_environment():
+    desc = arcpy.Describe(arcpy.env.workspace)
+    #arcpy.AddMessage("%-20s %s (%s)" % ("Workspace: ", arcpy.env.workspace, desc.workspaceType));
+    wdesc = arcpy.Describe(arcpy.env.scratchWorkspace)       
+    #arcpy.AddMessage("%-20s %s (%s)" % ("Scratch workspace:",  arcpy.env.scratchWorkspace, wdesc.workspaceType))
+    if desc.workspaceType == "LocalDatabase" or wdesc.workspaceType == "LocalDatabase":
+        arcpy.AddWarning("For this tool workspaces cannot be filegeodatabases!");
+        return True;
+    else:
+        return False;
+   
+def testandwarn_filegeodatabase_source(resourcename):
+    desc = arcpy.Describe(resourcename);
+    #arcpy.AddMessage(desc.catalogpath);
+    workspace = os.path.dirname(desc.catalogpath)
+    #arcpy.AddMessage(workspace);        
+    if [any(ext) for ext in ('.gdb', '.mdb', '.sde') if ext in os.path.splitext(workspace)]:
+        workspace = workspace;
+        arcpy.AddWarning("For this tool the source data cannot be in geodatabase format!");        
+        return True;
+    else:
+        return False;
+    
+
+   
     
 def reload_arcsdm_modules(messages):
     arcsdm_modules = [m.__name__ for m in sys.modules.values() if m and m.__name__.startswith(__package__)]

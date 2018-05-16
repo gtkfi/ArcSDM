@@ -7,7 +7,6 @@ import arcsdm.calculateweights
 import arcsdm.categoricalreclass
 import arcsdm.categoricalmembership
 import arcsdm.tocfuzzification
-import arcsdm.logisticregression
 import arcsdm.calculateresponse
 import arcsdm.symbolize
 import arcsdm.roctool
@@ -1556,8 +1555,14 @@ class LogisticRegressionTool(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        execute_tool(arcsdm.logisticregression.Execute, self, parameters, messages)
+        try:
+            importlib.reload (arcsdm.logisticregression)
+        except :
+            reload(arcsdm.logisticregression);
+        arcsdm.logisticregression.Execute(self, parameters, messages)
         return
+        
+        #execute_tool(arcsdm.logisticregression.Execute, self, parameters, messages)
 
 class AgterbergChengCITest(object):
     def __init__(self):

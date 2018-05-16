@@ -1,4 +1,4 @@
-ArcSdm 5.01.04 for ArcGis (Pro and Desktop)
+ArcSdm 5.01.05 for ArcGis (Pro and Desktop)
 
 ## The following lines will and should not be printed as output as version info!
 
