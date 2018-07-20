@@ -216,7 +216,9 @@ def appendSDMValues(gp, unitCell, TrainPts):
                 raise arcpy.ExecuteError("Mask not found");
             #gp.AddMessage("Mask set");
             desc = gp.describe(gp.mask);
-            gp.addMessage( "%-20s %s" %( "Mask:", "\"" + desc.name + "\" and it is " + desc.dataType));           
+            gp.addMessage( "%-20s %s" %( "Mask:", "\"" + desc.name + "\" and it is " + desc.dataType));        
+            if (desc.dataType == "FeatureLayer" or desc.dataType == "FeatureClass"):
+                arcpy.AddWarning('Warning: You should only use single value raster type masks!')
             gp.addMessage( "%-20s %s" %( "Mask size:", str(getMaskSize(mapUnits))  ));           
             #gp.AddMessage("Masksize: " + str(getMaskSize()));            
         
