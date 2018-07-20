@@ -91,7 +91,9 @@ def Execute(self, parameters, messages):
         Input_Rasters = parameters[0].valueAsText.split(';')
         #Remove group layer names 
         for i, s in enumerate(Input_Rasters):
-            Input_Rasters[i] = arcpy.Describe( s.strip("'")).file;
+            Input_Rasters[i] = s.strip("'"); #arcpy.Describe( s.strip("'")).file;
+            dwrite (arcpy.Describe( s.strip("'")).file);
+            dwrite (Input_Rasters[i]);
             if arcsdm.common.testandwarn_filegeodatabase_source(s):
                 return;
         gp.AddMessage("Input rasters: " + str(Input_Rasters))

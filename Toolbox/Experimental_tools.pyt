@@ -111,7 +111,7 @@ class rescaleraster(object):
         validation is performed.  This method is called whenever a parameter
         has been changed."""
         if parameters[0].value:
-            if parameters[0].altered:
+            if parameters[0].altered and not parameters[4].altered:
                 layer = parameters[0].valueAsText;
                 desc = arcpy.Describe(layer)
                 name = desc.file;

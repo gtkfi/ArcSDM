@@ -115,7 +115,7 @@ def Execute(self, parameters, messages):
         # Process things and removve grouplayer names including EXTRA ' ' symbols around spaced grouplayer name
         gp.AddMessage("Input rasters: " + str(Input_Rasters))
         for i, s in enumerate(Input_Rasters):
-            Input_Rasters[i] = arcpy.Describe( s.strip("'")).file;
+            Input_Rasters[i] = s.strip("'"); #arcpy.Describe( s.strip("'")).file;
         gp.AddMessage("Input rasters: " + str(Input_Rasters))
         
         #Get input weight tables
