@@ -3,6 +3,7 @@
 # Kimmo Korhonen / GTK
 
 import pylab
+import matplotlib
 import arcpy
 import numpy
 import os
@@ -86,7 +87,13 @@ def execute(self, parameters, messages):
     pylab.xlabel("False Positive Rate")
     pylab.ylabel("True Positive Rate")
 
-    pylab.legend(plot_handles, legend_items, 4)
+    # API change in matplotlib >= 1.5
+    matplot15 = tuple([ int(num) for num in matplotlib.__version__.split('.')])[0:2] >= (1, 5)
+
+    if (matplot15):
+        pylab.legend(plot_handles, legend_items, loc=4)
+    else:
+        pylab.legend(plot_handles, legend_items, 4)
 
     pylab.savefig(png_path)
 
