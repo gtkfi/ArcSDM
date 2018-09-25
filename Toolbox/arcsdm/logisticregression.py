@@ -7,6 +7,9 @@
     2016-2018 Tero Rönkkö / GTK
     Updated by Arianne Ford, Kenex Ltd. 2018 - bug fixes for 10.x, allowing ascending and descending types for evidence.
 
+    History: 
+    25.9.2018 Merged changes from https://github.com/gtkfi/ArcSDM/issues/103 by https://github.com/Eliasmgprado
+    
     Todo: Make it work with filegeodatabases
     
     Spatial Data Modeller for ESRI* ArcGIS 9.3
@@ -22,6 +25,7 @@ from arcsdm import sdmvalues
 from arcsdm import workarounds_93
 from arcsdm.floatingrasterarray import FloatRasterSearchcursor
 import arcsdm.common
+from arcpy.sa import *
 
 PY2 = sys.version_info[0] == 2
 PY34 = sys.version_info[0:2] >= (3, 4)
@@ -140,14 +144,39 @@ def Execute(self, parameters, messages):
             gp.AddMessage('Output_Raster: %s'%(str(Output_Raster)))
         #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
             #++ Need to create in-memory Raster Layer for AddJoin
-            RasterLayer = "OutRas_lyr"
-            gp.makerasterlayer(Input_Raster, RasterLayer)
-            gp.AddJoin_management(RasterLayer, "Value", Wts_Table, "CLASS")
+            #RasterLayer = arcpy.env.workspace + "\\OutRas.lyr"
+            #Table_temp = "temp_tab"
+        #=========================================================
+            #temp_gdb = arcpy.env.scratchGDB
+            #asterGDB = temp_gdb + "\\" + RasterLayer
+            #TableGDB = temp_gdb + "\\" + Table_temp
+            #gp.RasterToGeodatabase_conversion(Input_Raster, temp_gdb)
+            #gp.CopyRaster_management(Input_Raster, RasterGDB)
+            #gp.CopyRows_management(Wts_Table, TableGDB)
+            #gp.AddMessage('RasterGDB: %s'%(str(RasterGDB)))
+
+            #arcpy.MakeRasterCatalogLayer_management(RasterGDB,RasterLayer)
+            #gp.BuildRasterAttributeTable_management(Input_Raster, "OVERWRITE") 
+            #arcpy.MakeRasterLayer_management(Input_Raster, RasterLayer)
+            #arcpy.MakeTableView_management(Input_Raster,RasterLayer)
+
+
+            #arcpy.SaveToLayerFile_management(Input_Raster, RasterLayer)
+        #=========================================================
+            #gp.AddMessage('Input_Raster: %s'%(str(Input_Raster)))
+            #gp.AddMessage('Wts_Table: %s'%(str(Wts_Table)))
+            #gp.makerasterlayer(Input_Raster, RasterLayer)
+            
+            #gp.AddJoin_management(RasterLayer, "Value", Wts_Table, "CLASS")
             Temp_Raster = gp.CreateScratchName('tmp_rst', '', 'rst',  gp.scratchworkspace)
+            gp.copyraster_management(Input_Raster, Temp_Raster)
+            gp.JoinField_management(Temp_Raster, 'Value', Wts_Table, 'CLASS')
+            
             gp.AddMessage('Temp_Raster: %s'%(str(Temp_Raster)))
-            gp.CopyRaster_management(RasterLayer, Temp_Raster)
+            #gp.CopyRaster_management(RasterLayer, Temp_Raster)
             gp.Lookup_sa(Temp_Raster, "GEN_CLASS", Output_Raster)
-            gp.delete(RasterLayer)
+            #gp.delete(RasterLayer)
+            #gp.delete(TableGDB)
         #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
             #gp.AddMessage(Output_Raster + " exists: " + str(gp.Exists(Output_Raster)))
             if not gp.Exists(Output_Raster):
@@ -461,11 +490,11 @@ def Execute(self, parameters, messages):
         gp.DeleteField_management(fnNew, "Field1")
         vTabLR = fnNew
         strLine = fLR.readline()
-        vTabUCrows = workarounds_93.rowgen(gp.SearchCursor(vTabUC))
+        #vTabUCrows = workarounds_93.rowgen(gp.SearchCursor(vTabUC))
         #vTabUCrow = vTabUCrows.Next()
-        ttl = 0
+        #ttl = 0
         #while vTabUCrow:
-        for vTabUCrow in vTabUCrows: ttl += 1
+        #for vTabUCrow in vTabUCrows: ttl += 1
             #vTabUCrow = vTabUCrows.Next()
         #gp.AddMessage("Reading Logistic Regression Results: %s"%strFnLR)
         vTabLRrows = gp.InsertCursor(vTabLR)
@@ -581,14 +610,18 @@ def Execute(self, parameters, messages):
         #to get a raster with attributes
         cmb = thmUC
         cmbrl = 'cmbrl'
-        gp.makerasterlayer_management(cmb, cmbrl)
+        cmbrl_ = 'cmbrl_lyr'
+        
+        #gp.makerasterlayer_management(cmb, cmbrl)
         #tbl = gp.GetParameterAsText(6)
         tbl = parameters[6].valueAsText
         tbltv = 'tbltv'
         gp.maketableview_management(tbl, tbltv)
-        gp.addjoin_management(cmbrl, 'Value', tbltv, 'ID')
+        #gp.addjoin_management(cmbrl, 'Value', tbltv, 'ID')
         cmb_cpy = gp.createscratchname("cmb_cpy", '', 'raster', arcpy.env.scratchFolder)
-        gp.copyraster_management(cmbrl, cmb_cpy)
+        gp.copyraster_management(cmb, cmb_cpy)
+        gp.JoinField_management(cmb_cpy, 'Value', tbltv, 'ID')
+                                                              
         #Make output float rasters from attributes of joined unique conditions raster
         #outRaster1 = gp.GetParameterAsText(8)
         #outRaster2 = gp.GetParameterAsText(9)
@@ -606,9 +639,16 @@ def Execute(self, parameters, messages):
         ##gp.SingleOutputMapAlgebra_sa(InExp, outRaster3) # <==RDB  07/01/2010
         # <==RDB  07/01/2010 -  SOMA expression is crashing in version 10. Changed to use Con tool.
         
-        gp.Con_sa(cmb_cpy,cmb_cpy+".LRPOSTPROB",outRaster1,"0","LRPOSTPROB > 0")
-        gp.Con_sa(cmb_cpy,cmb_cpy+".LR_STD_DEV",outRaster2,"0","LR_STD_DEV > 0")
-        gp.Con_sa(cmb_cpy,cmb_cpy+".LRTVALUE",outRaster3,"0","LRTVALUE > 0")
+        #gp.Con_sa(cmb_cpy,cmb_cpy+".LRPOSTPROB",outRaster1,"0","LRPOSTPROB > 0")
+        #gp.Con_sa(cmb_cpy,cmb_cpy+".LR_STD_DEV",outRaster2,"0","LR_STD_DEV > 0")
+        #gp.Con_sa(cmb_cpy,cmb_cpy+".LRTVALUE",outRaster3,"0","LRTVALUE > 0")
+        outcon1 = Con(cmb_cpy, Lookup(cmb_cpy,"LRPOSTPROB"),"0","LRPOSTPROB > 0")
+        outcon1.save(outRaster1)
+        outcon2 = Con(cmb_cpy,Lookup(cmb_cpy,"LR_STD_DEV"),"0","LR_STD_DEV > 0")
+        outcon2.save(outRaster2)
+        outcon3 = Con(cmb_cpy,Lookup(cmb_cpy,"LRTVALUE"),"0","LRTVALUE > 0")
+        outcon3.save(outRaster3)
+        
 
         #Add t0 display
         #gp.SetParameterAsText(6, tbl)
