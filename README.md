@@ -3,7 +3,7 @@ Spatial Data Modeler 5 for ArcGis pro<Br>
 
 ## How to get started? <br>
 
-ArcSDM 5 works on ArcGis Desktop 10.3-10.5.1 and partially in 10.6, however Experimental toolbox requires components that cannot be installed on ArcGis desktop 10.6 and thus doesn't work! ArcGis pro should be supported from version 2+ forward.
+ArcSDM 5 works on ArcGis Desktop 10.3-10.5.1 and partially in 10.6, however Experimental toolbox requires components that cannot be installed on ArcGis desktop 10.6 and thus doesn't work! ArcGis pro is again supported from version 2.5+ forward.
 
 
 If you want to work against your own data, you can download just the toolbox. If you want to try, evaluate and experiment with ArcSdm you can download our demodata separately from the main package. <br>
@@ -20,7 +20,7 @@ alt="How to download and extract the toolbox" width="240" height="180" border="1
 
 
 ### Demodata <br>
-Download the demodata as a zip package from here: https://www.dropbox.com/s/zq9lhhryxw3vg6y/ArcSDM_Demodata.zip?dl=0  <br>
+Download the demodata as a zip package from our demodata git repository https://github.com/gtkfi/demodata. You can download the release file from here https://github.com/gtkfi/demodata/releases/download/v1.0/ArcSDM_Demodata.zip <br>
 Open and save the zip optionally to your ArcSDM toolbox installation folder as "Data" folder. Then click "initworkdir.bat" to create (or overwrite older) working copy. <br>
 
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=4rU1oDqEUrQ
@@ -36,6 +36,7 @@ Status of the toolbox should be updated to wiki https://github.com/gtkfi/ArcSDM/
 The demodata and the toolbox will be separated from eachother to make downloading easier.<br>
 
 ## History:
+3.4.2020 New link to demodata
 26.4.2018 5.01.01 Merged code by Tachyon-work to master-branch.<br>
 6.10.2017 5.00.22 GrandWofe and various fixes<br>
 2.10.2017 Updating wiki and this page, cleaning up. <br>
