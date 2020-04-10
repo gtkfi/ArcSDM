@@ -3,7 +3,7 @@ Spatial Data Modeler 5 for ArcGis pro<Br>
 
 ## How to get started? <br>
 
-ArcSDM 5 works on ArcGis Desktop 10.3-10.5.1 and partially in 10.6, however Experimental toolbox requires components that cannot be installed on ArcGis desktop 10.6 and thus doesn't work! ArcGis pro is again supported from version 2.5+ forward.
+Standard toolbox of ArcSDM 5 works on ArcGis Desktop 10.3-10.7.1, however Experimental toolbox requires components that cannot be installed on ArcGis desktop and doesn't work. ArcGis pro is supported from version 2.5+ forward.
 
 
 If you want to work against your own data, you can download just the toolbox. If you want to try, evaluate and experiment with ArcSdm you can download our demodata separately from the main package. <br>
@@ -36,7 +36,7 @@ Status of the toolbox should be updated to wiki https://github.com/gtkfi/ArcSDM/
 The demodata and the toolbox will be separated from eachother to make downloading easier.<br>
 
 ## History:
-3.4.2020 New link to demodata<br>
+3.4.2020 New link to demodata and documentation how to run on Arcgis pro 2.5+<br>
 26.4.2018 5.01.01 Merged code by Tachyon-work to master-branch.<br>
 6.10.2017 5.00.22 GrandWofe and various fixes<br>
 2.10.2017 Updating wiki and this page, cleaning up. <br>
