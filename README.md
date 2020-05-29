@@ -9,10 +9,9 @@ Standard toolbox of ArcSDM 5 works on ArcGis Desktop 10.3-10.7.1, however Experi
 
 #### Calculate Weights (calculateweights.py) 19.5.2020<br>
 1. Obsolete attributes sys.exc_type and sys.exc_value replaced by sys.exc_info ()<br>
-2. If the Evidence Layer raster type is RasterBand or RasterLayer, it is converted to a Raster Dataset by deleting the last part of the raster path name. If this fails, execution is aborted. If the Data Type is RasterBand, execution would crash when calling the SearchCursor (EvidenceLayer) method.<br>
-3. If the pixel type of the Evidence Raster (Input Raster) is NOT an integer, the raster name is displayed and execution is aborted on error.<br>
-4. The coordinate system of the Training sites Layer must be the same as that of the Evidence Layer.<br>
-5. When using FileSystem as the workspace in ArcGIS Pro (that is, writing the results to a dBase database), the field name of the database table must not be the same as the alias name of the field (case insignificant). ArcGIS Pro will crash if these names are the same. That's why I added an underscore to the end of the alias name.<br>
+2. If the pixel type of the Evidence Raster (Input Raster) is NOT an integer, the raster name is displayed and execution is aborted on error.<br>
+3. The coordinate system of the Training sites Layer must be the same as that of the Evidence Layer.<br>
+4. When using FileSystem as the workspace in ArcGIS Pro (that is, writing the results to a dBase database), the field name of the database table must not be the same as the alias name of the field (case insignificant). ArcGIS Pro will crash if these names are the same. That's why I added an underscore to the end of the alias name.<br>
 
 #### Calculate Response (calculateresponse.py) 20.5.2020<br>
 1. The Input Raster Data Type cannot be RasterDataSet but RasterBand or RasterLayer. If the Data Type is RasterDataSet, execution crashes to the line “outras = arcpy.sa.Lookup (Temp_Raster," WEIGHT ")”.<br>
