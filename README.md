@@ -41,33 +41,33 @@ The File Geodatabase database or file folder in the workspace is made up of a se
 <b>FuzzyOverlay.csv</b> (In the ROC Destination Folder) is an Excel spreadsheet that contains output and output data related to Fuzzy Overlay --- tool execution.<br>
 <b>FuzzyROC.csv</b> (In the ROC Destination Folder) is an Excel spreadsheet that contains the results calculated with the ROC tool.<br>
 
-####ROC Tool (roctool.py)	12.5.2020<br>
+#### ROC Tool (roctool.py)	12.5.2020<br>
 Added closing of pylab windows because without closing only 20 patterns could be formed.<br>
 
-####TOC Fuzzification (tocfuzzification.py)	29.4.2020<br>
+#### TOC Fuzzification (tocfuzzification.py)	29.4.2020<br>
 Tested, not modified.<br>
 
-####Logistic Regression (logisticregression.py)	28.5.2020<br>
+#### Logistic Regression (logisticregression.py)	28.5.2020<br>
 Logistic Regression don’t work on ArcGIS Pro if workspace is File System. Join Field cannot join raster from file system and/or DBF table fields together on ArcGIS Pro but can join them on ArcGIS Desktop 10.6.1. LR works on ArcGIS Pro if workspace is File Geodatabase and Input Weights rasters are in File Geodatabase. <br>
 
-####Grand Wofe (grand_wofe_lr.py)	28.5.2020<br>
+#### Grand Wofe (grand_wofe_lr.py)	28.5.2020<br>
 1. Obsolete attributes sys.exc_type and sys.exc_value replaced by sys.exc_info ()<br>
 2. Because Logistic Regression don’t work on ArcGIS Pro if workspace is File System, this tool will not work on ArcGIS Pro if workspace is File System.<br>
 3. The coordinate system of the input raster must be the same as that of the Training points Layer.<br>
 
-####common.py 29.4.2020<br>
+#### common.py 29.4.2020<br>
 Addition of a result raster displayed  to ArcGIS Pro to the Contents panel in addToDisplay feature fixed.<br>
 
-####sdmvalues.py 28.5.2020<br>
+#### sdmvalues.py 28.5.2020<br>
 1. The default value for Environment.Cell Size is Maximum of Inputs, which can be used as a Cell Size if the mask is FeatureLayer or FeatureClass. If the mask is a raster, the text value cannot be used in the calculation, but the Cell Size must be an integer<br>
 2. RasterLayer, RasterBand, FeatureLayer and FeatureClass can be used as the mask. These types are grouped in the code into if-elif-else blocks. In the Else block, all data types other than those defined above are discarded.<br>
 3. If the mask is not defined at all, you will be prompted to check the Environment settings.<br>
 4. If the “Cells in area” value is 0, execution is aborted.<br>
 
-####workarounds_93.py 5.5.2020<br>
+#### workarounds_93.py 5.5.2020<br>
 Obsolete attributes sys.exc_type and sys.exc_value replaced by sys.exc_info ()<br>
 
-###Other files<br>
+### Other files<br>
 
 ArcSDM.pyt - ArcSDM Toolbox menu (Added new Fuzzy ROC tools)
 ArcSDM.CalculateResponse.pyt.xml	- HELP for Calculate Response<br>
@@ -75,5 +75,3 @@ ArcSDM.CalculateWeightsTool.pyt.xml	 -HELP for Calculate Weights<br>
 ArcSDM.FuzzyROC2.pyt.xml - HELP for Fuzzy ROC 2<br>
 ArcSDM.LogisticRegressionTool.pyt.xml - Help for Logistic Regression<br>
 ArcSDM.GrandWofe.pyt.xml - Help for Grand Wofe<br>
-
-
