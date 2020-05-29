@@ -5,7 +5,6 @@
     Update by Arianne Ford, Kenex Ltd. 2018
    
     History: 
-    18.5.2020 Added changing Evidence Layer raster type from RasterBand or RasterLayer to RasterDataset / Arto Laiho, GTK/GSF
     15.5.2020 Added Evidence Layer and Training points coordinate system checking / Arto Laiho, GTK/GSF
     27.4.2020 Database table field name cannot be same as alias name when ArcGIS Pro with File System Workspace is used. / Arto Laiho, GTK/GSF
     09/01/2018 Bug fixes for 10.x, fixed perfect correlation issues, introduced patch for b-db<=0 - Arianne Ford, Kenex Ltd.
@@ -206,17 +205,6 @@ def Calculate(self, parameters, messages):
         evidenceDescr = arcpy.Describe(EvidenceLayer)
         evidenceCoord = evidenceDescr.spatialReference.name
         arcpy.AddMessage("Evidence Layer is " + EvidenceLayer + " and its data type is " + evidenceDescr.datatype)
-        if (evidenceDescr.datatype == "RasterBand" or evidenceDescr.datatype == "RasterLayer"):
-            # Try to change RasterBand or RasterLayer to RasterDataset #AL 180520
-            evidence1 = os.path.split(EvidenceLayer)
-            evidence2 = os.path.split(evidence1[0])
-            if (evidence1[1] == evidence2[1] or evidence1[1][:4] == "Band"):
-                EvidenceLayer = evidence1[0]
-                evidenceDescr = arcpy.Describe(EvidenceLayer)
-                arcpy.AddMessage("Evidence Layer is now " + EvidenceLayer + " and its data type is " + evidenceDescr.datatype)
-            else:
-                arcpy.AddError("ERROR: Data Type of Evidence Layer cannot be RasterBand, use Raster Dataset.")
-                raise
 
         valuetype = gp.GetRasterProperties (EvidenceLayer, 'VALUETYPE')
         valuetypes = {1:'Integer', 2:'Float'}
