@@ -1,4 +1,4 @@
-# ArcSDM tools by arto-dev
+# Modified ArcSDM tools on arto-dev
 Spatial Data Modeler 5 for ArcGis pro<Br>
 
 ## Changed tools and other files <br>
