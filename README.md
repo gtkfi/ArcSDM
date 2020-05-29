@@ -69,7 +69,7 @@ Obsolete attributes sys.exc_type and sys.exc_value replaced by sys.exc_info ()<b
 
 ### Other files<br>
 
-ArcSDM.pyt - ArcSDM Toolbox menu (Added new Fuzzy ROC tools)
+ArcSDM.pyt - ArcSDM Toolbox menu (Added new Fuzzy ROC tools)<br>
 ArcSDM.CalculateResponse.pyt.xml	- HELP for Calculate Response<br>
 ArcSDM.CalculateWeightsTool.pyt.xml	 -HELP for Calculate Weights<br>
 ArcSDM.FuzzyROC2.pyt.xml - HELP for Fuzzy ROC 2<br>
