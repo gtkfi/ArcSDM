@@ -1,66 +1,79 @@
-# ArcSDM
+# ArcSDM tools by arto-dev
 Spatial Data Modeler 5 for ArcGis pro<Br>
 
-## How to get started? <br>
+## Changed tools and other files <br>
 
 Standard toolbox of ArcSDM 5 works on ArcGis Desktop 10.3-10.7.1, however Experimental toolbox requires components that cannot be installed on ArcGis desktop and doesn't work. ArcGis pro is supported from version 2.5+ forward.
 
+### Python files <br>
 
-If you want to work against your own data, you can download just the toolbox. If you want to try, evaluate and experiment with ArcSdm you can download our demodata separately from the main package. <br>
+#### Calculate Weights (calculateweights.py) 19.5.2020<br>
+1. Obsolete attributes sys.exc_type and sys.exc_value replaced by sys.exc_info ()<br>
+2. If the Evidence Layer raster type is RasterBand or RasterLayer, it is converted to a Raster Dataset by deleting the last part of the raster path name. If this fails, execution is aborted. If the Data Type is RasterBand, execution would crash when calling the SearchCursor (EvidenceLayer) method.<br>
+3. If the pixel type of the Evidence Raster (Input Raster) is NOT an integer, the raster name is displayed and execution is aborted on error.<br>
+4. The coordinate system of the Training sites Layer must be the same as that of the Evidence Layer.<br>
+5. When using FileSystem as the workspace in ArcGIS Pro (that is, writing the results to a dBase database), the field name of the database table must not be the same as the alias name of the field (case insignificant). ArcGIS Pro will crash if these names are the same. That's why I added an underscore to the end of the alias name.<br>
 
-ArcSDM wiki contains upto date howtopage: https://github.com/gtkfi/ArcSDM/wiki/Howto-start
+#### Calculate Response (calculateresponse.py) 20.5.2020<br>
+1. The Input Raster Data Type cannot be RasterDataSet but RasterBand or RasterLayer. If the Data Type is RasterDataSet, execution crashes to the line “outras = arcpy.sa.Lookup (Temp_Raster," WEIGHT ")”.<br>
+2. The coordinate system of the input raster must be the same as that of the Training points Layer.<br>
+3. When using FileSystem (dBase database) as the workspace in ArcGIS Pro, the input data of the Calculate Response tool must have the type extension .dbf in the Input Weights Table name. The tool adds that type extension if it is missing.<br>
+
+#### Categorical Membership (categoricalmembership.py) 22.5.2020<br>
+The Reclassification parameter requires a database table that defines a classification. The Categorical & Reclass tool can create such a table, but its field names do not match that original command line (VALUE, VALUE, FMx100). ArcGIS Desktop 10.6.1 writes the FROM, TO, and OUT fields to the table. ArcGIS Pro 2.5 writes the FROM_, TO, and OUT fields. These field names have been fixed in the tool.<br>
+
+#### Fuzzy ROC (fuzzyroc.py) 14.5.2020<br>
+New tool to execute Calculate Weights, Calculate Response and ROCtool together. This tool gets two or more input rasters and one or more functions and parameters and uses same parameters to each input raster.<br>
+
+#### Fuzzy ROC 2 (fuzzyroc2.py) 19.5.2020<br>
+New tool to execute Calculate Weights, Calculate Response and ROCtool together. This tool gets two or more input rasters and one function and parameter combination to each input raster.<br>
+
+<b>Help for both FuzzyROC tools:</b><br>
+<b>Input raster names</b> – there can be any number of rasters - but at least two so far. Raster is selected either from the drop-down menu (if it found in the Contents list) or by a folder icon from a GDB database or disk (raster file).<br>
+<b>Fuzzy Membership Parameters</b> – select the parameters to be used in the Fuzzy Membership tool.<br>
+<b>Membership type</b> is selected from the drop-down menu. Numeric values are written in boxes.<br>
+<b>Min-max values</b> are the minimum and maximum values between which Midpoint or Spread varies. The FuzzyROC tool starts with minimum values and performs calculation a count of Count times, increasing the minimum value (max - min) / count with each round.<br>
+<b>Fuzzy Overlay Parameters</b> - select Overlay type from the drop-down menu. Only the Gaussian type has a parameter<br>
+<b>ROC True Positives</b> Feature Class defines a feature class from which known positive cases are read.<br>
+<b>ROC Destination Folder</b> - the folder where the ROC tool Output Files is written.<br>
+The File Geodatabase database or file folder in the workspace is made up of a set of rasters named FM_n_m from the Fuzzy Membership tool and a set of rasters named FO_n from the Fuzzy Overlay tool.<br>
+<b>FuzzyMembership.csv</b> (In the ROC Destination Folder) is an Excel spreadsheet that contains input and output data related to Fuzzy Membership tool performance.<br>
+<b>FuzzyOverlay.csv</b> (In the ROC Destination Folder) is an Excel spreadsheet that contains output and output data related to Fuzzy Overlay --- tool execution.<br>
+<b>FuzzyROC.csv</b> (In the ROC Destination Folder) is an Excel spreadsheet that contains the results calculated with the ROC tool.<br>
+
+####ROC Tool (roctool.py)	12.5.2020<br>
+Added closing of pylab windows because without closing only 20 patterns could be formed.<br>
+
+####TOC Fuzzification (tocfuzzification.py)	29.4.2020<br>
+Tested, not modified.<br>
+
+####Logistic Regression (logisticregression.py)	28.5.2020<br>
+Logistic Regression don’t work on ArcGIS Pro if workspace is File System. Join Field cannot join raster from file system and/or DBF table fields together on ArcGIS Pro but can join them on ArcGIS Desktop 10.6.1. LR works on ArcGIS Pro if workspace is File Geodatabase and Input Weights rasters are in File Geodatabase. <br>
+
+####Grand Wofe (grand_wofe_lr.py)	28.5.2020<br>
+1. Obsolete attributes sys.exc_type and sys.exc_value replaced by sys.exc_info ()<br>
+2. Because Logistic Regression don’t work on ArcGIS Pro if workspace is File System, this tool will not work on ArcGIS Pro if workspace is File System.<br>
+3. The coordinate system of the input raster must be the same as that of the Training points Layer.<br>
+
+####common.py 29.4.2020<br>
+Addition of a result raster displayed  to ArcGIS Pro to the Contents panel in addToDisplay feature fixed.<br>
+
+####sdmvalues.py 28.5.2020<br>
+1. The default value for Environment.Cell Size is Maximum of Inputs, which can be used as a Cell Size if the mask is FeatureLayer or FeatureClass. If the mask is a raster, the text value cannot be used in the calculation, but the Cell Size must be an integer<br>
+2. RasterLayer, RasterBand, FeatureLayer and FeatureClass can be used as the mask. These types are grouped in the code into if-elif-else blocks. In the Else block, all data types other than those defined above are discarded.<br>
+3. If the mask is not defined at all, you will be prompted to check the Environment settings.<br>
+4. If the “Cells in area” value is 0, execution is aborted.<br>
+
+####workarounds_93.py 5.5.2020<br>
+Obsolete attributes sys.exc_type and sys.exc_value replaced by sys.exc_info ()<br>
+
+###Other files<br>
+
+ArcSDM.pyt - ArcSDM Toolbox menu (Added new Fuzzy ROC tools)
+ArcSDM.CalculateResponse.pyt.xml	- HELP for Calculate Response<br>
+ArcSDM.CalculateWeightsTool.pyt.xml	 -HELP for Calculate Weights<br>
+ArcSDM.FuzzyROC2.pyt.xml - HELP for Fuzzy ROC 2<br>
+ArcSDM.LogisticRegressionTool.pyt.xml - Help for Logistic Regression<br>
+ArcSDM.GrandWofe.pyt.xml - Help for Grand Wofe<br>
 
 
-### Toolbox <br>
-Click "Clone or download" and select suitable download option for you. "Download Zip" is the safe and easy choice, just open the zip anywhere you like and add the toolbox to ArcGis (Desktop or Pro). <br>
-
-<a href="http://www.youtube.com/watch?feature=player_embedded&v=w-EAv2A2jOM
-" target="_blank"><img src="http://img.youtube.com/vi/w-EAv2A2jOM/0.jpg" 
-alt="How to download and extract the toolbox" width="240" height="180" border="10" /></a>
-
-
-### Demodata <br>
-Download the demodata as a zip package from our demodata git repository https://github.com/gtkfi/demodata. You can download the release file from here https://github.com/gtkfi/demodata/releases/download/v1.0/ArcSDM_Demodata.zip <br>
-Open and save the zip optionally to your ArcSDM toolbox installation folder as "Data" folder. Then click "initworkdir.bat" to create (or overwrite older) working copy. <br>
-
-<a href="http://www.youtube.com/watch?feature=player_embedded&v=4rU1oDqEUrQ
-" target="_blank"><img src="http://img.youtube.com/vi/4rU1oDqEUrQ/0.jpg" 
-alt="How to download and extract the toolbox" width="240" height="180" border="10" /></a>
-
-
-### Status
-<br>
-Status of the toolbox should be updated to wiki https://github.com/gtkfi/ArcSDM/wiki/Toolbox-details <bR>
-
-## News: 
-The demodata and the toolbox will be separated from eachother to make downloading easier.<br>
-
-## History:
-3.4.2020 New link to demodata and documentation how to run on Arcgis pro 2.5+<br>
-26.4.2018 5.01.01 Merged code by Tachyon-work to master-branch.<br>
-6.10.2017 5.00.22 GrandWofe and various fixes<br>
-2.10.2017 Updating wiki and this page, cleaning up. <br>
-4.9.2017 5.00.22 Updates, fixes and new demodata<br>
-17.5.2017 5.00.15 Updates and fixes <br>
-5.5.2017 5.00.14 Calculate weights error with nodata fixed <br>
-4.5.2017 5.00.13 Multiple fixes for minor UI errors <br>
-10.4.2017 5.00.11 Quickfix<br>
-24.2.2017 5.00.10 First release of experimental SOM toolbox.<br>
-28.3.2017 Update to demodata path<br>
-17.2.2017 5.00.07 Fixes <br>
-2.2.2017 5.00.03 First draft version of Rescale raster -tool added<br>
-29.12.2016 Area Frequency Table -tool added to toolbox and tmp toolbox removed<br>
-14.12.2016 Separation of demodata and toolbox started.<br>
-1.11.2016 Roc-tool included <br>
-1.11.2016 Calculate response and Logistic regression feature complete and ready for testing, not clean<br>
-27.9.2016 Calculate response update <br>
-20.9.2016 Testing started against Arcgis desktop 10.4.1 <br>
-7.9.2016 Calculate response (WIP) + New demo data <br>
-2.9.2016 Logistic regression (wip) Area frequency tool (wip)<br>
-26.8.2016 Some new tools - Calculate weights done, needs work.<br>
-8.8.2016  ArcGis desktop mxd, python toolbox - development branches <br>
-26.5.2016 AddBearings, calculatebends and logistic regression tools. Demodatafixes updates<br>
-28.4.2016 Logistic Regression tool (needs lots of work)<br>
-18.4.2016 WofE manual steps compile<br>
-13.4.2016 Demodata for tests added (from original files)<br>
-1.4.2016 Repository created <br>
