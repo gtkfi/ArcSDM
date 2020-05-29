@@ -4,6 +4,7 @@
     
     History: 
     27.9.2016 Output cleaned and getMaskSize fixed
+    21.4-15.5.2020 added cell size numeric value check, RasterBand and some value checks / Arto Laiho, Geological survey of Finland
 
 A function to append Spatial Data Modeller parameters to Geoprocessor History
     for those SDM tools that have the following values:
@@ -87,10 +88,16 @@ def getMaskSize (mapUnits):
         if (globalmasksize > 0):
             return globalmasksize;
         desc = arcpy.Describe(arcpy.env.mask);
-        #arcpy.AddMessage( "getMaskSize()");
-        if (desc.dataType == "RasterDataset"):
-            raise arcpy.ExecuteError("RasterDataset type is not allowed as Mask!");
-        if (desc.dataType == "RasterLayer" or desc.dataType == "RasterDataset"):
+
+        # Mask datatypes: RasterLayer or RasterBand (AL added 040520)
+        if (desc.dataType == "RasterLayer" or desc.dataType == "RasterBand"):
+            # If mask type is raster, Cell Size must be numeric in Environment #AL 150520
+            if not (str(arcpy.env.cellSize).replace('.','',1).replace(',','',1).isdigit()):
+                arcpy.AddMessage("*" * 50);
+                arcpy.AddError("ERROR: Cell Size must be numeric when mask is raster. Check Environments!");
+                arcpy.AddMessage("*" * 50);
+                raise ErrorExit
+
             dwrite( " Counting raster size");                       
             dwrite("   File: " + desc.catalogpath);
             tulos = arcpy.GetRasterProperties_management (desc.catalogpath, "COLUMNCOUNT");
@@ -111,28 +118,35 @@ def getMaskSize (mapUnits):
                     if (raster_array[i][j] != -9999):
                         count = count+1;
             dwrite( "     count:" + str(count));
-            
-            
             #maskrows = arcpy.SearchCursor(desc.catalogpath)        
             #maskrow = maskrows.next()
             #count =  0
             #while maskrow:
             #    count += maskrow.count
             #    maskrow = maskrows.next()
-            cellsize = float( str(arcpy.env.cellSize.replace(",",".")) )             
+            #dwrite( "     count:" + str(count));
+            cellsize = float( str(arcpy.env.cellSize.replace(",",".")) )
             count = count * (cellsize * cellsize);
-          
-        if (desc.dataType == "FeatureLayer" or desc.dataType == "FeatureClass"):
+        
+        # Mask datatypes: FeatureLayer or FeatureClass
+        elif (desc.dataType == "FeatureLayer" or desc.dataType == "FeatureClass"):
             #arcpy.AddMessage( " Calculating mask size");           
             maskrows = arcpy.SearchCursor(desc.catalogpath)
-            shapeName = desc.shapeFieldName                
+            shapeName = desc.shapeFieldName
+            #arcpy.AddMessage("Debug: shapeName = " + shapeName);
             maskrow = maskrows.next()
             count =  0
             while maskrow:
                 feat = maskrow.getValue(shapeName)
                 count += feat.area;
                 maskrow = maskrows.next()
-           
+            dwrite( " count:" + str(count));
+        
+        # other datatypes are not allowed
+        else:
+            raise arcpy.ExecuteError(desc.dataType + " is not allowed as Mask!");
+ 
+        # Mask Size calculation continues 
         mapUnits = mapUnits.lower().strip()
         if not mapUnits.startswith('meter'):
                 arcpy.AddError('Incorrect output map units: Check units of study area.')
@@ -209,7 +223,7 @@ def appendSDMValues(gp, unitCell, TrainPts):
         
         if not gp.mask:
             gp.adderror('Study Area mask not set');
-            raise arcpy.ExecuteError ("Mask not set");
+            raise arcpy.ExecuteError ("Mask not set. Check Environments!");	#AL
         else:
             if not arcpy.Exists(gp.mask):
                 gp.addError("Mask " + gp.mask + " not found!");
@@ -219,8 +233,8 @@ def appendSDMValues(gp, unitCell, TrainPts):
             gp.addMessage( "%-20s %s" %( "Mask:", "\"" + desc.name + "\" and it is " + desc.dataType));        
             if (desc.dataType == "FeatureLayer" or desc.dataType == "FeatureClass"):
                 arcpy.AddWarning('Warning: You should only use single value raster type masks!')
-            gp.addMessage( "%-20s %s" %( "Mask size:", str(getMaskSize(mapUnits))  ));           
-            #gp.AddMessage("Masksize: " + str(getMaskSize()));            
+            gp.addMessage( "%-20s %s" %( "Mask size:", str(getMaskSize(mapUnits))  ));
+            #gp.AddMessage("Masksize: " + str(getMaskSize(mapUnits)));            
         
         if not gp.cellsize:        
             gp.adderror('Study Area cellsize not set')
@@ -239,7 +253,9 @@ def appendSDMValues(gp, unitCell, TrainPts):
         num_tps = gp.GetCount_management(TrainPts)
         gp.addmessage("%-20s %s"% ('# Training Sites:' ,num_tps))
         gp.addmessage("%-20s %s" % ("Unit Cell Area:", "{}km^2, Cells in area: {} ".format(unitCell,num_unit_cells)))
-        
+
+        if (num_unit_cells == 0):
+            raise arcpy.ExecuteError("ERROR: 0 Cells in Area!");   #AL     
         priorprob = num_tps / num_unit_cells
         if not (0 < priorprob <= 1.0):
             arcpy.AddError('Incorrect no. of training sites or unit cell area. TrainingPointsResult {}'.format(priorprob))

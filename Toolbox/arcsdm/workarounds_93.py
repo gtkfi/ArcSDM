@@ -3,6 +3,8 @@
     Fixed for ArcSDM 5 for ArcGis pro
     history: 
     12.8.2016 started fixing TR
+    5.5.2020 Arto Laiho, Geological survey of Finland: 
+    - sys.exc_type and exc_value are deprecated, replaced by sys.exc_info()
 
     Spatial Data Modeller for ESRI* ArcGIS 9.3
     Copyright 2009
@@ -83,7 +85,8 @@ def ExtractValuesToPoints(gp, inputRaster, inputFeatures, siteFIDName):
         tbinfo = traceback.format_tb(tb)[0]
         # concatenate information together concerning the error into a message string
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-            str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
+            str(sys.exc_info()) + "\n"    #AL 050520
+        #    str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
         # generate a message string for any geoprocessing tool errors
         msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"
         gp.AddError(msgs)

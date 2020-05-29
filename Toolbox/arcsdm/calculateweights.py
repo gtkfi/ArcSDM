@@ -5,13 +5,16 @@
     Update by Arianne Ford, Kenex Ltd. 2018
    
     History: 
+    18.5.2020 Added changing Evidence Layer raster type from RasterBand or RasterLayer to RasterDataset / Arto Laiho, GTK/GSF
+    15.5.2020 Added Evidence Layer and Training points coordinate system checking / Arto Laiho, GTK/GSF
+    27.4.2020 Database table field name cannot be same as alias name when ArcGIS Pro with File System Workspace is used. / Arto Laiho, GTK/GSF
+    09/01/2018 Bug fixes for 10.x, fixed perfect correlation issues, introduced patch for b-db<=0 - Arianne Ford, Kenex Ltd.
     3.11.2017 Updated categorical calculations when perfect correlation exists as described in issue 66
     27.9.2016 Calculate weights output cleaned
     23.9.2016 Goes through
     12.8.2016 First running version for pyt. Shapefile training points and output?
     1.8.2016 Python toolbox version started
     12.12.2016 Fixes
-    09/01/2018 Bug fixes for 10.x, fixed perfect correlation issues, introduced patch for b-db<=0 - Arianne Ford, Kenex Ltd.
     
     
     
@@ -19,14 +22,12 @@
     Copyright 2009
     Gary L Raines, Reno, NV, USA: production and certification
     Don L Sawatzky, Spokane, WA, USA: Python software development
-
     Ascending or Descending:  Calculates accumulative Wts for accumulative row areas and num points
         for ascending or descending classes both with ascending counts.
     
     Categorical: Calculates Wts for each row, then reports those Wts for rows having >= Confidence.
         For rows having < Confidence, Wts are produced from sum of row areas and num points of
         classes < Confidence.
-
     Required Input(0): Integer raster dataset
     Optional Input(1): Attribute field name
     Required Input(2): Points feature class
@@ -170,7 +171,8 @@ def MakeWts(patternNTP, patternArea, unit, totalNTP, totalArea, Type):
         tbinfo = traceback.format_tb(tb)[0]
         # concatenate information together concerning the error into a message string
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-            str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
+            str(sys.exc_info()) + "\n"    #AL 050520
+        #    str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
         # generate a message string for any geoprocessing tool errors
         msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"
         gp.AddError(msgs)
@@ -199,24 +201,45 @@ def Calculate(self, parameters, messages):
         gp.OverwriteOutput = 1
         gp.LogHistory = 1
         EvidenceLayer = parameters[0].valueAsText
+
+        # Test data type of Evidence Layer #AL 150520
+        evidenceDescr = arcpy.Describe(EvidenceLayer)
+        evidenceCoord = evidenceDescr.spatialReference.name
+        arcpy.AddMessage("Evidence Layer is " + EvidenceLayer + " and its data type is " + evidenceDescr.datatype)
+        if (evidenceDescr.datatype == "RasterBand" or evidenceDescr.datatype == "RasterLayer"):
+            # Try to change RasterBand or RasterLayer to RasterDataset #AL 180520
+            evidence1 = os.path.split(EvidenceLayer)
+            evidence2 = os.path.split(evidence1[0])
+            if (evidence1[1] == evidence2[1] or evidence1[1][:4] == "Band"):
+                EvidenceLayer = evidence1[0]
+                evidenceDescr = arcpy.Describe(EvidenceLayer)
+                arcpy.AddMessage("Evidence Layer is now " + EvidenceLayer + " and its data type is " + evidenceDescr.datatype)
+            else:
+                arcpy.AddError("ERROR: Data Type of Evidence Layer cannot be RasterBand, use Raster Dataset.")
+                raise
+
         valuetype = gp.GetRasterProperties (EvidenceLayer, 'VALUETYPE')
         valuetypes = {1:'Integer', 2:'Float'}
         #if valuetype != 1:
         if valuetype > 8:  # <==RDB  07/01/2010 - new  integer valuetype property value for arcgis version 10
-            gp.adderror('Not an integer-type raster')
+            gp.adderror('ERROR: ' + EvidenceLayer + ' is not an integer-type raster because VALUETYPE is ' + str(valuetype)) #AL 040520
             raise ErrorExit
         CodeName =  parameters[1].valueAsText #gp.GetParameterAsText(1)
         TrainingSites =  parameters[2].valueAsText
+        # Test coordinate system of Training sites and confirm it is same than Evidence Layer #AL 150520 
+        trainingDescr = arcpy.Describe(TrainingSites)
+        trainingCoord = trainingDescr.spatialReference.name
+        if (evidenceCoord != trainingCoord):
+            arcpy.AddError("ERROR: Coordinate System of Evidence Layer is " + evidenceCoord + " and Training points it is " + trainingCoord + ". These must be same.")
+            raise
         Type =  parameters[3].valueAsText
         wtstable = parameters[4].valueAsText;
-        
+
         # If using non gdb database, lets add .dbf
         wdesc = arcpy.Describe(gp.workspace)
-        
         if (wdesc.workspaceType == "FileSystem"):
             if not(wtstable.endswith('.dbf')):
                 wtstable += ".dbf";
-        
         
         Confident_Contrast = float( parameters[5].valueAsText)
         #Unitarea = float( parameters[6].valueAsText)
@@ -227,8 +250,7 @@ def Calculate(self, parameters, messages):
         arcpy.AddMessage("="*10 + " Calculate weights " + "="*10)
     # Process: ExtractValuesToPoints
         arcpy.AddMessage ("%-20s %s (%s)" %("Creating table:" , wtstable, Type ));
-        
-        
+
         #tempTrainingPoints = gp.createscratchname("OutPoints", "FC", "shapefile", gp.scratchworkspace)
         #gp.ExtractValuesToPoints_sa(TrainingSites, EvidenceLayer, tempTrainingPoints, "NONE", "VALUE_ONLY")
         assert isinstance(EvidenceLayer, object)
@@ -257,7 +279,8 @@ def Calculate(self, parameters, messages):
         gp.AddField_management(wtstable,"S_WPLUS","double","10","4","#","W+ Std")
         gp.AddField_management(wtstable,"WMINUS","double","10","4","#","W-")
         gp.AddField_management(wtstable,"S_WMINUS","double","10","4","#","W- Std")
-        gp.AddField_management(wtstable,"CONTRAST","double","10","4","#","Contrast")
+        # Database table field name cannot be same as alias name when ArcGIS Pro with File System Workspace is used. #AL
+        gp.AddField_management(wtstable,"CONTRAST","double","10","4","#","Contrast_")
         gp.AddField_management(wtstable,"S_CONTRAST","double","10","4","#","Contrast_Std")
         gp.AddField_management(wtstable,"STUD_CNT","double","10","4","#","Studentized_Contrast")
         gp.AddField_management(wtstable,"GEN_CLASS","long","#","#","#","Generalized_Class")
@@ -603,7 +626,7 @@ def Calculate(self, parameters, messages):
         gp.SetParameterAsText(4, gp.Describe(wtstable).CatalogPath)
         arcpy.AddMessage("Setting success parameter..")
         arcpy.SetParameterAsText(8, Success)
-        
+
     except ErrorExit:
         Success = False  # Invalid Table: Error
         gp.SetParameterAsText(8, Success)

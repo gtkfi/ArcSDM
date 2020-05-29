@@ -4,6 +4,7 @@
 #
 # Janne Kallunki, GTK, 2017
 # Tero Ronkko, GTK, 2018
+# Arto Laiho, GTK, 29.4.2020 (see addToDisplay)
 
 import sys, os, traceback
 import arcpy
@@ -101,4 +102,8 @@ def addToDisplay(layer, name, position):
     elif "Pro" in product:
         aprx = arcpy.mp.ArcGISProject("CURRENT")
         m = aprx.listMaps("Map")[0] 
-        m.addLayer(lyr, position)
+        #m.addLayer(lyr, position)
+        #AL removed row above and added next three rows
+        m.addDataFromPath(layer)
+        layer0 = m.listLayers()[0]
+        layer0.name = name

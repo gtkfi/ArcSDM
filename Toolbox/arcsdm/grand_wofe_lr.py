@@ -4,7 +4,10 @@
 # ArcSDM 5 for ArcGis pro
 # Converted by Tero Ronkko, GTK 2017
 # Updated by Arianne Ford, Kenex Ltd. 2018
-#
+# Updated by Arto Laiho, Geological survey of Finland 4.5.2020:
+# - "Invalid Wts Table" changed from message to warning.
+# - sys.exc_type and exc_value are deprecated, replaced by sys.exc_info()
+# - Logistic Regression don't work on ArcGIS Pro when workspace is File System!
 
 """Gets all valid weights tables for each evidence raster, generates all
     combinations of rasters and their tables, and runs each combination
@@ -30,7 +33,6 @@
 # Import system modules
 import sys, os, traceback, arcgisscripting, string, operator,arcsdm
 import arcpy
-
 
 
 
@@ -70,6 +72,12 @@ def execute(self, parameters, messages):
     gp.OverwriteOutput = 1
     gp.LogHistory = 1
 
+    # Logistic Regression don't work on ArcGIS Pro when workspace is File System! #AL 280520
+    desc = arcpy.Describe(gp.workspace)
+    if str(arcpy.GetInstallInfo()['ProductName']) == "ArcGISPro" and desc.workspaceType == "FileSystem":
+        arcpy.AddError ("ERROR: Logistic Regression don't work on ArcGIS Pro when workspace is File System!")
+        raise
+
     # Load required toolboxes...
     try:
         parentfolder = os.path.dirname(sys.path[0])
@@ -83,6 +91,8 @@ def execute(self, parameters, messages):
         Evidence_Rasters = parameters[1].valueAsText.split(';'); #gp.GetParameterAsText(1).split(';')
         Evidence_Data_Types = parameters[2].valueAsText.lower().split(';'); #gp.GetParameterAsText(2).lower().split(';')
         Input_Training_Sites_Feature_Class = parameters[3].valueAsText; #gp.GetParameterAsText(3)
+        trainingDescr = arcpy.Describe(Input_Training_Sites_Feature_Class) #AL 180520
+        trainingCoord = trainingDescr.spatialReference.name                #AL 180520
         Ignore_Missing_Data = parameters[4].value; #gp.GetParameter(4)
         Confidence_Level_of_Studentized_Contrast = parameters[5].value; #gp.GetParameter(5)
         Unit_Area__sq_km_ = parameters[6].value #gp.GetParameter(6)
@@ -113,8 +123,17 @@ def execute(self, parameters, messages):
         dwrite(str(Evidence_Rasters));
         arcpy.AddMessage("========== Starting GrandWofe ====================" );
             
-        for Evidence_Raster_Layer, Evidence_Data_Type in zip(Evidence_Rasters, Evidence_Data_Types):            
-            prefix = Evidence_Raster_Layer + Grand_WOFE_Name
+        for Evidence_Raster_Layer, Evidence_Data_Type in zip(Evidence_Rasters, Evidence_Data_Types):
+            # Check Evidence Raster datatype and Coordinate System #AL 180520 
+            evidenceDescr = arcpy.Describe(Evidence_Raster_Layer) 
+            evidenceCoord = evidenceDescr.spatialReference.name
+            arcpy.AddMessage("Data type of Evidence Layer " + Evidence_Raster_Layer + " is " + evidenceDescr.datatype + " and Coordinate System " + evidenceCoord)
+            if (evidenceCoord != trainingCoord):
+                arcpy.AddError("ERROR: Coordinate System of Evidence Layer is " + evidenceCoord + " and Training points it is " + trainingCoord + ". These must be same.")
+                raise
+
+            #prefix = Evidence_Raster_Layer + Grand_WOFE_Name
+            prefix = gp.workspace + "\\" + os.path.basename(Evidence_Raster_Layer) + Grand_WOFE_Name	#AL 050520
             arcpy.AddMessage("Calculating weights for %s (%s)..."%(Evidence_Raster_Layer,Evidence_Data_Type  ));
             if Evidence_Data_Type.startswith('o'):
                 Wts_Table_Types = ['Ascending','Descending']
@@ -134,8 +153,9 @@ def execute(self, parameters, messages):
                     if not(filename.endswith('.dbf')):
                         filename = filename + ".dbf";
                     dwrite ("Filename is a file - adding dbf")
-                    
+                
                 unique_name = gp.createuniquename(filename, gp.workspace)
+                dwrite("unique_name = " + unique_name)
                 Output_Weights_Table = unique_name
                 #dwrite("Validate: " + gp.ValidateTablename(prefix + suffix) )
                 
@@ -143,8 +163,8 @@ def execute(self, parameters, messages):
                 
                 # Temporarily print directory
                 #gp.addmessage(dir(arcpy));
-                #gp.addmessage("Calling calculate weights...")
-                dwrite( " Evidence raster layer name: " + Evidence_Raster_Layer);
+                gp.addmessage("Calling calculate weights...")
+                dwrite("Evidence raster layer name: " + Evidence_Raster_Layer);
                 dwrite(' Output table name: %s Exists already: %s'%(Output_Weights_Table,gp.exists(Output_Weights_Table)))
                 
                 result = arcpy.CalculateWeightsTool_ArcSDM ( Evidence_Raster_Layer, Evidence_Raster_Code_Field, \
@@ -166,7 +186,7 @@ def execute(self, parameters, messages):
                 dwrite(warning);
                 if(len(warning)>0):
                     arcpy.AddWarning(warning);
-                    Success = "False";
+                    #Success = "False"; #AL 180520 poistettu
                     #Should stop here?
               
                 
@@ -184,7 +204,7 @@ def execute(self, parameters, messages):
                 if  desc.workspaceType == "FileSystem":
                     if not(outputfilename.endswith('.dbf')):
                         Output = outputfilename + ".dbf";
-                    dwrite ("Workspace is filesystem - adding dbf")
+                        dwrite ("Workspace is filesystem - adding dbf")
                     
             
                 if Success.strip().lower() == 'true':
@@ -192,7 +212,8 @@ def execute(self, parameters, messages):
                     #gp.addmessage('Valid Wts Table: %s'%Output_Weights_Table)
                     OutSet.append(str(Output)) # Save name of output table for display kluge
                 else:
-                    gp.addmessage('Invalid Wts Table: %s'%Output.strip())
+                    #gp.addmessage('Invalid Wts Table: %s'%Output.strip())
+                    gp.AddWarning('Invalid Wts Table: %s'%Output.strip())     #AL 040520
                 #arcpy.AddMessage("\n")
                 
         #Get list of valid tables for each input raster
@@ -286,7 +307,20 @@ def execute(self, parameters, messages):
                 Output_LR_Confidence_raster = gp.createuniquename(prefix + "_lrconf", gp.workspace)
                 #gp.AddToolbox(tbxpath)
                 gp.addMessage(" Running logistic regression...");
-                
+                dwrite ("valid_rasters = " + str(valid_rasters))
+                dwrite ("valid_raster_datatypes = " + str(valid_raster_datatypes))
+                dwrite ("0 Input Raster Layer(s) (GPValueTable: GPRasterLayer) = ';'.join(valid_rasters)")
+                dwrite ("1 Evidence type (GPValueTable: GPString) = ';'.join(valid_raster_datatypes)")
+                dwrite ("w Input weights tables (GPValueTable: DETable) = " + str(Weights_Tables))
+                dwrite ("2 Training sites (GPFeatureLayer) = " + str(Input_Training_Sites_Feature_Class))
+                dwrite ("3 Missing data value (GPLong) = " + str(Missing_Data_Value))
+                dwrite ("4 Unit area (km^2) (GPDouble) = " + str(Unit_Area__sq_km_))
+                dwrite ("5 Output polynomial table (DEDbaseTable) = " + str(Output_Polynomial_Table))
+                dwrite ("52 Output coefficients table (DEDbaseTable) = " + str(Output_Coefficients_Table))
+                dwrite ("6 Output post probablity raster (DERasterDataset) = " + str(Output_Post_Probability_raster))
+                dwrite ("62 Output standard deviation raster (DERasterDataset) = " + str(Output_Standard_Deviation_raster))
+                dwrite ("63 Output confidence raster (DERasterDataset) = " + str(Output_LR_Confidence_raster))
+
                 out_paths = arcpy.LogisticRegressionTool_ArcSDM(";".join(valid_rasters), ";".join(valid_raster_datatypes), Weights_Tables, Input_Training_Sites_Feature_Class,
                                  Missing_Data_Value, Unit_Area__sq_km_, Output_Polynomial_Table, Output_Coefficients_Table,
                                  Output_Post_Probability_raster, Output_Standard_Deviation_raster, Output_LR_Confidence_raster)
@@ -306,7 +340,7 @@ def execute(self, parameters, messages):
             """Kluge because Geoprocessor can't handle variable number of ouputs"""
             dwrite (" Outset: " + str(OutSet));
             OutSet = ';'.join(OutSet)
-            
+
             gp.addwarning("Copy the following line with ControlC,")
             gp.addwarning("then paste in the Name box of the Add Data command,")
             gp.addwarning("then click Add button")
@@ -334,15 +368,15 @@ def execute(self, parameters, messages):
         tbinfo = traceback.format_tb(tb)[0]
         # concatenate information together concerning the error into a message string
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-            str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
+            str(sys.exc_info()) + "\n"    #AL 040520
+        #    str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
         # generate a message string for any geoprocessing tool errors
         if len(gp.GetMessages(2)) > 0:
             msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"
             gp.AddError(msgs)
+            gp.AddMessage(msgs)
 
         # return gp messages for use with a script tool
         gp.AddError(pymsg)
 
-        # print messages for use in Python/PythonWin
-        print (msgs)
         raise

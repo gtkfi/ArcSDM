@@ -6,7 +6,8 @@
     4/2016 Conversion started - TR
     9/2016 Conversion started to Python toolbox TR
     01/2018 Bug fixes for 10.x - Arianne Ford
-    
+    27.4.2020 added Input Weights table file type checking / Arto Laiho, GTK/GFS
+    18.5.2020 added Input Raster datatype and coordinate system checking / Arto Laiho, GTK/GFS
 
     Spatial Data Modeller for ESRI* ArcGIS 9.2
     Copyright 2007
@@ -51,8 +52,6 @@ def Execute(self, parameters, messages):
     try:
         # Import system modules
         import sys, os, math, traceback;
-        import arcsdm.sdmvalues
-        
         import arcsdm.sdmvalues;
         import arcsdm.workarounds_93;
         try:
@@ -76,11 +75,13 @@ def Execute(self, parameters, messages):
         Evidence = parameters[0].valueAsText #gp.GetParameterAsText(0)
         Wts_Tables = parameters[1].valueAsText #gp.GetParameterAsText(1)
         Training_Points = parameters[2].valueAsText #gp.GetParameterAsText(2)
+        trainingDescr = arcpy.Describe(Training_Points)     #AL 180520
+        trainingCoord = trainingDescr.spatialReference.name #AL 180520
         IgnoreMsgData = parameters[3].value #gp.GetParameter(3)
         MissingDataValue = parameters[4].value #gp.GetParameter(4)
         #Cleanup extramessages after stuff
         #gp.AddMessage('Got arguments' )
-        arcsdm.common.testandwarn_arcgispro();
+        #arcsdm.common.testandwarn_arcgispro();
         
         if IgnoreMsgData: # for nodata argument to CopyRaster tool
             NoDataArg = MissingDataValue
@@ -93,7 +94,7 @@ def Execute(self, parameters, messages):
 
         
     #Getting Study Area in counts and sq. kilometers
-    
+   
         Counts = arcsdm.sdmvalues.getMaskSize(arcsdm.sdmvalues.getMapUnits(True));
         gp.AddMessage("\n"+"="*21+" Starting calculate response "+"="*21)
         #gp.AddMessage(str(gp.CellSize))
@@ -110,6 +111,7 @@ def Execute(self, parameters, messages):
         gp.AddMessage("%-20s %s"% ("Prior_prob:" , str(Prior_prob)))
 
         #Get input evidence rasters
+        #dwrite ("Evidence = " + Evidence)
         Input_Rasters = Evidence.split(";")
         
         # Process things and removve grouplayer names including EXTRA ' ' symbols around spaced grouplayer name
@@ -120,10 +122,10 @@ def Execute(self, parameters, messages):
         
         #Get input weight tables
         Wts_Tables = Wts_Tables.split(";")
-        #gp.AddMessage("Wts_Tables = " + str(Wts_Tables))
+        #dwrite ("Wts_Tables = " + str(Wts_Tables))
         
         #Create weight raster from raster's associated weights table
-        #gp.AddMessage("Getting Weights rasters...")
+        #dwrite ("Getting Weights rasters...")
         gp.OverwriteOutput = 1
         gp.LogHistory = 1
         Wts_Rasters = []
@@ -141,6 +143,17 @@ def Execute(self, parameters, messages):
         gp.AddMessage("\nCreating weight rasters ")
         arcpy.AddMessage("=" * 41);
         for Input_Raster in Input_Rasters:
+            # Check each Input Raster datatype and coordinate system #AL 180520
+            inputDescr = arcpy.Describe(Input_Raster)
+            inputCoord = inputDescr.spatialReference.name
+            arcpy.AddMessage(Input_Raster + ", Data type: " + inputDescr.datatype + ", Coordinate System: " + inputCoord)
+            if (inputDescr.datatype == "RasterDataset"):
+               arcpy.AddError("ERROR: Data Type of Input Raster cannot be RasterDataset, use RasterBand or RasterLayer.")
+               raise
+            if (inputCoord != trainingCoord):
+                arcpy.AddError("ERROR: Coordinate System of Input Raster is " + inputCoord + " and Training points it is " + trainingCoord + ". These must be same.")
+                raise
+
             #<== RDB
             #++ Needs to be able to extract input raster name from full path.
             #++ Can't assume only a layer from ArcMap.
@@ -149,18 +162,19 @@ def Execute(self, parameters, messages):
             #outputrastername = (Input_Raster[:9]) + "_W"; 
             #TODO: Do we need to consider if the file names collide with shapes? We got collision with featureclasses
             desc = arcpy.Describe(Input_Raster);
-            
+
             Wts_Table = Wts_Tables[i]           
+
+            # When workspace type is File System in ArcGIS Pro, Input Weight Table also must end with .dbf #AL
+            wsdesc = arcpy.Describe(gp.workspace)
+            if (wsdesc.workspaceType == "FileSystem"):
+                if not(Wts_Table.endswith('.dbf')):
+                    Wts_Table += ".dbf";   #AL 060520
             
             #Compare workspaces to make sure they match
             desc2 = arcpy.Describe(Wts_Table);
             
-            #arcpy.AddMessage(desc.workspaceType);
-            #arcpy.AddMessage(desc2.workspaceType);
-            
-            
             arcpy.AddMessage("Processing " + Input_Raster);
-            
             
             outputrastername = Input_Raster.replace(".","_");
             
@@ -168,11 +182,6 @@ def Execute(self, parameters, messages):
             #outputrastername = desc.nameString + "_W2";
             # Create _W raster
             Output_Raster = gp.CreateScratchName(outputrastername, '', 'rst', gp.scratchworkspace)
-            #gp.AddMessage("\n");            
-            #gp.AddMessage(" Outputraster: " + outputrastername);
-            
-            
-            
             
             #Increase the count for next round
             i += 1
@@ -202,17 +211,16 @@ def Execute(self, parameters, messages):
                 NoDataArg2 = NoDataArg
             #Create new rasterlayer from input raster -> Result RasterLayer
             RasterLayer = "OutRas_lyr"
+
             arcpy.MakeRasterLayer_management(Input_Raster,RasterLayer)
-            
+
             #++ AddJoin requires and input layer or tableview not Input Raster Dataset.     
             #Join result layer with weights table
-            dwrite ("Layer and Rasterlayer: " + Input_Raster + " " + RasterLayer);
-            dwrite ("WTs_layer: " + Wts_Table)
+            dwrite ("Layer and Rasterlayer: " + Input_Raster + ", " + RasterLayer);
+
             arcpy.AddJoin_management(RasterLayer,"VALUE",Wts_Table,"CLASS")
             # THis is where it crashes on ISsue 44!https://github.com/gtkfi/ArcSDM/issues/44
             #return;
-            
-           
             
             # These are born in wrong place when the scratch workspace is filegeodatabase
             #Temp_Raster = os.path.join(arcpy.env.scratchFolder,'temp_raster')
@@ -221,8 +229,8 @@ def Execute(self, parameters, messages):
             #Temp_Raster = os.path.join(arcpy.env.scratchWorkspace,'temp_raster')
             Temp_Raster = gp.CreateScratchName('tmp_rst', '', 'rst', gp.scratchworkspace)
             #gp.AddMessage(" RasterLayer=" + RasterLayer);
-            gp.AddMessage(" Temp_Raster=" + Temp_Raster);
-            gp.AddMessage(" Wts_Table=" + Wts_Table);
+            dwrite (" Temp_Raster=" + Temp_Raster);
+            dwrite (" Wts_Table=" + Wts_Table);
             
             #Delete old temp_raster
             if gp.exists(Temp_Raster):
@@ -265,7 +273,7 @@ def Execute(self, parameters, messages):
             #Check for Missing Data in raster's Wts table
             if not IgnoreMsgData:
                 # Update the list for Missing Data Variance Calculation
-                #gp.addMessage("Debug: Wts_Table = " + Wts_Table);
+                #dwrite ("Wts_Table = " + Wts_Table);
                 tblrows = gp.SearchCursor(Wts_Table,"Class = %s" % MissingDataValue)
                 tblrow = tblrows.Next()
                 if tblrow: rasterList.append(gp.Describe(Output_Raster).CatalogPath)
@@ -361,6 +369,9 @@ def Execute(self, parameters, messages):
             Output_Raster = gp.CreateScratchName(stdoutputrastername, '', 'rst', gp.scratchworkspace)
             #print ("DEBUG STD1");
             Wts_Table = Wts_Tables[i]
+            if (wsdesc.workspaceType == "FileSystem"): #AL 060520
+                if not(Wts_Table.endswith('.dbf')): #AL 060520
+                    Wts_Table += ".dbf";            #AL 060520
             
             i += 1
             #Wts_Table = gp.Describe(Wts_Table).CatalogPath
@@ -376,7 +387,7 @@ def Execute(self, parameters, messages):
                 NoDataArg2 = '#'
             else:
                 NoDataArg2 = NoDataArg
-            #arcpy.AddMessage("Debug: " + str(NoDataArg));
+            dwrite ("NoDataArg = " + str(NoDataArg));
             RasterLayer = "OutRas_lyr2";
             gp.makerasterlayer(Input_Raster,RasterLayer)
             #++ Input to AddJoin must be a Layer or TableView
@@ -391,8 +402,8 @@ def Execute(self, parameters, messages):
                 gc.collect();
                 arcpy.ClearWorkspaceCache_management()
                 gp.AddMessage("Tmprst deleted.");
-            gp.AddMessage("RasterLayer=" + RasterLayer);
-            gp.AddMessage("Temp_Raster=" + Temp_Raster);
+            dwrite ("RasterLayer=" + RasterLayer);
+            dwrite ("Temp_Raster=" + Temp_Raster);
             
             arcpy.CopyRaster_management(RasterLayer, Temp_Raster,"#","#",NoDataArg2)
             #gp.AddMessage("DEBUG STD1");
@@ -537,10 +548,10 @@ def Execute(self, parameters, messages):
     except arcpy.ExecuteError as e:
         #TODO: Clean up all these execute errors in final version
         arcpy.AddError("\n");
-        arcpy.AddMessage("Calculate weights caught arcpy.ExecuteError ");
+        arcpy.AddMessage("Calculate Response caught arcpy.ExecuteError ");
         gp.AddError(arcpy.GetMessages())
         if len(e.args) > 0:
-            #arcpy.AddMessage("Calculate weights caught arcpy.ExecuteError: ");
+            #arcpy.AddMessage("Calculate Response caught arcpy.ExecuteError: ");
             args = e.args[0];
             args.split('\n')
             #arcpy.AddError(args);
@@ -554,7 +565,8 @@ def Execute(self, parameters, messages):
         tbinfo = traceback.format_tb(tb)[0]
         # concatenate information together concerning the error into a message string
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-                str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
+            str(sys.exc_info()) + "\n"    #AL 050520
+        #        str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
         # generate a message string for any geoprocessing tool errors
         msgs = "GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
         arcpy.AddError(msgs)
