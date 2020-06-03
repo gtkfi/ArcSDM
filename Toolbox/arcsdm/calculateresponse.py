@@ -26,7 +26,7 @@ import gc;
 import importlib;
 import sys
 
-debuglevel = 0;
+debuglevel = 1;
 #Debug write
 
 def testdebugfile():
@@ -140,15 +140,16 @@ def Execute(self, parameters, messages):
        
         ''' Weight rasters '''
         
+        wsdesc = arcpy.Describe(gp.workspace) #AL 030620
         gp.AddMessage("\nCreating weight rasters ")
         arcpy.AddMessage("=" * 41);
         for Input_Raster in Input_Rasters:
-            # Check each Input Raster datatype and coordinate system #AL 180520
+            # Check each Input Raster datatype and coordinate system #AL 180520,030620
             inputDescr = arcpy.Describe(Input_Raster)
             inputCoord = inputDescr.spatialReference.name
             arcpy.AddMessage(Input_Raster + ", Data type: " + inputDescr.datatype + ", Coordinate System: " + inputCoord)
-            if (inputDescr.datatype == "RasterDataset"):
-               arcpy.AddError("ERROR: Data Type of Input Raster cannot be RasterDataset, use RasterBand or RasterLayer.")
+            if (inputDescr.datatype == "RasterDataset" and wsdesc.workspaceType == "FileSystem"):
+               arcpy.AddError("ERROR: When workspace is File System, Data Type of Input Raster cannot be RasterDataset, use RasterBand or RasterLayer.")
                raise
             if (inputCoord != trainingCoord):
                 arcpy.AddError("ERROR: Coordinate System of Input Raster is " + inputCoord + " and Training points it is " + trainingCoord + ". These must be same.")
@@ -166,7 +167,6 @@ def Execute(self, parameters, messages):
             Wts_Table = Wts_Tables[i]           
 
             # When workspace type is File System in ArcGIS Pro, Input Weight Table also must end with .dbf #AL
-            wsdesc = arcpy.Describe(gp.workspace)
             if (wsdesc.workspaceType == "FileSystem"):
                 if not(Wts_Table.endswith('.dbf')):
                     Wts_Table += ".dbf";   #AL 060520
@@ -186,7 +186,7 @@ def Execute(self, parameters, messages):
             #Increase the count for next round
             i += 1
             
-            #arcpy.AddMessage("WtsTable: " + Wts_Table);
+            dwrite("WtsTable is " + Wts_Table);
             #Wts_Table = gp.Describe(Wts_Table).CatalogPath
             ## >>>>> Section replaced by join and lookup below >>>>>
             ##        try:
