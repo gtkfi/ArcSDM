@@ -7,14 +7,15 @@ Standard toolbox of ArcSDM 5 works on ArcGis Desktop 10.3-10.7.1, however Experi
 
 ### Python files <br>
 
-#### Calculate Weights (calculateweights.py) 19.5.2020<br>
+#### Calculate Weights (calculateweights.py) 3.6.2020<br>
 1. Obsolete attributes sys.exc_type and sys.exc_value replaced by sys.exc_info ()<br>
-2. If the pixel type of the Evidence Raster (Input Raster) is NOT an integer, the raster name is displayed and execution is aborted on error.<br>
-3. The coordinate system of the Training sites Layer must be the same as that of the Evidence Layer.<br>
-4. When using FileSystem as the workspace in ArcGIS Pro (that is, writing the results to a dBase database), the field name of the database table must not be the same as the alias name of the field (case insignificant). ArcGIS Pro will crash if these names are the same. That's why I added an underscore to the end of the alias name.<br>
+2. If the Evidence Layer raster type is RasterBand, execution is aborted. If the Data Type is RasterBand, execution would crash when calling the SearchCursor (EvidenceLayer) method.<br>
+3. If the pixel type of the Evidence Raster (Input Raster) is NOT an integer, the raster name is displayed and execution is aborted on error.<br>
+4. The coordinate system of the Training sites Layer must be the same as that of the Evidence Layer.<br>
+5. When using FileSystem as the workspace in ArcGIS Pro (that is, writing the results to a dBase database), the field name of the database table must not be the same as the alias name of the field (case insignificant). ArcGIS Pro will crash if these names are the same. That's why I added an underscore to the end of the alias name.<br>
 
-#### Calculate Response (calculateresponse.py) 20.5.2020<br>
-1. The Input Raster Data Type cannot be RasterDataSet but RasterBand or RasterLayer. If the Data Type is RasterDataSet, execution crashes to the line “outras = arcpy.sa.Lookup (Temp_Raster," WEIGHT ")”.<br>
+#### Calculate Response (calculateresponse.py) 3.6.2020<br>
+1.The Input Raster Data Type can be RasterBand or RasterLayer. If workspace is File Geodatabase, Raster Data Type can also be RasterDataset. If workspace is File System and Data Type is RasterDataSet, execution crashes to the line “outras = arcpy.sa.Lookup (Temp_Raster," WEIGHT ")”.<br>
 2. The coordinate system of the input raster must be the same as that of the Training points Layer.<br>
 3. When using FileSystem (dBase database) as the workspace in ArcGIS Pro, the input data of the Calculate Response tool must have the type extension .dbf in the Input Weights Table name. The tool adds that type extension if it is missing.<br>
 
@@ -27,7 +28,7 @@ New tool to execute Calculate Weights, Calculate Response and ROCtool together. 
 #### Fuzzy ROC 2 (fuzzyroc2.py) 19.5.2020<br>
 New tool to execute Calculate Weights, Calculate Response and ROCtool together. This tool gets two or more input rasters and one function and parameter combination to each input raster.<br>
 
-<b>Help for both FuzzyROC tools:</b><br>
+<b><u>Help for both FuzzyROC tools:</u></b><br>
 <b>Input raster names</b> – there can be any number of rasters - but at least two so far. Raster is selected either from the drop-down menu (if it found in the Contents list) or by a folder icon from a GDB database or disk (raster file).<br>
 <b>Fuzzy Membership Parameters</b> – select the parameters to be used in the Fuzzy Membership tool.<br>
 <b>Membership type</b> is selected from the drop-down menu. Numeric values are written in boxes.<br>
