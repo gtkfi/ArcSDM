@@ -5,6 +5,7 @@
     Update by Arianne Ford, Kenex Ltd. 2018
    
     History: 
+    3.6.2020 Evidence Raster cannot be RasterBand (ERROR 999999 at rows = gp.SearchCursor(EvidenceLayer)) / Arto Laiho, GTK/GSF
     15.5.2020 Added Evidence Layer and Training points coordinate system checking / Arto Laiho, GTK/GSF
     27.4.2020 Database table field name cannot be same as alias name when ArcGIS Pro with File System Workspace is used. / Arto Laiho, GTK/GSF
     09/01/2018 Bug fixes for 10.x, fixed perfect correlation issues, introduced patch for b-db<=0 - Arianne Ford, Kenex Ltd.
@@ -201,11 +202,13 @@ def Calculate(self, parameters, messages):
         gp.LogHistory = 1
         EvidenceLayer = parameters[0].valueAsText
 
-        # Test data type of Evidence Layer #AL 150520
+        # Test data type of Evidence Layer #AL 150520,030620
         evidenceDescr = arcpy.Describe(EvidenceLayer)
         evidenceCoord = evidenceDescr.spatialReference.name
         arcpy.AddMessage("Evidence Layer is " + EvidenceLayer + " and its data type is " + evidenceDescr.datatype)
-
+        if (evidenceDescr.datatype == "RasterBand"):
+            arcpy.AddError("ERROR: Data Type of Evidence Layer cannot be RasterBand, use Raster Dataset.")
+            raise
         valuetype = gp.GetRasterProperties (EvidenceLayer, 'VALUETYPE')
         valuetypes = {1:'Integer', 2:'Float'}
         #if valuetype != 1:
