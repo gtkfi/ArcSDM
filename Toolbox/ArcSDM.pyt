@@ -139,11 +139,12 @@ class GrandWofe(object):
     def execute(self, parameters, messages):
         """The source code of the tool."""
         #3.4
-        try:
-            importlib.reload (arcsdm.grand_wofe_lr)
-        except :
-            reload(arcsdm.grand_wofe_lr);
-        arcsdm.grand_wofe_lr.execute(self, parameters, messages)
+        #try:
+        #    importlib.reload (arcsdm.grand_wofe_lr)
+        #except :
+        #    reload(arcsdm.grand_wofe_lr);
+        #arcsdm.grand_wofe_lr.execute(self, parameters, messages)
+        execute_tool(arcsdm.grand_wofe_lr.execute, self, parameters, messages) #AL 090620
         return
                 
         
@@ -1773,7 +1774,14 @@ class FuzzyROC2(object):
         direction="Input")
         param3.filter.list = ["File System"]
 
-        params = [param0, param1, param2, param3]
+        #param4 = arcpy.Parameter(
+        #displayName="Plot membership curves only",
+        #name="plots",
+        #datatype="GPBoolean",
+        #parameterType="Optional",
+        #direction="Input")
+
+        params = [param0, param1, param2, param3] #, param4]
         return params
 
     def isLicensed(self):    
@@ -1789,7 +1797,6 @@ class FuzzyROC2(object):
         """Modify the values and properties of parameters before internal
         validation is performed.  This method is called whenever a parameter
         has been changed."""
-        return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
