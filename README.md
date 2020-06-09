@@ -1,23 +1,40 @@
 # Modified ArcSDM tools on arto-dev
 Spatial Data Modeler 5 for ArcGis pro<Br>
-
+Updated 9.6.3030<br>
+  
 ## Changed tools and other files <br>
 
 Standard toolbox of ArcSDM 5 works on ArcGis Desktop 10.3-10.7.1, however Experimental toolbox requires components that cannot be installed on ArcGis desktop and doesn't work. ArcGis pro is supported from version 2.5+ forward.
 
+### Toolbox<br>
+
+Grand Wofe start method is modified on Toolbox\ArcSDM.pyt at 9.6.2020<br>
+
 ### Python files <br>
 
-#### Calculate Weights (calculateweights.py) 3.6.2020<br>
+#### Calculate Weights (calculateweights.py) 9.6.2020<br>
 1. Obsolete attributes sys.exc_type and sys.exc_value replaced by sys.exc_info ()<br>
-2. If the Evidence Layer raster type is RasterBand, execution is aborted. If the Data Type is RasterBand, execution would crash when calling the SearchCursor (EvidenceLayer) method.<br>
-3. If the pixel type of the Evidence Raster (Input Raster) is NOT an integer, the raster name is displayed and execution is aborted on error.<br>
+2. If the pixel type of the Evidence Raster (Input Raster) is NOT an integer, the raster name is displayed and execution is aborted on error.<br>
+3. 3.	If Evidence Layer has not attribute table, execution is stopped. You can add it using ‘Build Raster Attribute Table’ tool.<br>
 4. The coordinate system of the Training sites Layer must be the same as that of the Evidence Layer.<br>
 5. When using FileSystem as the workspace in ArcGIS Pro (that is, writing the results to a dBase database), the field name of the database table must not be the same as the alias name of the field (case insignificant). ArcGIS Pro will crash if these names are the same. That's why I added an underscore to the end of the alias name.<br>
 
-#### Calculate Response (calculateresponse.py) 3.6.2020<br>
-1.The Input Raster Data Type can be RasterBand or RasterLayer. If workspace is File Geodatabase, Raster Data Type can also be RasterDataset. If workspace is File System and Data Type is RasterDataSet, execution crashes to the line “outras = arcpy.sa.Lookup (Temp_Raster," WEIGHT ")”.<br>
-2. The coordinate system of the input raster must be the same as that of the Training points Layer.<br>
-3. When using FileSystem (dBase database) as the workspace in ArcGIS Pro, the input data of the Calculate Response tool must have the type extension .dbf in the Input Weights Table name. The tool adds that type extension if it is missing.<br>
+#### Calculate Response (calculateresponse.py) 9.6.2020<br>
+1.The coordinate system of the input raster must be the same as that of the Training points Layer.<br>
+2. When using FileSystem (dBase database) as the workspace in ArcGIS Pro, the input data of the Calculate Response tool must have the type extension .dbf in the Input Weights Table name. The tool adds that type extension if it is missing.<br>
+
+#### Logistic Regression (logisticregression.py)	9.6.2020<br>
+Logistic Regression works on ArcMap if workspace is File System or File Geodatabase but there is still some problem with ArcGIS Pro and File System workspace.<br>
+
+#### Grand Wofe (grand_wofe_lr.py)	9.6.2020<br>
+1. Obsolete attributes sys.exc_type and sys.exc_value replaced by sys.exc_info ()<br>
+2. Grand Wofe Name cannot be longer than 7 characters because it is used as part of the result raster name which cannot be longer than 13 characters.<br> 
+3. The coordinate system of the input raster must be the same as that of the Training points Layer.<br>
+4. Weights table name prefix was formed incorrectly<br>
+
+#### common.py 9.6.2020<br>
+1. Addition of a result raster displayed  to ArcGIS Pro to the Contents panel in addToDisplay feature fixed.<br>
+2.Environment variable TEMP is set to refer to the folder C:\SDEtemp, which is created unless it is not exist<br>
 
 #### Categorical Membership (categoricalmembership.py) 22.5.2020<br>
 The Reclassification parameter requires a database table that defines a classification. The Categorical & Reclass tool can create such a table, but its field names do not match that original command line (VALUE, VALUE, FMx100). ArcGIS Desktop 10.6.1 writes the FROM, TO, and OUT fields to the table. ArcGIS Pro 2.5 writes the FROM_, TO, and OUT fields. These field names have been fixed in the tool.<br>
@@ -46,17 +63,6 @@ Added closing of pylab windows because without closing only 20 patterns could be
 
 #### TOC Fuzzification (tocfuzzification.py)	29.4.2020<br>
 Tested, not modified.<br>
-
-#### Logistic Regression (logisticregression.py)	28.5.2020<br>
-Logistic Regression don’t work on ArcGIS Pro if workspace is File System. Join Field cannot join raster from file system and/or DBF table fields together on ArcGIS Pro but can join them on ArcGIS Desktop 10.6.1. LR works on ArcGIS Pro if workspace is File Geodatabase and Input Weights rasters are in File Geodatabase. <br>
-
-#### Grand Wofe (grand_wofe_lr.py)	28.5.2020<br>
-1. Obsolete attributes sys.exc_type and sys.exc_value replaced by sys.exc_info ()<br>
-2. Because Logistic Regression don’t work on ArcGIS Pro if workspace is File System, this tool will not work on ArcGIS Pro if workspace is File System.<br>
-3. The coordinate system of the input raster must be the same as that of the Training points Layer.<br>
-
-#### common.py 29.4.2020<br>
-Addition of a result raster displayed  to ArcGIS Pro to the Contents panel in addToDisplay feature fixed.<br>
 
 #### sdmvalues.py 28.5.2020<br>
 1. The default value for Environment.Cell Size is Maximum of Inputs, which can be used as a Cell Size if the mask is FeatureLayer or FeatureClass. If the mask is a raster, the text value cannot be used in the calculation, but the Cell Size must be an integer<br>
