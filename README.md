@@ -1,6 +1,6 @@
 # Modified ArcSDM tools on arto-dev
 Spatial Data Modeler 5 for ArcGis pro<Br>
-Updated 9.6.3030<br>
+Updated 9.6.2020<br>
   
 ## Changed tools and other files <br>
 
