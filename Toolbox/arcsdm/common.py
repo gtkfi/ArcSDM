@@ -4,7 +4,7 @@
 #
 # Janne Kallunki, GTK, 2017
 # Tero Ronkko, GTK, 2018
-# Arto Laiho, GTK, 29.4.2020 (see addToDisplay)
+# Arto Laiho, GTK, 29.4.2020 (addToDisplay), 9.6.2020 (SDMtemp folder)
 
 import sys, os, traceback
 import arcpy
@@ -83,6 +83,17 @@ def execute_tool(func, self, parameters, messages):
             wait_for_debugger()
         except:
             messages.AddMessage("Failed to import debug_ptvs. Is ptvsd package installed?")
+
+    # Set environment variable TEMP to refer to the folder C:\SDMtemp. A folder is created if it does not exists #AL 090620
+    try:
+        if not os.path.exists("C:\\SDMtemp"):
+            os.makedirs("C:\\SDMtemp")
+            arcpy.AddMessage ("New TEMP folder C:\\SDMtemp created.")
+        os.environ["TEMP"] = "C:\\SDMtemp"
+        arcpy.AddMessage (os.environ["TEMP"] + " is now TEMP folder")
+    except:
+        arcpy.AddWarning ("Cannot change TEMP folder. " + os.environ["TEMP"] + " is still your TEMP folder")
+
     try:
         # run the tool
         func(self, parameters, messages)

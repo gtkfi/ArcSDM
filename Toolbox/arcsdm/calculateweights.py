@@ -5,6 +5,7 @@
     Update by Arianne Ford, Kenex Ltd. 2018
    
     History: 
+    9.6.2020 If Evidence Layer has not attribute table, execution is stopped / Arto Laiho, GTK/GSF
     3.6.2020 Evidence Raster cannot be RasterBand (ERROR 999999 at rows = gp.SearchCursor(EvidenceLayer)) / Arto Laiho, GTK/GSF
     15.5.2020 Added Evidence Layer and Training points coordinate system checking / Arto Laiho, GTK/GSF
     27.4.2020 Database table field name cannot be same as alias name when ArcGIS Pro with File System Workspace is used. / Arto Laiho, GTK/GSF
@@ -202,10 +203,16 @@ def Calculate(self, parameters, messages):
         gp.LogHistory = 1
         EvidenceLayer = parameters[0].valueAsText
 
+        # Test if EvidenceLayer has attribute table or not #AL 090620
+        test_raster = arcpy.Raster(EvidenceLayer)
+        if not test_raster.hasRAT:
+            arcpy.AddError("ERROR: EvidenceLayer does not have an attribute table. Use 'Build Raster Attribute Table' tool to add it.")
+            raise
+
         # Test data type of Evidence Layer #AL 150520,030620
         evidenceDescr = arcpy.Describe(EvidenceLayer)
         evidenceCoord = evidenceDescr.spatialReference.name
-        arcpy.AddMessage("Evidence Layer is " + EvidenceLayer + " and its data type is " + evidenceDescr.datatype)
+        arcpy.AddMessage("Evidence Layer is " + EvidenceLayer + " and its data type is " + evidenceDescr.datatype + " and coordinate system is " + evidenceCoord)
         if (evidenceDescr.datatype == "RasterBand"):
             arcpy.AddError("ERROR: Data Type of Evidence Layer cannot be RasterBand, use Raster Dataset.")
             raise
@@ -283,9 +290,17 @@ def Calculate(self, parameters, messages):
         desc = gp.describe(EvidenceLayer)
         cellsize = desc.MeanCellWidth
         if desc.datatype == 'RasterLayer': EvidenceLayer =desc.catalogpath
+        arcpy.AddMessage("Evidence Layer is now " + EvidenceLayer + " and its data type is " + desc.datatype)
         if Type == "Descending":
             wtsrows = gp.InsertCursor(wtstable)
-            rows = gp.SearchCursor(EvidenceLayer,'','','','Value D')
+            try:
+                rows = gp.SearchCursor(EvidenceLayer,'','','','Value D')
+            except:
+                # Test if EvidenceLayer has attribute table or not #AL 090620
+                test_raster = arcpy.Raster(EvidenceLayer)
+                if not test_raster.hasRAT:
+                    arcpy.AddError("ERROR: EvidenceLayer does not have an attribute table. Use 'Build Raster Attribute Table' tool to add it.")
+                    raise
             row = rows.Next()
             while row:
                 #gp.AddMessage("Inserting row.")
@@ -312,7 +327,14 @@ def Calculate(self, parameters, messages):
            
         else: # Ascending or Categorical or Unique
             wtsrows = gp.InsertCursor(wtstable)
-            rows = gp.SearchCursor(EvidenceLayer)
+            try:
+                rows = gp.SearchCursor(EvidenceLayer)
+            except:
+                # Test if EvidenceLayer has attribute table or not #AL 090620
+                test_raster = arcpy.Raster(EvidenceLayer)
+                if not test_raster.hasRAT:
+                    arcpy.AddMessage("ERROR: EvidenceLayer does not have an attribute table. Use 'Build Raster Attribute Table' tool to add it.")
+                    raise
             row = rows.Next()
             while row:
                 wtsrow = wtsrows.NewRow()
@@ -438,7 +460,14 @@ def Calculate(self, parameters, messages):
             
     #Generalize table
         #Get Study Area size in Evidence counts    
-        evRows = gp.SearchCursor(EvidenceLayer)
+        try:
+            evRows = gp.SearchCursor(EvidenceLayer)
+        except:
+            # Test if EvidenceLayer has attribute table or not #AL 090620
+            test_raster = arcpy.Raster(EvidenceLayer)
+            if not test_raster.hasRAT:
+                arcpy.AddMessage("ERROR: EvidenceLayer does not have an attribute table. Use 'Build Raster Attribute Table' tool to add it.")
+                raise
         evRow = evRows.Next()
         studyArea = 0
         while evRow:

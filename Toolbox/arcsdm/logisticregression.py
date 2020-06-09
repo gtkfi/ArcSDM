@@ -8,7 +8,6 @@
     Updated by Arianne Ford, Kenex Ltd. 2018 - bug fixes for 10.x, allowing ascending and descending types for evidence.
 
     History: 
-    28.5.2020 This tool works on ArcGIS Pro if workspace is GDB but not if ws is File System. / Arto Laiho, GTK/GSF
     25.9.2018 Merged changes from https://github.com/gtkfi/ArcSDM/issues/103 by https://github.com/Eliasmgprado
     
     Todo: Make it work with filegeodatabases
@@ -74,15 +73,6 @@ def Execute(self, parameters, messages):
     # Check out any necessary licenses
     gp.CheckOutExtension("spatial")
 
-    # Logistic Regression don't work on ArcGIS Pro when workspace is File System! #AL 280520
-    desc = arcpy.Describe(gp.workspace)
-    if str(arcpy.GetInstallInfo()['ProductName']) == "ArcGISPro" and desc.workspaceType == "FileSystem":
-        arcpy.AddError ("ERROR: Logistic Regression don't work on ArcGIS Pro when workspace is File System!")
-        raise
-    #if arcsdm.common.testandwarn_filegeodatabase_environment():        #AL removed 190520
-    #    return;
-        
-    
     gp.OverwriteOutput = 1
     gp.LogHistory = 1
 

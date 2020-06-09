@@ -7,7 +7,7 @@
     9/2016 Conversion started to Python toolbox TR
     01/2018 Bug fixes for 10.x - Arianne Ford
     27.4.2020 added Input Weights table file type checking / Arto Laiho, GTK/GFS
-    18.5.2020 added Input Raster datatype and coordinate system checking / Arto Laiho, GTK/GFS
+    18.5.2020 added Input Raster coordinate system checking / Arto Laiho, GTK/GFS
 
     Spatial Data Modeller for ESRI* ArcGIS 9.2
     Copyright 2007
@@ -26,7 +26,7 @@ import gc;
 import importlib;
 import sys
 
-debuglevel = 1;
+debuglevel = 0;
 #Debug write
 
 def testdebugfile():
@@ -148,9 +148,6 @@ def Execute(self, parameters, messages):
             inputDescr = arcpy.Describe(Input_Raster)
             inputCoord = inputDescr.spatialReference.name
             arcpy.AddMessage(Input_Raster + ", Data type: " + inputDescr.datatype + ", Coordinate System: " + inputCoord)
-            if (inputDescr.datatype == "RasterDataset" and wsdesc.workspaceType == "FileSystem"):
-               arcpy.AddError("ERROR: When workspace is File System, Data Type of Input Raster cannot be RasterDataset, use RasterBand or RasterLayer.")
-               raise
             if (inputCoord != trainingCoord):
                 arcpy.AddError("ERROR: Coordinate System of Input Raster is " + inputCoord + " and Training points it is " + trainingCoord + ". These must be same.")
                 raise

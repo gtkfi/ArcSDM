@@ -4,10 +4,11 @@
 # ArcSDM 5 for ArcGis pro
 # Converted by Tero Ronkko, GTK 2017
 # Updated by Arianne Ford, Kenex Ltd. 2018
-# Updated by Arto Laiho, Geological survey of Finland 4.5.2020:
+# Updated by Arto Laiho, Geological survey of Finland 4.5-9.6.2020:
 # - "Invalid Wts Table" changed from message to warning.
 # - sys.exc_type and exc_value are deprecated, replaced by sys.exc_info()
-# - Logistic Regression don't work on ArcGIS Pro when workspace is File System!
+# - Grand Wofe Name cannot be longer than 7 characters
+# - Weights table prefix changed
 
 """Gets all valid weights tables for each evidence raster, generates all
     combinations of rasters and their tables, and runs each combination
@@ -72,12 +73,6 @@ def execute(self, parameters, messages):
     gp.OverwriteOutput = 1
     gp.LogHistory = 1
 
-    # Logistic Regression don't work on ArcGIS Pro when workspace is File System! #AL 280520
-    desc = arcpy.Describe(gp.workspace)
-    if str(arcpy.GetInstallInfo()['ProductName']) == "ArcGISPro" and desc.workspaceType == "FileSystem":
-        arcpy.AddError ("ERROR: Logistic Regression don't work on ArcGIS Pro when workspace is File System!")
-        raise
-
     # Load required toolboxes...
     try:
         parentfolder = os.path.dirname(sys.path[0])
@@ -88,6 +83,10 @@ def execute(self, parameters, messages):
         gp.AddToolbox(tbxpath)
         #gp.addmessage('getting arguments...')
         Grand_WOFE_Name = '_'+ parameters[0].valueAsText; #gp.GetParameterAsText(0)
+        # Grand Wofe Name cannot be longer than 7 characters #AL 090620
+        if (len(Grand_WOFE_Name) > 7):
+            arcpy.AddError("ERROR: Grand Wofe Name cannot be longer than 7 characters.")
+            raise
         Evidence_Rasters = parameters[1].valueAsText.split(';'); #gp.GetParameterAsText(1).split(';')
         Evidence_Data_Types = parameters[2].valueAsText.lower().split(';'); #gp.GetParameterAsText(2).lower().split(';')
         Input_Training_Sites_Feature_Class = parameters[3].valueAsText; #gp.GetParameterAsText(3)
@@ -132,8 +131,10 @@ def execute(self, parameters, messages):
                 arcpy.AddError("ERROR: Coordinate System of Evidence Layer is " + evidenceCoord + " and Training points it is " + trainingCoord + ". These must be same.")
                 raise
 
+            splitted_evidence = os.path.split(Evidence_Raster_Layer)   #AL 090620
+            eviname = os.path.splitext(splitted_evidence[1])           #AL 090620
             #prefix = Evidence_Raster_Layer + Grand_WOFE_Name
-            prefix = gp.workspace + "\\" + os.path.basename(Evidence_Raster_Layer) + Grand_WOFE_Name	#AL 050520
+            prefix = gp.workspace + "\\" + eviname[0] + Grand_WOFE_Name	#AL 090620
             arcpy.AddMessage("Calculating weights for %s (%s)..."%(Evidence_Raster_Layer,Evidence_Data_Type  ));
             if Evidence_Data_Type.startswith('o'):
                 Wts_Table_Types = ['Ascending','Descending']
@@ -145,7 +146,6 @@ def execute(self, parameters, messages):
                 
             for Wts_Table_Type in Wts_Table_Types:
                 suffix = suffixes[Wts_Table_Type]
-                
                 filename = prefix + suffix; # + '.dbf' NO DBF anymore
                 desc = arcpy.Describe(gp.workspace)
                 
@@ -155,7 +155,6 @@ def execute(self, parameters, messages):
                     dwrite ("Filename is a file - adding dbf")
                 
                 unique_name = gp.createuniquename(filename, gp.workspace)
-                dwrite("unique_name = " + unique_name)
                 Output_Weights_Table = unique_name
                 #dwrite("Validate: " + gp.ValidateTablename(prefix + suffix) )
                 
