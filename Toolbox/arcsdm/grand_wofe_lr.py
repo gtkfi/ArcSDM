@@ -4,11 +4,12 @@
 # ArcSDM 5 for ArcGis pro
 # Converted by Tero Ronkko, GTK 2017
 # Updated by Arianne Ford, Kenex Ltd. 2018
-# Updated by Arto Laiho, Geological survey of Finland 4.5-9.6.2020:
+# Updated by Arto Laiho, Geological survey of Finland 4.5-12.6.2020:
 # - "Invalid Wts Table" changed from message to warning.
 # - sys.exc_type and exc_value are deprecated, replaced by sys.exc_info()
 # - Grand Wofe Name cannot be longer than 7 characters
 # - Weights table prefix changed
+# - Logistic Regression don't work on ArcGIS Pro with File System workspace
 
 """Gets all valid weights tables for each evidence raster, generates all
     combinations of rasters and their tables, and runs each combination
@@ -72,6 +73,12 @@ def execute(self, parameters, messages):
 
     gp.OverwriteOutput = 1
     gp.LogHistory = 1
+
+    # Logistic Regression don't work on ArcGIS Pro when workspace is File System! #AL 120620
+    desc = arcpy.Describe(gp.workspace)
+    if str(arcpy.GetInstallInfo()['ProductName']) == "ArcGISPro" and desc.workspaceType == "FileSystem":
+        arcpy.AddError ("ERROR: Logistic Regression don't work on ArcGIS Pro when workspace is File System!")
+        raise
 
     # Load required toolboxes...
     try:

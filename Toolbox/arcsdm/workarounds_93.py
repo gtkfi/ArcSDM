@@ -47,7 +47,7 @@ def ExtractValuesToPoints(gp, inputRaster, inputFeatures, siteFIDName):
     """
 
     try:
-        #arcpy.AddMessage("Debug: workarounds93 Extracting values to points...")
+        arcpy.AddMessage("Debug: workarounds93 Extracting values to points...")
         assert siteFIDName in ('TPFID','NDTPFID')
         if siteFIDName not in [field.name for field in rowgen(gp.ListFields(inputFeatures))]:
             gp.AddField_management(inputFeatures, siteFIDName, 'LONG')            
@@ -60,6 +60,11 @@ def ExtractValuesToPoints(gp, inputRaster, inputFeatures, siteFIDName):
         gp.CalculateField_management(inputFeatures, siteFIDName, "!{}!".format(idfield) , "PYTHON_9.3")
 
         tempExtrShp = gp.CreateScratchName ('Extr', 'Tmp', 'shapefile', gp.scratchworkspace)
+        #arcpy.AddMessage("Debug: gp.scratchworkspace = " + gp.scratchworkspace);
+        #arcpy.AddMessage("Debug: tempExtrShp = " + tempExtrShp);
+        #arcpy.AddMessage("Debug: inputFeatures = " + inputFeatures);
+        #arcpy.AddMessage("Debug: inputRaster = " + inputRaster);
+
         #tempSelectedExtrShp = gp.CreateScratchName ('SelExtr', 'Tmp', 'shapefile', gp.scratchworkspace)
         gp.ExtractValuesToPoints_sa(inputFeatures, inputRaster, tempExtrShp)
         #gp.addwarning(str(gp.getcount(inputFeatures)))

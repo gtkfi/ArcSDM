@@ -8,6 +8,7 @@
     Updated by Arianne Ford, Kenex Ltd. 2018 - bug fixes for 10.x, allowing ascending and descending types for evidence.
 
     History: 
+    12.6.2020 gp.JoinField_management and gp.Combine don't work on ArcGIS Pro with File System workspace #AL 120620
     25.9.2018 Merged changes from https://github.com/gtkfi/ArcSDM/issues/103 by https://github.com/Eliasmgprado
     
     Todo: Make it work with filegeodatabases
@@ -37,7 +38,7 @@ if PY34:
 
 
     
-debuglevel = 0;
+debuglevel = 1;
 
 def testdebugfile():
     returnvalue = 0; #This because python sucks in detecting outputs from functions
@@ -60,7 +61,7 @@ def CheckEnvironment():
     arcpy.AddMessage("Checking environment...");
     #arcpy.AddMessage('Cell size:{}'.format(arcpy.env.cellSize));
     if (arcpy.env.cellSize == 'MAXOF'):
-        arcpy.AddError("  Cellsize must not be MAXOF!");
+        arcpy.AddError("  Cellsize must not be MAXOF! Set integer value to Cell Size on Environment settings."); #AL 100620
         raise arcpy.ExecuteError;
 
 
@@ -72,6 +73,12 @@ def Execute(self, parameters, messages):
     gp = arcgisscripting.create()
     # Check out any necessary licenses
     gp.CheckOutExtension("spatial")
+
+    # Logistic Regression don't work on ArcGIS Pro when workspace is File System! #AL 120620
+    desc = arcpy.Describe(gp.workspace)
+    if str(arcpy.GetInstallInfo()['ProductName']) == "ArcGISPro" and desc.workspaceType == "FileSystem":
+        arcpy.AddError ("ERROR: Logistic Regression don't work on ArcGIS Pro when workspace is File System!")
+        raise
 
     gp.OverwriteOutput = 1
     gp.LogHistory = 1
@@ -136,7 +143,7 @@ def Execute(self, parameters, messages):
         gp.AddMessage("Creating Generalized Class rasters.")
         for Input_Raster, Wts_Table in zip(Input_Rasters, Wts_Tables):
             Output_Raster = gp.CreateScratchName(os.path.basename(Input_Raster[:9]) + "_G", '', 'rst', gp.scratchworkspace)            
-            gp.AddMessage("%-20s %s" % ("Output_Raster: ", str(Output_Raster))) #AL
+            #gp.AddMessage("%-20s %s" % ("Output_Raster: ", str(Output_Raster)))
 
         #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
             #++ Need to create in-memory Raster Layer for AddJoin
@@ -159,16 +166,18 @@ def Execute(self, parameters, messages):
 
             #arcpy.SaveToLayerFile_management(Input_Raster, RasterLayer)
         #=========================================================
-            #gp.AddMessage('Input_Raster: %s'%(str(Input_Raster)))
-            #gp.AddMessage('Wts_Table: %s'%(str(Wts_Table)))
+            gp.AddMessage("%-20s %s" %("Input_Raster:", str(Input_Raster)))
+            gp.AddMessage("%-20s %s (%d)" %("Wts_Table:", str(Wts_Table), gp.getcount(Wts_Table)))
             #gp.makerasterlayer(Input_Raster, RasterLayer)
             
             #gp.AddJoin_management(RasterLayer, "Value", Wts_Table, "CLASS")
             Temp_Raster = gp.CreateScratchName('tmp_rst', '', 'rst',  gp.scratchworkspace)
-            gp.copyraster_management(Input_Raster, Temp_Raster)
+            gp.copyraster_management(Input_Raster, Temp_Raster) # Input_Raster & Temp_Raster: Rowid, VALUE, COUNT
             gp.JoinField_management(Temp_Raster, 'Value', Wts_Table, 'CLASS')
-            
-            gp.AddMessage('Temp_Raster: %s'%(str(Temp_Raster)))
+            # ERROR 000852: Cannot add field S_WPLUS to C:\ArcSDM\AGPro_scratch\tmp_rstn
+            # on ArcGIS Pro with File System WS and Wts_Table in GDB #AL 120620
+            # This command doesn't copy Wts_Table field values to Temp_Raster on ArcGIS Pro File System WS and Wts_Table in File system, only field names #AL 120620
+            gp.AddMessage("%-20s %s (%d)" % ("Temp_Raster:", str(Temp_Raster), gp.getcount(Temp_Raster)))
             #gp.CopyRaster_management(RasterLayer, Temp_Raster)
             gp.Lookup_sa(Temp_Raster, "GEN_CLASS", Output_Raster)
             #gp.delete(RasterLayer)
@@ -187,6 +196,10 @@ def Execute(self, parameters, messages):
         if gp.exists(thmUC): gp.delete_management(thmUC)
         #gp.Combine_sa(Input_Combine_rasters, thmUC)
         thmUC = gp.Combine(Input_Combine_rasters)    #AL changed 280520
+        # ERROR 010069: Unable to open input raster(s).
+        # ERROR 010067: Error in executing grid expression.
+        # command above on ArcGIS Pro with File System WS and Wts_Table in File System
+
     ##    #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
         gp.AddMessage('Combine done succesfully.')
@@ -390,7 +403,7 @@ def Execute(self, parameters, messages):
         fCase.close()
     ##' Write a parameter file to the ArcView extension directory
     ##'----------------------------------------------
-        arcpy.AddMessage("Write a parameter file to the ArcView extension directory") #AL
+        arcpy.AddMessage("Write a parameter file to the ArcView extension directory")
         strF1 = "param.dat"
         fnParam = os.path.join(arcpy.env.scratchFolder, strF1) #param.dat file
         fParam = open(fnParam, 'w')
@@ -478,7 +491,7 @@ def Execute(self, parameters, messages):
         print ("Table dir: ", tbldir);
         gp.CreateTable_management(tbldir, tblfn)
         print('Making table to hold logistic regression results: %s'%fnNew)
-        gp.AddMessage('Making table to hold logistic regression results: %s'%fnNew) #AL
+        gp.AddMessage('Making table to hold logistic regression results: %s'%fnNew)
         fnNew = tbldir + "/" + fnNew;
 
         #To point to REAL table
@@ -606,7 +619,7 @@ def Execute(self, parameters, messages):
         gp.AddMessage('Created table to hold theme coefficients: %s'%fnNew2)
 
         #Creating LR Response Rasters
-        gp.AddMessage("Creating LR Response Rasters") #AL
+        gp.AddMessage("Creating LR Response Rasters")
         #Join LR polynomial table to unique conditions raster and copy
         #to get a raster with attributes
         cmb = thmUC
@@ -625,7 +638,7 @@ def Execute(self, parameters, messages):
         gp.JoinField_management(cmb_cpy, 'Value', tbltv, 'ID')
                                                               
         #Make output float rasters from attributes of joined unique conditions raster
-        gp.AddMessage("Make output float rasters from attributes of joined unique conditions raster (param 6)") #AL
+        gp.AddMessage("Make output float rasters from attributes of joined unique conditions raster (param 6)")
         #outRaster1 = gp.GetParameterAsText(8)
         #outRaster2 = gp.GetParameterAsText(9)
         #outRaster3 =  gp.GetParameterAsText(10)
