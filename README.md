@@ -1,6 +1,6 @@
 # Modified ArcSDM tools on arto-dev
 Spatial Data Modeler 5 for ArcGis pro<Br>
-Updated 9.6.2020<br>
+Updated 12.6.2020<br>
   
 ## Changed tools and other files <br>
 
@@ -12,6 +12,16 @@ Grand Wofe start method is modified on Toolbox\ArcSDM.pyt at 9.6.2020<br>
 
 ### Python files <br>
 
+#### Logistic Regression (logisticregression.py)	12.6.2020<br>
+Logistic Regression does not work in ArcGIS Pro when using the File System as a workspace because gp.JoinField_management does not produce the correct values for Temp_Raster and therefore gp.Combine crashes. For some materials, performance does not crash, but the result is incorrect. <br>
+
+#### Grand Wofe (grand_wofe_lr.py)	12.6.2020<br>
+1. 1.	Logistic Regression does not work in ArcGIS Pro when using the File System as a workspace because gp.JoinField_management does not produce the correct values for Temp_Raster and therefore gp.Combine crashes. For some materials, performance does not crash, but the result is incorrect.<br>
+2. Grand Wofe Name cannot be longer than 7 characters because it is used as part of the result raster name which cannot be longer than 13 characters.<br> 
+3. The coordinate system of the input raster must be the same as that of the Training points Layer.<br>
+4. Weights table name prefix was formed incorrectly<br>
+5. Obsolete attributes sys.exc_type and sys.exc_value replaced by sys.exc_info ()<br>
+
 #### Calculate Weights (calculateweights.py) 9.6.2020<br>
 1. Obsolete attributes sys.exc_type and sys.exc_value replaced by sys.exc_info ()<br>
 2. If the pixel type of the Evidence Raster (Input Raster) is NOT an integer, the raster name is displayed and execution is aborted on error.<br>
@@ -22,15 +32,6 @@ Grand Wofe start method is modified on Toolbox\ArcSDM.pyt at 9.6.2020<br>
 #### Calculate Response (calculateresponse.py) 9.6.2020<br>
 1.The coordinate system of the input raster must be the same as that of the Training points Layer.<br>
 2. When using FileSystem (dBase database) as the workspace in ArcGIS Pro, the input data of the Calculate Response tool must have the type extension .dbf in the Input Weights Table name. The tool adds that type extension if it is missing.<br>
-
-#### Logistic Regression (logisticregression.py)	9.6.2020<br>
-Logistic Regression works on ArcMap if workspace is File System or File Geodatabase but there is still some problem with ArcGIS Pro and File System workspace.<br>
-
-#### Grand Wofe (grand_wofe_lr.py)	9.6.2020<br>
-1. Obsolete attributes sys.exc_type and sys.exc_value replaced by sys.exc_info ()<br>
-2. Grand Wofe Name cannot be longer than 7 characters because it is used as part of the result raster name which cannot be longer than 13 characters.<br> 
-3. The coordinate system of the input raster must be the same as that of the Training points Layer.<br>
-4. Weights table name prefix was formed incorrectly<br>
 
 #### common.py 9.6.2020<br>
 1. Addition of a result raster displayed  to ArcGIS Pro to the Contents panel in addToDisplay feature fixed.<br>
