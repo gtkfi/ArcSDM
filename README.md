@@ -13,10 +13,10 @@ Grand Wofe start method is modified on Toolbox\ArcSDM.pyt at 9.6.2020<br>
 ### Python files <br>
 
 #### Logistic Regression (logisticregression.py)	12.6.2020<br>
-Logistic Regression does not work in ArcGIS Pro when using the File System as a workspace because gp.JoinField_management does not produce the correct values for Temp_Raster and therefore gp.Combine crashes. For some materials, performance does not crash, but the result is incorrect. <br>
+Logistic Regression does not work in ArcGIS Pro when using the File System as a workspace because gp.JoinField_management does not produce the correct values for Temp_Raster and therefore gp.Combine crashes. For some input rasters, execution does not crash, but the result is incorrect. <br>
 
 #### Grand Wofe (grand_wofe_lr.py)	12.6.2020<br>
-1. 1.	Logistic Regression does not work in ArcGIS Pro when using the File System as a workspace because gp.JoinField_management does not produce the correct values for Temp_Raster and therefore gp.Combine crashes. For some materials, performance does not crash, but the result is incorrect.<br>
+1. 1.	Logistic Regression does not work in ArcGIS Pro when using the File System as a workspace because gp.JoinField_management does not produce the correct values for Temp_Raster and therefore gp.Combine crashes. For some input rasters, execution does not crash, but the result is incorrect.<br>
 2. Grand Wofe Name cannot be longer than 7 characters because it is used as part of the result raster name which cannot be longer than 13 characters.<br> 
 3. The coordinate system of the input raster must be the same as that of the Training points Layer.<br>
 4. Weights table name prefix was formed incorrectly<br>
