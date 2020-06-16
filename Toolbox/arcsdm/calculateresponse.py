@@ -8,6 +8,7 @@
     01/2018 Bug fixes for 10.x - Arianne Ford
     27.4.2020 added Input Weights table file type checking / Arto Laiho, GTK/GFS
     18.5.2020 added Input Raster coordinate system checking / Arto Laiho, GTK/GFS
+    15.6.2020 added "arcsdm." to import missingdatavar_func / Arto Laiho, GTK/GFS
 
     Spatial Data Modeller for ESRI* ArcGIS 9.2
     Copyright 2007
@@ -468,7 +469,7 @@ def Execute(self, parameters, messages):
             #Calculate Missing Data Variance
             #gp.AddMessage("RowCount=%i"%len(rasterList))
             if len(rasterList) > 0:
-                import missingdatavar_func
+                import arcsdm.missingdatavar_func    #AL 150620 added arcsdm.
                 gp.AddMessage("Calculating Missing Data Variance...")
     ##            MDRasters=[]
     ##            for i in range(len(rasterList)):

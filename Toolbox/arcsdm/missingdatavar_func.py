@@ -3,7 +3,8 @@
     Copyright 2007
     Gary L Raines, Reno, NV, USA: production and certification
     Don L Sawatzky, Spokane, WA, USA: Python software development
-    
+    15.6.2020 added "arcsdm." to import FloatRasterSearchcursor. "except Exception,Msg:" was invalid syntax / Arto Laiho, GTK/GFS
+
 # ---------------------------------------------------------------------------
 # MissingDataVar.py
 # Created on: Fri Sep 29 2006 04:17:38 PM
@@ -19,7 +20,7 @@
 """
 # Import system modules
 import sys, os, traceback
-from floatingrasterarray import FloatRasterSearchcursor
+from arcsdm.floatingrasterarray import FloatRasterSearchcursor    #AL 150620 added arcsdm.
 
 def TotalAreaFromCounts(gp,Input_Raster,CellSize):
     #Weights raster is a float-type raster, so convert it to get Counts
@@ -122,7 +123,8 @@ def MissingDataVariance(gp, Wts_Rasters, PostProb, OutputName):
                 #gp.AddMessage(OutputName + ": " + Exp)
                 gp.SingleOutputMapAlgebra_sa(Exp, TotVarMD)
                 
-    except Exception,Msg:
+    #except Exception,Msg:  # This is invalid syntax #AL 150620
+    except Exception:
         # get the traceback object
         tb = sys.exc_info()[2]
         # tbinfo contains the line number that the code failed on and the code from that line
@@ -138,8 +140,8 @@ def MissingDataVariance(gp, Wts_Rasters, PostProb, OutputName):
         gp.AddError(pymsg)
 
         # print messages for use in Python/PythonWin
-        print pymsg
-        print msgs
+        print (pymsg) #AL 150620 added parenthesis to both lines
+        print (msgs)
 
 if __name__ == "__main__":
     # TEST SECTION
