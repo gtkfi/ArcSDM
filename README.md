@@ -13,14 +13,14 @@ Grand Wofe start method is modified on Toolbox\ArcSDM.pyt at 9.6.2020<br>
 ### Python files <br>
 
 #### Calculate Response (calculateresponse.py) 15.6.2020<br>
-1. Fixed typo: “import missingdatavar_func” must be “import arcsdm.missingdatavar_func”<br>
+1. “import missingdatavar_func” fixed to “import arcsdm.missingdatavar_func” (see Issue 74)<br>
 
 #### (missingdatavar_func.py) 15.6.2020<br>
 Fixed four typos:<br>
-1. “from floatingrasterarray import…” must be “from arcsdm.floatingrasterarray import…”<br>
+1. “from floatingrasterarray import…” fixed to “from arcsdm.floatingrasterarray import…”<br>
 2. “except Exception,Msg:” is invalid syntax, “,Msg” removed<br>
-3. “print pymsg” must be “print (pymsg)”<br>
-4. “print msgs” must be “print (msgs)”<br>
+3. “print pymsg” fixed to “print (pymsg)”<br>
+4. “print msgs” fixed to “print (msgs)”<br>
 
 #### Logistic Regression (logisticregression.py)	12.6.2020<br>
 Logistic Regression does not work in ArcGIS Pro when using the File System as a workspace because gp.JoinField_management does not produce the correct values for Temp_Raster and therefore gp.Combine crashes. For some input rasters, execution does not crash, but the result is incorrect. <br>
