@@ -1,6 +1,6 @@
 # Modified ArcSDM tools on arto-dev
 Spatial Data Modeler 5 for ArcGis pro<Br>
-Updated 12.6.2020<br>
+Updated 16.6.2020<br>
   
 ## Changed tools and other files <br>
 
@@ -12,11 +12,21 @@ Grand Wofe start method is modified on Toolbox\ArcSDM.pyt at 9.6.2020<br>
 
 ### Python files <br>
 
+#### Calculate Response (calculateresponse.py) 15.6.2020<br>
+1. Fixed typo: “import missingdatavar_func” must be “import arcsdm.missingdatavar_func”<br>
+
+#### (missingdatavar_func.py) 15.6.2020<br>
+Fixed four typos:<br>
+1. “from floatingrasterarray import…” must be “from arcsdm.floatingrasterarray import…”<br>
+2. “except Exception,Msg:” is invalid syntax, “,Msg” removed<br>
+3. “print pymsg” must be “print (pymsg)”<br>
+4. “print msgs” must be “print (msgs)”<br>
+
 #### Logistic Regression (logisticregression.py)	12.6.2020<br>
 Logistic Regression does not work in ArcGIS Pro when using the File System as a workspace because gp.JoinField_management does not produce the correct values for Temp_Raster and therefore gp.Combine crashes. For some input rasters, execution does not crash, but the result is incorrect. <br>
 
 #### Grand Wofe (grand_wofe_lr.py)	12.6.2020<br>
-1. 1.	Logistic Regression does not work in ArcGIS Pro when using the File System as a workspace because gp.JoinField_management does not produce the correct values for Temp_Raster and therefore gp.Combine crashes. For some input rasters, execution does not crash, but the result is incorrect.<br>
+1. Logistic Regression does not work in ArcGIS Pro when using the File System as a workspace because gp.JoinField_management does not produce the correct values for Temp_Raster and therefore gp.Combine crashes. For some input rasters, execution does not crash, but the result is incorrect.<br>
 2. Grand Wofe Name cannot be longer than 7 characters because it is used as part of the result raster name which cannot be longer than 13 characters.<br> 
 3. The coordinate system of the input raster must be the same as that of the Training points Layer.<br>
 4. Weights table name prefix was formed incorrectly<br>
