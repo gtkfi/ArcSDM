@@ -1,6 +1,6 @@
 # Modified ArcSDM tools on arto-dev
 Spatial Data Modeler 5 for ArcGis pro<Br>
-Updated 16.6.2020<br>
+Updated 18.6.2020<br>
   
 ## Changed tools and other files <br>
 
@@ -11,6 +11,11 @@ Standard toolbox of ArcSDM 5 works on ArcGis Desktop 10.3-10.7.1, however Experi
 Grand Wofe start method is modified on Toolbox\ArcSDM.pyt at 9.6.2020<br>
 
 ### Python files <br>
+
+#### common.py 18.6.2020<br>
+1. Addition of a result raster displayed  to ArcGIS Pro to the Contents panel in addToDisplay feature fixed.<br>
+2. (Environment variable TEMP is set to refer to the folder C:\SDEtemp, which is created unless it is not exist)<br>
+This removed because TEMP must be defined before starting ArcMap or ArcGIS Pro <br>
 
 #### Calculate Response (calculateresponse.py) 15.6.2020<br>
 1. “import missingdatavar_func” fixed to “import arcsdm.missingdatavar_func” (see Issue 74)<br>
@@ -42,10 +47,6 @@ Logistic Regression does not work in ArcGIS Pro when using the File System as a 
 #### Calculate Response (calculateresponse.py) 9.6.2020<br>
 1.The coordinate system of the input raster must be the same as that of the Training points Layer.<br>
 2. When using FileSystem (dBase database) as the workspace in ArcGIS Pro, the input data of the Calculate Response tool must have the type extension .dbf in the Input Weights Table name. The tool adds that type extension if it is missing.<br>
-
-#### common.py 9.6.2020<br>
-1. Addition of a result raster displayed  to ArcGIS Pro to the Contents panel in addToDisplay feature fixed.<br>
-2.Environment variable TEMP is set to refer to the folder C:\SDEtemp, which is created unless it is not exist<br>
 
 #### Categorical Membership (categoricalmembership.py) 22.5.2020<br>
 The Reclassification parameter requires a database table that defines a classification. The Categorical & Reclass tool can create such a table, but its field names do not match that original command line (VALUE, VALUE, FMx100). ArcGIS Desktop 10.6.1 writes the FROM, TO, and OUT fields to the table. ArcGIS Pro 2.5 writes the FROM_, TO, and OUT fields. These field names have been fixed in the tool.<br>
