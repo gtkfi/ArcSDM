@@ -27,7 +27,7 @@ import gc;
 import importlib;
 import sys
 
-debuglevel = 0;
+debuglevel = 1;
 #Debug write
 
 def testdebugfile():
@@ -69,7 +69,7 @@ def Execute(self, parameters, messages):
         gp = arcgisscripting.create()
 
         # Check out any necessary licenses
-        gp.CheckOutExtension("spatial")
+        #gp.CheckOutExtension("spatial")
     
         ''' Parameters '''
         
@@ -160,7 +160,7 @@ def Execute(self, parameters, messages):
             ##Output_Raster = os.path.basename(Input_Raster)[:11] + "_W"
             #outputrastername = (Input_Raster[:9]) + "_W"; 
             #TODO: Do we need to consider if the file names collide with shapes? We got collision with featureclasses
-            desc = arcpy.Describe(Input_Raster);
+            #desc = arcpy.Describe(Input_Raster); #AL 160620 unnecessary
 
             Wts_Table = Wts_Tables[i]           
 

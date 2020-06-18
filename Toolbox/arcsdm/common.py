@@ -84,16 +84,6 @@ def execute_tool(func, self, parameters, messages):
         except:
             messages.AddMessage("Failed to import debug_ptvs. Is ptvsd package installed?")
 
-    # Set environment variable TEMP to refer to the folder C:\SDMtemp. A folder is created if it does not exists #AL 090620
-    try:
-        if not os.path.exists("C:\\SDMtemp"):
-            os.makedirs("C:\\SDMtemp")
-            arcpy.AddMessage ("New TEMP folder C:\\SDMtemp created.")
-        os.environ["TEMP"] = "C:\\SDMtemp"
-        arcpy.AddMessage (os.environ["TEMP"] + " is now TEMP folder")
-    except:
-        arcpy.AddWarning ("Cannot change TEMP folder. " + os.environ["TEMP"] + " is still your TEMP folder")
-
     try:
         # run the tool
         func(self, parameters, messages)
