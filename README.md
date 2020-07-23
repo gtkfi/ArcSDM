@@ -13,7 +13,7 @@ Grand Wofe start method is modified on Toolbox\ArcSDM.pyt at 9.6.2020<br>
 
 ### Python files <br>
 
-### ApplyModel.py 3.9.2019<br>
+#### ApplyModel.py 3.9.2019<br>
 Unicamp fixes:<br>
 1. Added import os<br>
 2. Added and try: except: block, for handle errors with xrange().<br>
@@ -40,10 +40,10 @@ The Reclassification parameter requires a database table that defines a classifi
 #### common.py 23.7.2020<br>
 Addition of a result raster displayed  to ArcGIS Pro to the Contents panel in addToDisplay feature fixed.<br>
 
-### Createrandompoints.py 20.7.2018<br>
+#### Createrandompoints.py 20.7.2018<br>
 Unicamp fix: changed the output shape files names, the original names “temp” is causing a BUG.<br>
 
-### Enrichpoints.py 24.8.2018<br>
+#### Enrichpoints.py 24.8.2018<br>
 Unicamp fixes:<br>
 1. Change incorrect printing “Number of non deposits”, change to “Number of deposits”.<br>
 2. Added new lines below “for regressor in regressor_names:”<br>
@@ -84,17 +84,17 @@ Fixed four typos:<br>
 3. “print pymsg” fixed to “print (pymsg)”<br>
 4. “print msgs” fixed to “print (msgs)”<br>
 
-### Modeltrain.py 29.11.2018<br>
+#### Modeltrain.py 29.11.2018<br>
 Unicamp fixes:<br>
 1. Replaced .maxint function by .maxsize function. .maxint is deprecated.<br>
 2. Added train_response_name variable to _save_model() function<br>
 3. Print train_response_name variable<br>
 4. Write Response name to Train text file.<br>
 
-### nninputfiles.py 20.7.2018<br>
+#### nninputfiles.py 20.7.2018<br>
 Unicamp fix: Change line 212, incorrect parameters number (“7”), changed to “5” <br>
 
-### Nnoutputfiles.py 6.12.2018<br>
+#### Nnoutputfiles.py 6.12.2018<br>
 Unicamp fixes:<br>
 1. Modified to handle None parameters (rbndx, rbngx and fc)<br>
 2. Replaced getParametersAsText by .valuesAsText (output_name)<br>
@@ -103,7 +103,7 @@ Unicamp fixes:<br>
 5. Removed Msg from exception.<br>
 6. Added () to print function for Python 3 compatibility.<br>
 
-### rescale_raster.py 29.11.2018<br>
+#### rescale_raster.py 29.11.2018<br>
 Unicamp fix: Removed the file extension from output raster name.<br>
 
 #### roctool.py 12.5.2020<br>
