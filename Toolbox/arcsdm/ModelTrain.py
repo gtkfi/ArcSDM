@@ -28,9 +28,6 @@ from sklearn.preprocessing import StandardScaler
 
 from arcsdm.weight_boosting import BrownBoostClassifier
 
-# Global Name for the messages object and be called from any function
-MESSAGES = None
-
 # Verbosity switch, True to print more detailed information
 VERBOSE = False
 if VERBOSE:
@@ -89,12 +86,12 @@ def _get_fields(feature_layer, fields_name):
     if not isinstance(fields_name, list):
         field = field.flatten()
     # Assign NAN to the numbers with maximum integer value
-    field[field == sys.maxint] = np.NaN
+    field[field == sys.maxsize] = np.NaN
 
     return field
 
 
-def _save_model(classifier_name, classifier, output_model, train_points, train_regressors_name):
+def _save_model(classifier_name, classifier, output_model, train_points, train_regressors_name, train_response_name):
     """
         _save_model
             Saves the model to a file as well as some information about the model in a text file
@@ -111,6 +108,7 @@ def _save_model(classifier_name, classifier, output_model, train_points, train_r
     _verbose_print("output_model: {}".format(output_model))
     _verbose_print("train_points: {}".format(train_points))
     _verbose_print("train_regressors_name: {}".format(train_regressors_name))
+    _verbose_print("train_response_name: {}".format(train_response_name))
 
     # Save the model
     joblib.dump(classifier, output_model)
@@ -123,6 +121,7 @@ def _save_model(classifier_name, classifier, output_model, train_points, train_r
         f.write("Created: {} \n".format(datetime.datetime.now()))
         f.write("Trained with {} points \n".format(arcpy.GetCount_management(train_points).getOutput(0)))
         f.write("From file {} \n".format(train_points))
+        f.write("Response: '{}' \n".format(train_response_name))
         f.write("Number of regressors {} \n".format(len(train_regressors_name)))
         for regressor in train_regressors_name:
             f.write("Regressor: '{}' \n".format(regressor))
@@ -370,7 +369,7 @@ def execute(self, parameters, messages):
     MESSAGES.AddMessage("Training time: {:.3f} seconds".format(end-start))
 
     if output_model is not None:
-        _save_model(classifier_name, classifier, output_model, train_points, train_regressors_name)
+        _save_model(classifier_name, classifier, output_model, train_points, train_regressors_name, train_response_name)
     else:
         _verbose_print("No output model selected")
 

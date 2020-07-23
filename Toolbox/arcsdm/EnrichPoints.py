@@ -15,7 +15,8 @@ import arcpy
 MESSAGES = None
 
 # Verbosity switch, True to print more detailed information
-VERBOSE = False
+VERBOSE = True
+
 if VERBOSE:
     def _verbose_print(text):
         global MESSAGES
@@ -102,7 +103,7 @@ def _merge_fields(deposits_name, non_deposits_name, field_name, copy_data):
             deposit_scratch = _add_calculate_field(deposits_name, field_name, copy_data, 1)
             scratch_files.append(deposit_scratch)
             _verbose_print("Scratch file created (add): {}".format(deposit_scratch))
-            _verbose_print("Number of non deposits {}".format(arcpy.GetCount_management(deposit_scratch).getOutput(0)))
+            _verbose_print("Number of deposits {}".format(arcpy.GetCount_management(deposit_scratch).getOutput(0)))
             #Make a copy of the second feature
             non_deposit_scratch = _add_calculate_field(non_deposits_name, field_name, copy_data, -1)
             scratch_files.append(non_deposit_scratch)
@@ -182,6 +183,9 @@ def _clean_data(base, regressor_names, missing_value):
     tot_missings = 0
 
     for regressor in regressor_names:
+        _verbose_print("regressor: {}".format(regressor))
+        if regressor == 'Shape':
+            continue
         arcpy.SelectLayerByAttribute_management(layer_scratch, "NEW_SELECTION", "{} IS NULL".format(regressor))
         n_missings = int(arcpy.GetCount_management(layer_scratch).getOutput(0))
         _verbose_print("Regressor {} number of missings {}".format(regressor, n_missings))

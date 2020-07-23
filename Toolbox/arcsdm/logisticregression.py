@@ -8,10 +8,9 @@
     Updated by Arianne Ford, Kenex Ltd. 2018 - bug fixes for 10.x, allowing ascending and descending types for evidence.
 
     History: 
+    21.7.2020 combined with Unicamp fixes (made 25.10.2018) / Arto Laiho, GTK/GFS
     12.6.2020 gp.JoinField_management and gp.Combine don't work on ArcGIS Pro with File System workspace #AL 120620
     25.9.2018 Merged changes from https://github.com/gtkfi/ArcSDM/issues/103 by https://github.com/Eliasmgprado
-    
-    Todo: Make it work with filegeodatabases
     
     Spatial Data Modeller for ESRI* ArcGIS 9.3
     Copyright 2009
@@ -38,7 +37,7 @@ if PY34:
 
 
     
-debuglevel = 1;
+debuglevel = 0;
 
 def testdebugfile():
     returnvalue = 0; #This because python sucks in detecting outputs from functions
@@ -103,6 +102,7 @@ def Execute(self, parameters, messages):
             dwrite (Input_Rasters[i]);
             #if arcsdm.common.testandwarn_filegeodatabase_source(s):    #AL removed 260520
             #    return;
+        gp.AddMessage("Input rasters: " + str(Input_Rasters))    # Unicamp added 251018 (AL 210720)
 
         #Get evidence layer types
         Evidence_types = parameters[1].valueAsText.lower().split(';')
@@ -143,7 +143,7 @@ def Execute(self, parameters, messages):
         gp.AddMessage("Creating Generalized Class rasters.")
         for Input_Raster, Wts_Table in zip(Input_Rasters, Wts_Tables):
             Output_Raster = gp.CreateScratchName(os.path.basename(Input_Raster[:9]) + "_G", '', 'rst', gp.scratchworkspace)            
-            #gp.AddMessage("%-20s %s" % ("Output_Raster: ", str(Output_Raster)))
+            gp.AddMessage("%-20s %s" % ("Output_Raster: ", str(Output_Raster)))
 
         #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
             #++ Need to create in-memory Raster Layer for AddJoin
@@ -166,8 +166,8 @@ def Execute(self, parameters, messages):
 
             #arcpy.SaveToLayerFile_management(Input_Raster, RasterLayer)
         #=========================================================
-            gp.AddMessage("%-20s %s" %("Input_Raster:", str(Input_Raster)))
-            gp.AddMessage("%-20s %s (%d)" %("Wts_Table:", str(Wts_Table), gp.getcount(Wts_Table)))
+            #gp.AddMessage("%-20s %s" %("Input_Raster:", str(Input_Raster)))
+            #gp.AddMessage("%-20s %s (%d)" %("Wts_Table:", str(Wts_Table), gp.getcount(Wts_Table)))
             #gp.makerasterlayer(Input_Raster, RasterLayer)
             
             #gp.AddJoin_management(RasterLayer, "Value", Wts_Table, "CLASS")
@@ -485,7 +485,7 @@ def Execute(self, parameters, messages):
             tblfn = tblfn[:-4] if tblfn.endswith(".dbf") else tblfn
             fnNew = fnNew[:-4] if fnNew.endswith(".dbf") else fnNew
             tblbn = tblbn[:-4] if tblbn.endswith(".dbf") else tblbn
-        #gp.AddMessage("fnNew: %s"%fnNew)
+        gp.AddMessage("fnNew: %s"%fnNew)
         gp.AddMessage('Making table to hold logistic regression results (param 6): %s'%fnNew)
         fnNew = tblbn
         print ("Table dir: ", tbldir);
@@ -833,11 +833,12 @@ def CalcWeightedAvg(lstVals, lstValsNew, lstAreas, nmbMD, sumArea, mcf):
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
             str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
         # generate a message string for any geoprocessing tool errors
-        msgs = "GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
-        arcpy.AddError(msgs)
+        #msgs = "GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
+        msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"  # Unicamp changed 251018 (AL 210720)
+        gp.AddError(msgs)
 
         # return gp messages for use with a script tool
-        arcpy.AddError(pymsg)
+        gp.AddError(pymsg)
 
         # print messages for use in Python/PythonWin
         print (pymsg)
@@ -908,11 +909,12 @@ def CalcVals4Msng(lstUCVals, lstAreas, lstMD, lstMCF):
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
             str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
         # generate a message string for any geoprocessing tool errors
-        msgs = "GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
-        arcpy.AddError(msgs)
+        #msgs = "GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
+        msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"  # Unicamp changed 251018 (AL 210720)
+        gp.AddError(msgs)
 
         # return gp messages for use with a script tool
-        arcpy.AddError(pymsg)
+        gp.AddError(pymsg)
 
         # print messages for use in Python/PythonWin
         print (pymsg)

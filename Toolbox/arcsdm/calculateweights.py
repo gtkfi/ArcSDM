@@ -5,6 +5,7 @@
     Update by Arianne Ford, Kenex Ltd. 2018
    
     History: 
+    21-23.7.2020 combined with Unicamp fixes (made 8.8.2018) / Arto Laiho, GTK/GFS
     9.6.2020 If Evidence Layer has not attribute table, execution is stopped / Arto Laiho, GTK/GSF
     3.6.2020 Evidence Raster cannot be RasterBand (ERROR 999999 at rows = gp.SearchCursor(EvidenceLayer)) / Arto Laiho, GTK/GSF
     15.5.2020 Added Evidence Layer and Training points coordinate system checking / Arto Laiho, GTK/GSF
@@ -214,11 +215,22 @@ def Calculate(self, parameters, messages):
         evidenceCoord = evidenceDescr.spatialReference.name
         arcpy.AddMessage("Evidence Layer is " + EvidenceLayer + " and its data type is " + evidenceDescr.datatype + " and coordinate system is " + evidenceCoord)
         if (evidenceDescr.datatype == "RasterBand"):
-            arcpy.AddError("ERROR: Data Type of Evidence Layer cannot be RasterBand, use Raster Dataset.")
-            raise
+        # Try to change RasterBand to RasterDataset #AL 210720
+            evidence1 = os.path.split(EvidenceLayer)
+            evidence2 = os.path.split(evidence1[0])
+            if (evidence1[1] == evidence2[1] or evidence1[1][:4] == "Band"):
+                EvidenceLayer = evidence1[0]
+                evidenceDescr = arcpy.Describe(EvidenceLayer)
+                arcpy.AddMessage("Evidence Layer is now " + EvidenceLayer + " and its data type is " + evidenceDescr.datatype)
+            else:
+                arcpy.AddError("ERROR: Data Type of Evidence Layer cannot be RasterBand, use Raster Dataset.")
+                raise
         valuetype = gp.GetRasterProperties (EvidenceLayer, 'VALUETYPE')
         valuetypes = {1:'Integer', 2:'Float'}
         #if valuetype != 1:
+        # valuetype: 0 = 1-bit, 1 = 2-bit, 2 = 4-bit, 3 = 8-bit unsigned integer, 4 = 8-bit signed integer, 5 = 16-bit unsigned integer
+        # 6 = 16-bit signed integer, 7 = 32-bit unsigned integer, 8 = 32-bit signed integer, 9 = 32-bit floating point
+        # 10 = 64-bit double precision, 11 = 8-bit complex, 12 = 16-bit complex, 13 = 32-bit complex, 14 = 64-bit complex
         if valuetype > 8:  # <==RDB  07/01/2010 - new  integer valuetype property value for arcgis version 10
             gp.adderror('ERROR: ' + EvidenceLayer + ' is not an integer-type raster because VALUETYPE is ' + str(valuetype)) #AL 040520
             raise ErrorExit
@@ -290,7 +302,6 @@ def Calculate(self, parameters, messages):
         desc = gp.describe(EvidenceLayer)
         cellsize = desc.MeanCellWidth
         if desc.datatype == 'RasterLayer': EvidenceLayer =desc.catalogpath
-        arcpy.AddMessage("Evidence Layer is now " + EvidenceLayer + " and its data type is " + desc.datatype)
         if Type == "Descending":
             wtsrows = gp.InsertCursor(wtstable)
             try:
@@ -336,6 +347,7 @@ def Calculate(self, parameters, messages):
                     arcpy.AddMessage("ERROR: EvidenceLayer does not have an attribute table. Use 'Build Raster Attribute Table' tool to add it.")
                     raise
             row = rows.Next()
+            wtsrow = wtsrows.NewRow()    # Unicamp added 080818 (AL 210720)
             while row:
                 wtsrow = wtsrows.NewRow()
                 wtsrow.rastervalu = row.Value
@@ -368,6 +380,8 @@ def Calculate(self, parameters, messages):
             wtsrows = gp.UpdateCursor(wtstable)
             wtsrows.reset()
             wtsrow = wtsrows.Next()
+            lastTotalArea = 0    # Unicamp added 080818 (AL 210720)
+            lastTotalTP = 0      # Unicamp added 080818 (AL 210720)
             if wtsrow:
                 if wtsrow.GetValue('class') is not MissingDataValue:
                     lastTotalTP = wtsrow.Frequency

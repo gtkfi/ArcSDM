@@ -59,11 +59,11 @@ def _constrain_from_points(constrain_area, excluding_points, excluding_distance,
     scratch_files = []
     try:
         # Create the buffer area from the points
-        buffer_scratch = arcpy.CreateScratchName("temp", workspace=arcpy.env.scratchWorkspace)
+        buffer_scratch = arcpy.CreateScratchName("buff_sct.shp", workspace=arcpy.env.scratchWorkspace)
         arcpy.Buffer_analysis(excluding_points, buffer_scratch, excluding_distance, dissolve_option="ALL")
         scratch_files.append(buffer_scratch)
         _verbose_print("Scratch file created (buffer): {}".format(buffer_scratch))
-        combined_scratch = arcpy.CreateScratchName("temp", workspace=arcpy.env.scratchWorkspace)
+        combined_scratch = arcpy.CreateScratchName("comb_sct.shp", workspace=arcpy.env.scratchWorkspace)
         # Intersect/Delete from the original area
         if select_inside:
             _verbose_print("Intersect selected")
@@ -197,7 +197,7 @@ def execute(self, parameters, messages):
     scratch_files = []
     try:
         # constrain area to avoid modifications to the original
-        constrain_scratch = arcpy.CreateScratchName("temp", workspace=arcpy.env.scratchWorkspace)
+        constrain_scratch = arcpy.CreateScratchName("const_sct.shp", workspace=arcpy.env.scratchWorkspace)
         arcpy.CopyFeatures_management(arcpy.Describe(constrain_area).catalogPath, constrain_scratch)
         scratch_files.append(constrain_scratch)
         _verbose_print("Scratch file created (constrain): {}".format(constrain_scratch))
@@ -216,16 +216,14 @@ def execute(self, parameters, messages):
             rasters_scratch = _constrain_from_raster(points_scratch, rasters)
             scratch_files.append(rasters_scratch)
         # Dissolve the polygon into a single object to make the selection
-        dissolve_scratch = arcpy.CreateScratchName("temp", workspace=arcpy.env.scratchWorkspace)
+        dissolve_scratch = arcpy.CreateScratchName("diss_sct.shp", workspace=arcpy.env.scratchWorkspace)
         arcpy.Dissolve_management(in_features=rasters_scratch, out_feature_class=dissolve_scratch,
                                   multi_part="MULTI_PART")
         scratch_files.append(dissolve_scratch)
 
         # Select the random points
         # TODO: Sometimes, random points fall right in the border of the rasters and therefore they show null information, an erosion needs to be added to avoid this
-        result = arcpy.CreateRandomPoints_management(out_ws, out_f, dissolve_scratch,
-                                                     number_of_points_or_field=n_points,
-                                                     minimum_allowed_distance=min_distance)
+        result = arcpy.CreateRandomPoints_management(out_ws, out_f, dissolve_scratch, number_of_points_or_field=n_points, minimum_allowed_distance=min_distance)
         arcpy.DefineProjection_management(result, arcpy.Describe(constrain_area).spatialReference)
         MESSAGES.AddMessage("Random points saved in {}".format(result))
     except:

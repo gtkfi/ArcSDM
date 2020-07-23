@@ -111,7 +111,7 @@ class FloatRasterVAT(object):
 
     def __contains__(self, testValue):
         """ Test if testValue is near enough to a raster value """
-        absdiffs = [abs(testValue - rasval) for rasval in self.vat.keys()]
+        absdiffs = [abs(testValue - rasval) for rasval in list(self.vat)]
         mindiff = min(absdiffs)
         return mindiff < 1.e-6
     
@@ -119,7 +119,7 @@ class FloatRasterVAT(object):
         """ Return the index in the VAT's keys of raster value nearest to testValue """
         try:
             if testValue in self:
-                absdiffs = [abs(testValue - rasval) for rasval in self.vat.keys()]
+                absdiffs = [abs(testValue - rasval) for rasval in list(self.vat)]
                 mindiff = min(absdiffs)
                 return absdiffs.index(mindiff)
             else: raise ValueError
@@ -128,7 +128,7 @@ class FloatRasterVAT(object):
         
     def __getitem__(self, testValue):
         """ Return the raster value nearest to testValue """
-        return self.vat.keys()[self.index(testValue)]
+        return list(self.vat)[self.index(testValue)]
         
     def floatrastersearchcursor(self):
         """ A searchcursor for a float-type raster """

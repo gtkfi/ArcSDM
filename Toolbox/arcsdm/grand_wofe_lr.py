@@ -192,7 +192,7 @@ def execute(self, parameters, messages):
                 dwrite(warning);
                 if(len(warning)>0):
                     arcpy.AddWarning(warning);
-                    #Success = "False"; #AL 180520 poistettu
+                    #Success = "False"; #AL 180520 removed
                     #Should stop here?
               
                 
@@ -210,7 +210,7 @@ def execute(self, parameters, messages):
                 if  desc.workspaceType == "FileSystem":
                     if not(outputfilename.endswith('.dbf')):
                         Output = outputfilename + ".dbf";
-                        dwrite ("Workspace is filesystem - adding dbf")
+                    dwrite ("Workspace is filesystem - adding dbf")
                     
             
                 if Success.strip().lower() == 'true':

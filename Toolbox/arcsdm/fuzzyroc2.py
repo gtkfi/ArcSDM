@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 """
     FuzzyROC - ArcSDM 5 for ArcGis pro 
-    Arto Laiho, Geological Survey of Finland, 11-19.5.2020, Version 2
+    Arto Laiho, Geological Survey of Finland, 11.5-18.6.2020, Version 2
 """
 # Import system modules
 import sys,os,traceback
 import arcpy
 import arcsdm
+import math
 from arcpy.sa import *
 from arcpy import env
 
@@ -30,6 +31,9 @@ def Execute(self, parameters, messages):
         # parameters[0] = rc_till_co Gaussian 1 4 4 2 5 4;rc_till_ca Large 2 5 4 3 4 2;rc_till_au Small 3 4 2 4 5 2;...
         memberParams = parameters[0].valueAsText.split(';')
         arcpy.AddMessage("memberParams = " + str(memberParams))
+        if (len(memberParams) < 2):
+            arcpy.AddError ("ERROR: Minimum number of Input Rasters is 2.")
+            raise
 
         # Param 1: Fuzzy Overlay Parameters, DETable, Required, Input
         # columns = Overlay type, Parameter
@@ -121,15 +125,13 @@ def Execute(self, parameters, messages):
         arcpy.AddMessage("="*30)
         arcpy.AddMessage("Run Fuzzy Memberships...")
 
-        # parameters[0] = rc_till_co Gaussian 1 4 4 2 5 4;rc_till_ca Large 2 5 4 3 4 2;rc_till_au Small 3 4 2 4 5 2;...
-        # memberParams = parameters[0].valueAsText.split(';')
-        
         fmcount = 0
         rasterNum = -1
-        indexlist=[]
+        indexmax=[]
+        files=[]
         for memberParam in memberParams:
             rasterNum = rasterNum+1
-            indexlist.append(-1)
+            indexmax.append(-1)
             # memberparam = rc_till_co Gaussian 1 4 4 2 5 4 (function Midpoint Min Max Count Spread Min Max Count)
             fmparams = memberParam.split(' ')
             if (len(fmparams) != 8):
@@ -150,7 +152,7 @@ def Execute(self, parameters, messages):
             midmin=float(fmparams[2])
             midmax=float(fmparams[3])
             if (midmax < midmin):
-                arcpy.AddError("ERROR: Midpoint Max must be less than Midpoint Min.")
+                arcpy.AddError("ERROR: Midpoint Max must be greater than Midpoint Min.") # Changed
                 raise
             midcount=int(fmparams[4])
             if (midcount < 1):
@@ -162,7 +164,7 @@ def Execute(self, parameters, messages):
             spreadmin=float(fmparams[5])
             spreadmax=float(fmparams[6])
             if (spreadmax < spreadmin):
-                arcpy.AddError("ERROR: Spread Max must be less than Spread Min.")
+                arcpy.AddError("ERROR: Spread Max must be greater than Spread Min.") # Changed
                 raise
             spreadcount=int(fmparams[7])
             if (spreadcount < 1):
@@ -177,13 +179,15 @@ def Execute(self, parameters, messages):
             while (midpoint <= midmax):
                 spread=float(fmparams[5])
                 while (spread <= spreadmax):
-                    indexlist[rasterNum] = indexlist[rasterNum] + 1
-                    fmout = "FM_" + str(rasterNum) + "_" + str(indexlist[rasterNum])
+                    indexmax[rasterNum] = indexmax[rasterNum] + 1
+
+                    # Run Fuzzy Memberships by function
+                    fmout = "FM_" + str(rasterNum) + "_" + str(indexmax[rasterNum])
+                    files.append(fmout)
                     arcpy.AddMessage (os.path.basename(inputRaster) + ", " + memberType + ", " + fmout)
                     csvfile.write (inputRaster + ";" + memberType + ";" + str(midpoint) + ";" + str(midmin) + ";" + str(midmax) + ";" + str(midstep) + ";" + str(spread) + ";" + str(spreadmin) + ";" + str(spreadmax) + ";" + str(spreadstep) + ";" + fmout + "\n")
                     fmcount=fmcount+1
 
-                    # Run Fuzzy Memberships by function
                     if (memberType == "Gaussian"):
                         outFzyMember = FuzzyMembership(inputRaster, FuzzyGaussian(midpoint, spread))
                     elif (memberType == "Large"):
@@ -199,6 +203,7 @@ def Execute(self, parameters, messages):
                     elif (memberType == "Small"):
                         outFzyMember = FuzzyMembership(inputRaster, FuzzySmall(midpoint, spread))
                     outFzyMember.save(fmout)
+
                     if (spreadstep == 0):
                         break
                     spread=spread+spreadstep
@@ -206,11 +211,11 @@ def Execute(self, parameters, messages):
                     break
                 midpoint=midpoint+midstep
 
+        # Close CSV file
         csvfile.close()
         arcpy.AddMessage(str(fmcount) + " FM outputs saved to " + env.workspace)
-        arcpy.AddMessage("rasterNum = " + str(rasterNum) + ", indexlist = " + str(indexlist))
         csvfile="?"
-                
+
         # Define ROC Tool (Receiver Operator Characteristics)
         import arcgisscripting
         gp = arcgisscripting.create()
@@ -220,26 +225,64 @@ def Execute(self, parameters, messages):
 
         # Open CSV file to test lines
         csvfile = open(output_folder + "\\FuzzyOverlay.csv", "w")
-        csvfile.write("Output;Input 1;Input 2\n")
+        title = "Output" # Changed / added
+        for i in range(rasterNum+1): # Changed / added
+            title = title + ";Input"+str(i+1) # Changed / added
+        title = title + "\n" # Changed / added
+        csvfile.write(title) # Changed
 
         # Run Fuzzy Overlays and ROC 
         arcpy.AddMessage("="*30)
         arcpy.AddMessage("Run Fuzzy Overlays and ROC...")
-        num=-1
-        for i in range(0, rasterNum):       # raster files
-            for j in range(0, indexlist[i]+1):     # output tables or output files (FM_x_y) per raster file, first half
-                for k in range(0, indexlist[i+1]+1): # output tables or output files (FM_x_y) per raster file, last half
-                    num=num+1
-                    arcpy.AddMessage ("FO_" + str(num) + " = FM_" + str(i) + "_" + str(j) + " + FM_" + str(i+1) + "_" + str(k))	# FO_0 = FM_0_0 + FM_1_0
-                    csvfile.write ("FO_" + str(num) + ";FM_" + str(i) + "_" + str(j) + ";FM_" + str(i+1) + "_" + str(k) + "\n")
-                    overlays = ["FM_" + str(i) + "_" + str(j), "FM_" + str(i+1) + "_" + str(k)]
-                    if (overlayParams[0] == "Gamma"):
-                        outFzyOverlay = FuzzyOverlay(overlays, "Gamma", overlayParams[1])
+        num = -1
+        index = []
+        indexmin = []
+        indexmin.append(indexmax[0] + 1)  # 4
+        index.append(indexmin[0])
+        j = 1
+        while j < rasterNum + 1:
+            indexmin.append(index[j-1] + indexmax[j] + 1)
+            index.append(indexmin[j])
+            j = j+1
+
+        i = 0
+        while i <= indexmax[0]:
+            k = 0
+            while k < rasterNum:
+                fo_msg = files[i]
+                fo_csv = files[i]
+                fo_ovr = [files[i]]
+                j = 0
+                while j < rasterNum:
+                    fo_msg = fo_msg + " + " + files[index[j]]
+                    fo_csv = fo_csv + ";" + files[index[j]]
+                    fo_ovr.append(files[index[j]])
+                    j = j + 1
+                num=num+1
+                arcpy.AddMessage ("FO_" + str(num) + " = " + fo_msg)
+                csvfile.write ("FO_" + str(num) + ";" + fo_csv + "\n")
+                overlays = [fo_ovr]
+                if (overlayParams[0] == "Gamma"):
+                    outFzyOverlay = FuzzyOverlay(fo_ovr, "Gamma", overlayParams[1]) # Changed
+                else:
+                    outFzyOverlay = FuzzyOverlay(fo_ovr, overlayParams[0]) # Changed
+                outFzyOverlay.save("FO_" + str(num))
+                ##arcpy.AddMessage("FO_" + str(num) + " saved to " + env.workspace)
+                result = arcpy.ROCTool_ArcSDM(truepositives, "", "FO_" + str(num), output_folder)
+
+                j = j - 1
+                index[j] = index[j]+1
+                if index[j] >= index[j+1]:
+                    index[j] = indexmin[j]
+                    j = j-1
+                    if j >= 0:
+                        index[j] = index[j]+1
                     else:
-                        outFzyOverlay = FuzzyOverlay(overlays, overlayParams[0])
-                    outFzyOverlay.save("FO_" + str(num))
-                    #arcpy.AddMessage("FO_" + str(num) + " saved to " + env.workspace)
-                    result = arcpy.ROCTool_ArcSDM(truepositives, "", "FO_" + str(num), output_folder)
+                        k = k + 1
+                    if index[j] >= index[j+1]:
+                        index[j] = indexmin[j]
+                        break
+            i = i+1
 
         arcpy.AddMessage(str(num+1) + " FO outputs saved to " + env.workspace)
         csvfile.close()
@@ -247,7 +290,7 @@ def Execute(self, parameters, messages):
 
         arcpy.AddMessage(" ")
         arcpy.AddMessage("Get AUC values from ROC output databases...")
-
+        
         # Open CSV file to ROC results
         csvfile = open(output_folder + "\\FuzzyROC.csv", "w")
         csvfile.write("Model;Auc\n")
@@ -261,14 +304,13 @@ def Execute(self, parameters, messages):
                     csvfile.write(row[0] + ";" + str(row[1]) + "\n")
         csvfile.close()
         csvfile="?"
-        
+
         # Restore Workspace
         arcpy.env.workspace = enviWorkspace
 
     except arcpy.ExecuteError:
         arcpy.AddMessage("*"*30)
-        if (csvfile != "?"):
-            csvfile.close()
+        csvfile.close()
         arcpy.AddError(arcpy.GetMessages(2))
         arcpy.AddError('Aborting FuzzyROC (1)')
     except:
@@ -279,6 +321,5 @@ def Execute(self, parameters, messages):
         msgs = "ArcPy ERRORS:\n" + arcpy.GetMessages(2) + "\n"
         arcpy.AddError(pymsg)
         arcpy.AddError(msgs)
-        if (csvfile != "?"):
-            csvfile.close()
+        csvfile.close()
         arcpy.AddError('Aborting FuzzyROC (2)')

@@ -209,7 +209,7 @@ def execute(self, parameters, messages):
         #Make Train file path
         #Todo: PArameter 5 is missing!
         #Todo: Parameter 6 is missing! 
-        traindta_filename = parameters[7].valueAsText #Make train file or not
+        traindta_filename = parameters[5].valueAsText #Make train file or not
         traintable = True
         classtable = parameters[6].valueAsText #gp.getparameter(6) # Make class file or not
         classdta_filename = None

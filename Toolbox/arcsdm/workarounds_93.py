@@ -47,7 +47,7 @@ def ExtractValuesToPoints(gp, inputRaster, inputFeatures, siteFIDName):
     """
 
     try:
-        arcpy.AddMessage("Debug: workarounds93 Extracting values to points...")
+        #arcpy.AddMessage("Debug: workarounds93 Extracting values to points...")
         assert siteFIDName in ('TPFID','NDTPFID')
         if siteFIDName not in [field.name for field in rowgen(gp.ListFields(inputFeatures))]:
             gp.AddField_management(inputFeatures, siteFIDName, 'LONG')            

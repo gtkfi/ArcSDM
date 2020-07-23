@@ -5,6 +5,7 @@
     History: 
     27.9.2016 Output cleaned and getMaskSize fixed
     21.4-15.5.2020 added cell size numeric value check, RasterBand and some value checks / Arto Laiho, Geological survey of Finland
+    21.7.2020 combined with Unicamp fixes (made 24.10.2018) / Arto Laiho, GTK/GFS
 
 A function to append Spatial Data Modeller parameters to Geoprocessor History
     for those SDM tools that have the following values:
@@ -128,8 +129,8 @@ def getMaskSize (mapUnits):
             cellsize = float( str(arcpy.env.cellSize.replace(",",".")) )
             count = count * (cellsize * cellsize);
         
-        # Mask datatypes: FeatureLayer or FeatureClass
-        elif (desc.dataType == "FeatureLayer" or desc.dataType == "FeatureClass"):
+        # Mask datatypes: FeatureLayer, FeatureClass or ShapeFile (Unicamp added 241018/AL 210720)
+        elif (desc.dataType == "FeatureLayer" or desc.dataType == "FeatureClass" or desc.dataType == "ShapeFile"):
             #arcpy.AddMessage( " Calculating mask size");           
             maskrows = arcpy.SearchCursor(desc.catalogpath)
             shapeName = desc.shapeFieldName

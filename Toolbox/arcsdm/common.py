@@ -4,7 +4,7 @@
 #
 # Janne Kallunki, GTK, 2017
 # Tero Ronkko, GTK, 2018
-# Arto Laiho, GTK, 29.4.2020 (addToDisplay), 9.6.2020 (SDMtemp folder)
+# Arto Laiho, GTK, 29.4.2020 (addToDisplay)
 
 import sys, os, traceback
 import arcpy

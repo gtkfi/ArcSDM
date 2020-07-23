@@ -10,7 +10,7 @@
 # 8.8.2016 AG Desktop compatibility TR
 # 13.7.2017 Check for non raster masks TR
 #
-    
+ 
 def ReduceSites(self, parameters, messages):
     import sys, string, os, math, traceback
     import arcgisscripting
