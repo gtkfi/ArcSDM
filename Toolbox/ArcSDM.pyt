@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 import arcpy
 
 import arcsdm.sitereduction
@@ -13,6 +13,7 @@ import arcsdm.roctool
 import arcsdm.acterbergchengci
 import arcsdm.rescale_raster;
 from arcsdm.areafrequency import Execute
+import arcsdm.nnoutputfiles
 import arcsdm.nninputfiles
 import arcsdm.grand_wofe_lr
 import arcsdm.fuzzyroc
