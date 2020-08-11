@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
     FuzzyROC - ArcSDM 5 for ArcGis pro 
-    Arto Laiho, Geological Survey of Finland, 11.5-18.6.2020, Version 2
+    Arto Laiho & Johanna Torppa, Geological Survey of Finland, 11.5-23.6.2020, Version 2
+    Added Midpoint and Spread value missing tests 11.8.2020/AL
 """
 # Import system modules
 import sys,os,traceback
@@ -149,10 +150,19 @@ def Execute(self, parameters, messages):
                 raise
 
             # Convert member params to numeric
+            if fmparams[2] == "" or fmparams[2] == "#":
+                arcpy.AddError("MidPoint Min value of " + str(inputRaster) + " is missing.")
+                raise
             midmin=float(fmparams[2])
+            if fmparams[3] == "" or fmparams[3] == "#":
+                arcpy.AddError("MidPoint Max value of " + str(inputRaster) + " is missing.")
+                raise
             midmax=float(fmparams[3])
             if (midmax < midmin):
                 arcpy.AddError("ERROR: Midpoint Max must be greater than Midpoint Min.") # Changed
+                raise
+            if fmparams[4] == "" or fmparams[4] == "#":
+                arcpy.AddError("MidPoint Count value of " + str(inputRaster) + " is missing.")
                 raise
             midcount=int(fmparams[4])
             if (midcount < 1):
@@ -161,10 +171,19 @@ def Execute(self, parameters, messages):
             midstep=0
             if (midmax > midmin):
                 midstep=(midmax-midmin)/(midcount-1)
+            if fmparams[5] == "" or fmparams[5] == "#":
+                arcpy.AddError("Spread Min value of " + str(inputRaster) + " is missing.")
+                raise
             spreadmin=float(fmparams[5])
+            if fmparams[6] == "" or fmparams[6] == "#":
+                arcpy.AddError("Spread Max value of " + str(inputRaster) + " is missing.")
+                raise
             spreadmax=float(fmparams[6])
             if (spreadmax < spreadmin):
                 arcpy.AddError("ERROR: Spread Max must be greater than Spread Min.") # Changed
+                raise
+            if fmparams[7] == "" or fmparams[7] == "#":
+                arcpy.AddError("Spread Count value of " + str(inputRaster) + " is missing.")
                 raise
             spreadcount=int(fmparams[7])
             if (spreadcount < 1):
