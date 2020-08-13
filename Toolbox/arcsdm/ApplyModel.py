@@ -16,12 +16,13 @@ import arcpy
 import numpy as np
 import sys
 from sklearn.externals import joblib
+import os
 
 # Global Name for the messages object and be called from any function
 MESSAGES = None
 
 # Verbosity switch, True to print more detailed information
-VERBOSE = False
+VERBOSE = True
 if VERBOSE:
     def _verbose_print(text):
         global MESSAGES
@@ -123,14 +124,26 @@ def create_response_raster(classifier, rasters, output, scale):
 
     # The raster looping must be done in the last dimension
     raster_array2 = np.empty([n_rows, n_cols, n_regr])
-    for raster_index in xrange(n_regr):
-        raster_array2[:, :, raster_index] = raster_array[raster_index, :, :]
+    ### MODIFICATION ###
+    #arr_filepath = os.path.join(arcpy.env.workspace, 'model_arr.arr')
+    #raster_array2 = np.memmap(arr_filepath, dtype=np.float64, mode='w+',
+             # shape=(n_rows, n_cols, n_regr))
+    try:
+        for raster_index in xrange(n_regr):
+            raster_array2[:, :, raster_index] = raster_array[raster_index, :, :]
+    except:
+        for raster_index in range(n_regr):
+            raster_array2[:, :, raster_index] = raster_array[raster_index, :, :]
 
     # The matrix is reshaped from 3D to 2D
     raster_array2 = np.reshape(raster_array2, [n_rows * n_cols, n_regr])
 
+    #_verbose_print(str(raster_array2[0]))
+    #_verbose_print(str(np.isfinite(raster_array2[0])))
+
     # Create a mask where the values of all regressors are finite. The calculations will be made just there
     finite_mask = np.all(np.isfinite(raster_array2), axis=1)
+    #_verbose_print(str(finite_mask))
     nan_mask = np.logical_not(finite_mask)
     _verbose_print("{} elements will be calculated and {} let as NaN".format(sum(finite_mask), sum(nan_mask)))
     # Make the transformation if available
@@ -191,7 +204,7 @@ def _get_fields(feature_layer, fields_name):
     if not isinstance(fields_name, list):
         field = field.flatten()
     # Assign NAN to the numbers with maximum integer value
-    field[field == sys.maxint] = np.NaN
+    field[field == sys.maxsize] = np.NaN
 
     return field
 

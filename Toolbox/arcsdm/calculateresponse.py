@@ -6,7 +6,10 @@
     4/2016 Conversion started - TR
     9/2016 Conversion started to Python toolbox TR
     01/2018 Bug fixes for 10.x - Arianne Ford
-    
+    27.4.2020 added Input Weights table file type checking / Arto Laiho, GTK/GFS
+    18.5.2020 added Input Raster coordinate system checking / Arto Laiho, GTK/GFS
+    15.6.2020 added "arcsdm." to import missingdatavar_func / Arto Laiho, GTK/GFS
+    20-23.7.2020 combined with Unicamp fixes (made 19.7.2018) / Arto Laiho, GTK/GFS
 
     Spatial Data Modeller for ESRI* ArcGIS 9.2
     Copyright 2007
@@ -51,8 +54,6 @@ def Execute(self, parameters, messages):
     try:
         # Import system modules
         import sys, os, math, traceback;
-        import arcsdm.sdmvalues
-        
         import arcsdm.sdmvalues;
         import arcsdm.workarounds_93;
         try:
@@ -64,8 +65,6 @@ def Execute(self, parameters, messages):
         # Create the Geoprocessor object
         #Todo: Refactor to arcpy.
         import arcgisscripting
-
-
         gp = arcgisscripting.create()
 
         # Check out any necessary licenses
@@ -76,11 +75,13 @@ def Execute(self, parameters, messages):
         Evidence = parameters[0].valueAsText #gp.GetParameterAsText(0)
         Wts_Tables = parameters[1].valueAsText #gp.GetParameterAsText(1)
         Training_Points = parameters[2].valueAsText #gp.GetParameterAsText(2)
+        trainingDescr = arcpy.Describe(Training_Points)     #AL 180520
+        trainingCoord = trainingDescr.spatialReference.name #AL 180520
         IgnoreMsgData = parameters[3].value #gp.GetParameter(3)
         MissingDataValue = parameters[4].value #gp.GetParameter(4)
         #Cleanup extramessages after stuff
         #gp.AddMessage('Got arguments' )
-        arcsdm.common.testandwarn_arcgispro();
+        #arcsdm.common.testandwarn_arcgispro();
         
         if IgnoreMsgData: # for nodata argument to CopyRaster tool
             NoDataArg = MissingDataValue
@@ -93,7 +94,7 @@ def Execute(self, parameters, messages):
 
         
     #Getting Study Area in counts and sq. kilometers
-    
+   
         Counts = arcsdm.sdmvalues.getMaskSize(arcsdm.sdmvalues.getMapUnits(True));
         gp.AddMessage("\n"+"="*21+" Starting calculate response "+"="*21)
         #gp.AddMessage(str(gp.CellSize))
@@ -110,20 +111,22 @@ def Execute(self, parameters, messages):
         gp.AddMessage("%-20s %s"% ("Prior_prob:" , str(Prior_prob)))
 
         #Get input evidence rasters
+        #dwrite ("Evidence = " + Evidence)
         Input_Rasters = Evidence.split(";")
         
         # Process things and removve grouplayer names including EXTRA ' ' symbols around spaced grouplayer name
         gp.AddMessage("Input rasters: " + str(Input_Rasters))
-        for i, s in enumerate(Input_Rasters):
-            Input_Rasters[i] = s.strip("'"); #arcpy.Describe( s.strip("'")).file;
+        # These lines causing BUG. Commented because these are not nocessary (Unicamp 190718 / AL 200720) 
+        #for i, s in enumerate(Input_Rasters):
+        #    Input_Rasters[i] = s.strip("'"); #arcpy.Describe( s.strip("'")).file;
         gp.AddMessage("Input rasters: " + str(Input_Rasters))
         
         #Get input weight tables
         Wts_Tables = Wts_Tables.split(";")
-        #gp.AddMessage("Wts_Tables = " + str(Wts_Tables))
+        #dwrite ("Wts_Tables = " + str(Wts_Tables))
         
         #Create weight raster from raster's associated weights table
-        #gp.AddMessage("Getting Weights rasters...")
+        #dwrite ("Getting Weights rasters...")
         gp.OverwriteOutput = 1
         gp.LogHistory = 1
         Wts_Rasters = []
@@ -134,13 +137,26 @@ def Execute(self, parameters, messages):
         # NoData cell values within study area.
         # For each input_raster create a weights raster from the raster and its weights table.
         mdidx = 0
-       
-       
+
+        # Method selection: 0 = ArcGIS Pro & FileSystem, 1 = all other #AL 220720       
+        wsdesc = arcpy.Describe(gp.workspace) #AL 030620
+        method = 1
+        if str(arcpy.GetInstallInfo()['ProductName']) == "ArcGISPro" and wsdesc.workspaceType == "FileSystem": method = 0;
+        arcpy.AddMessage("Method = " + str(method))
+
         ''' Weight rasters '''
         
         gp.AddMessage("\nCreating weight rasters ")
         arcpy.AddMessage("=" * 41);
         for Input_Raster in Input_Rasters:
+            # Check each Input Raster datatype and coordinate system #AL 180520,030620
+            inputDescr = arcpy.Describe(Input_Raster)
+            inputCoord = inputDescr.spatialReference.name
+            arcpy.AddMessage(Input_Raster + ", Data type: " + inputDescr.datatype + ", Coordinate System: " + inputCoord)
+            if (inputCoord != trainingCoord):
+                arcpy.AddError("ERROR: Coordinate System of Input Raster is " + inputCoord + " and Training points it is " + trainingCoord + ". These must be same.")
+                raise
+
             #<== RDB
             #++ Needs to be able to extract input raster name from full path.
             #++ Can't assume only a layer from ArcMap.
@@ -148,19 +164,19 @@ def Execute(self, parameters, messages):
             ##Output_Raster = os.path.basename(Input_Raster)[:11] + "_W"
             #outputrastername = (Input_Raster[:9]) + "_W"; 
             #TODO: Do we need to consider if the file names collide with shapes? We got collision with featureclasses
-            desc = arcpy.Describe(Input_Raster);
-            
+            #desc = arcpy.Describe(Input_Raster); #AL 160620 unnecessary
+
             Wts_Table = Wts_Tables[i]           
+
+            # When workspace type is File System, Input Weight Table also must end with .dbf #AL
+            if (wsdesc.workspaceType == "FileSystem"):
+                if not(Wts_Table.endswith('.dbf')):
+                    Wts_Table += ".dbf";   #AL 060520
             
             #Compare workspaces to make sure they match
-            desc2 = arcpy.Describe(Wts_Table);
-            
-            #arcpy.AddMessage(desc.workspaceType);
-            #arcpy.AddMessage(desc2.workspaceType);
-            
+            #desc2 = arcpy.Describe(Wts_Table); #AL removed (unnecessary) 220720
             
             arcpy.AddMessage("Processing " + Input_Raster);
-            
             
             outputrastername = Input_Raster.replace(".","_");
             
@@ -168,16 +184,11 @@ def Execute(self, parameters, messages):
             #outputrastername = desc.nameString + "_W2";
             # Create _W raster
             Output_Raster = gp.CreateScratchName(outputrastername, '', 'rst', gp.scratchworkspace)
-            #gp.AddMessage("\n");            
-            #gp.AddMessage(" Outputraster: " + outputrastername);
-            
-            
-            
             
             #Increase the count for next round
             i += 1
             
-            #arcpy.AddMessage("WtsTable: " + Wts_Table);
+            dwrite("WtsTable is " + Wts_Table);
             #Wts_Table = gp.Describe(Wts_Table).CatalogPath
             ## >>>>> Section replaced by join and lookup below >>>>>
             ##        try:
@@ -202,17 +213,18 @@ def Execute(self, parameters, messages):
                 NoDataArg2 = NoDataArg
             #Create new rasterlayer from input raster -> Result RasterLayer
             RasterLayer = "OutRas_lyr"
-            arcpy.MakeRasterLayer_management(Input_Raster,RasterLayer)
-            
+
+            if method == 0:
+                arcpy.MakeRasterLayer_management(Input_Raster,RasterLayer)       # Unicamp removed 190718  (AL 200720) # AL added selection 220720
+
             #++ AddJoin requires and input layer or tableview not Input Raster Dataset.     
             #Join result layer with weights table
-            dwrite ("Layer and Rasterlayer: " + Input_Raster + " " + RasterLayer);
-            dwrite ("WTs_layer: " + Wts_Table)
-            arcpy.AddJoin_management(RasterLayer,"VALUE",Wts_Table,"CLASS")
-            # THis is where it crashes on ISsue 44!https://github.com/gtkfi/ArcSDM/issues/44
+            dwrite ("Layer and Rasterlayer: " + Input_Raster + ", " + RasterLayer);
+
+            if method == 0:
+                arcpy.AddJoin_management(RasterLayer,"VALUE",Wts_Table,"CLASS")  # Unicamp removed 190718  (AL 200720) # AL added selection 220720
+            # This is where it crashes on ISsue 44!https://github.com/gtkfi/ArcSDM/issues/44
             #return;
-            
-           
             
             # These are born in wrong place when the scratch workspace is filegeodatabase
             #Temp_Raster = os.path.join(arcpy.env.scratchFolder,'temp_raster')
@@ -221,8 +233,8 @@ def Execute(self, parameters, messages):
             #Temp_Raster = os.path.join(arcpy.env.scratchWorkspace,'temp_raster')
             Temp_Raster = gp.CreateScratchName('tmp_rst', '', 'rst', gp.scratchworkspace)
             #gp.AddMessage(" RasterLayer=" + RasterLayer);
-            gp.AddMessage(" Temp_Raster=" + Temp_Raster);
-            gp.AddMessage(" Wts_Table=" + Wts_Table);
+            dwrite (" Temp_Raster=" + Temp_Raster);
+            dwrite (" Wts_Table=" + Wts_Table);
             
             #Delete old temp_raster
             if gp.exists(Temp_Raster):
@@ -233,7 +245,11 @@ def Execute(self, parameters, messages):
                 gp.AddMessage("Deleted tempraster");
             
             #Copy created and joined raster to temp_raster
-            arcpy.CopyRaster_management(RasterLayer,Temp_Raster,'#','#',NoDataArg2)
+            if method == 0:
+                arcpy.CopyRaster_management(RasterLayer,Temp_Raster,'#','#',NoDataArg2) # Unicamp removed this and added two new lines 190718  (AL 200720) # AL added selection 220720
+            else:
+                arcpy.CopyRaster_management(Input_Raster,Temp_Raster,'#','#',NoDataArg2)
+                gp.JoinField_management(Temp_Raster, 'Value', Wts_Table, 'CLASS')
             arcpy.AddMessage(" Output_Raster: " + Output_Raster);
             
             #gp.Lookup_sa(Temp_Raster,"WEIGHT",Output_Raster)
@@ -265,7 +281,7 @@ def Execute(self, parameters, messages):
             #Check for Missing Data in raster's Wts table
             if not IgnoreMsgData:
                 # Update the list for Missing Data Variance Calculation
-                #gp.addMessage("Debug: Wts_Table = " + Wts_Table);
+                #dwrite ("Wts_Table = " + Wts_Table);
                 tblrows = gp.SearchCursor(Wts_Table,"Class = %s" % MissingDataValue)
                 tblrow = tblrows.Next()
                 if tblrow: rasterList.append(gp.Describe(Output_Raster).CatalogPath)
@@ -361,6 +377,9 @@ def Execute(self, parameters, messages):
             Output_Raster = gp.CreateScratchName(stdoutputrastername, '', 'rst', gp.scratchworkspace)
             #print ("DEBUG STD1");
             Wts_Table = Wts_Tables[i]
+            if (wsdesc.workspaceType == "FileSystem"): #AL 060520
+                if not(Wts_Table.endswith('.dbf')): #AL 060520
+                    Wts_Table += ".dbf";            #AL 060520
             
             i += 1
             #Wts_Table = gp.Describe(Wts_Table).CatalogPath
@@ -376,11 +395,12 @@ def Execute(self, parameters, messages):
                 NoDataArg2 = '#'
             else:
                 NoDataArg2 = NoDataArg
-            #arcpy.AddMessage("Debug: " + str(NoDataArg));
+            dwrite ("NoDataArg = " + str(NoDataArg));
             RasterLayer = "OutRas_lyr2";
-            gp.makerasterlayer(Input_Raster,RasterLayer)
-            #++ Input to AddJoin must be a Layer or TableView
-            gp.AddJoin_management(RasterLayer,"Value",Wts_Table,"CLASS")
+            if method == 0:
+                gp.makerasterlayer(Input_Raster,RasterLayer)                  # Unicamp removed 190718  (AL 200720) # AL added selection 220720
+                #++ Input to AddJoin must be a Layer or TableView
+                gp.AddJoin_management(RasterLayer,"Value",Wts_Table,"CLASS")  # Unicamp removed 190718  (AL 200720) # AL added selection 220720
             # Folder doesn't seem to do the trick...
             #Temp_Raster = os.path.join(arcpy.env.scratchFolder,'temp_raster')
             #Temp_Raster = os.path.join(arcpy.env.scratchWorkspace,'temp_raster2')
@@ -391,10 +411,14 @@ def Execute(self, parameters, messages):
                 gc.collect();
                 arcpy.ClearWorkspaceCache_management()
                 gp.AddMessage("Tmprst deleted.");
-            gp.AddMessage("RasterLayer=" + RasterLayer);
-            gp.AddMessage("Temp_Raster=" + Temp_Raster);
+            dwrite ("RasterLayer=" + RasterLayer);
+            dwrite ("Temp_Raster=" + Temp_Raster);
             
-            arcpy.CopyRaster_management(RasterLayer, Temp_Raster,"#","#",NoDataArg2)
+            if method == 0:
+                arcpy.CopyRaster_management(RasterLayer, Temp_Raster,"#","#",NoDataArg2)  # Unicamp removed this and added two new lines 190718  (AL 200720) # AL added selection 220720
+            else:
+                arcpy.CopyRaster_management(Input_Raster, Temp_Raster,"#","#",NoDataArg2)
+                gp.JoinField_management(Temp_Raster, 'Value', Wts_Table, 'CLASS')
             #gp.AddMessage("DEBUG STD1");
             gp.Lookup_sa(Temp_Raster,"W_STD",Output_Raster)
             # Issue 44 fix - no delete on temprasters
@@ -460,7 +484,7 @@ def Execute(self, parameters, messages):
             #Calculate Missing Data Variance
             #gp.AddMessage("RowCount=%i"%len(rasterList))
             if len(rasterList) > 0:
-                import missingdatavar_func
+                import arcsdm.missingdatavar_func    #AL 150620 added arcsdm.
                 gp.AddMessage("Calculating Missing Data Variance...")
     ##            MDRasters=[]
     ##            for i in range(len(rasterList)):
@@ -537,10 +561,10 @@ def Execute(self, parameters, messages):
     except arcpy.ExecuteError as e:
         #TODO: Clean up all these execute errors in final version
         arcpy.AddError("\n");
-        arcpy.AddMessage("Calculate weights caught arcpy.ExecuteError ");
+        arcpy.AddMessage("Calculate Response caught arcpy.ExecuteError ");
         gp.AddError(arcpy.GetMessages())
         if len(e.args) > 0:
-            #arcpy.AddMessage("Calculate weights caught arcpy.ExecuteError: ");
+            #arcpy.AddMessage("Calculate Response caught arcpy.ExecuteError: ");
             args = e.args[0];
             args.split('\n')
             #arcpy.AddError(args);
@@ -554,7 +578,8 @@ def Execute(self, parameters, messages):
         tbinfo = traceback.format_tb(tb)[0]
         # concatenate information together concerning the error into a message string
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-                str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
+            str(sys.exc_info()) + "\n"    #AL 050520
+        #        str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
         # generate a message string for any geoprocessing tool errors
         msgs = "GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
         arcpy.AddError(msgs)

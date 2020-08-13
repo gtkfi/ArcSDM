@@ -8,9 +8,9 @@
     Updated by Arianne Ford, Kenex Ltd. 2018 - bug fixes for 10.x, allowing ascending and descending types for evidence.
 
     History: 
+    21.7.2020 combined with Unicamp fixes (made 25.10.2018) / Arto Laiho, GTK/GFS
+    12.6.2020 gp.JoinField_management and gp.Combine don't work on ArcGIS Pro with File System workspace #AL 120620
     25.9.2018 Merged changes from https://github.com/gtkfi/ArcSDM/issues/103 by https://github.com/Eliasmgprado
-    
-    Todo: Make it work with filegeodatabases
     
     Spatial Data Modeller for ESRI* ArcGIS 9.3
     Copyright 2009
@@ -60,7 +60,7 @@ def CheckEnvironment():
     arcpy.AddMessage("Checking environment...");
     #arcpy.AddMessage('Cell size:{}'.format(arcpy.env.cellSize));
     if (arcpy.env.cellSize == 'MAXOF'):
-        arcpy.AddError("  Cellsize must not be MAXOF!");
+        arcpy.AddError("  Cellsize must not be MAXOF! Set integer value to Cell Size on Environment settings."); #AL 100620
         raise arcpy.ExecuteError;
 
 
@@ -73,10 +73,12 @@ def Execute(self, parameters, messages):
     # Check out any necessary licenses
     gp.CheckOutExtension("spatial")
 
-    if arcsdm.common.testandwarn_filegeodatabase_environment():        
-        return;
-        
-    
+    # Logistic Regression don't work on ArcGIS Pro when workspace is File System! #AL 120620
+    desc = arcpy.Describe(gp.workspace)
+    if str(arcpy.GetInstallInfo()['ProductName']) == "ArcGISPro" and desc.workspaceType == "FileSystem":
+        arcpy.AddError ("ERROR: Logistic Regression don't work on ArcGIS Pro when workspace is File System!")
+        raise
+
     gp.OverwriteOutput = 1
     gp.LogHistory = 1
 
@@ -98,9 +100,9 @@ def Execute(self, parameters, messages):
             Input_Rasters[i] = s.strip("'"); #arcpy.Describe( s.strip("'")).file;
             dwrite (arcpy.Describe( s.strip("'")).file);
             dwrite (Input_Rasters[i]);
-            if arcsdm.common.testandwarn_filegeodatabase_source(s):
-                return;
-        gp.AddMessage("Input rasters: " + str(Input_Rasters))
+            #if arcsdm.common.testandwarn_filegeodatabase_source(s):    #AL removed 260520
+            #    return;
+        gp.AddMessage("Input rasters: " + str(Input_Rasters))    # Unicamp added 251018 (AL 210720)
 
         #Get evidence layer types
         Evidence_types = parameters[1].valueAsText.lower().split(';')
@@ -117,8 +119,8 @@ def Execute(self, parameters, messages):
         gp.AddMessage('Wts_Tables: %s'%(str(Wts_Tables)))
         for i, s in enumerate(Wts_Tables):                  
             arcpy.AddMessage(s);
-            if arcsdm.common.testandwarn_filegeodatabase_source(s):
-                return;
+            #if arcsdm.common.testandwarn_filegeodatabase_source(s):  #AL removed 190520
+            #    return;
         if len(Wts_Tables) != len(Wts_Tables):
             gp.AddError("Not enough weights tables!")
             raise Exception
@@ -141,7 +143,8 @@ def Execute(self, parameters, messages):
         gp.AddMessage("Creating Generalized Class rasters.")
         for Input_Raster, Wts_Table in zip(Input_Rasters, Wts_Tables):
             Output_Raster = gp.CreateScratchName(os.path.basename(Input_Raster[:9]) + "_G", '', 'rst', gp.scratchworkspace)            
-            gp.AddMessage('Output_Raster: %s'%(str(Output_Raster)))
+            gp.AddMessage("%-20s %s" % ("Output_Raster: ", str(Output_Raster)))
+
         #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
             #++ Need to create in-memory Raster Layer for AddJoin
             #RasterLayer = arcpy.env.workspace + "\\OutRas.lyr"
@@ -163,16 +166,18 @@ def Execute(self, parameters, messages):
 
             #arcpy.SaveToLayerFile_management(Input_Raster, RasterLayer)
         #=========================================================
-            #gp.AddMessage('Input_Raster: %s'%(str(Input_Raster)))
-            #gp.AddMessage('Wts_Table: %s'%(str(Wts_Table)))
+            #gp.AddMessage("%-20s %s" %("Input_Raster:", str(Input_Raster)))
+            #gp.AddMessage("%-20s %s (%d)" %("Wts_Table:", str(Wts_Table), gp.getcount(Wts_Table)))
             #gp.makerasterlayer(Input_Raster, RasterLayer)
             
             #gp.AddJoin_management(RasterLayer, "Value", Wts_Table, "CLASS")
             Temp_Raster = gp.CreateScratchName('tmp_rst', '', 'rst',  gp.scratchworkspace)
-            gp.copyraster_management(Input_Raster, Temp_Raster)
+            gp.copyraster_management(Input_Raster, Temp_Raster) # Input_Raster & Temp_Raster: Rowid, VALUE, COUNT
             gp.JoinField_management(Temp_Raster, 'Value', Wts_Table, 'CLASS')
-            
-            gp.AddMessage('Temp_Raster: %s'%(str(Temp_Raster)))
+            # ERROR 000852: Cannot add field S_WPLUS to C:\ArcSDM\AGPro_scratch\tmp_rstn
+            # on ArcGIS Pro with File System WS and Wts_Table in GDB #AL 120620
+            # This command doesn't copy Wts_Table field values to Temp_Raster on ArcGIS Pro File System WS and Wts_Table in File system, only field names #AL 120620
+            gp.AddMessage("%-20s %s (%d)" % ("Temp_Raster:", str(Temp_Raster), gp.getcount(Temp_Raster)))
             #gp.CopyRaster_management(RasterLayer, Temp_Raster)
             gp.Lookup_sa(Temp_Raster, "GEN_CLASS", Output_Raster)
             #gp.delete(RasterLayer)
@@ -187,11 +192,17 @@ def Execute(self, parameters, messages):
     ##    #>>>> Comment out for testing >>>>>>>>>>>>>>>>>>>>>>>>>>
         Input_Combine_rasters = ";".join(Wts_Rasters)
         #Combine created Wts_Rasters and add to TOC
-        #gp.AddMessage('Combining...%s'%Input_rasters)
+        gp.AddMessage('Combining...%s'%Input_Combine_rasters) #AL fixed Input_rasters to Input_Combine_rasters
         if gp.exists(thmUC): gp.delete_management(thmUC)
-        gp.Combine_sa(Input_Combine_rasters, thmUC)
+        #gp.Combine_sa(Input_Combine_rasters, thmUC)
+        thmUC = gp.Combine(Input_Combine_rasters)    #AL changed 280520
+        # ERROR 010069: Unable to open input raster(s).
+        # ERROR 010067: Error in executing grid expression.
+        # command above on ArcGIS Pro with File System WS and Wts_Table in File System
+
     ##    #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-        #gp.AddMessage('Combine done...')
+
+        gp.AddMessage('Combine done succesfully.')
 
         #Get UC lists from combined raster
         UCOIDname = gp.describe(thmUC).OIDfieldname
@@ -306,7 +317,7 @@ def Execute(self, parameters, messages):
         nmbUC = len(lstsVals[0])
         getNmbET = True # True when first line of case.dat
         nmbET = 0 # Number of ET values in a line of case.dat
-        #gp.AddMessage("Writing Logistic Regression input files...")
+        gp.AddMessage("Writing Logistic Regression input files...")
         ''' Reformat the labels for free evidence '''
         for j in range(len(lstsVals)):
             mcIdx = mcIndeces[j]
@@ -320,7 +331,7 @@ def Execute(self, parameters, messages):
                 strT = tknTF[0].strip()
                 strF = tknTF[1].strip()
                 first = True
-               #gp.AddMessage("lstLV=%s"%lstLV)
+                #gp.AddMessage("lstLV=%s"%lstLV)
                 #gp.AddMessage("elOT=%s"%elOT)
                 for lv in lstLV:
                     if lv == lstMD[j]: continue
@@ -392,6 +403,7 @@ def Execute(self, parameters, messages):
         fCase.close()
     ##' Write a parameter file to the ArcView extension directory
     ##'----------------------------------------------
+        arcpy.AddMessage("Write a parameter file to the ArcView extension directory")
         strF1 = "param.dat"
         fnParam = os.path.join(arcpy.env.scratchFolder, strF1) #param.dat file
         fParam = open(fnParam, 'w')
@@ -445,7 +457,7 @@ def Execute(self, parameters, messages):
         if not os.path.exists('logpol.tba'):
             gp.AddError("Logistic regression output file %s\\logpol.tba does not exist.\n Error in case.dat or param.dat. "%arcpy.env.scratchFolder)
             raise Exception
-        #gp.AddMessage("Finished running Logistic Regression")
+        gp.AddMessage("Finished running Logistic Regression")
 
     ###ReadLRResults -------------------------------------------------------------------------------------------------------
 
@@ -459,7 +471,7 @@ def Execute(self, parameters, messages):
         if not gp.Exists(strFnLR):
             gp.AddError("Reading Logistic Regression Results\nCould not find file: %s"%strFnLR)
             raise 'Existence error'
-        #gp.AddMessage("Opening Logistic Regression Results: %s"%strFnLR)
+        gp.AddMessage("Opening Logistic Regression Results: %s"%strFnLR)
         fLR = open(strFnLR, "r")
         if not fLR:
             gp.AddError("Input Error - Unable to open the file: %s for reading." %strFnLR)
@@ -474,11 +486,12 @@ def Execute(self, parameters, messages):
             fnNew = fnNew[:-4] if fnNew.endswith(".dbf") else fnNew
             tblbn = tblbn[:-4] if tblbn.endswith(".dbf") else tblbn
         gp.AddMessage("fnNew: %s"%fnNew)
-        gp.AddMessage('Making table to hold logistic regression results: %s'%fnNew)
+        gp.AddMessage('Making table to hold logistic regression results (param 6): %s'%fnNew)
         fnNew = tblbn
         print ("Table dir: ", tbldir);
         gp.CreateTable_management(tbldir, tblfn)
         print('Making table to hold logistic regression results: %s'%fnNew)
+        gp.AddMessage('Making table to hold logistic regression results: %s'%fnNew)
         fnNew = tbldir + "/" + fnNew;
 
         #To point to REAL table
@@ -496,7 +509,7 @@ def Execute(self, parameters, messages):
         #while vTabUCrow:
         #for vTabUCrow in vTabUCrows: ttl += 1
             #vTabUCrow = vTabUCrows.Next()
-        #gp.AddMessage("Reading Logistic Regression Results: %s"%strFnLR)
+        gp.AddMessage("Reading Logistic Regression Results: %s"%strFnLR)
         vTabLRrows = gp.InsertCursor(vTabLR)
         while strLine:
             print (strLine);
@@ -515,7 +528,7 @@ def Execute(self, parameters, messages):
             strLine = fLR.readline()
         fLR.close()
         del vTabLRrow, vTabLRrows
-        #gp.AddMessage('Created table to hold logistic regression results: %s'%fnNew)
+        gp.AddMessage('Created table to hold logistic regression results: %s'%fnNew)
 
     ##' Get the coefficients file
     ##'----------------------------------------------
@@ -523,12 +536,12 @@ def Execute(self, parameters, messages):
         fnLR2 = os.path.join(arcpy.env.scratchFolder, strFN2)
     ##  ' Open file for reading
     ##  '----------------------------------------------
-        #gp.AddMessage("Opening Logistic Regression coefficients Results: %s"%fnLR2)
+        gp.AddMessage("Opening Logistic Regression coefficients Results: %s"%fnLR2)
         fLR2 = open(fnLR2, "r")
         read = 0
     ##  ' Expand object tag list of theme, field, value combos
     ##  '----------------------------------------------
-        #gp.AddMessage('Expanding object tag list of theme, field, value combos')
+        gp.AddMessage('Expanding object tag list of theme, field, value combos')
         lstLabels = []
         for el in ot:
             for e in el:
@@ -547,10 +560,10 @@ def Execute(self, parameters, messages):
         fnNew2 = tblbn
         print ("Tabledir: ", tbldir);
         #gp.AddMessage('Making table to hold theme coefficients: %s'%fnNew2)
-        print('Making table to hold theme coefficients: %s'%fnNew2)
+        #print('Making table to hold theme coefficients: %s'%fnNew2)
         #fnNew2 = tbldir + "/" + fnNew2;
         fnNew2 = os.path.join(tbldir, fnNew2)
-        gp.AddMessage('Making table to hold theme coefficients: %s'%fnNew2)
+        gp.AddMessage("Making table to hold theme coefficients: " + fnNew2)
         gp.CreateTable_management(tbldir, tblfn)
         gp.AddField_management(fnNew2, "Theme_ID", 'Long', 6, "#", "#", "Theme_ID")
         gp.AddField_management(fnNew2, "Theme", 'text', "#", "#", 256, "Evidential_Theme")
@@ -561,7 +574,7 @@ def Execute(self, parameters, messages):
         strLine = fLR2.readline()
         i = 0
         first = 1
-        #gp.AddMessage("Reading Logistic Regression Coefficients Results: %s"%fnLR2)
+        gp.AddMessage("Reading Logistic Regression Coefficients Results: %s"%fnLR2)
         vTabLR2rows = gp.InsertCursor(vTabLR2)
         print ("Starting to read LR_Coeff")
         while strLine:
@@ -603,9 +616,10 @@ def Execute(self, parameters, messages):
         if len(lstLabels) != 0:
             gp.AddError('Evidence info %s not consistent with %s file'%(otfile, fnLR2))
         del vTabLR2row, vTabLR2rows
-        #gp.AddMessage('Created table to hold theme coefficients: %s'%fnNew2)
+        gp.AddMessage('Created table to hold theme coefficients: %s'%fnNew2)
 
         #Creating LR Response Rasters
+        gp.AddMessage("Creating LR Response Rasters")
         #Join LR polynomial table to unique conditions raster and copy
         #to get a raster with attributes
         cmb = thmUC
@@ -618,11 +632,13 @@ def Execute(self, parameters, messages):
         tbltv = 'tbltv'
         gp.maketableview_management(tbl, tbltv)
         #gp.addjoin_management(cmbrl, 'Value', tbltv, 'ID')
-        cmb_cpy = gp.createscratchname("cmb_cpy", '', 'raster', arcpy.env.scratchFolder)
+        #cmb_cpy = gp.createscratchname("cmb_cpy", '', 'raster', arcpy.env.scratchFolder) # This don't work on ArcGIS Pro with GDB workspace
+        cmb_cpy = gp.createscratchname("cmb_cpy", '', 'raster', gp.scratchworkspace) # AL fixed 280520
         gp.copyraster_management(cmb, cmb_cpy)
         gp.JoinField_management(cmb_cpy, 'Value', tbltv, 'ID')
                                                               
         #Make output float rasters from attributes of joined unique conditions raster
+        gp.AddMessage("Make output float rasters from attributes of joined unique conditions raster (param 6)")
         #outRaster1 = gp.GetParameterAsText(8)
         #outRaster2 = gp.GetParameterAsText(9)
         #outRaster3 =  gp.GetParameterAsText(10)
@@ -697,7 +713,7 @@ def RemoveDuplicates(lst):
     unique = []
     for l in lst:
         if l not in unique: unique.append(l)
-    #gp.Addmessage('RemoveDuplicates: %s'%unique)
+    #arcpy.AddMessage('RemoveDuplicates: %s'%unique)
     return unique
 
 def CalcWeightedAvg(lstVals, lstValsNew, lstAreas, nmbMD, sumArea, mcf):
@@ -776,7 +792,7 @@ def CalcWeightedAvg(lstVals, lstValsNew, lstAreas, nmbMD, sumArea, mcf):
             #Fill ValueSum and AreaSum lists
             lstValSum = []
             lstAreaSum = []
-           #gp.AddMessage('Free: %s %s %s %s'%(lstVals, lstValSum, lstAreaSum, sumArea))
+            #arcpy.AddMessage('Free: %s %s %s %s'%(lstVals, lstValSum, lstAreaSum, sumArea))
             i = 0
             for v in lstVals:
                 if v not in lstValSum:
@@ -787,13 +803,13 @@ def CalcWeightedAvg(lstVals, lstValsNew, lstAreas, nmbMD, sumArea, mcf):
                     lstAreaSum[idxV] += lstAreas[i]
                 i += 1
             #Remove areas, vals for missing data
-            #gp.AddMessage('Free: nmbMD: %s\nlstVals: %s\nlstValSum: %s\nlstAreaSum: %s\nsumArea: %s'%(nmbMD, lstVals, lstValSum, lstAreaSum, sumArea))
+            #arcpy.AddMessage('Free: nmbMD: %s\nlstVals: %s\nlstValSum: %s\nlstAreaSum: %s\nsumArea: %s'%(nmbMD, lstVals, lstValSum, lstAreaSum, sumArea))
             if nmbMD in lstVals:
                 idxV = lstValSum.index(nmbMD)
                 del lstValSum[idxV]
                 areaMD = lstAreaSum[idxV]
                 sumArea -= areaMD
-            #gp.AddMessage('Free: nmbMD: %s\nlstVals: %s\nlstValSum: %s\nlstAreaSum: %s\nsumArea: %s'%(nmbMD, lstVals, lstValSum, lstAreaSum, sumArea))
+            #arcpy.AddMessage('Free: nmbMD: %s\nlstVals: %s\nlstValSum: %s\nlstAreaSum: %s\nsumArea: %s'%(nmbMD, lstVals, lstValSum, lstAreaSum, sumArea))
             #Generate list of wtd. averages
             lstNmbWA = []
             i = 0
@@ -806,7 +822,7 @@ def CalcWeightedAvg(lstVals, lstValsNew, lstAreas, nmbMD, sumArea, mcf):
                 wa = numerator / sumArea
                 lstNmbWA.append(wa)
                 i += 1
-            #gp.AddMessage('lstNmbWA: %s'%(lstNmbWA))
+            #arcpy.AddMessage('lstNmbWA: %s'%(lstNmbWA))
             return lstNmbWA
     except:
         # get the traceback object
@@ -817,7 +833,8 @@ def CalcWeightedAvg(lstVals, lstValsNew, lstAreas, nmbMD, sumArea, mcf):
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
             str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
         # generate a message string for any geoprocessing tool errors
-        msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"
+        #msgs = "GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
+        msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"  # Unicamp changed 251018 (AL 210720)
         gp.AddError(msgs)
 
         # return gp messages for use with a script tool
@@ -862,10 +879,10 @@ def CalcVals4Msng(lstUCVals, lstAreas, lstMD, lstMCF):
     'list of values corresponding to list of themes, empty of theme is not multi-class free
     """
     try:
-        #gp.AddMessage("CalcVals4Msng: lstUCVals=%s"%(lstUCVals, ))
+        #arcpy.AddMessage("CalcVals4Msng: lstUCVals=%s"%(lstUCVals, ))
         lstThmMCF = lstMCF[0]
         lstMCFIdx = lstMCF[1]
-        #gp.AddMessage("CalcVals4Msng.lstMCF: %s=%s, %s"%(lstMCF, lstThmMCF, lstMCFIdx))
+        #arcpy.AddMessage("CalcVals4Msng.lstMCF: %s=%s, %s"%(lstMCF, lstThmMCF, lstMCFIdx))
         #Calculate the total area of the unique conditions
         totalArea = 0
         for area in lstAreas:
@@ -881,7 +898,7 @@ def CalcVals4Msng(lstUCVals, lstAreas, lstMD, lstMCF):
             nmbWA = CalcWeightedAvg(lstVals, None, lstAreas, lstMD_k, totalArea, mcf)
             lstWAVals.append(nmbWA)
             k += 1
-        #gp.AddMessage('lstWAVals: %s'%(lstWAVals))
+        #arcpy.AddMessage('lstWAVals: %s'%(lstWAVals))
         return lstWAVals
     except:
         # get the traceback object
@@ -892,7 +909,8 @@ def CalcVals4Msng(lstUCVals, lstAreas, lstMD, lstMCF):
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
             str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
         # generate a message string for any geoprocessing tool errors
-        msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"
+        #msgs = "GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
+        msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"  # Unicamp changed 251018 (AL 210720)
         gp.AddError(msgs)
 
         # return gp messages for use with a script tool

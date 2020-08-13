@@ -1,6 +1,7 @@
 # Receiver Operator Characteristics Toolbox
 #
 # Kimmo Korhonen / GTK
+# Arto Laiho / GTK 12.5.2020 / added pylab.close('all') to prevent "More than 20 figures have been opened." error
 
 import pylab
 import matplotlib
@@ -96,6 +97,7 @@ def execute(self, parameters, messages):
             messages.addMessage("Failed to insert legend with matplotlib version %s." % matplotlib.__version__)
 
     pylab.savefig(png_path)
+    pylab.close('all')  #AL 120520
 
     messages.addMessage("Saved ROC curve plot to '%s'." % png_path)
 

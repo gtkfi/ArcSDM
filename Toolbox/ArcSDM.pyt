@@ -1,4 +1,4 @@
-import sys
+Ôªøimport sys
 import arcpy
 
 import arcsdm.sitereduction
@@ -13,8 +13,11 @@ import arcsdm.roctool
 import arcsdm.acterbergchengci
 import arcsdm.rescale_raster;
 from arcsdm.areafrequency import Execute
+import arcsdm.nnoutputfiles
 import arcsdm.nninputfiles
 import arcsdm.grand_wofe_lr
+import arcsdm.fuzzyroc
+import arcsdm.fuzzyroc2
 
 from arcsdm.common import execute_tool
 
@@ -32,8 +35,8 @@ class Toolbox(object):
 
         # List of tool classes associated with this toolbox
         self.tools = [PartitionNNInputFiles, CombineNNOutputFiles, NeuralNetworkOutputFiles, NeuralNetworkInputFiles, 
-        CalculateWeightsTool,SiteReductionTool,CategoricalMembershipToool,
-        CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, LogisticRegressionTool, Symbolize, 
+        CalculateWeightsTool,SiteReductionTool,CategoricalMembershipTool,
+        CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, FuzzyROC, FuzzyROC2, LogisticRegressionTool, Symbolize, 
         ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues, GrandWofe]
 
 
@@ -137,11 +140,12 @@ class GrandWofe(object):
     def execute(self, parameters, messages):
         """The source code of the tool."""
         #3.4
-        try:
-            importlib.reload (arcsdm.grand_wofe_lr)
-        except :
-            reload(arcsdm.grand_wofe_lr);
-        arcsdm.grand_wofe_lr.execute(self, parameters, messages)
+        #try:
+        #    importlib.reload (arcsdm.grand_wofe_lr)
+        #except :
+        #    reload(arcsdm.grand_wofe_lr);
+        #arcsdm.grand_wofe_lr.execute(self, parameters, messages)
+        execute_tool(arcsdm.grand_wofe_lr.execute, self, parameters, messages) #AL 090620
         return
                 
         
@@ -1097,7 +1101,7 @@ class SiteReductionTool(object):
         parameterType="Optional",
         direction="Input")
         
-# T‰m‰ vois olla hyvinkin valintalaatikko?
+# T√§m√§ vois olla hyvinkin valintalaatikko?
         param3 = arcpy.Parameter(
         displayName="Random selection",
         name="Random_selection",
@@ -1189,7 +1193,7 @@ class SiteReductionTool(object):
         arcsdm.sitereduction.ReduceSites(self, parameters, messages)
         return
         
-class CategoricalMembershipToool(object):
+class CategoricalMembershipTool(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Categorical Membership"
@@ -1638,3 +1642,170 @@ class AgterbergChengCITest(object):
         execute_tool(arcsdm.acterbergchengci.Calculate, self, parameters, messages)
         return
 
+class FuzzyROC(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Fuzzy ROC"
+        self.description = "Fuzzy Membership + Fuzzy Overlay + ROC"
+        self.canRunInBackground = False
+        self.category = "Fuzzy Logic\\Fuzzy Membership"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        
+        param0 = arcpy.Parameter(
+        displayName="Input raster names",
+        name="inputrasters",
+        datatype="GPRasterLayer",
+        multiValue=1,
+        parameterType="Required",
+        direction="Input")
+        
+        param1 = arcpy.Parameter(
+        displayName="Fuzzy Membership Parameters",
+        name="fmparams",
+        datatype="DETable",
+        parameterType="Required",
+        direction="Input")
+
+        param1.columns = [['String', 'Membership type'], ['String', 'Midpoint Min'], ['String', 'Midpoint Max'], ['String', 'Midpoint Count'], ['String', 'Spread Min'], ['String', 'Spread Max'], ['String', 'Spread Count']]
+        param1.filters[0].type = 'ValueList'
+        param1.filters[0].list = ['Gaussian', 'Small', 'Large', 'Near', 'MSLarge', 'MSSmall', 'Linear']
+        
+        param2 = arcpy.Parameter(
+        displayName="Fuzzy Overlay Parameters",
+        name="foparams",
+        datatype="DETable",
+        parameterType="Required",
+        direction="Input")
+
+        param2.columns = [['String', 'Overlay type'], ['String', 'Parameter']]
+        param2.filters[0].type = 'ValueList'
+        param2.filters[0].list = ['And', 'Or', 'Product', 'Sum', 'Gamma']
+        
+        param3 = arcpy.Parameter(
+        displayName="ROC True Positives Feature Class",
+        name="truepositives",
+        datatype="DEFeatureClass",
+        parameterType="Required",
+        direction="Input")
+
+        param4 = arcpy.Parameter(
+        displayName="ROC Destination Folder",
+        name="dest_folder",
+        datatype="DEFolder",
+        parameterType="Required",
+        direction="Input")
+        param4.filter.list = ["File System"]
+
+        params = [param0, param1, param2, param3, param4]
+        return params
+
+    def isLicensed(self):    
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+     
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        execute_tool(arcsdm.fuzzyroc.Execute, self, parameters, messages)
+        return
+
+class FuzzyROC2(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Fuzzy ROC 2"
+        self.description = "Fuzzy Membership + Fuzzy Overlay + ROC (Receiver Operator Characteristic)"
+        self.canRunInBackground = False
+        self.category = "Fuzzy Logic\\Fuzzy Membership"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        
+        param0 = arcpy.Parameter(
+        displayName="Input rasters, Fuzzy Membership functions and parameters",
+        name="inputrasters",
+        datatype="DETable",
+        multiValue=1,
+        parameterType="Required",
+        direction="Input")
+        param0.columns = [['GPRasterLayer', 'Input raster name'], ['String', 'Membership type'], ['String', 'Midpoint Min'], ['String', 'Midpoint Max'], ['String', 'Midpoint Count'], ['String', 'Spread Min'], ['String', 'Spread Max'], ['String', 'Spread Count']]
+        param0.filters[1].type = 'ValueList'
+        param0.filters[1].list = ['Gaussian', 'Small', 'Large', 'Near', 'MSLarge', 'MSSmall', 'Linear']
+
+        param1 = arcpy.Parameter(
+        displayName="Fuzzy Overlay Parameters",
+        name="foparams",
+        datatype="DETable",
+        parameterType="Required",
+        direction="Input")
+
+        param1.columns = [['String', 'Overlay type'], ['String', 'Parameter']]
+        param1.filters[0].type = 'ValueList'
+        param1.filters[0].list = ['And', 'Or', 'Product', 'Sum', 'Gamma']
+        
+        param2 = arcpy.Parameter(
+        displayName="ROC True Positives Feature Class",
+        name="truepositives",
+        datatype="DEFeatureClass",
+        parameterType="Required",
+        direction="Input")
+
+        param3 = arcpy.Parameter(
+        displayName="ROC Destination Folder",
+        name="dest_folder",
+        datatype="DEFolder",
+        parameterType="Required",
+        direction="Input")
+        param3.filter.list = ["File System"]
+
+        #param4 = arcpy.Parameter(
+        #displayName="Plot membership curves only",
+        #name="plots",
+        #datatype="GPBoolean",
+        #parameterType="Optional",
+        #direction="Input")
+
+        params = [param0, param1, param2, param3] #, param4]
+        return params
+
+    def isLicensed(self):    
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+     
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        execute_tool(arcsdm.fuzzyroc2.Execute, self, parameters, messages)
+        return

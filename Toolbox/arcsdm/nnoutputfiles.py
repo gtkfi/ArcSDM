@@ -42,10 +42,13 @@ gp.CheckOutExtension("spatial")
 
 #set a toolbox
 #gp.toolbox = "management"
-
+#
 def execute(self, parameters, messages):
 
 
+
+
+    #gp.AddMessage('A')
     try:
         fldP = 1
         X = 1
@@ -54,15 +57,15 @@ def execute(self, parameters, messages):
         dTitle = "Reading Neural Network Results"
         thmUC = parameters[0].valueAsText # gp.getParameterAsText(0) #Unique conditions raster
         fnRBNDX = parameters[1].valueAsText #gp.getParameterAsText(1) #DataExplor .rbn file name
-        rbndx = fnRBNDX != ""
+        rbndx = fnRBNDX != "" and fnRBNDX != None 
         #gp.AddMessage("rbndx="+str(rbndx))
         fnRBNGX = parameters[2].valueAsText #gp.getParameterAsText(2) #GeoExplor .pnn output
-        rbngx = fnRBNGX != ""
+        rbngx = fnRBNGX != "" and fnRBNGX != None 
         #gp.AddMessage("rbngx="+str(rbngx))
         rbn = rbndx or rbngx
-       # gp.AddMessage("rbn="+str(rbn))
+        #gp.AddMessage("rbn="+str(rbn))
         fnFC = parameters[3].valueAsText #gp.getParameterAsText(3) #Fuzzy Classification .fuz file
-        fc = fnFC != ""
+        fc = fnFC != "" and fnFC != None 
         #gp.AddMessage("fc="+str(fc))
         if (not rbndx) and (not rbngx) and (not fc):
             gp.AddError("No Neural Network results files to process.");
@@ -98,7 +101,7 @@ def execute(self, parameters, messages):
         else:
             fFC = None
         #gp.AddMessage("Opened input Neural Network files.")
-        output_name = gp.GetParameterAsText(4)
+        output_name = parameters[4].valueAsText
         #gp.AddMessage("Table filename: " + output_name)
         #gp.AddMessage("Workspace: " + WrkSpace)
         try:
@@ -159,7 +162,7 @@ def execute(self, parameters, messages):
                         #gp.AddMessage("Added 'RBFLN' field")
                     else:
                         #gp.AddMessage(fld.type)
-                        if fld.type <> 'Double':
+                        if type(fld) != 'Double':
                             #gp.AddMessage("Found 'RBFLN' field not of type 'Double'. Restart")
                             gp.DeleteField_management(vTabNN,fld.name)
                             raise "Field error"
@@ -177,7 +180,7 @@ def execute(self, parameters, messages):
                     #gp.AddMessage("Added 'PNN' field")
                 else:
                     #gp.AddMessage(fld.type)
-                    if fld.type <> 'Double':
+                    if fld.type != 'Double':
                         gp.AddError("Found 'PNN' field not of type 'Double'. Restart")
                         gp.DeleteField_management(vTabNN,fld.name)
                         raise "Field error"
@@ -194,7 +197,7 @@ def execute(self, parameters, messages):
                     #gp.AddMessage("Added 'FzzyClstr' field")
                 else:
                     #gp.AddMessage(fld.type)
-                    if fld.type <> 'Integer':
+                    if fld.type != 'Integer':
                         #gp.AddMessage("Found 'FzzyClstr' field not type 'Long'. Restart")
                         gp.DeleteField_management(vTabNN,fld.name)
                         raise "Field error"
@@ -480,13 +483,17 @@ def execute(self, parameters, messages):
     ##'
 
         ##<== RDB added extra parameter to specify output raster for NNoutput Files tool
-        OutputRaster5 = gp.GetParameterAsText(5)  # RDB
-        #gp.AddMessage("Output Raster: " + OutputRaster5)
-        gp.MakeRasterLayer_management(thmUC,'thmUCLayer')  #<== RDB
+        OutputRaster5 = parameters[5].valueAsText  # RDB
+
+        gp.CopyRaster(thmUC, OutputRaster5)
+        gp.JoinField_management(OutputRaster5, 'Value', vTabNN, 'ID')
+
+        ##gp.AddMessage("Output Raster: " + OutputRaster5)
+        #gp.MakeRasterLayer_management(thmUC,'thmUCLayer')  #<== RDB
         
-        gp.AddJoin_management('thmUCLayer','Value',vTabNN,'ID')
-        gp.CopyRaster('thmUCLayer', OutputRaster5)
-        #gp.AddJoin_management(thmUC,'Value',vTabNN,'ID')
+        #gp.AddJoin_management('thmUCLayer','Value',vTabNN,'ID')
+        #gp.CopyRaster('thmUCLayer', OutputRaster5)
+        ##gp.AddJoin_management(thmUC,'Value',vTabNN,'ID')
 
         #gp.AddMessage("Deconstructing table cursor.")
         gp.SetParameterAsText(4,gp.Describe(vTabNN).CatalogPath)
@@ -496,9 +503,9 @@ def execute(self, parameters, messages):
         #gp.AddMessage("Output table: %s" %gp.Describe(vTabNN).CatalogPath)
         #gp.AddMessage("Done.")
 
-    except "InputError",Msg:
+    except "InputError":
         pass
-    except Exception, Msg:
+    except Exception:
         # get the traceback object
         tb = sys.exc_info()[2]
         # tbinfo contains the line number that the code failed on and the code from that line
@@ -514,6 +521,6 @@ def execute(self, parameters, messages):
         gp.AddError(pymsg)
 
         # print messages for use in Python/PythonWin
-        print pymsg
-        print msgs
+        print (pymsg)
+        print (msgs)
         raise

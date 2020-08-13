@@ -114,12 +114,12 @@ def execute(self, parameters, messages):
     arcpy.env.overwriteOutput = True
     myRasterBlock = arcpy.NumPyArrayToRaster(raster_array, arcpy.Point(mx, my),rasteri.meanCellWidth, rasteri.meanCellHeight);
 
-    myprint ("Saving new raster...\n   Output rastername: %s"% (output_rastername ));
+    myprint ("Saving new raster...\n   Output rastername: %s"% (output_rastername));
     #myRasterBlock.save("d:\\arcgis\\database.gdb\\tulos");
     myRasterBlock.save(output_rastername);
     desc = arcpy.Describe(output_rastername)
-    name = desc.file + "_layer";
-    parameters[3].value =  myRasterBlock    ;
+    name = desc.file.split('.')[0] + "_layer";
+    #parameters[3].value =  myRasterBlock;
     if (addtomap):
         myprint ("   Adding layer to map with name: " + name); 
         addToDisplay(output_rastername, name , "TOP");
