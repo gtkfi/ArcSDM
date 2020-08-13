@@ -36,6 +36,7 @@ Status of the toolbox should be updated to wiki https://github.com/gtkfi/ArcSDM/
 The demodata and the toolbox will be separated from eachother to make downloading easier.<br>
 
 ## History:
+13.8.2020 5.02 arto-dev branch merged to master branch. 
 23.7.2020 ArcSDM version 5.01.08 in the arto-dev branch.<br>
 2.6.2020 arto-dev branch added. There are updated tool versions for testing.<br>
 3.4.2020 New link to demodata and documentation how to run on Arcgis pro 2.5+<br>
