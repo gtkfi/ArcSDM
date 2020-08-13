@@ -1,3 +1,4 @@
+<html>
 #Modified ArcSDM tools#<br>
 
 Spatial Data Modeler 5 for ArcGis pro, Version ArcSdm 5.02 for ArcGis (Pro and Desktop)<Br>
@@ -130,3 +131,4 @@ ArcSDM.CalculateWeightsTool.pyt.xml	 -HELP for Calculate Weights<br>
 ArcSDM.FuzzyROC2.pyt.xml - HELP for Fuzzy ROC 2<br>
 ArcSDM.LogisticRegressionTool.pyt.xml - Help for Logistic Regression<br>
 ArcSDM.GrandWofe.pyt.xml - Help for Grand Wofe<br>
+</html>
