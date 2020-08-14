@@ -9,7 +9,7 @@
 
     History: 
     21.7.2020 combined with Unicamp fixes (made 25.10.2018) / Arto Laiho, GTK/GFS
-    12.6.2020 gp.JoinField_management and gp.Combine don't work on ArcGIS Pro with File System workspace #AL 120620
+    12.6.2020 gp.JoinField_management and gp.Combine don't work on ArcGIS Pro 2.5 with File System workspace but works on V2.6 #AL 120620,140820
     25.9.2018 Merged changes from https://github.com/gtkfi/ArcSDM/issues/103 by https://github.com/Eliasmgprado
     
     Spatial Data Modeller for ESRI* ArcGIS 9.3
@@ -73,10 +73,11 @@ def Execute(self, parameters, messages):
     # Check out any necessary licenses
     gp.CheckOutExtension("spatial")
 
-    # Logistic Regression don't work on ArcGIS Pro when workspace is File System! #AL 120620
+    # Logistic Regression don't work on ArcGIS Pro 2.5 when workspace is File System but works on V2.6! #AL 140820
     desc = arcpy.Describe(gp.workspace)
-    if str(arcpy.GetInstallInfo()['ProductName']) == "ArcGISPro" and desc.workspaceType == "FileSystem":
-        arcpy.AddError ("ERROR: Logistic Regression don't work on ArcGIS Pro when workspace is File System!")
+    install_version=str(arcpy.GetInstallInfo()['Version'])
+    if str(arcpy.GetInstallInfo()['ProductName']) == "ArcGISPro" and install_version <= "2.5" and desc.workspaceType == "FileSystem":
+        arcpy.AddError ("ERROR: Logistic Regression don't work on ArcGIS Pro " + install_version + " when workspace is File System!")
         raise
 
     gp.OverwriteOutput = 1

@@ -9,7 +9,7 @@
 # - sys.exc_type and exc_value are deprecated, replaced by sys.exc_info()
 # - Grand Wofe Name cannot be longer than 7 characters
 # - Weights table prefix changed
-# - Logistic Regression don't work on ArcGIS Pro with File System workspace
+# - Logistic Regression don't work on ArcGIS Pro 2.5 with File System workspace but works on V2.6 /AL 140820
 
 """Gets all valid weights tables for each evidence raster, generates all
     combinations of rasters and their tables, and runs each combination
@@ -74,10 +74,11 @@ def execute(self, parameters, messages):
     gp.OverwriteOutput = 1
     gp.LogHistory = 1
 
-    # Logistic Regression don't work on ArcGIS Pro when workspace is File System! #AL 120620
+    # Logistic Regression don't work on ArcGIS Pro 2.5 when workspace is File System but works on V2.6! #AL 140820
     desc = arcpy.Describe(gp.workspace)
-    if str(arcpy.GetInstallInfo()['ProductName']) == "ArcGISPro" and desc.workspaceType == "FileSystem":
-        arcpy.AddError ("ERROR: Logistic Regression don't work on ArcGIS Pro when workspace is File System!")
+    install_version=str(arcpy.GetInstallInfo()['Version'])
+    if str(arcpy.GetInstallInfo()['ProductName']) == "ArcGISPro" and install_version <= "2.5"  and desc.workspaceType == "FileSystem":
+        arcpy.AddError ("ERROR: Logistic Regression don't work on ArcGIS Pro " + install_version + " when workspace is File System!")
         raise
 
     # Load required toolboxes...
