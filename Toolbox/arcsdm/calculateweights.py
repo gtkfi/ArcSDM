@@ -5,6 +5,7 @@
     Update by Arianne Ford, Kenex Ltd. 2018
    
     History: 
+    6.10.2020 If using GDB database, remove numbers and underscore from the beginning of the Weights table name / Arto Laiho, GTK/GFS
     21-23.7.2020 combined with Unicamp fixes (made 8.8.2018) / Arto Laiho, GTK/GFS
     9.6.2020 If Evidence Layer has not attribute table, execution is stopped / Arto Laiho, GTK/GSF
     3.6.2020 Evidence Raster cannot be RasterBand (ERROR 999999 at rows = gp.SearchCursor(EvidenceLayer)) / Arto Laiho, GTK/GSF
@@ -246,11 +247,16 @@ def Calculate(self, parameters, messages):
         wtstable = parameters[4].valueAsText;
 
         # If using non gdb database, lets add .dbf
+        # If using GDB database, remove numbers and underscore from the beginning of the Weights table name (else block) #AL 061020
         wdesc = arcpy.Describe(gp.workspace)
         if (wdesc.workspaceType == "FileSystem"):
             if not(wtstable.endswith('.dbf')):
                 wtstable += ".dbf";
-        
+        else:
+            wtsbase = os.path.basename(wtstable)
+            while len(wtsbase) > 0 and (wtsbase[:1] <= "9" or wtsbase[:1] == "_"):
+                wtsbase = wtsbase[1:]
+            wtstable = os.path.dirname(wtstable) + "\\" + wtsbase
         Confident_Contrast = float( parameters[5].valueAsText)
         #Unitarea = float( parameters[6].valueAsText)
         Unitarea = float( parameters[6].value)
@@ -273,9 +279,9 @@ def Calculate(self, parameters, messages):
         if gp.exists(Statistics): gp.Delete_management(Statistics)
         gp.Statistics_analysis(tempTrainingPoints, Statistics, "rastervalu sum" ,"rastervalu")
     # Process: Create the table
-            
+
         gp.CreateTable_management(os.path.dirname(wtstable), os.path.basename(wtstable), Statistics)
-        
+
         gp.AddField_management (wtstable, "Count", "long") 
         gp.AddField_management (wtstable, "Area", 'double')
         gp.AddField_management (wtstable, "AreaUnits", 'double')

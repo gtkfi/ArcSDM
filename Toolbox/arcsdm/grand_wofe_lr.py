@@ -9,7 +9,8 @@
 # - sys.exc_type and exc_value are deprecated, replaced by sys.exc_info()
 # - Grand Wofe Name cannot be longer than 7 characters
 # - Weights table prefix changed
-# - Logistic Regression don't work on ArcGIS Pro 2.5 with File System workspace but works on V2.6 /AL 140820
+# Logistic Regression don't work on ArcGIS Pro 2.5 with File System workspace but works on V2.6 /AL 140820
+# If using GDB database, remove numbers and underscore from the beginning of Weights Table name /AL 061020
 
 """Gets all valid weights tables for each evidence raster, generates all
     combinations of rasters and their tables, and runs each combination
@@ -79,7 +80,7 @@ def execute(self, parameters, messages):
     install_version=str(arcpy.GetInstallInfo()['Version'])
     if str(arcpy.GetInstallInfo()['ProductName']) == "ArcGISPro" and install_version <= "2.5"  and desc.workspaceType == "FileSystem":
         arcpy.AddError ("ERROR: Logistic Regression don't work on ArcGIS Pro " + install_version + " when workspace is File System!")
-        raise
+        raise ValueError()
 
     # Load required toolboxes...
     try:
@@ -94,7 +95,7 @@ def execute(self, parameters, messages):
         # Grand Wofe Name cannot be longer than 7 characters #AL 090620
         if (len(Grand_WOFE_Name) > 7):
             arcpy.AddError("ERROR: Grand Wofe Name cannot be longer than 7 characters.")
-            raise
+            raise ValueError()
         Evidence_Rasters = parameters[1].valueAsText.split(';'); #gp.GetParameterAsText(1).split(';')
         Evidence_Data_Types = parameters[2].valueAsText.lower().split(';'); #gp.GetParameterAsText(2).lower().split(';')
         Input_Training_Sites_Feature_Class = parameters[3].valueAsText; #gp.GetParameterAsText(3)
@@ -120,11 +121,11 @@ def execute(self, parameters, messages):
         # Test for proper table data types:
         if len(Evidence_Data_Types) != len(Evidence_Rasters):
             gp.adderror('Number of evidence layers and weights data types do not match')
-            raise
+            raise ValueError()
         for evtype in Evidence_Data_Types:       
             if not evtype[0] in 'ofcad':
-                gp.adderror('Evidence data type %s not of %s'%(Evidence_Data_Type, ['free', 'categorical', 'ordered','ascending','descending']))
-                raise TypeError         
+                arcpy.AddError('ERROR: Evidence data type %s not of %s'%(Evidence_Data_Type, ['free', 'categorical', 'ordered','ascending','descending']))
+                raise TypeError()         
         # Process: Calculate Weights of Evidence...
         dwrite(str(Evidence_Data_Types));
         dwrite(str(Evidence_Rasters));
@@ -156,11 +157,18 @@ def execute(self, parameters, messages):
                 suffix = suffixes[Wts_Table_Type]
                 filename = prefix + suffix; # + '.dbf' NO DBF anymore
                 desc = arcpy.Describe(gp.workspace)
-                
+
+                # If using non gdb database, lets add .dbf
+                # If using GDB database, remove numbers and underscore from the beginning of the name (else block) #AL 061020                
                 if  desc.workspaceType == "FileSystem":
                     if not(filename.endswith('.dbf')):
                         filename = filename + ".dbf";
                     dwrite ("Filename is a file - adding dbf")
+                else:
+                    wtsbase = os.path.basename(filename)
+                    while len(wtsbase) > 0 and (wtsbase[:1] <= "9" or wtsbase[:1] == "_"):
+                        wtsbase = wtsbase[1:]
+                    filename = os.path.dirname(filename) + "\\" + wtsbase
                 
                 unique_name = gp.createuniquename(filename, gp.workspace)
                 Output_Weights_Table = unique_name
@@ -171,9 +179,8 @@ def execute(self, parameters, messages):
                 # Temporarily print directory
                 #gp.addmessage(dir(arcpy));
                 gp.addmessage("Calling calculate weights...")
-                dwrite("Evidence raster layer name: " + Evidence_Raster_Layer);
-                dwrite(' Output table name: %s Exists already: %s'%(Output_Weights_Table,gp.exists(Output_Weights_Table)))
-                
+                gp.addmessage(' Output table name: %s Exists already: %s'%(Output_Weights_Table,gp.exists(Output_Weights_Table)))
+
                 result = arcpy.CalculateWeightsTool_ArcSDM ( Evidence_Raster_Layer, Evidence_Raster_Code_Field, \
                                                Input_Training_Sites_Feature_Class, Wts_Table_Type, Output_Weights_Table, \
                                                Confidence_Level_of_Studentized_Contrast, \
@@ -359,6 +366,8 @@ def execute(self, parameters, messages):
             #Stop processing
             gp.AddError('No Valid Weights Tables: Stopped.')
 
+    except ValueError():
+        raise
     except:
         # get the traceback object
         tb = sys.exc_info()[2]

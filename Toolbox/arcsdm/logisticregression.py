@@ -8,6 +8,12 @@
     Updated by Arianne Ford, Kenex Ltd. 2018 - bug fixes for 10.x, allowing ascending and descending types for evidence.
 
     History: 
+    5-6.10.2020 modifications by Arto Laiho, GTK/GFS
+    - os.path.basename(Input_Raster[:9]) changed to os.path.basename(Input_Raster)[:9]
+    - #gp.Lookup_sa(Temp_Raster, "GEN_CLASS", Output_Raster) changed to Output_Raster = gp.Lookup_sa(Temp_Raster, "GEN_CLASS")
+    - Fortran application sdmlr.exe don't work if length of File System Scratch Workspace name is more than 51 characters
+    - Evidential Theme to LRcoeff truncated if more than 256 characters
+    - If using GDB database, remove numbers and underscore from the beginning of Output_Raster name
     21.7.2020 combined with Unicamp fixes (made 25.10.2018) / Arto Laiho, GTK/GFS
     12.6.2020 gp.JoinField_management and gp.Combine don't work on ArcGIS Pro 2.5 with File System workspace but works on V2.6 #AL 120620,140820
     25.9.2018 Merged changes from https://github.com/gtkfi/ArcSDM/issues/103 by https://github.com/Eliasmgprado
@@ -80,6 +86,11 @@ def Execute(self, parameters, messages):
         arcpy.AddError ("ERROR: Logistic Regression don't work on ArcGIS Pro " + install_version + " when workspace is File System!")
         raise
 
+    # Fortran application sdmlr.exe don't work if length of File System Scratch Workspace name is more than 51 characters #AL 051020
+    if desc.workspaceType == "FileSystem" and len(os.path.abspath(gp.scratchworkspace)) > 51:
+        arcpy.AddError ("ERROR: File System Scratch Workspace name length cannot be more than 51 characters")
+        raise
+
     gp.OverwriteOutput = 1
     gp.LogHistory = 1
 
@@ -143,9 +154,17 @@ def Execute(self, parameters, messages):
         mdidx = 0
         gp.AddMessage("Creating Generalized Class rasters.")
         for Input_Raster, Wts_Table in zip(Input_Rasters, Wts_Tables):
-            Output_Raster = gp.CreateScratchName(os.path.basename(Input_Raster[:9]) + "_G", '', 'rst', gp.scratchworkspace)            
-            gp.AddMessage("%-20s %s" % ("Output_Raster: ", str(Output_Raster)))
+            gp.AddMessage("%-20s %s" % ("Input_Raster: ", str(Input_Raster)));
+            #Output_Raster = gp.CreateScratchName(os.path.basename(Input_Raster[:9]) + "_G", '', 'rst', gp.scratchworkspace)
+            Output_Raster = gp.CreateScratchName(os.path.basename(Input_Raster)[:9] + "_G", '', 'rst', gp.scratchworkspace)  #AL 051020
+            gp.AddMessage("%-20s %s" % ("Output_Raster: ", str(Output_Raster)));
 
+            # If using GDB database, remove numbers and underscore from the beginning of the Output_Raster #AL 061020
+            if desc.workspaceType != "FileSystem":
+                outbase = os.path.basename(Output_Raster)
+                while len(outbase) > 0 and (outbase[:1] <= "9" or outbase[:1] == "_"):
+                    outbase = outbase[1:]
+                Output_Raster = os.path.dirname(Output_Raster) + "\\" + outbase
         #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
             #++ Need to create in-memory Raster Layer for AddJoin
             #RasterLayer = arcpy.env.workspace + "\\OutRas.lyr"
@@ -177,10 +196,12 @@ def Execute(self, parameters, messages):
             gp.JoinField_management(Temp_Raster, 'Value', Wts_Table, 'CLASS')
             # ERROR 000852: Cannot add field S_WPLUS to C:\ArcSDM\AGPro_scratch\tmp_rstn
             # on ArcGIS Pro with File System WS and Wts_Table in GDB #AL 120620
-            # This command doesn't copy Wts_Table field values to Temp_Raster on ArcGIS Pro File System WS and Wts_Table in File system, only field names #AL 120620
+            # This command doesn't copy Wts_Table field values to Temp_Raster on ArcGIS Pro File System WS and - in File system, only field names #AL 120620
             gp.AddMessage("%-20s %s (%d)" % ("Temp_Raster:", str(Temp_Raster), gp.getcount(Temp_Raster)))
             #gp.CopyRaster_management(RasterLayer, Temp_Raster)
-            gp.Lookup_sa(Temp_Raster, "GEN_CLASS", Output_Raster)
+            #gp.Lookup_sa(Temp_Raster, "GEN_CLASS", Output_Raster)
+            Output_Raster = gp.Lookup_sa(Temp_Raster, "GEN_CLASS") #AL 051020
+            gp.AddMessage("%-20s %s (%d)" % ("Output_Raster:", str(Output_Raster), gp.getcount(Output_Raster))) #AL 021020
             #gp.delete(RasterLayer)
             #gp.delete(TableGDB)
         #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -597,6 +618,8 @@ def Execute(self, parameters, messages):
                         try:
                             #For all but first...
                             lbl = lstLabels.pop(0);
+                            if len(lbl) > 256:
+                                lbl = lbl[:256];  #AL 051020
                             print ("Lbl:", lbl);
                             vTabLR2row.SetValue('Theme', lbl)
                         except IndexError:

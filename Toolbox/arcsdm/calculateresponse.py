@@ -6,10 +6,11 @@
     4/2016 Conversion started - TR
     9/2016 Conversion started to Python toolbox TR
     01/2018 Bug fixes for 10.x - Arianne Ford
-    27.4.2020 added Input Weights table file type checking / Arto Laiho, GTK/GFS
-    18.5.2020 added Input Raster coordinate system checking / Arto Laiho, GTK/GFS
-    15.6.2020 added "arcsdm." to import missingdatavar_func / Arto Laiho, GTK/GFS
-    20-23.7.2020 combined with Unicamp fixes (made 19.7.2018) / Arto Laiho, GTK/GFS
+    27.4.2020 added Input Weights table file type checking /Arto Laiho, GTK/GFS
+    18.5.2020 added Input Raster coordinate system checking /Arto Laiho
+    15.6.2020 added "arcsdm." to import missingdatavar_func /Arto Laiho
+    20-23.7.2020 combined with Unicamp fixes (made 19.7.2018) /Arto Laiho
+    6.10.2020 If using GDB database, remove numbers and underscore from the beginning of all output table names /Arto Laiho
 
     Spatial Data Modeller for ESRI* ArcGIS 9.2
     Copyright 2007
@@ -169,18 +170,28 @@ def Execute(self, parameters, messages):
             Wts_Table = Wts_Tables[i]           
 
             # When workspace type is File System, Input Weight Table also must end with .dbf #AL
+            # If using GDB database, remove numbers and underscore from the beginning of the name (else block) #AL 061020
             if (wsdesc.workspaceType == "FileSystem"):
                 if not(Wts_Table.endswith('.dbf')):
                     Wts_Table += ".dbf";   #AL 060520
-            
+            else:
+                wtsbase = os.path.basename(Wts_Table)
+                while len(wtsbase) > 0 and (wtsbase[:1] <= "9" or wtsbase[:1] == "_"):
+                    wtsbase = wtsbase[1:]
+                Wts_Table = os.path.dirname(Wts_Table) + "\\" + wtsbase
+
             #Compare workspaces to make sure they match
             #desc2 = arcpy.Describe(Wts_Table); #AL removed (unnecessary) 220720
             
             arcpy.AddMessage("Processing " + Input_Raster);
             
             outputrastername = Input_Raster.replace(".","_");
-            
+
+            # If using GDB database, remove numbers and underscore from the beginning of the outputrastername #AL 061020
             outputrastername = outputrastername[:10] + "W";
+            if (wsdesc.workspaceType != "FileSystem"):
+                while len(outputrastername) > 0 and (outputrastername[:1] <= "9" or outputrastername[:1] == "_"):
+                    outputrastername = outputrastername[1:]
             #outputrastername = desc.nameString + "_W2";
             # Create _W raster
             Output_Raster = gp.CreateScratchName(outputrastername, '', 'rst', gp.scratchworkspace)
@@ -371,15 +382,26 @@ def Execute(self, parameters, messages):
             ##Output_Raster = Input_Raster[:11] + "_S"
             ##Output_Raster = os.path.basename(Input_Raster)[:11] + "_S"  
             stdoutputrastername = os.path.basename(Input_Raster[:9]).replace(".","_") + "S"; # No . allowed in filegeodatgabases           
+            # If using GDB database, remove numbers and underscore from the beginning of the name (else block) #AL 061020
+            if (wsdesc.workspaceType != "FileSystem"):
+                while len(stdoutputrastername) > 0 and (stdoutputrastername[:1] <= "9" or stdoutputrastername[:1] == "_"):
+                    stdoutputrastername = stdoutputrastername[1:]
 
             #arcpy.AddMessage("Debug:" + stdoutputrastername);
             
             Output_Raster = gp.CreateScratchName(stdoutputrastername, '', 'rst', gp.scratchworkspace)
             #print ("DEBUG STD1");
             Wts_Table = Wts_Tables[i]
+            # If using non gdb database, lets add .dbf
+            # If using GDB database, remove numbers and underscore from the beginning of the name (else block) #AL 061020
             if (wsdesc.workspaceType == "FileSystem"): #AL 060520
                 if not(Wts_Table.endswith('.dbf')): #AL 060520
                     Wts_Table += ".dbf";            #AL 060520
+            else:
+                wtsbase = os.path.basename(Wts_Table)
+                while len(wtsbase) > 0 and (wtsbase[:1] <= "9" or wtsbase[:1] == "_"):
+                    wtsbase = wtsbase[1:]
+                Wts_Table = os.path.dirname(Wts_Table) + "\\" + wtsbase
             
             i += 1
             #Wts_Table = gp.Describe(Wts_Table).CatalogPath
