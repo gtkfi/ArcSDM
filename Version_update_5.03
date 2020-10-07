@@ -1,7 +1,7 @@
 Modified ArcSDM tools
 
-Spatial Data Modeler 5 for ArcGis pro, Version ArcSdm 5.02 for ArcGis (Pro and Desktop)
-Updated 13.8.2020
+Spatial Data Modeler 5 for ArcGis pro, Version ArcSdm 5.03 for ArcGis (Pro and Desktop)
+Updated 7.10.2020
   
 Changed tools and other files
 -----------------------------
@@ -10,7 +10,12 @@ These changes have been made in part in collaboration with the University of Uni
 
 Toolbox
 -------
-Grand Wofe start method is modified on Toolbox\ArcSDM.pyt at 9.6.2020
+Toolbox\ArcSDM.pyt modifications:
+9.6.2020: Grand Wofe start method is modified on 
+7.10.2020: Calculate Weights:
+- if the workspace is File Geodatabase (GDB database), the menu code deletes the numbers from the beginning of the Weights Table name and the underscore if there are any at the beginning of the Input Raster name. The name of the Weights Table is formed from the beginning of the name of the Input Raster. In this case, the Weights Table is written as a File Geodatabase table and its name must start with a letter and not a number.
+- if the workspace is a File System folder, the menu code appends the .dbf type extension after the Weights Table name, because in this case the Weights Table is a dBase database table and is written to the workspace folder. In this case, the Weights Table name may also start with numbers, so they will not be deleted.
+7.10.2020: Logistic Regression: The parameter field Evidence type has been changed to a plain text field in which as many letters (a, c, d, or o) must be entered as there are Input Rasters and the letters must be separated by semicolons; as this is consistent with the Grand Wofe tool.
 
 Python files
 ------------
@@ -21,11 +26,17 @@ Unicamp fixes:
 2. Added and try: except: block, for handle errors with xrange().
 3. Replacec .maxint by .maxsize function.
 
+calculateresponse.py 7.10.2020
+If the workspace is File Geodatabase, the tool code removes numbers and underscores from the beginning of the raster names to be written to the database, if there are any at the beginning of the Input Raster name.
+
 calculateresponse.py 23.7.2020
 1. “import missingdatavar_func” fixed to “import arcsdm.missingdatavar_func” (see Issue 74)
 2. The coordinate system of the input raster must be the same as that of the Training points Layer.
 3. When using FileSystem (dBase database) as the workspace, the input data of the Calculate Response tool must have the type extension .dbf in the Input Weights Table name. The tool adds that type extension if it is missing.
 4. The tool uses the arcpy function sequence implemented by Unicamp University unless you use the file system as the workspace in ArcGIS Pro.
+
+calculateweights.py 7.10.2020
+If the workspace is File Geodatabase, the tool code removes numbers from the beginning of the Weights Table name and an underscore if there are any at the beginning of the Input Raster name. This ensures that there are no numbers at the beginning of the name.
 
 calculateweights.py 23.7.2020
 1. Obsolete attributes sys.exc_type and sys.exc_value replaced by sys.exc_info ()
@@ -70,12 +81,24 @@ FuzzyMembership.csv (In the ROC Destination Folder) is an Excel spreadsheet that
 FuzzyOverlay.csv (In the ROC Destination Folder) is an Excel spreadsheet that contains output and output data related to Fuzzy Overlay --- tool execution.
 FuzzyROC.csv (In the ROC Destination Folder) is an Excel spreadsheet that contains the results calculated with the ROC tool.
 
+grand_wofe_lr.py 7.10.2020
+If the workspace is File Geodatabase, the tool code removes the numbers from the beginning of the Weights Table name to be written to the database, and the underscore if there are any at the beginning of the Input Raster name. This is a necessary change because the user is not prompted for the name of the Weights Table as it is asked when using the Calculate Weights tool.
+
 grand_wofe_lr.py 21.7.2020
 1. Logistic Regression does not work in ArcGIS Pro when using the File System as a workspace because gp.JoinField_management does not produce the correct values for Temp_Raster and therefore gp.Combine crashes. For some input rasters, execution does not crash, but the result is incorrect.
 2. Grand Wofe Name cannot be longer than 7 characters because it is used as part of the result raster name which cannot be longer than 13 characters.
 3. The coordinate system of the input raster must be the same as that of the Training points Layer.
 4. Weights table name prefix was formed incorrectly
 5. Obsolete attributes sys.exc_type and sys.exc_value replaced by sys.exc_info ()
+
+logisticregression.py 7.10.2020
+1. os.path.basename (Input_Raster[:9]) has been changed to os.path.basename (Input_Raster)[:9].
+The previous format picked the first 9 characters from the beginning of the folder path of the Input raster. If the Input raster folder path started with a disk ID and a root folder (eg C: \ Users) with a root folder name shorter than 6 characters, that substring pick returned an empty string that caused the error ERROR 999999: Error executing function. The table name is invalid. Failed to execute (Lookup).
+The new format returns the first 9 characters from the beginning of the name part of the Input raster and thus from the beginning of the folder path and the same problem no longer exists. The name does not have to be 9 characters long.
+2. gp.Lookup_sa (Temp_Raster, "GEN_CLASS", Output_Raster) has been changed to Output_Raster = gp.Lookup_sa (Temp_Raster, "GEN_CLASS") because the previous format has expired and did not work after the change in section 1.
+3. The Fortran application sdmlr.exe will not work if the workspace is File System and the length of the Scratch Workspace name exceeds 51 characters. The source code for Fortran is no longer available, but as a former Fortran coder, I think this is too little space for the name of the scratch Workspace to which \ scratch \ logpol.tba is added. In Fortran, a space of a certain size must be reserved for each string, eg CHARACTER * 30 NAME, and strings in excess of that are truncated, leaving the folder reference incomplete. In this case, the error was (path) logpol.tba does not exist. Error in case.dat or param.dat. The Workspace folder name can be longer, but the scratch Workspace folder name cannot be longer than 51 characters.
+4. Text entered in a field called Evidential Theme in the LRcoeff raster is truncated if the length of the text exceeds the maximum length of the field by 256 characters. An error occurred ERROR 999999: Error executing function. The row contains a bad value. [LR_coeff]. The row contains a bad value. [Theme]. in Execute vTabLR2rows.InsertRow (vTabLR2row)
+5. If the workspace is File Geodatabase, the tool code removes numbers and underscores from the beginning of the raster names to be written to the database, if there are any at the beginning of the Input Raster name.
 
 logisticregression.py 21.7.2020
 Logistic Regression does not work in ArcGIS Pro when using the File System as a workspace because gp.JoinField_management does not produce the correct values for Temp_Raster and therefore gp.Combine crashes. For some input rasters, execution does not crash, but the result is incorrect.
