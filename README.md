@@ -36,6 +36,7 @@ Status of the toolbox should be updated to wiki https://github.com/gtkfi/ArcSDM/
 The demodata and the toolbox will be separated from eachother to make downloading easier.<br>
 
 ## History:
+7.10.2020 5.03 fixes to calculateweights, calculateresponse, logisticregression and grandwofe<br>
 14.8.2020 5.02.1 logisticregression works now on Pro 2.6 with file system workspace<br> 
 13.8.2020 5.02 arto-dev branch merged to master branch.<br> 
 23.7.2020 ArcSDM version 5.01.08 in the arto-dev branch.<br>
