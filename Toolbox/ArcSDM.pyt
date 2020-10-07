@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 import arcpy
 
 import arcsdm.sitereduction
@@ -13,7 +13,6 @@ import arcsdm.roctool
 import arcsdm.acterbergchengci
 import arcsdm.rescale_raster;
 from arcsdm.areafrequency import Execute
-import arcsdm.nnoutputfiles
 import arcsdm.nninputfiles
 import arcsdm.grand_wofe_lr
 import arcsdm.fuzzyroc
@@ -1054,8 +1053,19 @@ class CalculateWeightsTool(object):
                     else:
                         char = 'CT'; # Unless it is C, then it is CT... 
                 #Update name accordingly
-                resulttmp = "%WORKSPACE%\\" + name + "_" + char; 
-                parameters[4].value =  resulttmp.replace(".","");  #Remove illegal characters
+                resulttmp = "%WORKSPACE%\\" + name + "_" + char;
+                #parameters[4].value = resulttmp.replace(".","");  #Remove illegal characters
+                resulttmp = resulttmp.replace(".","");
+                #Add .dbf to Weights Table Name if Workspace is not File Geodatabase #AL 250820
+                #If using GDB database, remove numbers and underscore from the beginning of the name (else block) #AL 071020
+                if not ".gdb" in arcpy.env.workspace:
+                    resulttmp = resulttmp + ".dbf"
+                else:
+                    wtsbase = os.path.basename(resulttmp)
+                    while len(wtsbase) > 0 and (wtsbase[:1] <= "9" or wtsbase[:1] == "_"):
+                        wtsbase = wtsbase[1:]
+                    resulttmp = os.path.dirname(resulttmp) + "\\" + wtsbase
+                parameters[4].value = resulttmp
         return
 
     def updateMessages(self, parameters):
@@ -1450,18 +1460,18 @@ class LogisticRegressionTool(object):
         param0.columns = [['GPRasterLayer', 'Evidence raster']]
         
         param1 = arcpy.Parameter(
-        displayName="Evidence type",
+        displayName="Evidence types (use a, c, d, or o and separate by semicolon ;)",
         name="Evidence_Type",
-        datatype="GPValueTable",
+        #datatype="GPValueTable",
+        datatype="String",
         parameterType="Required",
         direction="Input")
-        param1.columns = [['GPString', 'Evidence type']]
-        param1.parameterDependencies = ["0"];
-        
+        #param1.columns = [['GPString', 'Evidence type']]
+        #param1.parameterDependencies = ["0"];
         #param1.filter.type = "ValueList";
         #param1.filter.list = ["o", "c", "a", "d"];
         #param1.value = "o";
-        
+
         paramInputWeights = arcpy.Parameter(
         displayName="Input weights tables",
         name="input_weights_tables",
