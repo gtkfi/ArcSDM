@@ -36,6 +36,7 @@ Status of the toolbox should be updated to wiki https://github.com/gtkfi/ArcSDM/
 The demodata and the toolbox will be separated from eachother to make downloading easier.<br>
 
 ## History:
+16.10.2020 5.03-1 merging fuzzy membership files into fuzzy overlay files rewritten<br> 
 7.10.2020 5.03 fixes to calculateweights, calculateresponse, logisticregression and grandwofe<br>
 14.8.2020 5.02.1 logisticregression works now on Pro 2.6 with file system workspace<br> 
 13.8.2020 5.02 arto-dev branch merged to master branch.<br> 
