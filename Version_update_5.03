@@ -77,11 +77,11 @@ Unicamp fixes:
 2. Added new lines below “for regressor in regressor_names:”
 
 fuzzyroc.py 14.5.2020
-New tool to execute Calculate Weights, Calculate Response and ROCtool together. This tool gets two or more input rasters and one or 
+New tool to execute Fuzzy Membership, Fuzzy Overlay and ROCtool together. This tool gets two or more input rasters and one or 
 more functions and parameters and uses same parameters to each input raster.
 
 fuzzyroc2.py 23.6.2020
-New tool to execute Calculate Weights, Calculate Response and ROCtool together. This tool gets two or more input rasters and one 
+New tool to execute Fuzzy Membership, Fuzzy Overlay and ROCtool together. This tool gets two or more input rasters and one 
 function and parameter combination to each input raster.
 
 Help for both FuzzyROC tools:
