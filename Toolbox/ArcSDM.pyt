@@ -1332,7 +1332,7 @@ class CategoricalAndReclassTool(object):
         except Exception:
             return False  # tool cannot be executed        
         return True
-    
+
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
         validation is performed.  This method is called whenever a parameter
@@ -1417,7 +1417,7 @@ class TOCFuzzificationTool(object):
         except Exception:
             return False  # tool cannot be executed        
         return True
-    
+
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
         validation is performed.  This method is called whenever a parameter
@@ -1680,7 +1680,7 @@ class FuzzyROC(object):
 
         param1.columns = [['String', 'Membership type'], ['String', 'Midpoint Min'], ['String', 'Midpoint Max'], ['String', 'Midpoint Count'], ['String', 'Spread Min'], ['String', 'Spread Max'], ['String', 'Spread Count']]
         param1.filters[0].type = 'ValueList'
-        param1.filters[0].list = ['Gaussian', 'Small', 'Large', 'Near', 'MSLarge', 'MSSmall', 'Linear']
+        param1.filters[0].list = ['Small', 'Large']
         
         param2 = arcpy.Parameter(
         displayName="Fuzzy Overlay Parameters",
@@ -1757,7 +1757,7 @@ class FuzzyROC2(object):
         direction="Input")
         param0.columns = [['GPRasterLayer', 'Input raster name'], ['String', 'Membership type'], ['String', 'Midpoint Min'], ['String', 'Midpoint Max'], ['String', 'Midpoint Count'], ['String', 'Spread Min'], ['String', 'Spread Max'], ['String', 'Spread Count']]
         param0.filters[1].type = 'ValueList'
-        param0.filters[1].list = ['Gaussian', 'Small', 'Large', 'Near', 'MSLarge', 'MSSmall', 'Linear']
+        param0.filters[1].list = ['Small', 'Large']
 
         param1 = arcpy.Parameter(
         displayName="Fuzzy Overlay Parameters",
