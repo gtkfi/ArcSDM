@@ -1760,39 +1760,55 @@ class FuzzyROC2(object):
         param0.filters[1].list = ['Small', 'Large']
 
         param1 = arcpy.Parameter(
-        displayName="Fuzzy Overlay Parameters",
-        name="foparams",
-        datatype="DETable",
-        parameterType="Required",
+        displayName="Draw only Fuzzy Membership plots",
+        name="plots",
+        datatype="GPBoolean",
+        parameterType="Optional",
         direction="Input")
-
-        param1.columns = [['String', 'Overlay type'], ['String', 'Parameter']]
-        param1.filters[0].type = 'ValueList'
-        param1.filters[0].list = ['And', 'Or', 'Product', 'Sum', 'Gamma']
+        param1.value = False;
         
         param2 = arcpy.Parameter(
-        displayName="ROC True Positives Feature Class",
+        displayName="\nTrue Positives Feature Class",
         name="truepositives",
         datatype="DEFeatureClass",
         parameterType="Required",
         direction="Input")
 
         param3 = arcpy.Parameter(
-        displayName="ROC Destination Folder",
-        name="dest_folder",
+        displayName="Output Folder",
+        name="output_folder",
         datatype="DEFolder",
         parameterType="Required",
         direction="Input")
         param3.filter.list = ["File System"]
 
-        #param4 = arcpy.Parameter(
-        #displayName="Plot membership curves only",
-        #name="plots",
-        #datatype="GPBoolean",
-        #parameterType="Optional",
-        #direction="Input")
+        param4 = arcpy.Parameter(
+        displayName="Fuzzy Overlay Parameters",
+        name="foparams",
+        datatype="DETable",
+        parameterType="Required",
+        direction="Input",
+        enabled=True,
+        category="Calculation")
 
-        params = [param0, param1, param2, param3] #, param4]
+        param4.columns = [['String', 'Overlay type'], ['String', 'Parameter']]
+        param4.filters[0].type = 'ValueList'
+        param4.filters[0].list = ['And', 'Or', 'Product', 'Sum', 'Gamma']
+        param4.values = [['And', '0']]
+
+        param5 = arcpy.Parameter(
+        displayName="Plot display method",
+        name="display_method",
+        datatype="GPString",
+        parameterType="Required",
+        direction="Input",
+        enabled=False,
+        category='Plotting')
+        param5.filter.type = "ValueList";
+        param5.filter.list = ["To Window(s)", "To PDF file(s)", "To PNG file(s)"];
+        param5.value = "To Window(s)";
+
+        params = [param0, param1, param2, param3, param4, param5]
         return params
 
     def isLicensed(self):    
@@ -1808,6 +1824,13 @@ class FuzzyROC2(object):
         """Modify the values and properties of parameters before internal
         validation is performed.  This method is called whenever a parameter
         has been changed."""
+        if (parameters[1].value):
+            parameters[4].enabled = False
+            parameters[5].enabled = True
+        else:
+            parameters[4].enabled = True
+            parameters[5].enabled = False
+        return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
