@@ -3,8 +3,11 @@
 # Kimmo Korhonen / GTK
 # Arto Laiho / GTK 12.5.2020 / added pylab.close('all') to prevent "More than 20 figures have been opened." error
 
-import pylab
 import matplotlib
+
+matplotlib.use("Agg")
+
+import pylab
 import arcpy
 import numpy
 import os
