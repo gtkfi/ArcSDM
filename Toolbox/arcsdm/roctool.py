@@ -24,8 +24,6 @@ NUM_COLORS = len(COLOR_TABLE)
 
 def execute(self, parameters, messages):
 
-    messages.addMessage("New ROC Tool V1")
-
     positives_param, negatives_param, models_param, output_param = parameters
 
     arcpy.env.workspace = output_param.valueAsText
@@ -319,55 +317,22 @@ class RasterSampler:
         self.pixel_width = (self.x1 - self.x0) / raster.width
         self.pixel_height = (self.y1 - self.y0) / raster.height
         
-        #if raster.isInteger:
-        #    self.pixel_values = arcpy.RasterToNumPyArray(raster, nodata_to_value=self.NO_DATA_VALUE)
-        #else:
-        #    self.pixel_values = arcpy.RasterToNumPyArray(raster, nodata_to_value=numpy.nan)
-
-    #def SampleOld(self, x, y):
-    #    cols = numpy.floor((x - self.x0) / self.pixel_width).astype(int)
-    #    rows = numpy.floor((y - self.y0) / self.pixel_height).astype(int)
-
-    #    if self.raster.isInteger:
-    #        z = numpy.ones(len(x)) * self.NO_DATA_VALUE
-    #    else:
-    #        z = numpy.ones(len(x)) * numpy.nan
-
-    #    k = numpy.nonzero((cols >= 0) & (rows >= 0) & (cols < self.num_cols) & (rows < self.num_rows))[0]
-    #    z[k] = self.pixel_values[rows[k], cols[k]]
-
-    #    numpy.savetxt("old.txt", numpy.vstack((x,y,z)).T)
-
-    #    if self.raster.isInteger:
-    #        x, y, z = x[z != self.NO_DATA_VALUE], y[z != self.NO_DATA_VALUE], z[z != self.NO_DATA_VALUE]
-    #    else:
-    #        x, y, z = x[~numpy.isnan(z)], y[~numpy.isnan(z)], z[~numpy.isnan(z)]
-
-    #    return x, y, z
+        if raster.isInteger:
+            self.pixel_values = arcpy.RasterToNumPyArray(raster, nodata_to_value=self.NO_DATA_VALUE)
+        else:
+            self.pixel_values = arcpy.RasterToNumPyArray(raster, nodata_to_value=numpy.nan)
 
     def Sample(self, x, y):
+        cols = numpy.floor((x - self.x0) / self.pixel_width).astype(int)
+        rows = numpy.floor((y - self.y0) / self.pixel_height).astype(int)
+
         if self.raster.isInteger:
             z = numpy.ones(len(x)) * self.NO_DATA_VALUE
         else:
             z = numpy.ones(len(x)) * numpy.nan
 
-        cols = numpy.floor((x - self.x0) / self.pixel_width).astype(int)
-        rows = numpy.floor((y - self.y0) / self.pixel_height).astype(int)
-
-        _x = self.x0 + cols * self.pixel_width
-        _y = self.y0 + rows * self.pixel_height
-
-        k = numpy.nonzero((cols >= 0) & (rows >= 0) & (cols < self.num_cols) & (rows < self.num_rows))[0]
-
-        for i in range(len(k)):
-            lower_left_corner = arcpy.Point(_x[k[i]], _y[k[i]])
-            _col = int((x[k[i]] - self.x0) / self.pixel_width)
-            _row = int((y[k[i]] - self.y0) / self.pixel_height)
-            print(_row, _col)
-            if self.raster.isInteger:
-                z[k[i]] = arcpy.RasterToNumPyArray(self.raster, lower_left_corner=lower_left_corner, ncols=1, nrows=1, nodata_to_value=self.NO_DATA_VALUE)
-            else:
-                z[k[i]] = arcpy.RasterToNumPyArray(self.raster, lower_left_corner=lower_left_corner, ncols=1, nrows=1, nodata_to_value=numpy.nan)
+        i = numpy.nonzero((cols >= 0) & (rows >= 0) & (cols < self.num_cols) & (rows < self.num_rows))
+        z[i] = self.pixel_values[rows[i], cols[i]]
 
         if self.raster.isInteger:
             x, y, z = x[z != self.NO_DATA_VALUE], y[z != self.NO_DATA_VALUE], z[z != self.NO_DATA_VALUE]
@@ -396,64 +361,23 @@ class RasterSampler:
 
         return coords[:,0], coords[:,1], values
 
-def PrintSpatialReference(sref, messages):
-    messages.addMessage("projectionName = %s" % sref.projectionName)
-    messages.addMessage("flattening = %s" % sref.flattening)
-    messages.addMessage("semiMajorAxis = %s" % sref.semiMajorAxis)
-    messages.addMessage("longitude = %s" % sref.longitude)
-    messages.addMessage("falseEasting = %s" % sref.falseEasting)
-    messages.addMessage("falseNorthing = %s" % sref.falseNorthing)
-    messages.addMessage("centralMeridian = %s" % sref.centralMeridian)
-    messages.addMessage("scaleFactor = %s" % sref.scaleFactor)
-    messages.addMessage("latitudeOfOrigin = %s" % sref.latitudeOfOrigin)
-
 def SpatialReferencesAreEqual(sref1, sref2, messages):
-    PrintSpatialReference(sref1, messages)
-    PrintSpatialReference(sref2, messages)
-    #if sref1.flattening != sref2.flattening:
-    #    return False
-    #if sref1.semiMajorAxis != sref2.semiMajorAxis:
-    #    return False
-    #if sref1.longitude != sref2.longitude:
-    #    return False
-    #if sref1.projectionName != sref2.projectionName:
-    #    return False
-    #if sref1.falseEasting != sref2.falseEasting:
-    #    return False
-    #if sref1.falseNorthing != sref2.falseNorthing:
-    #    return False
-    #if sref1.centralMeridian != sref2.centralMeridian:
-    #    return False
-    #if sref1.scaleFactor != sref2.scaleFactor:
-    #    return False
-    #if sref1.latitudeOfOrigin != sref2.latitudeOfOrigin:
-    #    return False
-    if numpy.abs(sref1.flattening - sref2.flattening) > 1e-6:
+    if sref1.flattening != sref2.flattening:
         return False
-    if numpy.abs(sref1.semiMajorAxis - sref2.semiMajorAxis) > 1e-6:
+    if sref1.semiMajorAxis != sref2.semiMajorAxis:
         return False
-    if numpy.abs(sref1.longitude - sref2.longitude) > 1e-6:
-        return False
-    if numpy.abs(sref1.falseEasting - sref2.falseEasting) > 1e-6:
-        return False
-    if numpy.abs(sref1.falseNorthing - sref2.falseNorthing) > 1e-6:
-        return False
-    if numpy.abs(sref1.centralMeridian - sref2.centralMeridian) > 1e-6:
-        return False
-    if numpy.abs(sref1.scaleFactor - sref2.scaleFactor) > 1e-6:
-        return False
-    if numpy.abs(sref1.latitudeOfOrigin - sref2.latitudeOfOrigin) > 1e-6:
+    if sref1.longitude != sref2.longitude:
         return False
     if sref1.projectionName != sref2.projectionName:
         return False
+    if sref1.falseEasting != sref2.falseEasting:
+        return False
+    if sref1.falseNorthing != sref2.falseNorthing:
+        return False
+    if sref1.centralMeridian != sref2.centralMeridian:
+        return False
+    if sref1.scaleFactor != sref2.scaleFactor:
+        return False
+    if sref1.latitudeOfOrigin != sref2.latitudeOfOrigin:
+        return False
     return True
-
-
-#if __name__ == "__main__":
-#    x_pos, y_pos = coords = FetchCoordinates(r"E:\Work\ROC_Toolbox_New\pos.shp").T
-#    raster = arcpy.sa.Raster(r"E:\Work\ROC_Toolbox_New\fuzgam1")
-#    sampler = RasterSampler(raster)
-#    x1, y1, z1 = numpy.array(sampler.SampleOld(x_pos, y_pos))
-#    x2, y2, z2 = numpy.array(sampler.Sample(x_pos, y_pos))
-#    print(len(x1), len(x2))
-#    numpy.savetxt("output.txt", numpy.vstack((samples_old, samples_new)).T)
