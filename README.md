@@ -3,16 +3,16 @@ Spatial Data Modeler 5 for ArcGis pro<Br>
 
 ## How to get started? <br>
 
-Standard toolbox of ArcSDM 5 works on ArcGis Desktop 10.3-10.7.1, however Experimental toolbox requires components that cannot be installed on ArcGis desktop and doesn't work. ArcGis pro is supported from version 2.5+ forward.
+Standard toolbox of ArcSDM 5 works on ArcGis Desktop 10.3-10.7.1, however the Experimental toolbox requires components that cannot be installed on ArcGis desktop and doesn't work. ArcGis pro is supported from version 2.5+ forward.
 
 
-If you want to work against your own data, you can download just the toolbox. If you want to try, evaluate and experiment with ArcSdm you can download our demodata separately from the main package. <br>
+If you want to work on your own data, you can download just the toolbox. If you want to try, evaluate and experiment with ArcSDM you can download our demodata separately from the main package. <br>
 
 ArcSDM wiki contains upto date howtopage: https://github.com/gtkfi/ArcSDM/wiki/Howto-start
 
 
 ### Toolbox <br>
-Click "Clone or download" and select suitable download option for you. "Download Zip" is the safe and easy choice, just open the zip anywhere you like and add the toolbox to ArcGis (Desktop or Pro). <br>
+Click "Clone or download" and select the suitable download option for you. "Download Zip" is the safe and easy choice, just open the zip anywhere you like and add the toolbox to ArcGis (Desktop or Pro). <br>
 
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=w-EAv2A2jOM
 " target="_blank"><img src="http://img.youtube.com/vi/w-EAv2A2jOM/0.jpg" 
