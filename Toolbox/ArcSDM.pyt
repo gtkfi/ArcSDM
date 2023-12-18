@@ -1110,8 +1110,7 @@ class SiteReductionTool(object):
         datatype="GPDouble",
         parameterType="Optional",
         direction="Input")
-        
-# Tämä vois olla hyvinkin valintalaatikko?
+
         param3 = arcpy.Parameter(
         displayName="Random selection",
         name="Random_selection",
@@ -1142,39 +1141,31 @@ class SiteReductionTool(object):
             if arcpy.CheckExtension("Spatial") != "Available":
                 raise Exception
         except Exception:
-            return False  # tool cannot be executed        
+            return False
         return True
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
         validation is performed.  This method is called whenever a parameter
         has been changed."""
-        if parameters[1].value == True:
-            parameters[2].enabled = True;
-        else:
-            parameters[2].enabled = False;            
-            
-        if parameters[3].value == True:
-            parameters[4].enabled = True;
-        
-        else:
-            parameters[4].enabled = False;  
+
+        parameters[2].enabled = parameters[1].value
+        parameters[4].enabled = parameters[3].value
+
         return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
-        l = 0;
+        parameter. This method is called after internal validation."""
+        l = 0
         
         if parameters[1].value == True:
-            #parameters[4].setErrorMessage("Random percentage value required!")
-            l = l + 1;
+            l = l + 1
             if parameters[2].value == '' or  parameters[2].value is None:
                 parameters[2].setErrorMessage("Thinning value required!")
                 
         if parameters[3].value == True:
-            l = l + 1;            
-            #parameters[4].setErrorMessage("Random percentage value required!")
+            l = l + 1
             if parameters[4].value == '' or  parameters[4].value is None:
                 parameters[4].setErrorMessage("Random percentage value required!")
             elif parameters[4].value > 100 or parameters[4].value < 1:
@@ -1193,13 +1184,7 @@ class SiteReductionTool(object):
         try:
             importlib.reload (arcsdm.sitereduction)
         except :
-            reload(arcsdm.sitereduction);
-        # To list what functions does module contain
-        #messages.addWarningMessage(dir(arcsdm.SiteReduction));
-        #arcsdm.CalculateWeights.Calculate(self, parameters, messages);
-        #messages.AddMessage("Waiting for debugger")
-        #wait_for_debugger(15);
-        #No do yet
+            reload(arcsdm.sitereduction)
         arcsdm.sitereduction.ReduceSites(self, parameters, messages)
         return
         
