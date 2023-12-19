@@ -9,54 +9,51 @@
 # 30.6.2016 As python toolbox tool module
 # 8.8.2016 AG Desktop compatibility TR
 # 13.7.2017 Check for non raster masks TR
-#
- 
+
+import sys, string, os, math, traceback
+import arcgisscripting
+import arcpy
+import math
+
 def ReduceSites(self, parameters, messages):
-    import sys, string, os, math, traceback
-    import arcgisscripting
-    import arcpy;
-    import math;
-    messages.addMessage("Starting sites reduction");
-    messages.addMessage("------------------------------");
- 
-    # Process: Missing Data Variance...
+    messages.addMessage("Starting sites reduction")
+    messages.addMessage("------------------------------")
+
     try:
-        #gp.AddMessage("Point 1");
-         
         TrainPts = parameters[0].valueAsText
         OutputPts = parameters[5].valueAsText
 
-        messages.addMessage("%-20s %s" % ("Training points:", TrainPts));
-        arcpy.SelectLayerByAttribute_management (TrainPts) 
-        #gp.AddMessage("%s All Selected = %s"%(TrainPts,str(gp.GetCount_management(TrainPts))))
+        messages.addMessage("%-20s %s" % ("Training points:", TrainPts))
+
+        arcpy.management.SelectLayerByAttribute(TrainPts)
+
         #Get initial selection within mask
-        maskpolygon = arcpy.env.mask;
+        maskpolygon = arcpy.env.mask
         if maskpolygon is None:
-            #messages.addErrorMessage("Mask doesn't exist! Set Mask under Analysis/Environments.");
             raise arcpy.ExecuteError("Mask doesn't exist! Set Mask under Analysis/Environments.")
            
         if not arcpy.Exists(arcpy.env.mask):
-            #messages.addErrorMessage("Mask doesn't exist! Set Mask under Analysis/Environments.");
-            raise arcpy.ExecuteError("Mask doesn't exist! Set Mask under Analysis/Environments.");
-        maskname = arcpy.Describe(arcpy.env.mask).Name;
+            raise arcpy.ExecuteError("Mask doesn't exist! Set Mask under Analysis/Environments.")
+        maskname = arcpy.Describe(arcpy.env.mask).Name
         
-        messages.AddMessage("%-20s %s" % ("Scratch workspace:",  arcpy.env.scratchWorkspace));
-        maskpolygon = arcpy.env.mask;
-        messages.AddMessage("%-20s %s" % ("Using mask:", maskname));
-        messages.AddMessage("%-20s %s" % ("Mask type:", arcpy.Describe(arcpy.env.mask).dataType));
+        messages.AddMessage("%-20s %s" % ("Scratch workspace:",  arcpy.env.scratchWorkspace))
+        maskpolygon = arcpy.env.mask
+        messages.AddMessage("%-20s %s" % ("Using mask:", maskname))
+        messages.AddMessage("%-20s %s" % ("Mask type:", arcpy.Describe(arcpy.env.mask).dataType))
         messages.AddMessage("%-20s %s" % ("Selection layer:",OutputPts))
+
         if not arcpy.Exists(maskpolygon):
             raise arcpy.ExecuteError ("Mask doesn't exist - aborting");
             
-        datatype = arcpy.Describe(arcpy.env.mask).dataType;
+        datatype = arcpy.Describe(arcpy.env.mask).dataType
         if (datatype != "FeatureLayer"):
-            raise arcpy.ExecuteError("Reduce training points tool requires mask of type 'FeatureLayer!'");
-            
+            raise arcpy.ExecuteError("Reduce training points tool requires mask of type 'FeatureLayer!'")
+
         #This fails with raster mask:
-        arcpy.MakeFeatureLayer_management(maskpolygon, maskname)
+        arcpy.management.MakeFeatureLayer(maskpolygon, maskname)
         #maskname = maskname + "_tmp";
         #arcpy.MakeRasterLayer_management(maskpolygon, maskname)
-        
+
         arcpy.SelectLayerByLocation_management(TrainPts, 'CONTAINED_BY', maskname, "#", 'SUBSET_SELECTION')
         tpcount = arcpy.GetCount_management(TrainPts)
         #messages.AddMessage("debug: Selected by mask = "+str(tpcount))
