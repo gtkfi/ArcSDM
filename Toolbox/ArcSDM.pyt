@@ -1124,6 +1124,9 @@ class SiteReductionTool(object):
         datatype="GPLong",
         parameterType="Optional",
         direction="Input")
+
+        param4.filter.type = "Range"
+        param4.filter.list = [1, 100]
         
         param5 = arcpy.Parameter(
         displayName="Save selection as a new layer",
@@ -1157,23 +1160,18 @@ class SiteReductionTool(object):
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
         parameter. This method is called after internal validation."""
-        l = 0
-        
-        if parameters[1].value == True:
-            l = l + 1
-            if parameters[2].value == '' or  parameters[2].value is None:
-                parameters[2].setErrorMessage("Thinning value required!")
-                
-        if parameters[3].value == True:
-            l = l + 1
-            if parameters[4].value == '' or  parameters[4].value is None:
-                parameters[4].setErrorMessage("Random percentage value required!")
-            elif parameters[4].value > 100 or parameters[4].value < 1:
-                parameters[4].setErrorMessage("Value has to between 1-100 %!")
+
+        if not (parameters[1].value or parameters[3].value):
+            parameters[1].setErrorMessage("You have to select at least one!")
+            parameters[3].setErrorMessage("You have to select at least one!")
+        else:
+            if parameters[1].value:
+                if not parameters[2].valueAsText:
+                    parameters[2].setErrorMessage("Thinning value required!")
             
-        if (l < 1):
-            parameters[1].setErrorMessage("You have to select either one!")
-            parameters[3].setErrorMessage("You have to select either one!")
+            if parameters[3].value:
+                if not parameters[4].valueAsText:
+                    parameters[4].SetErrorMessage("Percentage value required!")
         
         return
 
