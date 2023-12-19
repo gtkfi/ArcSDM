@@ -23,6 +23,12 @@ def ReduceSites(self, parameters, messages):
         TrainPts = parameters[0].valueAsText
         OutputPts = parameters[5].valueAsText
 
+        is_thinning_selection_selected = parameters[1].value if parameters[1].value is not None else False
+        unit_area_sq_km = parameters[2].value if parameters[2].value is not None else 0.0
+
+        is_random_selection_selected = parameters[3].value if parameters[3].value is not None else False
+        percentage = parameters[4].value if parameters[4].value is not None else 100
+
         messages.addMessage("%-20s %s" % ("Training points:", TrainPts))
 
         arcpy.management.SelectLayerByAttribute(TrainPts)
@@ -62,16 +68,15 @@ def ReduceSites(self, parameters, messages):
         #messages.addMessage("debug: thin: = " + str(thin)) ;
         if thin:
             UnitArea = parameters[2].value
-        random = parameters[3].valueAsText == 'true'
         
         #SDMValues.appendSDMValues(gp, UnitArea, TrainPts)
         # This is used to test if OID is OBJECTID or FID
         field_names = [f.name for f in arcpy.ListFields(TrainPts)]
         
         if ('OBJECTID' in field_names):    
-            messages.AddMessage("Object contains OBJECTID and is geodatabase feature");
+            messages.AddMessage("Object contains OBJECTID and is geodatabase feature")
         else:
-            messages.AddMessage("Object contains FID and is of type shape");
+            messages.AddMessage("Object contains FID and is of type shape")
 
         if thin:
             #Get minimum allowable distance in meters based on Unit Area
@@ -270,9 +275,9 @@ def ReduceSites(self, parameters, messages):
             messages.AddMessage("Selected by thinning = " + str(arcpy.GetCount_management(TrainPts)) + "/" + str(total_amount_of_points )  )
 
     #Random site reduction can take place after thinning
-        if random:
+        if is_random_selection_selected:
             from random import Random
-            randomcutoff = float(parameters[4].valueAsText)
+            randomcutoff = float(percentage)
             #Make this validator thing...
             if randomcutoff >= 1 and randomcutoff <= 100:
                 randomcutoff = randomcutoff / 100.0
