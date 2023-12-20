@@ -22,7 +22,7 @@ def ReduceSites(self, parameters, messages):
 
     try:
         input_features = parameters[0].valueAsText
-        output_feature = parameters[5].valueAsText
+        output_features = parameters[5].valueAsText
 
         is_thinning_selection_selected = parameters[1].value if parameters[1].value is not None else False
         unit_area_sq_km = parameters[2].value if parameters[2].value is not None else 0.0
@@ -72,17 +72,28 @@ def ReduceSites(self, parameters, messages):
             partition = percentage / 100.0
             cutoff = int(partition * len(training_sites)) # Rounded down to ensure within index
             
+            clause = "OBJECTID = "
+
             selected_count = 0
             for key in training_sites:
                 if selected_count == cutoff:
                     break
 
-                arcpy.management.SelectLayerByAttribute(input_features, "ADD_TO_SELECTION", f"OBJECTID = {training_sites[key]}")
-                arcpy.AddMessage(f"Training site: {str(training_sites[key])}")
+                if selected_count == 0:
+                    clause += str(training_sites[key])
+                else:
+                    clause += f" or OBJECTID = {training_sites[key]}"
+
                 selected_count += 1
+
+            arcpy.management.SelectLayerByAttribute(input_features, "ADD_TO_SELECTION", clause)
+            if output_features:
+                arcpy.management.CopyFeatures(input_features, output_features)
 
         # Finally, clear selection
         arcpy.management.SelectLayerByAttribute(input_features, "CLEAR_SELECTION")
+
+        arcpy.SetParameterAsText(5, output_features)
 
     except arcpy.ExecuteError:
         e = sys.exc_info()[1]
