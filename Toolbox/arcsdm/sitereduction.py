@@ -38,10 +38,21 @@ def ReduceSites(self, parameters, messages):
                 raise arcpy.ExecuteError("Mask doesn't exist! Set Mask under Analysis/Environments.")
 
             mask_type = arcpy.Describe(mask).dataType
-            if mask_type not in ["FeatureLayer", "FeatureClass"]:
-                raise arcpy.ExecuteError("Reduce training points tool requires mask of type 'FeatureLayer' or 'FeatureClass'!")
 
-            arcpy.management.SelectLayerByLocation(input_features, "COMPLETELY_WITHIN", mask)
+            if mask_type in ["FeatureLayer", "FeatureClass"]:
+                arcpy.management.SelectLayerByLocation(input_features, "COMPLETELY_WITHIN", mask)
+            elif mask_type in ["RasterLayer", "RasterDataset"]:
+                # We need to convert the raster to a feature, since SelectLayerByLocation requires features
+                tmp_mask = str(mask) + "_tmp_feature"
+
+                # If the conversion seems slow with more complicated rasters, set max_vertices_per_feature
+                arcpy.conversion.RasterToPolygon(mask, tmp_mask)
+                arcpy.management.SelectLayerByLocation(input_features, "COMPLETELY_WITHIN", tmp_mask)
+                # Delete the temporary layer
+                arcpy.management.Delete(tmp_mask)
+            else:
+                raise arcpy.ExecuteError(f"Mask has forbidden data type: {mask_type}!")
+
         else:
             arcpy.management.SelectLayerByAttribute(input_features)
 
@@ -55,7 +66,7 @@ def ReduceSites(self, parameters, messages):
         training_sites = dict(sorted(training_sites.items()))
 
         # Finally, clear selection
-        #arcpy.management.SelectLayerByAttribute(input_features, "CLEAR_SELECTION")
+        arcpy.management.SelectLayerByAttribute(input_features, "CLEAR_SELECTION")
 
     except arcpy.ExecuteError:
         e = sys.exc_info()[1]
