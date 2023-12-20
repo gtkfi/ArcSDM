@@ -56,10 +56,11 @@ def ReduceSites(self, parameters, messages):
         else:
             arcpy.management.SelectLayerByAttribute(input_features)
 
+        identifier = get_identifier(input_features)
+
         training_sites = dict()
 
-        # TODO: select by fields instead of selecting all
-        with arcpy.da.SearchCursor(input_features, "OID@") as features:
+        with arcpy.da.SearchCursor(input_features, identifier) as features:
             for feature in features:
                 training_sites[random.random()] = feature[0]
 
@@ -72,7 +73,7 @@ def ReduceSites(self, parameters, messages):
             partition = percentage / 100.0
             cutoff = int(partition * len(training_sites)) # Rounded down to ensure within index
             
-            clause = "OBJECTID = "
+            clause = f"{identifier} = "
 
             selected_count = 0
             for key in training_sites:
@@ -82,12 +83,13 @@ def ReduceSites(self, parameters, messages):
                 if selected_count == 0:
                     clause += str(training_sites[key])
                 else:
-                    clause += f" or OBJECTID = {training_sites[key]}"
+                    clause += f" or {identifier} = {training_sites[key]}"
 
                 selected_count += 1
 
             arcpy.management.SelectLayerByAttribute(input_features, "ADD_TO_SELECTION", clause)
-            if output_features:
+        
+        if output_features:
                 arcpy.management.CopyFeatures(input_features, output_features)
 
         # Finally, clear selection
@@ -106,3 +108,15 @@ def ReduceSites(self, parameters, messages):
         tb_info = traceback.format_tb(tb)[0]
         error_message = f"PYTHON ERRORS:\nTraceback Info:\n{tb_info}\nError Info:\n{e[0]}: {e[1]}\n"
         messages.AddError(error_message)
+
+
+def get_identifier(input_features):
+    field_names = [f.name for f in arcpy.ListFields(input_features)]
+
+    if "OBJECTID" in field_names:
+        return "OBJECTID"
+    
+    if "FID" in field_names:
+        return "FID"
+    
+    raise arcpy.ExecuteError("Check input feature attributes! The training points have no OBJECTID or FID.")
