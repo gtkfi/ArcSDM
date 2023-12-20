@@ -59,11 +59,27 @@ def ReduceSites(self, parameters, messages):
         training_sites = dict()
 
         # TODO: select by fields instead of selecting all
-        with arcpy.da.SearchCursor(input_features, "*") as features:
+        with arcpy.da.SearchCursor(input_features, "OID@") as features:
             for feature in features:
-                training_sites[random.random()] = feature
+                training_sites[random.random()] = feature[0]
 
         training_sites = dict(sorted(training_sites.items()))
+
+        # Clear selection
+        arcpy.management.SelectLayerByAttribute(input_features, "CLEAR_SELECTION")
+
+        if is_random_selection_selected:
+            partition = percentage / 100.0
+            cutoff = int(partition * len(training_sites)) # Rounded down to ensure within index
+            
+            selected_count = 0
+            for key in training_sites:
+                if selected_count == cutoff:
+                    break
+
+                arcpy.management.SelectLayerByAttribute(input_features, "ADD_TO_SELECTION", f"OBJECTID = {training_sites[key]}")
+                arcpy.AddMessage(f"Training site: {str(training_sites[key])}")
+                selected_count += 1
 
         # Finally, clear selection
         arcpy.management.SelectLayerByAttribute(input_features, "CLEAR_SELECTION")
