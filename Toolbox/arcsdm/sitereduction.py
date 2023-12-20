@@ -21,7 +21,7 @@ def ReduceSites(self, parameters, messages):
     messages.addMessage("------------------------------")
 
     try:
-        input_feature = parameters[0].valueAsText
+        input_features = parameters[0].valueAsText
         output_feature = parameters[5].valueAsText
 
         is_thinning_selection_selected = parameters[1].value if parameters[1].value is not None else False
@@ -30,7 +30,24 @@ def ReduceSites(self, parameters, messages):
         is_random_selection_selected = parameters[3].value if parameters[3].value is not None else False
         percentage = parameters[4].value if parameters[4].value is not None else 100
 
-        messages.AddMessage(f"Training points: {input_feature}")
+        messages.AddMessage(f"Training points: {input_features}")
+
+        if arcpy.env.mask:
+            arcpy.management.SelectLayerByLocation(input_features, "COMPLETELY_WITHIN", arcpy.env.mask)
+        else:
+            arcpy.management.SelectLayerByAttribute(input_features)
+
+        training_sites = dict()
+
+        # TODO: select by fields instead of selecting all
+        with arcpy.da.SearchCursor(input_features, "*") as features:
+            for feature in features:
+                training_sites[random.random()] = feature
+
+        training_sites = dict(sorted(training_sites.items()))
+
+        # Finally, clear selection
+        arcpy.management.SelectLayerByAttribute(input_features, "CLEAR_SELECTION")
 
     except arcpy.ExecuteError:
         e = sys.exc_info()[1]
