@@ -32,8 +32,16 @@ def ReduceSites(self, parameters, messages):
 
         messages.AddMessage(f"Training points: {input_features}")
 
-        if arcpy.env.mask:
-            arcpy.management.SelectLayerByLocation(input_features, "COMPLETELY_WITHIN", arcpy.env.mask)
+        mask = arcpy.env.mask
+        if mask:
+            if not arcpy.Exists(mask):
+                raise arcpy.ExecuteError("Mask doesn't exist! Set Mask under Analysis/Environments.")
+
+            mask_type = arcpy.Describe(mask).dataType
+            if mask_type not in ["FeatureLayer", "FeatureClass"]:
+                raise arcpy.ExecuteError("Reduce training points tool requires mask of type 'FeatureLayer' or 'FeatureClass'!")
+
+            arcpy.management.SelectLayerByLocation(input_features, "COMPLETELY_WITHIN", mask)
         else:
             arcpy.management.SelectLayerByAttribute(input_features)
 
@@ -47,7 +55,7 @@ def ReduceSites(self, parameters, messages):
         training_sites = dict(sorted(training_sites.items()))
 
         # Finally, clear selection
-        arcpy.management.SelectLayerByAttribute(input_features, "CLEAR_SELECTION")
+        #arcpy.management.SelectLayerByAttribute(input_features, "CLEAR_SELECTION")
 
     except arcpy.ExecuteError:
         e = sys.exc_info()[1]
