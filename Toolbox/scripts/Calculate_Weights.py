@@ -1,31 +1,32 @@
-"""
-    ArcSDM 5 Weights of evidence - Calculate Weights 
-    Converted to ArcGis Pro 1.2
+""" ArcSDM 6 ToolBox for ArcGIS Pro
 
-    Tero Rönkkö, Geological survey of Finland 2016
+Conversion and tool development for ArcGIS Pro by Geological Survey of Finland (GTK), 2024.
 
-    Spatial Data Modeller for ESRI* ArcGIS 9.3
-    Copyright 2009
-    Gary L Raines, Reno, NV, USA: production and certification
-    Don L Sawatzky, Spokane, WA, USA: Python software development
+Weights of Evidence - Calculate Weights 
+   
+Spatial Data Modeller for ESRI* ArcGIS 9.3
+Copyright 2009
+Gary L Raines, Reno, NV, USA: production and certification
+Don L Sawatzky, Spokane, WA, USA: Python software development
 
-    Ascending or Descending:  Calculates accumulative Wts for accumulative row areas and num points
-        for ascending or descending classes both with ascending counts.
+Ascending or Descending:  Calculates accumulative Wts for accumulative row areas and num points
+    for ascending or descending classes both with ascending counts.
     
-    Categorical: Calculates Wts for each row, then reports those Wts for rows having >= Confidence.
-        For rows having < Confidence, Wts are produced from sum of row areas and num points of
-        classes < Confidence.
+Categorical: Calculates Wts for each row, then reports those Wts for rows having >= Confidence.
+    For rows having < Confidence, Wts are produced from sum of row areas and num points of
+    classes < Confidence.
 
-    Required Input(0): Integer raster dataset
-    Optional Input(1): Attribute field name
-    Required Input(2): Points feature class
-    Required Input - Output type(3): Ascending, Descending, Categorical, Unique
-    Required Output (4): Weights table
-    Required Input(5): Confident_Contrast
-    Required Input(6):  Unitarea
-    Required Input(7): MissingDataValue
-    Derived Output(8) - Success of calculation, whether Valid table: True or False
+Required Input(0): Integer raster dataset
+Optional Input(1): Attribute field name
+Required Input(2): Points feature class
+Required Input - Output type(3): Ascending, Descending, Categorical, Unique
+Required Output (4): Weights table
+Required Input(5): Confident_Contrast
+Required Input(6):  Unitarea
+Required Input(7): MissingDataValue
+Derived Output(8) - Success of calculation, whether Valid table: True or False
 """
+
 # Import system modules
 import sys, os, traceback
 import math

@@ -1,19 +1,19 @@
 
-""" SDM Values / ArcSDM 5 for ArcGis 
-    conversion by Tero Ronkko / Geological survey of Finland 2016
-    
-    History: 
-    27.9.2016 Output cleaned and getMaskSize fixed
-    21.4-15.5.2020 added cell size numeric value check, RasterBand and some value checks / Arto Laiho, Geological survey of Finland
-    21.7.2020 combined with Unicamp fixes (made 24.10.2018) / Arto Laiho, GTK/GFS
+""" SDM Values / ArcSDM 6 ToolBox for ArcGIS Pro
+
+Conversion and tool development for ArcGIS Pro by Geological Survey of Finland (GTK), 2024.
+
+History: 
+27.9.2016 Output cleaned and getMaskSize fixed
+21.4-15.5.2020 added cell size numeric value check, RasterBand and some value checks / Arto Laiho, Geological survey of Finland
+21.7.2020 combined with Unicamp fixes (made 24.10.2018) / Arto Laiho, GTK/GFS
 
 A function to append Spatial Data Modeller parameters to Geoprocessor History
-    for those SDM tools that have the following values:
-    gp: geoprocessor object
-    unitCell: unit cell area in sq km
-    TrainPts: training sites Points feature class
+for those SDM tools that have the following values:
+gp: geoprocessor object
+unitCell: unit cell area in sq km
+TrainPts: training sites Points feature class
 """
-
 
 import traceback, sys
 from arcsdm.exceptions import SDMError
@@ -29,7 +29,6 @@ ToMetric = {
     'square miles to square kilometers' : 2.589988110647
     }
     
-
 debuglevel = 0;
 
 #This is initially -1
@@ -51,7 +50,6 @@ def dwrite(message):
     if (debuglevel > 0 or debug > 0):
         arcpy.AddMessage("Debug: " + message)    
     
-
 def execute(self, parameters, messages):
     #Obsolete, needs refactoring!
     dwrite ("Starting sdmvalues");
@@ -60,8 +58,7 @@ def execute(self, parameters, messages):
     Unitarea = float( parameters[1].value)        
     appendSDMValues(gp,  Unitarea, TrainingSites)
     arcpy.AddMessage("\n" + "="*40);
-    arcpy.AddMessage("\n")       
-    
+    arcpy.AddMessage("\n")
 
 # Returns prior probability against mask/training points    
 def getPriorProb(TrainPts ,unitCell, mapUnits) :
@@ -78,8 +75,6 @@ def getPriorProb(TrainPts ,unitCell, mapUnits) :
     num_tps = count = int(num_tps.getOutput(0))
     priorprob = num_tps / num_unit_cells
     return priorprob;
-    
-
     
 #Return mask size in sqkm
 def getMaskSize (mapUnits):

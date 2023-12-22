@@ -1,9 +1,10 @@
 """A function to append Spatial Data Modeller parameters to Geoprocessor History
-    for those SDM tools that have the following values:
-    gp: geoprocessor object
-    unitCell: unit cell area in sq km
-    TrainPts: training sites Points feature class
+for those SDM tools that have the following values:
+gp: geoprocessor object
+unitCell: unit cell area in sq km
+TrainPts: training sites Points feature class
 """
+
 import traceback, sys
 
 ToMetric = {
@@ -123,8 +124,8 @@ def getMapUnits(gp):
         print (msgs)
 
 if __name__ == '__main__':
-    import arcgisscripting
-    gp = arcgisscripting.create()
+    import arcpy
+    gp = arcpy.create()
     training_sites = gp.getParameterAsText(0)
     unit_area = gp.getparameter(1)
     appendSDMValues(gp, unit_area, training_sites)
