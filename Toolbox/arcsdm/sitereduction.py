@@ -12,8 +12,7 @@
 # 29.12.2023 Convert to work on ArcGIS Pro 3.x, clarify code and implement fixes and improvements:
 # support more mask types and don't remove mask layer from map, clear selection after tool is run
 
-import sys, string, os, math, traceback
-import arcgisscripting
+import sys, traceback
 import arcpy
 import math
 import random
