@@ -1,13 +1,9 @@
-ArcSDM 5.03-1 for ArcGis (Pro and Desktop)
+ArcSDM 6.0 for ArcGIS Pro
 
-## The following lines will and should not be printed as output as version info!
+# The following lines will and should not be printed as output as version info!
 
 Update this file when updating the version numbering of the arcsdm library
 
-Arto Laiho, GTK 2020, Arto.Laiho@gtk.fi
-Janne Kallunki, GTK 2016-2017, janne.kallunki@gtk.fi
-Tero Rönkkö, GTK 2016-2017, tero.ronkko@gtk.fi
-Kimmo Korhonen, GTK 2016-2017, kimmo.korhonen@gtk.fi
+The Geological Survey of Finland, 2016-2024, support@gtk.fi
 Irving Cabrera, 2017, irvcaza@gmail.com
 Arianne Ford, Kenex Ltd. 2018
-

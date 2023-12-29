@@ -1,17 +1,15 @@
-"""
+""" ArcSDM 6 ToolBox for ArcGIS Pro
 
-    Fixed for ArcSDM 5 for ArcGis pro
-    history: 
-    12.8.2016 started fixing TR
-    5.5.2020 Arto Laiho, Geological survey of Finland: 
-    - sys.exc_type and exc_value are deprecated, replaced by sys.exc_info()
+Conversion and tool development for ArcGIS Pro by Geological Survey of Finland (GTK), 2024.
 
-    Spatial Data Modeller for ESRI* ArcGIS 9.3
-    Copyright 2009
-    Gary L Raines, Reno, NV, USA: production and certification
-    Don L Sawatzky, Spokane, WA, USA: Python software development
+- sys.exc_type and exc_value are deprecated, replaced by sys.exc_info()
+
+Spatial Data Modeller for ESRI* ArcGIS 9.3
+Copyright 2009
+Gary L Raines, Reno, NV, USA: production and certification
+Don L Sawatzky, Spokane, WA, USA: Python software development
     
-    Work-arounds for 9.3 version of ArcGIS 
+Work-arounds for 9.3 version of ArcGIS 
 """
 import sys, os, traceback, arcpy
 
@@ -42,8 +40,8 @@ def GetIDField(table):
     
 def ExtractValuesToPoints(gp, inputRaster, inputFeatures, siteFIDName):
     """ ExtractValuesToPoints tool in ArcGIS 9.3 now selects ALL features.
-           This routine generates the extracted feature class from only selected input features.
-           If the selected subset is very large, a very large query string will be created in memory.
+    This routine generates the extracted feature class from only selected input features.
+    If the selected subset is very large, a very large query string will be created in memory.
     """
 
     try:
@@ -105,9 +103,9 @@ def ExtractValuesToPoints(gp, inputRaster, inputFeatures, siteFIDName):
 
 def BandCollectionStats(gp, inputRasters, BandCol_Stats, state="BRIEF"):
     """ BandCollectionStatistics tool in ArcGIS 9.3 now does not use mask; in fact,
-            the tool breaks when a mask is set in the environment.
-           This routine not creates masked copies of all input rasters, temporarily turns off
-           the environment mask, runs the Band Collection Statistics tool on them.
+    the tool breaks when a mask is set in the environment.
+    This routine not creates masked copies of all input rasters, temporarily turns off
+    the environment mask, runs the Band Collection Statistics tool on them.
     """
     try:
 ##>>>>>>>>>>>>>  Code when using pre-masked data sets >>>>>>>>>>>>>
