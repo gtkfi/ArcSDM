@@ -1,9 +1,11 @@
 # ArcSDM
-Spatial Data Modeler 5 for ArcGis pro<Br>
+
+Spatial Data Modeler 6 for ArcGIS Pro 3.0+<Br>
+
 
 ## How to get started? <br>
 
-Standard toolbox of ArcSDM 5 works on ArcGis Desktop 10.3-10.7.1, however the Experimental toolbox requires components that cannot be installed on ArcGis desktop and doesn't work. ArcGis pro is supported from version 2.5+ forward.
+Standard toolbox of ArcSDM 5 works on ArcGis Desktop 10.3-10.7.1, however the Experimental toolbox requires components that cannot be installed on ArcGis desktop and doesn't work. ArcGIS Pro is supported from version 2.5+ forward.
 
 
 If you want to work on your own data, you can download just the toolbox. If you want to try, evaluate and experiment with ArcSDM you can download our demodata separately from the main package. <br>
@@ -33,7 +35,9 @@ alt="How to download and extract the toolbox" width="240" height="180" border="1
 Status of the toolbox should be updated to wiki https://github.com/gtkfi/ArcSDM/wiki/Toolbox-details <bR>
 
 ## News: 
-The demodata and the toolbox will be separated from eachother to make downloading easier.<br>
+
+Development has started by GTK to migrate this tool for ArcGIS Pro 3.0+ (ArcSDM 6.0)
+
 
 ## History:
 16.10.2020 5.03-1 merging fuzzy membership files into fuzzy overlay files rewritten<br> 

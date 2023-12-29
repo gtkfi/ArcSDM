@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
-"""
-    Spatial Data Modeller for ESRI* ArcGIS 9.2
-    Copyright 2007
-    Gary L Raines, Reno, NV, USA: production and certification
-    Don L Sawatzky, Spokane, WA, USA: Python software development
+""" ArcSDM 6 ToolBox for ArcGIS Pro
+
+Conversion and tool development for ArcGIS Pro by Geological Survey of Finland (GTK), 2024.
+
+Spatial Data Modeller for ESRI* ArcGIS 9.2
+
+Copyright 2007
+Gary L Raines, Reno, NV, USA: production and certification
+Don L Sawatzky, Spokane, WA, USA: Python software development
     
-    Converted to ArcSDM toolbox by GTK 2016
+Converted to ArcSDM toolbox to ArcMap by GTK 2016
 """
 import sys, string, os, math, traceback, math
 import arcpy

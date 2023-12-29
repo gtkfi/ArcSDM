@@ -1,20 +1,18 @@
-"""
+""" ArcSDM 6 ToolBox for ArcGIS Pro
 
-    ArcSDM 5 - ArcSDM for ArcGis pro
+Conversion and tool development for ArcGIS Pro by Geological Survey of Finland (GTK), 2024.
 
-    History:
-    4/2016 Conversion started - TR
-
-    Spatial Data Modeller for ESRI* ArcGIS 9.2
-    Copyright 2007
-    Gary L Raines, Reno, NV, USA: production and certification
-    Don L Sawatzky, Spokane, WA, USA: Python software development
+Spatial Data Modeller for ESRI* ArcGIS 9.2
+Copyright 2007
+Gary L Raines, Reno, NV, USA: production and certification
+Don L Sawatzky, Spokane, WA, USA: Python software development
     
 # ---------------------------------------------------------------------------
 # NewCalcResp3.py
 #  Modifications for use of Lookup_sa by Ryan Bryn, ESRI
 # ---------------------------------------------------------------------------
 """
+
 try:
     # Import system modules
     import sys, os, math, traceback, SDMValues
