@@ -1,5 +1,5 @@
-# ArcSDM 5 (Arcgis pro)
-#Training site reduction  -tool
+# ArcSDM 6 Toolbox for ArcGIS Pro
+# Training sites reduction tool
 # 
 #
 # History:
@@ -9,6 +9,8 @@
 # 30.6.2016 As python toolbox tool module
 # 8.8.2016 AG Desktop compatibility TR
 # 13.7.2017 Check for non raster masks TR
+# 29.12.2023 Convert to work on ArcGIS Pro 3.x, clarify code and implement fixes and improvements:
+# support more mask types and don't remove mask layer from map, clear selection after tool is run
 
 import sys, string, os, math, traceback
 import arcgisscripting
@@ -17,8 +19,8 @@ import math
 import random
 
 def ReduceSites(self, parameters, messages):
-    messages.addMessage("Starting sites reduction")
-    messages.addMessage("------------------------------")
+    arcpy.AddMessage("Starting sites reduction")
+    arcpy.AddMessage("------------------------------")
 
     try:
         input_features = parameters[0].valueAsText
@@ -30,7 +32,7 @@ def ReduceSites(self, parameters, messages):
         is_random_selection_selected = parameters[3].value if parameters[3].value is not None else False
         percentage = parameters[4].value if parameters[4].value is not None else 100
 
-        messages.AddMessage(f"Training points: {input_features}")
+        arcpy.AddMessage(f"Training points: {input_features}")
 
         # Select the features, applying mask if it is set
         mask = arcpy.env.mask
@@ -61,7 +63,8 @@ def ReduceSites(self, parameters, messages):
 
         training_sites = dict()
 
-        # Go through the selected features and collect attributes that are used later into training sites
+        # Go through the selected features: apply thinning, if selected, and collect
+        # attributes that are used for random selection into training_sites
         with arcpy.da.SearchCursor(input_features, [identifier, "SHAPE@XY"]) as features:
             if is_thinning_selection_selected:
                 thinned_points = []
@@ -75,18 +78,18 @@ def ReduceSites(self, parameters, messages):
                     training_sites[random.random()] = first_feature[0]
 
                 min_dist_m = math.sqrt(unit_area_sq_km * 1000000.0 / math.pi)
-                arcpy.AddMessage(f"Minimum distance (m): {min_dist_m}")
+                arcpy.AddMessage(f"Minimum distance between neighboring training sites (m): {min_dist_m}")
 
                 for feature in features:
                     point = Point(feature[1])
-                    if check_if_point_is_far_enough(thinned_points, min_dist_m, point):
+                    if check_distance_to_other_points_is_above_limit(thinned_points, point, min_dist_m):
                         thinned_points.append(point)
                         clause += f" or {identifier} = {feature[0]}"
                         if is_random_selection_selected:
                             training_sites[random.random()] = feature[0]
                 
                 if not is_random_selection_selected:
-                    # Create the selection
+                    # Create the final selection that will be copied
                     arcpy.management.SelectLayerByAttribute(input_features, "CLEAR_SELECTION")
                     arcpy.management.SelectLayerByAttribute(input_features, "ADD_TO_SELECTION", clause)
             else:
@@ -116,6 +119,7 @@ def ReduceSites(self, parameters, messages):
 
                 selected_count += 1
 
+            # Create the final selection that will be copied
             arcpy.management.SelectLayerByAttribute(input_features, "ADD_TO_SELECTION", clause)
         
         # Copy the selected features to a new layer
@@ -157,49 +161,18 @@ class Point:
         self.x = point[0]
         self.y = point[1]
 
-    def __eq__(self, otherpnt):
-        return self.x == otherpnt.x and self.y == otherpnt.y
-    
-    # the __cmp__() special method is no longer honored in Python 3
-    # TODO: remove/replace
-    def __cmp__(self, otherpnt):
-        return 0 if (self.x == otherpnt.x and self.y == otherpnt.y) else 1
-        # if self.x == otherpnt.x and self.y == otherpnt.y:
-        #     return 0
-        # else:
-        #     return 1
+    def __eq__(self, other):
+        return self.x == other.x and self.y == other.y
     
     def __repr__(self):
         return f"{self.x}, {self.y}"
 
 
-def rowgen(searchcursor_rows):
-    """ Convert gp searchcursor to a generator function """
-    rows = searchcursor_rows
-    row = rows.next()        
-    while row:
-        yield row
-        row = rows.next()
+def distance(point_1, point_0):
+    return math.hypot(point_1.x - point_0.x, point_1.y - point_0.y)
 
 
-def distance(pnt1, pnt0):
-    return math.hypot(pnt1.x - pnt0.x, pnt1.y - pnt0.y)
-
-
-def check_if_point_is_far_enough(points, limit, new_point):
-    """
-        1. Add first point to saved list.
-        2. Check if next point is within Unit radius of saved points.
-        3. If not, add it to saved list.
-        4. Go to 2.
-        
-        The number tried is n/2 on average, because saved list grows from 1.
-        nTrials = Sigma(x,x=(1,n)) = n/2 + n*n/4 or O(n*n)
-        nTrials(10) = 5 + 25 = 30
-        nTrials(100) = 50 + 2500 = 2550
-        nTrials(1000) = 500 + 250,000 = 250,500
-        nTrials(10,000) = 5000 + 25,000,000 = 25,050,000
-    """
+def check_distance_to_other_points_is_above_limit(points, new_point, limit):
     for point in points:
         d = distance(point, new_point)
         if d < limit:
