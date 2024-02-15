@@ -95,7 +95,7 @@ def execute(self, parameters, messages):
         pylab.legend(plot_handles, legend_items, loc=4)
     except:
         try:
-            pylab.legend(plot_handles, legend_items, 4)
+            pylab.legend(plot_handles, legend_items)
         except:
             messages.addMessage("Failed to insert legend with matplotlib version %s." % matplotlib.__version__)
 
