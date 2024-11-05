@@ -177,117 +177,99 @@ def getMaskSize (mapUnits):
     
     
     
-def appendSDMValues(gp, unitCell, TrainPts):
+def appendSDMValues(unitCell, TrainPts):
     try:
-        arcpy.AddMessage("\n" + "="*10 + " arcsdm values  " + "=" *10);
-        with open (os.path.join(os.path.dirname(__file__), "arcsdm_version.txt"), "r") as myfile:
-            data=myfile.readlines()
-        #Print version information
-        arcpy.AddMessage("%-20s %s" % ("", data[0]) ); 
-        installinfo = arcpy.GetInstallInfo ();
+        arcpy.AddMessage("\n" + "="*10 + " arcsdm values  " + "=" *10)
+        with open(os.path.join(os.path.dirname(__file__), "arcsdm_version.txt"), "r") as myfile:
+            data = myfile.readlines()
+        # Print version information
+        arcpy.AddMessage("%-20s %s" % ("", data[0]))
+        installinfo = arcpy.GetInstallInfo()
 
-        arcpy.AddMessage("%-20s %s (%s)" % ("Arcgis environment: ", installinfo['ProductName'] , installinfo['Version'] ));
-        
-        if not gp.workspace:
-            gp.adderror('Workspace not set')
-            raise arcpy.ExecuteError("Workspace not set!");
-        if not (arcpy.Exists(gp.workspace)):
-            gp.adderror('Workspace %s not found'%(gp.workspace))
-            raise arcpy.ExecuteError('Workspace %s not found'%(gp.workspace));
-        desc = arcpy.Describe(gp.workspace)
-        gp.addmessage("%-20s %s (%s)" % ("Workspace: ", gp.workspace, desc.workspaceType));
-        
-        if not gp.scratchworkspace:
-            gp.adderror('Scratch workspace mask not set')
-        wdesc = arcpy.Describe(gp.scratchworkspace)       
-        gp.addmessage("%-20s %s (%s)" % ("Scratch workspace:",  gp.scratchworkspace, wdesc.workspaceType))
+        arcpy.AddMessage("%-20s %s (%s)" % ("Arcgis environment: ", installinfo['ProductName'], installinfo['Version']))
+
+        if not arcpy.env.workspace:
+            arcpy.AddError('Workspace not set')
+            raise arcpy.ExecuteError("Workspace not set!")
+        if not arcpy.Exists(arcpy.env.workspace):
+            arcpy.AddError('Workspace %s not found' % (arcpy.env.workspace))
+            raise arcpy.ExecuteError('Workspace %s not found' % (arcpy.env.workspace))
+        desc = arcpy.Describe(arcpy.env.workspace)
+        arcpy.AddMessage("%-20s %s (%s)" % ("Workspace: ", arcpy.env.workspace, desc.workspaceType))
+
+        if not arcpy.env.scratchWorkspace:
+            arcpy.AddError('Scratch workspace mask not set')
+        wdesc = arcpy.Describe(arcpy.env.scratchWorkspace)
+        arcpy.AddMessage("%-20s %s (%s)" % ("Scratch workspace:", arcpy.env.scratchWorkspace, wdesc.workspaceType))
         # TODO: These should be moved to common CHECKENV class/function TR
-        
-        # Tools wont work if type is different from eachother (joins do not work filesystem->geodatabase! TR
-        if (wdesc.workspaceType != desc.workspaceType):
-            gp.AddError("Workspace and scratch workspace must be of the same type!");
-            raise arcpy.ExecuteError("Workspace type mismatch");
-        
+
+        # Tools won't work if type is different from each other (joins do not work filesystem->geodatabase! TR
+        if wdesc.workspaceType != desc.workspaceType:
+            arcpy.AddError("Workspace and scratch workspace must be of the same type!")
+            raise arcpy.ExecuteError("Workspace type mismatch")
+
         mapUnits = getMapUnits()
         mapUnits = mapUnits.lower().strip()
         if not mapUnits.startswith('meter'):
-            gp.addError('Incorrect output map units: Check units of study area.')            
-        conversion = getMapConversion(mapUnits)                
-        #gp.addMessage("Conversion from map units to km^2: " + str(conversion));
-        gp.addmessage("%-20s %s" % ( 'Map Units:',  mapUnits))
-     
-        
-        if not gp.mask:
-            gp.adderror('Study Area mask not set');
-            raise arcpy.ExecuteError ("Mask not set. Check Environments!");	#AL
+            arcpy.AddError('Incorrect output map units: Check units of study area.')
+        conversion = getMapConversion(mapUnits)
+        arcpy.AddMessage("%-20s %s" % ('Map Units:', mapUnits))
+
+        if not arcpy.env.mask:
+            arcpy.AddError('Study Area mask not set')
+            raise arcpy.ExecuteError("Mask not set. Check Environments!")  # AL
         else:
-            if not arcpy.Exists(gp.mask):
-                gp.addError("Mask " + gp.mask + " not found!");
-                raise arcpy.ExecuteError("Mask not found");
-            #gp.AddMessage("Mask set");
-            desc = gp.describe(gp.mask);
-            gp.addMessage( "%-20s %s" %( "Mask:", "\"" + desc.name + "\" and it is " + desc.dataType));        
-            if (desc.dataType == "FeatureLayer" or desc.dataType == "FeatureClass"):
+            if not arcpy.Exists(arcpy.env.mask):
+                arcpy.AddError("Mask " + arcpy.env.mask + " not found!")
+                raise arcpy.ExecuteError("Mask not found")
+            desc = arcpy.Describe(arcpy.env.mask)
+            arcpy.AddMessage("%-20s %s" % ("Mask:", "\"" + desc.name + "\" and it is " + desc.dataType))
+            if desc.dataType == "FeatureLayer" or desc.dataType == "FeatureClass":
                 arcpy.AddWarning('Warning: You should only use single value raster type masks!')
-            gp.addMessage( "%-20s %s" %( "Mask size:", str(getMaskSize(mapUnits))  ));
-            #gp.AddMessage("Masksize: " + str(getMaskSize(mapUnits)));            
-        
-        if not gp.cellsize:        
-            gp.adderror('Study Area cellsize not set')
-        if (gp.cellsize == "MAXOF"):
-            arcpy.AddWarning("Cellsize should have definitive value?");
-            #raise arcpy.ExecuteError("SDMValues: Cellsize must have value");
-            
-        
-        cellsize = arcpy.env.cellSize #float(str(arcpy.env.cellSize).replace(",","."))
-        gp.addmessage("%-20s %s" %("Cell Size:", cellsize))
-        #gp.addMessage("Debug: " + str(conversion));
-        total_area = getMaskSize(mapUnits) # Now the getMaskSize returns it correctly in sqkm   : * cellsize **2 * conversion
-        #gp.addMessage("Debug));
+            arcpy.AddMessage("%-20s %s" % ("Mask size:", str(getMaskSize(mapUnits))))
+
+        if not arcpy.env.cellSize:
+            arcpy.AddError('Study Area cellsize not set')
+        if arcpy.env.cellSize == "MAXOF":
+            arcpy.AddWarning("Cellsize should have definitive value?")
+
+        cellsize = arcpy.env.cellSize
+        arcpy.AddMessage("%-20s %s" % ("Cell Size:", cellsize))
+        total_area = getMaskSize(mapUnits)
         unitCell = float(unitCell)
         num_unit_cells = total_area / unitCell
-        num_tps = gp.GetCount_management(TrainPts)
-        gp.addmessage("%-20s %s"% ('# Training Sites:' ,num_tps))
-        gp.addmessage("%-20s %s" % ("Unit Cell Area:", "{}km^2, Cells in area: {} ".format(unitCell,num_unit_cells)))
+        num_tps = arcpy.GetCount_management(TrainPts)
+        arcpy.AddMessage("%-20s %s" % ('# Training Sites:', num_tps))
+        arcpy.AddMessage("%-20s %s" % ("Unit Cell Area:", "{}km^2, Cells in area: {} ".format(unitCell, num_unit_cells)))
 
-        if (num_unit_cells == 0):
-            raise arcpy.ExecuteError("ERROR: 0 Cells in Area!");   #AL     
+        if num_unit_cells == 0:
+            raise arcpy.ExecuteError("ERROR: 0 Cells in Area!")  # AL
         priorprob = num_tps / num_unit_cells
         if not (0 < priorprob <= 1.0):
             arcpy.AddError('Incorrect no. of training sites or unit cell area. TrainingPointsResult {}'.format(priorprob))
             raise arcpy.ExecuteError
-            #raise SDMError('Incorrect no. of training sites or unit cell area. TrainingPointsResult {}'.format(priorprob))
-        gp.addmessage("%-20s %0.6f" % ('Prior Probability:', priorprob))
-        #gp.addmessage("Debug priorprob:" + str(getPriorProb(TrainPts, unitCell))) 
-        
-        gp.addmessage("%-20s %s" % ('Training Set:', gp.describe(TrainPts).catalogpath))
-        gp.addmessage("%-20s %s" % ('Study Area Raster:', gp.describe(gp.mask).catalogpath))
-        gp.addmessage("%-20s %s" % ( 'Study Area Area:', str(total_area) + "km^2"))
-        #gp.addmessage('Map Units to Square Kilometers Conversion: %f'%conversion)
-        arcpy.AddMessage(""); # Empty line at end
+        arcpy.AddMessage("%-20s %0.6f" % ('Prior Probability:', priorprob))
+
+        arcpy.AddMessage("%-20s %s" % ('Training Set:', arcpy.Describe(TrainPts).catalogPath))
+        arcpy.AddMessage("%-20s %s" % ('Study Area Raster:', arcpy.Describe(arcpy.env.mask).catalogPath))
+        arcpy.AddMessage("%-20s %s" % ('Study Area Area:', str(total_area) + "km^2"))
+        arcpy.AddMessage("")  # Empty line at end
     except arcpy.ExecuteError as e:
         if not all(e.args):
-            arcpy.AddMessage("Calculate weights caught arcpy.ExecuteError: ");
-            args = e.args[0];
+            arcpy.AddMessage("Calculate weights caught arcpy.ExecuteError: ")
+            args = e.args[0]
             args.split('\n')
-            arcpy.AddError(args);
-        arcpy.AddMessage("-------------- END EXECUTION ---------------");        
-        raise;
+            arcpy.AddError(args)
+        arcpy.AddMessage("-------------- END EXECUTION ---------------")
+        raise
     except:
-        # get the traceback object
         tb = sys.exc_info()[2]
-        # tbinfo contains the line number that the code failed on and the code from that line
         tbinfo = traceback.format_tb(tb)[0]
-        gp.addError ( tbinfo );
-        # concatenate information together concerning the error into a message string
-        #pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-        #    str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
-        # generate a message string for any geoprocessing tool errors
-        if len(gp.GetMessages(2)) > 0:
-            msgs = "SDM GP ERRORS:\n" + gp.GetMessages(2) + "\n"
-            gp.AddError(msgs)
-        #gp.AddError(pymsg)
-        raise;
+        arcpy.AddError(tbinfo)
+        if len(arcpy.GetMessages(2)) > 0:
+            msgs = "SDM GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
+            arcpy.AddError(msgs)
+        raise
 
         
 
