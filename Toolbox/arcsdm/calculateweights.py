@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 """
+    ArcSDM 6 ToolBox for ArcGIS Pro
+
+    Conversion and tool development for ArcGIS Pro by Geological Survey of Finland (GTK), 2024.
+
     Calculate Weights - ArcSDM 5 for ArcGis pro 
     Recode from the original by Tero Rönkkö / Geological survey of Finland
     Update by Arianne Ford, Kenex Ltd. 2018

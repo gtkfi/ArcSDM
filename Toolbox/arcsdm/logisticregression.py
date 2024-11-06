@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 """
+    ArcSDM 6 ToolBox for ArcGIS Pro
 
-      
+    Conversion and tool development for ArcGIS Pro by Geological Survey of Finland (GTK), 2024.
+
     Logistic Regression for two or more evidence layers.
+    
     Converted for ArcSDM 5 - ArcGis PRO
     2016-2018 Tero Rönkkö / GTK
     Updated by Arianne Ford, Kenex Ltd. 2018 - bug fixes for 10.x, allowing ascending and descending types for evidence.

@@ -1,24 +1,28 @@
+"""
+    ArcSDM 6 ToolBox for ArcGIS Pro
 
+    Conversion and tool development for ArcGIS Pro by Geological Survey of Finland (GTK), 2024.
 
-#
-# ArcSDM 5 for ArcGis pro
-# Converted by Tero Ronkko, GTK 2017
-# Updated by Arianne Ford, Kenex Ltd. 2018
-# Updated by Arto Laiho, Geological survey of Finland 4.5-12.6.2020:
-# - "Invalid Wts Table" changed from message to warning.
-# - sys.exc_type and exc_value are deprecated, replaced by sys.exc_info()
-# - Grand Wofe Name cannot be longer than 7 characters
-# - Weights table prefix changed
-# Logistic Regression don't work on ArcGIS Pro 2.5 with File System workspace but works on V2.6 /AL 140820
-# If using GDB database, remove numbers and underscore from the beginning of Weights Table name /AL 061020
+    Grand WofE
 
-"""Gets all valid weights tables for each evidence raster, generates all
+    Gets all valid weights tables for each evidence raster, generates all
     combinations of rasters and their tables, and runs each combination
     in Calculcate Response and Logistic Regression tools.  Produces
     probability, standard deviation, missing data variance, total variance,
     and confidence rasters.
-"""
-"""
+
+    ArcSDM 5 for ArcGis pro
+    Converted by Tero Ronkko, GTK 2017
+    Updated by Arianne Ford, Kenex Ltd. 2018
+    Updated by Arto Laiho, Geological survey of Finland 4.5-12.6.2020:
+    - "Invalid Wts Table" changed from message to warning.
+    - sys.exc_type and exc_value are deprecated, replaced by sys.exc_info()
+    - Grand Wofe Name cannot be longer than 7 characters
+    - Weights table prefix changed
+    Logistic Regression don't work on ArcGIS Pro 2.5 with File System workspace but works on V2.6 /AL 140820
+    If using GDB database, remove numbers and underscore from the beginning of Weights Table name /AL 061020
+
+
     Spatial Data Modeller for ESRI* ArcGIS 9.2
     Copyright 2007
     Gary L Raines, Reno, NV, USA: production and certification
