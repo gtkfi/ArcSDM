@@ -1,16 +1,21 @@
-# ArcSDM 6 Toolbox for ArcGIS Pro
-# Training sites reduction tool
-# 
-#
-# History:
-# Previous version by Unknown (ArcSDM)
-# 7.9.2016 Fixes
-# 13.4.2016 Recoded for ArcSDM 5 / ArcGis pro
-# 30.6.2016 As python toolbox tool module
-# 8.8.2016 AG Desktop compatibility TR
-# 13.7.2017 Check for non raster masks TR
-# 29.12.2023 Convert to work on ArcGIS Pro 3.x, clarify code and implement fixes and improvements:
-# support more mask types and don't remove mask layer from map, clear selection after tool is run
+"""
+    ArcSDM 6 ToolBox for ArcGIS Pro
+
+    Conversion and tool development for ArcGIS Pro by Geological Survey of Finland (GTK), 2024.
+
+    Training sites reduction tool
+
+    History:
+
+    Previous version by Unknown (ArcSDM)
+    7.9.2016 Fixes
+    13.4.2016 Recoded for ArcSDM 5 / ArcGis pro
+    30.6.2016 As python toolbox tool module
+    8.8.2016 AG Desktop compatibility TR
+    13.7.2017 Check for non raster masks TR
+    29.12.2023 Convert to work on ArcGIS Pro 3.x, clarify code and implement fixes and improvements:
+    support more mask types and don't remove mask layer from map, clear selection after tool is run
+"""
 
 import sys, traceback
 import arcpy
