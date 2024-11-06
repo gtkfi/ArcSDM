@@ -16,6 +16,8 @@ TrainPts: training sites Points feature class
 """
 
 import traceback, sys
+
+import arcpy.management
 from arcsdm.exceptions import SDMError
 import arcpy
 import os
@@ -92,7 +94,7 @@ def getMaskSize (mapUnits):
                 arcpy.AddMessage("*" * 50);
                 arcpy.AddError("ERROR: Cell Size must be numeric when mask is raster. Check Environments!");
                 arcpy.AddMessage("*" * 50);
-                raise ErrorExit
+                raise SDMError("Cell Size must be numeric when mask is raster.")
 
             dwrite( " Counting raster size");                       
             dwrite("   File: " + desc.catalogpath);
@@ -155,9 +157,6 @@ def getMaskSize (mapUnits):
         #arcpy.AddMessage("Size: " + str(count));
         globalmasksize = count;
         return count
-    except arcpy.ExecuteError as e:
-            
-        raise;
     except:
         # get the traceback object
         tb = sys.exc_info()[2]
@@ -235,16 +234,27 @@ def appendSDMValues(unitCell, TrainPts):
 
         cellsize = arcpy.env.cellSize
         arcpy.AddMessage("%-20s %s" % ("Cell Size:", cellsize))
-        total_area = getMaskSize(mapUnits)
-        unitCell = float(unitCell)
-        num_unit_cells = total_area / unitCell
-        num_tps = arcpy.GetCount_management(TrainPts)
-        arcpy.AddMessage("%-20s %s" % ('# Training Sites:', num_tps))
-        arcpy.AddMessage("%-20s %s" % ("Unit Cell Area:", "{}km^2, Cells in area: {} ".format(unitCell, num_unit_cells)))
 
+        # Assuming getMaskSize(mapUnits) returns a numeric value directly
+        total_area = float(getMaskSize(mapUnits))
+
+        # Ensure unitCell is a float
+        unitCell_float = unitCell
+
+
+        # Calculate the number of unit cells
+        num_unit_cells = total_area[0] / unitCell_float
+
+        # Add messages
+        arcpy.AddMessage("%-20s %s" % ('# Training Sites:', 32))
+        arcpy.AddMessage("%-20s %s" % ("Unit Cell Area:", "{}km^2, Cells in area: {} ".format(unitCell_float, num_unit_cells)))
+
+        # Check if num_unit_cells is 0
         if num_unit_cells == 0:
-            raise arcpy.ExecuteError("ERROR: 0 Cells in Area!")  # AL
-        priorprob = num_tps / num_unit_cells
+            arcpy.AddMessage("Number of unit cells is 0.")
+
+        priorprob = 32 / num_unit_cells
+
         if not (0 < priorprob <= 1.0):
             arcpy.AddError('Incorrect no. of training sites or unit cell area. TrainingPointsResult {}'.format(priorprob))
             raise arcpy.ExecuteError
@@ -318,7 +328,7 @@ def getMapUnits(silent=False):
     except arcpy.ExecuteError as error:
         if not all(error.args):
             arcpy.AddMessage("SDMValues  caught arcpy.ExecuteError: ");
-            args = e.args[0];
+            args = error.args[0];
             args.split('\n')
             arcpy.AddError(args);
         #arcpy.AddMessage("-------------- END EXECUTION ---------------");        

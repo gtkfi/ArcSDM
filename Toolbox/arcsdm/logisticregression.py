@@ -639,13 +639,18 @@ def Execute(self, parameters, messages):
          # tbinfo contains the line number that the code failed on and the code from that line
         tbinfo = traceback.format_tb(tb)[0]
         # concatenate information together concerning the error into a message string
-        msgs = "Traceback\n" + tbinfo + "\nError Info:\n" + str(sys.exc_info()[1])
-        pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " +str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
+        msgs = "Traceback\n" + tbinfo + "\nError Info:\n" + "\n".join([str(errori) for errori in sys.exc_info()])
+        pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + msgs + "\n"
+        
+        erroreita = traceback.format_exc()
+        
         # generate a message string for any geoprocessing tool errors
-        msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"
+        msgs = "GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
         arcpy.AddError(msgs)
         # return gp messages for use with a script tool
         arcpy.AddError(pymsg)
+        
+        arcpy.AddError(erroreita)
         # print messages for use in Python/PythonWin
         print (pymsg)
         raise
