@@ -1,4 +1,9 @@
-"""This version of floatingraster searchcursor converts a float raster to a FLOAT
+"""
+SDM Values / ArcSDM 6 ToolBox for ArcGIS Pro
+
+Conversion and tool development for ArcGIS Pro by Geological Survey of Finland (GTK), 2024.
+
+This version of floatingraster searchcursor converts a float raster to a FLOAT
 and HEADER file which is read back with Python's array object to generate a
 pseudoVAT as a Python dictionary.
     The searchcursor is a function that returns a generator function (pseudo ROWS)
@@ -12,28 +17,28 @@ scale of 6 or less have FLOAT type in tables and the type DOUBLE for higher scal
     All attribute and function names must be lower case.
 """
 import os, sys, traceback, array
-import arcpy;
+import arcpy
 
 class FloatRasterVAT(object):
     """ Pseudo VAT for a float-type raster and useful methods """
-    def __init__(self, gp, float_raster):
+    def __init__(self, float_raster):
         """ Generator yields VAT-like rows for floating rasters """
         # Process: RasterToFLOAT_conversion: FLOAT raster to FLOAT file
         # Get a output scratch file name
         ## TODO: .flt for dir, no .flt to geodatabase!
         ## Now using Scratchfolder
-        #OutAsciiFile = gp.createuniquename("tmp_rasfloat.flt", gp.scratchworkspace)  
+        #OutAsciiFile = arcpy.CreateUniqueName("tmp_rasfloat.flt", arcpy.env.scratchWorkspace)  
         #arcpy.AddMessage(" -- Debug: FLoatingRasterArray --");
         #arcpy.AddMessage("Debug:" + arcpy.env.scratchFolder);
         
-        OutAsciiFile = gp.createuniquename("tmp_rasfloat.flt", arcpy.env.scratchFolder)
-        #Convert float raster to FLOAT file and ASCII header
-        gp.RasterToFLOAT_conversion(float_raster, OutAsciiFile)
+        OutAsciiFile = arcpy.CreateUniqueName("tmp_rasfloat.flt", arcpy.env.scratchFolder)
+        # Convert float raster to FLOAT file and ASCII header
+        arcpy.RasterToFloat_conversion(float_raster, OutAsciiFile)
+        
         # Create dictionary as pseudo-VAT
         # Open ASCII header file and get raster parameters
-        #print OutAsciiFile
         hdrpath = os.path.splitext(OutAsciiFile)[0] + ".hdr"
-        #print hdrpath
+        
         try:
             fdin = open(hdrpath,'r')
             ncols = int(fdin.readline().split()[1].strip())
@@ -45,69 +50,71 @@ class FloatRasterVAT(object):
             byteorder = fdin.readline().split()[1].strip()
         finally:
             fdin.close()
-        #print 'NODATA_value:', NODATA_value
-        #Get FLOAT file path
+        
+        # Get FLOAT file path
         fltpath = OutAsciiFile
-        #Get filesize in bytes
+        # Get filesize in bytes
         filesize = os.path.getsize(fltpath)
-        #Get number bytes per floating point value
+        # Get number bytes per floating point value
         bytesperfloat = filesize/ncols/nrows
-        #Set array object type
+        # Set array object type
         if bytesperfloat == 4: arraytype = 'f'
         else:
             raise Exception('Unknown floating raster type')
             
-        #Open FLOAT file and process rows
+        # Open FLOAT file and process rows
         try:
             fdin = open(fltpath, 'rb')
             self.vat = {}
             vat = self.vat
             for i in range(nrows):
-                #Get row of raster as floating point Python array
+                # Get row of raster as floating point Python array
                 arry = array.array(arraytype)
                 try:
                     arry.fromfile(fdin,ncols)
                 except:
-                    gp.adderror("Array input error")
-                #Swap bytes, if necessary
+                    arcpy.AddError("Array input error")
+                # Swap bytes, if necessary
                 if byteorder != 'LSBFIRST': arry.byteswap()
-                #Process raster values to get occurence frequencies of unique values
+                # Process raster values to get occurrence frequencies of unique values
                 for j in range(ncols):
                     value = arry[j]
-                    if value == self.NODATA_value: continue
+                    if value == self.nodata_value: continue
                     if value in vat:
                         vat[value] += 1
                     else:
                         vat[value] = 1
         finally:
             fdin.close()
-        #gp.addmessage('Unique values count in floating raster = %s'%len(floats))
-        #print 'Unique values count in floating raster = %s'%len(vat)
-        #print len(vat),min(vat.keys()),max(vat.keys())
-        #print vat
 
     def getnodata(self):
-        return self.NODATA_value
+        """ Return the NoData value of the raster """
+        return self.nodata_value
 
-    #Row definition
+    # Row definition
     class row(object):
-        """ row definition """
+        """ Row definition """
         def __init__(self, oid, float_, count):
             self.oid = oid
             self.value = float_
             self.count = count
         def getvalue(self, name):
+            """ Get value of the row attribute by name """
             return getattr(self, name)
         def __getattribute__(self, name):
             """ Allow any capitalization of row's attributes """
             return object.__getattribute__(self,name.lower())
         def __eq__(self, testValue):
+            """ Check if the row value is approximately equal to the test value """
             return abs(self.value - testValue) < 1.0e-6
             
     def __getattribute__(self, attr):
+        """ Allow any capitalization of class attributes """
         return object.__getattribute__(self, attr.lower())
 
-    def __len__(self): return len(self.vat)
+    def __len__(self):
+        """ Return the number of unique values in the raster """
+        return len(self.vat)
 
     def __contains__(self, testValue):
         """ Test if testValue is near enough to a raster value """
@@ -123,7 +130,7 @@ class FloatRasterVAT(object):
                 mindiff = min(absdiffs)
                 return absdiffs.index(mindiff)
             else: raise ValueError
-        except ValueError ( msg):
+        except ValueError as msg:
             raise
         
     def __getitem__(self, testValue):
@@ -132,87 +139,79 @@ class FloatRasterVAT(object):
         
     def floatrastersearchcursor(self):
         """ A searchcursor for a float-type raster """
-        #Generator to yield rows via Python "for statement"
-        #Row returns OID, VALUE, COUNT as if pseudoVAT.
-        #Raster VALUEs increasing as OID increases
+        # Generator to yield rows via Python "for statement"
+        # Row returns OID, VALUE, COUNT as if pseudoVAT.
+        # Raster VALUEs increasing as OID increases
         vat = self.vat
         for oid, value in enumerate(sorted(vat.keys())):
             try:
-                #vat key is float value
+                # vat key is float value
                 count = vat[value]
             except KeyError:
                 print ('error value: ',repr(value))
                 count = -1
             yield self.row(oid,value,count)
 
-def FloatRasterSearchcursor(gp, float_raster):
+def FloatRasterSearchcursor(float_raster):
     """ Searchcursor from FloatRasterVAT instance """
-    float_raster = FloatRasterVAT(gp, float_raster)
-    return float_raster.FloatRasterSearchcursor()
+    float_raster = FloatRasterVAT(float_raster)
+    return float_raster.floatrastersearchcursor()
 
 def rowgen(searchcursor_rows):
-    """ Convert gp searchcursor to a generator function """
+    """ Convert arcpy searchcursor to a generator function """
     rows = searchcursor_rows
-    row = rows.next()        
+    row = next(rows)        
     while row:
         yield row
-        row = rows.next()
+        row = next(rows)
         
 if __name__ == '__main__':    
-    import arcgisscripting
-    gp = arcgisscripting.create()
-    
     # Check out any necessary licenses
-    gp.CheckOutExtension("spatial")
+    arcpy.CheckOutExtension("spatial")
 
-    gp.OverwriteOutput = 1
+    arcpy.env.overwriteOutput = True
 
     try:
-        #What? TR
-        #gp.workspace = 'C:/Carlin_GIS'
-        #gp.scratchworkspace = "C:/TEMP"
-        floatrasters = gp.listrasters('gw*')
-        #floatraster = floatrasters.next()
-        #while floatraster:
+        # List all rasters starting with 'gw'
+        floatrasters = arcpy.ListRasters('gw*')
+        # Iterate through each raster
         for i,floatraster in enumerate(rowgen(floatrasters)):
             print (floatraster)
-            flt_ras = FloatRasterVAT(gp, floatraster)
-            print (flt_ras.getNODATA())
+            flt_ras = FloatRasterVAT(floatraster)
+            print (flt_ras.getnodata())
             print (0.00005 in flt_ras)
-            for row in flt_ras.FloatRasterSearchcursor():
-                print (row.Value, flt_ras[row.Value])
-            #flt_ras = FloatRasterSearchcursor(gp, floatraster)
-            #floatraster = floatrasters.next()
+            for row in flt_ras.floatrastersearchcursor():
+                print (row.value, flt_ras[row.value])
             if i>1: break
             
 ##        Input_raster = 'gw1a_lrconf'
-##        print gp.describe(Input_raster).catalogpath
-##        valuetype = gp.GetRasterProperties (Input_raster, 'VALUETYPE')
+##        print arcpy.Describe(Input_raster).catalogPath
+##        valuetype = arcpy.GetRasterProperties (Input_raster, 'VALUETYPE')
 ##        valuetypes = {1:'Integer', 2:'Float'}
 ##        if valuetype != 2:
-##            gp.adderror('Not a float-type raster')
+##            arcpy.AddError('Not a float-type raster')
 ##            raise
-##        flt_ras = FloatRasterVAT(gp, Input_raster)
+##        flt_ras = FloatRasterVAT(Input_raster)
 ##        print len(flt_ras)
 ##        tblval = 0.96671057
 ##        print tblval in flt_ras
 ##        if tblval in flt_ras:
 ##            try:
 ##                print tblval, flt_ras[tblval]
-##            except ValueError, msg:
+##            except ValueError as msg:
 ##                print msg
 ##            try:
 ##                print flt_ras.index(tblval)
-##            except ValueError, msg:
+##            except ValueError as msg:
 ##                print msg
 ##        rows = flt_ras.FloatrasterSearchCursor()
 ##        print('OID   VALUE   COUNT')
 ##        for row in rows:
-##            print '%s %s %s' %(row.OID,round(row.Value,8),row.getvalue('Count')), row == tblval
-##            #gp.addmessage( '%s %s %s' %(row.OID,row.Value,row.getvalue('Count')))
+##            print '%s %s %s' %(row.oid,round(row.value,8),row.getvalue('count')), row == tblval
+##            #arcpy.AddMessage( '%s %s %s' %(row.oid,row.value,row.getvalue('count')))
 ##            if row.oid > 50:
-##                gp.AddWarning('Greater than 50 raster values.')
-##
+##                arcpy.AddWarning('Greater than 50 raster values.')
+
     except:
         # get the traceback object
         tb = sys.exc_info()[2]
@@ -222,11 +221,11 @@ if __name__ == '__main__':
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
             str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
         # generate a message string for any geoprocessing tool errors
-        msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"
-        gp.AddError(msgs)
+        msgs = "GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
+        arcpy.AddError(msgs)
 
-        # return gp messages for use with a script tool
-        gp.AddError(pymsg)
+        # return arcpy messages for use with a script tool
+        arcpy.AddError(pymsg)
 
         # print messages for use in Python/PythonWin
         print (pymsg)
