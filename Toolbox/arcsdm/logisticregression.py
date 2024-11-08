@@ -145,7 +145,7 @@ def Execute(self, parameters, messages):
         lstMD = [MissingDataValue for ras in Input_Rasters]
         arcpy.AddMessage('MissingDataValue: %s'%(str(MissingDataValue)))
         #Get output raster name
-        thmUC = arcpy.CreateScratchName("tmp_UCras", '', 'raster', arcpy.env.scratchWorkspace)
+        thmUC = arcpy.CreateScratchName("tmp_UCras", 'tif', 'raster', arcpy.env.scratchWorkspace)
 
         #Print out SDM environmental values
         #sdmvalues.appendSDMValues(unitCell, TrainPts)
@@ -185,7 +185,7 @@ def Execute(self, parameters, messages):
             join_field_fc = "Value"  # Field in the feature class
             join_field_table = "CLASS"  # Field in the table
             # Create a new field in the Input_Raster to store the joined values
-            joined_field = "CLASS"
+            joined_field = "GEN_CLASS"
             if not arcpy.ListFields(Input_Raster, joined_field):
                 arcpy.AddField_management(Input_Raster, joined_field)
 
@@ -209,13 +209,17 @@ def Execute(self, parameters, messages):
             if not arcpy.Exists(Output_Raster):
                 arcpy.AddError(Output_Raster + " does not exist.")
                 raise Exception
+            Output_Raster.save(arcpy.Describe(Output_Raster).catalogPath)
             Wts_Rasters.append(arcpy.Describe(Output_Raster).catalogPath)
+
+        for wts_raster in Wts_Rasters:
+            arcpy.management.BuildRasterAttributeTable(wts_raster)
 
         #Create the Unique Conditions raster from Generalized Class rasters
         Input_Combine_rasters = ";".join(Wts_Rasters)
         arcpy.AddMessage('Combining...%s'%Input_Combine_rasters) #AL fixed Input_rasters to Input_Combine_rasters
         if arcpy.Exists(thmUC): arcpy.Delete_management(thmUC)
-        thmUC = arcpy.sa.Combine(Input_Combine_rasters)    #AL changed 280520
+        thmUC = arcpy.sa.Combine(Wts_Rasters)    #AL changed 280520
         arcpy.AddMessage('Combine done successfully.')
 
         #Get UC lists from combined raster
@@ -231,10 +235,8 @@ def Execute(self, parameters, messages):
         lstsVals = [[] for fld in evflds]
         cellSize = float(arcpy.env.cellSize)
         lstAreas = [[] for fld in evflds]
-        if arcpy.Describe(thmUC).dataType == 'RasterLayer':
-            thmUCRL = arcpy.Describe(thmUC).catalogPath
-        else:
-            thmUCRL = thmUC
+        
+        thmUCRL = arcpy.MakeRasterLayer_management(thmUC, "thmUCRL").getOutput(0)
         with arcpy.da.SearchCursor(thmUCRL, evflds + ['COUNT']) as ucrows:
             for ucrow in ucrows:
                 for i, fld in enumerate(evflds):
@@ -262,7 +264,7 @@ def Execute(self, parameters, messages):
         arcpy.sa.ExtractValuesToPoints(TrainPts, thmUC, tempExtrShp)
         #Make dictionary of Counts of Points per RasterValue
         CntsPerRasValu = {}
-        with arcpy.da.SearchCursor(ExtrTrainPts, ['RasterValu']) as tpFeats:
+        with arcpy.da.SearchCursor(tempExtrShp, ['RasterValu']) as tpFeats:
             for tpFeat in tpFeats:
                 if tpFeat[0] in CntsPerRasValu.keys():
                     CntsPerRasValu[tpFeat[0]] += 1
@@ -286,7 +288,7 @@ def Execute(self, parameters, messages):
                 mcIndeces.append(1)
             else:
                 arcpy.AddError('Incorrect evidence type')
-            raise Exception
+                raise Exception
         if len(mcIndeces) != len(Input_Rasters):
             arcpy.AddError("Incorrect number of evidence types.")
             raise Exception
@@ -341,7 +343,7 @@ def Execute(self, parameters, messages):
                         first = False
                     else:
                         elOT.append("%s, %s (%s)" % (strT, strF, lv))
-            ot[j] = elOT
+                ot[j] = elOT
         # arcpy.AddMessage('ot=%s'%(str(ot)))
         ''' Loop through the unique conditions, substituting
             the weighted average of known classes for missing data
@@ -400,19 +402,20 @@ def Execute(self, parameters, messages):
             fCase.write(wLine + '\n')
             getNmbET = False
         fCase.close()
-        ##' Write a parameter file to the ArcView extension directory
+
+        ##' Write a parameter file to the ArcGIS Pro directory
         ##'----------------------------------------------
-        arcpy.AddMessage("Write a parameter file to the ArcView extension directory")
+        arcpy.AddMessage("Write a parameter file to the ArcGIS Pro directory")
         strF1 = "param.dat"
         fnParam = os.path.join(arcpy.env.scratchFolder, strF1) #param.dat file
-        fParam = open(fnParam, 'w')
-        if not fParam:
+        try:
+            with open(fnParam, 'w') as fParam:
+                fParam.write('%s\\\n' % (arcpy.env.scratchFolder))
+                fParam.write('%s\n' % strF2)
+                fParam.write("%d %g\n" % (nmbET, unitCell))
+        except IOError:
             arcpy.AddError("Error writing logistic regression parameter file.")
-            raise Exception
-        fParam.write('%s\\\n' %(arcpy.env.scratchFolder))
-        fParam.write('%s\n' %strF2)
-        fParam.write("%d %g\n" %(nmbET, unitCell))
-        fParam.close()
+            raise
 
         ### RunLR ------------------------------------------------------------------------------------------------------------
         # Check input files
@@ -447,7 +450,8 @@ def Execute(self, parameters, messages):
         params = []
         try:
             import subprocess
-            p = subprocess.Popen([fnBat, params]).wait()
+            cmd = [fnBat]
+            p = subprocess.Popen(cmd).wait()
             arcpy.AddMessage('Running %s: ' % fnBat)
         except OSError:
             arcpy.AddMessage('Execution failed %s: ' % fnBat)
