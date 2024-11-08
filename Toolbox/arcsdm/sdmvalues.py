@@ -236,12 +236,12 @@ def appendSDMValues(unitCell, TrainPts):
         arcpy.AddMessage("%-20s %s" % ("Cell Size:", cellsize))
 
         # Assuming getMaskSize(mapUnits) returns a numeric value directly
-        total_area = float(getMaskSize(mapUnits))
+        total_area = getMaskSize(mapUnits)
 
         # Ensure unitCell is a float
         unitCell_float = unitCell
 
-
+        arcpy.AddWarning(f'{unitCell_float} is not a float and total_area is {total_area}')
         # Calculate the number of unit cells
         num_unit_cells = total_area[0] / unitCell_float
 

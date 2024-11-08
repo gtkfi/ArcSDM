@@ -148,7 +148,7 @@ def Execute(self, parameters, messages):
         thmUC = arcpy.CreateScratchName("tmp_UCras", '', 'raster', arcpy.env.scratchWorkspace)
 
         #Print out SDM environmental values
-        sdmvalues.appendSDMValues(unitCell, TrainPts)
+        #sdmvalues.appendSDMValues(unitCell, TrainPts)
         #Create Generalized Class tables
         Wts_Rasters = []
         mdidx = 0
@@ -165,11 +165,46 @@ def Execute(self, parameters, messages):
                 outbase = outbase[1:]
             Output_Raster = os.path.dirname(Output_Raster) + "\\" + outbase
 
-            Temp_Raster = arcpy.CreateScratchName('tmp_rst', '', 'raster', arcpy.env.scratchWorkspace)
-            arcpy.CopyRaster_management(Input_Raster, Temp_Raster) # Input_Raster & Temp_Raster: Rowid, VALUE, COUNT
-            arcpy.JoinField_management(Temp_Raster, 'Value', Wts_Table, 'CLASS')
-            arcpy.AddMessage("%-20s %s (%d)" % ("Temp_Raster:", str(Temp_Raster), int(arcpy.GetCount_management(Temp_Raster).getOutput(0))))
-            Output_Raster = arcpy.sa.Lookup(Temp_Raster, "GEN_CLASS") #AL 051020
+            arcpy.env.snapRaster = Input_Raster
+            out_bands_raster = arcpy.ia.ExtractBand(Input_Raster, [1])
+            arcpy.AddWarning(f'out_bands_raster: {out_bands_raster}')
+            
+            #Temp_Raster = arcpy.CreateScratchName('tmp_rst', '', 'raster', arcpy.env.scratchWorkspace)
+            #arcpy.AddWarning(f'arcpy.env.workspace: {arcpy.env.workspace}')
+            #arcpy.management.MakeRasterLayer(Input_Raster, 'temp_raster')
+            #temp_raster_path = arcpy.Describe('temp_raster').catalogPath
+            #arcpy.AddWarning(f'Temp_Raster: {temp_raster_path}')
+            
+            #arcpy.management.AddIndex(Input_Raster, [field.name for field in arcpy.ListFields(Input_Raster)], 'Value_Index', 'UNIQUE')
+            #arcpy.management.CopyRaster(Input_Raster, temp_raster_path) # Input_Raster & Temp_Raster: Rowid, VALUE, COUNT
+            #arcpy.AddJoin_management(Input_Raster, 'Value_Index', Wts_Table, 'CLASS')
+            gdb_path = arcpy.env.workspace
+            feature_class = Input_Raster
+            table_to_join = f"{gdb_path}\\{Wts_Table}"
+            # Specify the fields to join on
+            join_field_fc = "Value"  # Field in the feature class
+            join_field_table = "CLASS"  # Field in the table
+            # Create a new field in the Input_Raster to store the joined values
+            joined_field = "CLASS"
+            if not arcpy.ListFields(Input_Raster, joined_field):
+                arcpy.AddField_management(Input_Raster, joined_field)
+
+            # Create a dictionary to store the join values from Wts_Table
+            join_values = {}
+            with arcpy.da.SearchCursor(Wts_Table, [join_field_table, "GEN_CLASS"]) as cursor:
+                for row in cursor:
+                    join_values[row[0]] = row[1]
+
+            # Update the Input_Raster with the joined values
+            with arcpy.da.UpdateCursor(Input_Raster, [join_field_fc, joined_field]) as cursor:
+                for row in cursor:
+                    if row[0] in join_values:
+                        row[1] = join_values[row[0]]
+                    else:
+                        row[1] = None  # or some default value for missing join
+                    cursor.updateRow(row)
+            arcpy.AddMessage("%-20s %s (%d)" % ("Temp_Raster:", str(Input_Raster), int(arcpy.GetCount_management(Input_Raster).getOutput(0))))
+            Output_Raster = arcpy.sa.Lookup(Input_Raster, "GEN_CLASS") #AL 051020
             arcpy.AddMessage("%-20s %s (%d)" % ("Output_Raster:", str(Output_Raster), int(arcpy.GetCount_management(Output_Raster).getOutput(0))))
             if not arcpy.Exists(Output_Raster):
                 arcpy.AddError(Output_Raster + " does not exist.")
