@@ -58,7 +58,7 @@ def Execute(self, parameters, messages):
     try:
         importlib.reload(arcsdm.sdmvalues)
     except:
-        reload(arcsdm.sdmvalues)
+        importlib.reload(arcsdm.sdmvalues)
     
     # Get input parameters
     Input_point_features = parameters[0].valueAsText
@@ -178,15 +178,10 @@ def Execute(self, parameters, messages):
     
     # Insert rows into the output table
     rasrows = flt_ras.FloatRasterSearchcursor()
-    tblrows = arcpy.InsertCursor(Output_Table)
     arcpy.AddMessage('factor: %s' % factor)
-    for rasrow in rasrows:
-        tblrow = tblrows.newRow()
-        tblrow.RASTERVALU = rasrow.Value
-        tblrow.Area_sqkm = rasrow.Count * factor
-        tblrows.insertRow(tblrow)
-    
-    del tblrow, tblrows
+    with arcpy.da.InsertCursor(Output_Table, ["RASTERVALU", "Area_sqkm"]) as cursor:
+        for rasrow in rasrows:
+            cursor.insertRow([rasrow.Value, rasrow.Count * factor])
     
     # Calculate the total number of sites
     totalsites = sum(stats_dict.values())
@@ -199,25 +194,21 @@ def Execute(self, parameters, messages):
     nSites = []
     
     # Update the output table with frequency values
-    tblrows = arcpy.UpdateCursor(Output_Table)
-    tblrow = tblrows.next()
     stats_found = 0
-    while tblrow:
-        tblval = tblrow.RASTERVALU
-        area = tblrow.Area_sqkm
-        totalarea += area
-        rasval = flt_ras[tblval]
-        if rasval in stats_dict:
-            frequency = stats_dict[rasval]
-            tblrow.Frequency = frequency
-            tblrows.updateRow(tblrow)
-            effarea.append(area)
-            nSites.append(frequency)
-            stats_found += 1
-        
-        tblrow = tblrows.next()
+    with arcpy.da.UpdateCursor(Output_Table, ["RASTERVALU", "Area_sqkm", "Frequency"]) as cursor:
+        for row in cursor:
+            tblval = row[0]
+            area = row[1]
+            totalarea += area
+            rasval = flt_ras[tblval]
+            if rasval in stats_dict:
+                frequency = stats_dict[rasval]
+                row[2] = frequency
+                cursor.updateRow(row)
+                effarea.append(area)
+                nSites.append(frequency)
+                stats_found += 1
     
-    del tblrow, tblrows
     arcpy.AddMessage('stats_found: %s' % stats_found)
     if stats_found < len(stats_dict):
         arcpy.AddError('Not enough Values with Frequency > 0 found!')
@@ -243,49 +234,40 @@ def Execute(self, parameters, messages):
     cumSitesList_rev = reversed(cumSitesList)
     
     # Update the output table with cumulative values
-    tblrows = arcpy.UpdateCursor(Output_Table)
-    tblrow = tblrows.next()
-    while tblrow:
-        cumArea += 100.0 * tblrow.Area_sqkm / totalarea
-        tblrow.CAPP_CumAr = cumArea
-        tblrow.Eff_CumAre = next(effCumareaList_rev)
-        Cum_Sites = next(cumSitesList_rev)
-        tblrow.Cum_Sites = Cum_Sites
-        tblrow.setValue('I_CumSites', 100.0 - Cum_Sites)
-        tblrows.updateRow(tblrow)
-        tblrow = tblrows.next()
+    with arcpy.da.UpdateCursor(Output_Table, ["Area_sqkm", "CAPP_CumAr", "Eff_CumAre", "Cum_Sites", "I_CumSites"]) as cursor:
+        for row in cursor:
+            cumArea += 100.0 * row[0] / totalarea
+            row[1] = cumArea
+            row[2] = next(effCumareaList_rev)
+            Cum_Sites = next(cumSitesList_rev)
+            row[3] = Cum_Sites
+            row[4] = 100.0 - Cum_Sites
+            cursor.updateRow(row)
     
-    del tblrow, tblrows
     arcpy.AddMessage('reversed:')
     
     # Calculate efficiency and AUC values
     Eff_CumAre = []
     Cum_Sites = []
-    tblrows2 = arcpy.SearchCursor(Output_Table)
-    tblrow2 = tblrows2.next()
-    tblrow2 = tblrows2.next()
-    while tblrow2:
-        Eff_CumAre.append(tblrow2.Eff_CumAre)
-        Cum_Sites.append(tblrow2.Cum_Sites)
-        tblrow2 = tblrows2.next()
+    with arcpy.da.SearchCursor(Output_Table, ["Eff_CumAre", "Cum_Sites"]) as cursor:
+        next(cursor)  # Skip the first row
+        for row in cursor:
+            Eff_CumAre.append(row[0])
+            Cum_Sites.append(row[1])
     
     sumEff_AUC = 0.0
-    tblrows1 = arcpy.UpdateCursor(Output_Table)
-    tblrow1 = tblrows1.next()
-    for i in range(len(Eff_CumAre)):
-        val = 0.5 * (tblrow1.Eff_CumAre - Eff_CumAre[i]) * (tblrow1.Cum_Sites + Cum_Sites[i]) / (100.0 * 100.0)
-        sumEff_AUC += val
-        tblrow1.Eff_AUC = val
-        tblrows1.updateRow(tblrow1)
-        tblrow1 = tblrows1.next()
-    
-    if tblrow1:
-        val = 0.5 * (tblrow1.Eff_CumAre) * (tblrow1.Cum_Sites) / (100.0 * 100.0)
-        sumEff_AUC += val
-        tblrow1.Eff_AUC = val
-        tblrows1.updateRow(tblrow1)
-    
-    del tblrow1, tblrows1
+    with arcpy.da.UpdateCursor(Output_Table, ["Eff_CumAre", "Cum_Sites", "Eff_AUC"]) as cursor:
+        for i, row in enumerate(cursor):
+            if i < len(Eff_CumAre):
+                val = 0.5 * (row[0] - Eff_CumAre[i]) * (row[1] + Cum_Sites[i]) / (100.0 * 100.0)
+                sumEff_AUC += val
+                row[2] = val
+                cursor.updateRow(row)
+            else:
+                val = 0.5 * (row[0]) * (row[1]) / (100.0 * 100.0)
+                sumEff_AUC += val
+                row[2] = val
+                cursor.updateRow(row)
     
     arcpy.AddMessage('Efficiency: %.1f%%' % (sumEff_AUC * 100.0))
     
