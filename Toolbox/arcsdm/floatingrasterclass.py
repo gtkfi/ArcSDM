@@ -1,4 +1,9 @@
-"""This version of floatingraster searchcursor converts a float raster to a FLOAT
+"""
+SDM Values / ArcSDM 6 ToolBox for ArcGIS Pro
+
+Conversion and tool development for ArcGIS Pro by Geological Survey of Finland (GTK), 2024.
+
+This version of floatingraster searchcursor converts a float raster to a FLOAT
 and HEADER file which is read back with Python's array object to generate a
 pseudoVAT as a Python dictionary.
     The searchcursor is a function that returns a generator function (pseudo ROWS)

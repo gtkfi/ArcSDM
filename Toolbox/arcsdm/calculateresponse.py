@@ -1,6 +1,7 @@
 """
+    ArcSDM 6 ToolBox for ArcGIS Pro
 
-    ArcSDM 5 - ArcSDM for ArcGis pro
+    Conversion and tool development for ArcGIS Pro by Geological Survey of Finland (GTK), 2024.
 
     History:
     4/2016 Conversion started - TR
