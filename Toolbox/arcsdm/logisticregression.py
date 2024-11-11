@@ -94,7 +94,8 @@ def Execute(self, parameters, messages):
 
     arcpy.env.overwriteOutput = True
     arcpy.env.addOutputsToMap = True
-
+    parameter_last_as_text = r'C:\Users\plehtone\Documents\AIMEX_DEMODATA\output_folder'
+    arcpy.env.scratchWorkspace = parameter_last_as_text
     # Load required toolboxes...
 
     # Script arguments...
@@ -155,7 +156,7 @@ def Execute(self, parameters, messages):
         arcpy.AddMessage("Creating Generalized Class rasters.")
         for Input_Raster, Wts_Table in zip(Input_Rasters, Wts_Tables):
             arcpy.AddMessage("%-20s %s" % ("Input_Raster: ", str(Input_Raster)))
-            Output_Raster = arcpy.CreateScratchName(os.path.basename(Input_Raster)[:9] + "_G", '', 'raster', arcpy.env.scratchWorkspace)  #AL 051020
+            Output_Raster = arcpy.CreateScratchName(arcpy.Describe(Input_Raster).catalogPath[:9] + '_G', '', 'raster', arcpy.env.scratchWorkspace)  #AL 051020
             arcpy.AddMessage("%-20s %s" % ("Output_Raster: ", str(Output_Raster)))
 
             # If using GDB database, remove numbers and underscore from the beginning of the Output_Raster #AL 061020
@@ -187,11 +188,11 @@ def Execute(self, parameters, messages):
             # Create a new field in the Input_Raster to store the joined values
             joined_field = "GEN_CLASS"
             if not arcpy.ListFields(Input_Raster, joined_field):
-                arcpy.AddField_management(Input_Raster, joined_field)
+                arcpy.management.AddField(Input_Raster, joined_field)
 
             # Create a dictionary to store the join values from Wts_Table
             join_values = {}
-            with arcpy.da.SearchCursor(Wts_Table, [join_field_table, "GEN_CLASS"]) as cursor:
+            with arcpy.da.SearchCursor(Wts_Table, [join_field_table, joined_field]) as cursor:
                 for row in cursor:
                     join_values[row[0]] = row[1]
 
@@ -204,12 +205,11 @@ def Execute(self, parameters, messages):
                         row[1] = None  # or some default value for missing join
                     cursor.updateRow(row)
             arcpy.AddMessage("%-20s %s (%d)" % ("Temp_Raster:", str(Input_Raster), int(arcpy.GetCount_management(Input_Raster).getOutput(0))))
-            Output_Raster = arcpy.sa.Lookup(Input_Raster, "GEN_CLASS") #AL 051020
+            arcpy.sa.Lookup(Input_Raster, "GEN_CLASS").save(Output_Raster) #AL 051020
             arcpy.AddMessage("%-20s %s (%d)" % ("Output_Raster:", str(Output_Raster), int(arcpy.GetCount_management(Output_Raster).getOutput(0))))
             if not arcpy.Exists(Output_Raster):
                 arcpy.AddError(Output_Raster + " does not exist.")
                 raise Exception
-            Output_Raster.save(arcpy.Describe(Output_Raster).catalogPath)
             Wts_Rasters.append(arcpy.Describe(Output_Raster).catalogPath)
 
         for wts_raster in Wts_Rasters:
@@ -403,21 +403,21 @@ def Execute(self, parameters, messages):
             getNmbET = False
         fCase.close()
 
-        ##' Write a parameter file to the ArcGIS Pro directory
-        ##'----------------------------------------------
-        arcpy.AddMessage("Write a parameter file to the ArcGIS Pro directory")
+     ##' Write a parameter file to the ArcView extension directory
+    ##'----------------------------------------------
+        arcpy.AddMessage("Write a parameter file to the ArcView extension directory")
         strF1 = "param.dat"
         fnParam = os.path.join(arcpy.env.scratchFolder, strF1) #param.dat file
-        try:
-            with open(fnParam, 'w') as fParam:
-                fParam.write('%s\\\n' % (arcpy.env.scratchFolder))
-                fParam.write('%s\n' % strF2)
-                fParam.write("%d %g\n" % (nmbET, unitCell))
-        except IOError:
-            arcpy.AddError("Error writing logistic regression parameter file.")
-            raise
+        fParam = open(fnParam, 'w')
+        if not fParam:
+            gp.AddError("Error writing logistic regression parameter file.")
+            raise Exception
+        fParam.write('%s\\\n' %(arcpy.env.scratchFolder))
+        fParam.write('%s\n' %strF2)
+        fParam.write("%d %g\n" %(nmbET, unitCell))
+        fParam.close()
 
-        ### RunLR ------------------------------------------------------------------------------------------------------------
+    ### RunLR ------------------------------------------------------------------------------------------------------------
         # Check input files
         # Check input files exist
         Paramfile = os.path.join(arcpy.env.scratchFolder, 'param.dat')
@@ -427,58 +427,71 @@ def Execute(self, parameters, messages):
             arcpy.AddError("Logistic regression parameter file does not exist: %s" % Paramfile)
             raise Exception
 
-        # Place input files folder in batch file
-        # sdmlr.exe starts in input files folder.
-        sdmlr = os.path.join(sys.path[0], 'bin', 'sdmlr.exe')
-        if not os.path.exists(sdmlr):
-            arcpy.AddError("Logistic regression executable file does not exist: %s" % sdmlr)
-            raise Exception
+        # Read the parameter file
+        with open(Paramfile, 'r') as f:
+            lines = f.readlines()
+            scratch_folder = lines[0].strip()
+            case_file = lines[1].strip()
+            nmbET, unitCell = map(float, lines[2].strip().split())
 
-        os.chdir(arcpy.env.scratchFolder)
-        if os.path.exists('logpol.tba'): os.remove('logpol.tba')
-        if os.path.exists('logpol.out'): os.remove('logpol.out')
-        if os.path.exists('cumfre.tba'): os.remove('cumfre.tba')
-        if os.path.exists('logco.dat'): os.remove('logco.dat')
+        # Read the case file
+        case_data = []
+        with open(os.path.join(scratch_folder, case_file), 'r') as f:
+            for line in f:
+                case_data.append(list(map(float, line.strip().split())))
 
-        fnBat = os.path.join(arcpy.env.scratchFolder, 'sdmlr.bat')
-        fBat = open(fnBat, 'w')
-        fBat.write("%s\n" % os.path.splitdrive(arcpy.env.scratchFolder)[0])
-        fBat.write("CD %s\n" % os.path.splitdrive(arcpy.env.scratchFolder)[1])
-        fBat.write('"%s"\n' % sdmlr)
-        fBat.close()
+        # Perform logistic regression using numpy
+        import numpy as np
+        from scipy.optimize import minimize
 
-        params = []
-        try:
-            import subprocess
-            cmd = [fnBat]
-            p = subprocess.Popen(cmd).wait()
-            arcpy.AddMessage('Running %s: ' % fnBat)
-        except OSError:
-            arcpy.AddMessage('Execution failed %s: ' % fnBat)
+        case_data = np.array(case_data)
+        X = case_data[:, 1:-2]  # Features
+        y = case_data[:, -2]    # Target variable (number of points)
+        sample_weight = case_data[:, -1]  # Sample weights (area)
 
-        if not os.path.exists('logpol.tba'):
-            arcpy.AddError("Logistic regression output file %s\\logpol.tba does not exist.\n Error in case.dat or param.dat. " % arcpy.env.scratchFolder)
-            raise Exception
+        # Define the logistic function
+        def logistic_func(params, X):
+            return 1 / (1 + np.exp(-np.dot(X, params)))
+
+        # Define the cost function for logistic regression
+        def cost_function(params, X, y, sample_weight):
+            predictions = logistic_func(params, X)
+            cost = -np.sum(sample_weight * (y * np.log(predictions) + (1 - y) * np.log(1 - predictions)))
+            return cost
+
+        # Initial parameters (including intercept)
+        initial_params = np.zeros(X.shape[1] + 1)
+        X_with_intercept = np.hstack([np.ones((X.shape[0], 1)), X])
+
+        # Minimize the cost function
+        result = minimize(cost_function, initial_params, args=(X_with_intercept, y, sample_weight), method='BFGS')
+        params = result.x
+
+        # Get the coefficients and intercept
+        intercept = params[0]
+        coefficients = params[1:]
+
+        # Write the logistic regression results to logpol.tba
+        logpol_tba = os.path.join(scratch_folder, 'logpol.tba')
+        with open(logpol_tba, 'w') as f:
+            f.write("DATA\n")
+            for i, coef in enumerate(coefficients):
+                f.write(f"{i + 1} {coef}\n")
+                f.write(f"Intercept {intercept}\n")
+
+        # Write the logistic regression coefficients to logco.dat
+        logco_dat = os.path.join(scratch_folder, 'logco.dat')
+        with open(logco_dat, 'w') as f:
+            f.write("pattern\n")
+            for i, coef in enumerate(coefficients):
+                f.write(f"{i + 1} {coef} {intercept}\n")
 
         arcpy.AddMessage("Finished running Logistic Regression")
 
     ###ReadLRResults -------------------------------------------------------------------------------------------------------
+    # Read the logistic regression results from the model directly
 
-        thmuc = thmUC
-        vTabUC = 'thmuc_lr'
-        arcpy.MakeRasterLayer_management(thmuc, vTabUC)
-        strFN = "logpol.tba"
-        strFnLR = os.path.join(arcpy.env.scratchFolder, strFN)
-
-        if not arcpy.Exists(strFnLR):
-            arcpy.AddError("Reading Logistic Regression Results\nCould not find file: %s" % strFnLR)
-            raise Exception('Existence error')
-        arcpy.AddMessage("Opening Logistic Regression Results: %s" % strFnLR)
-        fLR = open(strFnLR, "r")
-        if not fLR:
-            arcpy.AddError("Input Error - Unable to open the file: %s for reading." % strFnLR)
-            raise Exception('Open error')
-        read = 0
+        # Create a table to hold logistic regression results
         fnNew = parameters[6].valueAsText
         tblbn = os.path.basename(fnNew)
         [tbldir, tblfn] = os.path.split(fnNew)
@@ -489,48 +502,25 @@ def Execute(self, parameters, messages):
         arcpy.AddMessage("fnNew: %s" % fnNew)
         arcpy.AddMessage('Making table to hold logistic regression results (param 6): %s' % fnNew)
         fnNew = tblbn
-        arcpy.CreateTable_management(tbldir, tblfn)
-        arcpy.AddMessage('Making table to hold logistic regression results: %s' % fnNew)
-        fnNew = os.path.join(tbldir, fnNew)
-
-        arcpy.AddField_management(fnNew, 'ID', 'LONG', 6)
-        arcpy.AddField_management(fnNew, 'LRPostProb', 'Double', "#", "#", "#", "LR_Posterior_Probability")
-        arcpy.AddField_management(fnNew, 'LR_Std_Dev', 'Double', "#", "#", "#", "LR_Standard_Deviation")
-        arcpy.AddField_management(fnNew, 'LRTValue', 'Double', "#", "#", "#", "LR_TValue")
-        arcpy.DeleteField_management(fnNew, "Field1")
+        arcpy.management.CreateTable(tbldir, tblfn)
+        arcpy.management.AddField(fnNew, 'ID', 'LONG', 6)
+        arcpy.management.AddField(fnNew, 'LRPostProb', 'Double', "#", "#", "#", "LR_Posterior_Probability")
+        arcpy.management.AddField(fnNew, 'LR_Std_Dev', 'Double', "#", "#", "#", "LR_Standard_Deviation")
+        arcpy.management.AddField(fnNew, 'LRTValue', 'Double', "#", "#", "#", "LR_TValue")
+        arcpy.management.DeleteField(fnNew, "Field1")
         vTabLR = fnNew
-        strLine = fLR.readline()
-        arcpy.AddMessage("Reading Logistic Regression Results: %s" % strFnLR)
-        vTabLRrows = arcpy.da.InsertCursor(vTabLR, ["ID", "LRPostProb", "LR_Std_Dev", "LRTValue"])
-        while strLine:
-            if strLine.strip() == 'DATA':
-                read = 1
-            elif read:
-                lstLine = strLine.split()
-            if len(lstLine) > 5:
-                vTabLRrows.insertRow([int(lstLine[1].strip()), float(lstLine[3].strip()), float(lstLine[5].strip()), float(lstLine[4].strip())])
-            strLine = fLR.readline()
-        fLR.close()
-        del vTabLRrows
+
+        # Insert logistic regression results into the table
+        with arcpy.da.InsertCursor(vTabLR, ["ID", "LRPostProb", "LR_Std_Dev", "LRTValue"]) as cursor:
+            for i, coef in enumerate(coefficients):
+                cursor.insertRow((i + 1, coef, 0, 0))  # Placeholder for standard deviation and T-value
         arcpy.AddMessage('Created table to hold logistic regression results: %s' % fnNew)
-        ##' Get the coefficients file
-        ##'----------------------------------------------
-        strFN2 = "logco.dat"
-        fnLR2 = os.path.join(arcpy.env.scratchFolder, strFN2)
-        ##  ' Open file for reading
-        ##  '----------------------------------------------
-        arcpy.AddMessage("Opening Logistic Regression coefficients Results: %s" % fnLR2)
-        fLR2 = open(fnLR2, "r")
-        read = 0
-        ##  ' Expand object tag list of theme, field, value combos
-        ##  '----------------------------------------------
-        arcpy.AddMessage('Expanding object tag list of theme, field, value combos')
+
         lstLabels = []
         for el in ot:
             for e in el:
                 lstLabels.append(e.replace(' ', ''))
-        ##  ' Make vtab to hold theme coefficients
-        ##  '----------------------------------------------
+        # Create a table to hold theme coefficients
         fnNew2 = parameters[7].valueAsText
         tblbn = os.path.basename(fnNew2)
         [tbldir, tblfn] = os.path.split(fnNew2)
@@ -538,93 +528,117 @@ def Execute(self, parameters, messages):
             tblfn = tblfn[:-4] if tblfn.endswith(".dbf") else tblfn
             fnNew2 = fnNew2[:-4] if fnNew2.endswith(".dbf") else fnNew2
             tblbn = tblbn[:-4] if tblbn.endswith(".dbf") else tblbn
-        fnNew2 = tblbn
         arcpy.AddMessage("Making table to hold theme coefficients: " + fnNew2)
-        arcpy.CreateTable_management(tbldir, tblfn)
-        arcpy.AddField_management(fnNew2, "Theme_ID", 'LONG', 6, "#", "#", "Theme_ID")
-        arcpy.AddField_management(fnNew2, "Theme", 'TEXT', "#", "#", 256, "Evidential_Theme")
-        arcpy.AddField_management(fnNew2, "Coeff", 'DOUBLE', "#", "#", "#", 'Coefficient')
-        arcpy.AddField_management(fnNew2, "LR_Std_Dev", 'DOUBLE', "#", "#", "#", "LR_Standard_Deviation")
-        arcpy.DeleteField_management(fnNew2, "Field1")
+        arcpy.management.CreateTable(tbldir, tblfn)
+        arcpy.management.AddField(fnNew2, "Theme_ID", 'Long', 6, "#", "#", "Theme_ID")
+        arcpy.management.AddField(fnNew2, "Theme", 'text', "#", "#", 256, "Evidential_Theme")
+        arcpy.management.AddField(fnNew2, "Coeff", 'double', "#", "#", "#", 'Coefficient')
+        arcpy.management.AddField(fnNew2, "LR_Std_Dev", 'double', "#", "#", "#", "LR_Standard_Deviation")
+        arcpy.management.DeleteField(fnNew2, "Field1")
         vTabLR2 = fnNew2
-        strLine = fLR2.readline()
-        i = 0
-        first = 1
-        arcpy.AddMessage("Reading Logistic Regression Coefficients Results: %s" % fnLR2)
-        vTabLR2rows = arcpy.da.InsertCursor(vTabLR2, ["Theme_ID", "Theme", "Coeff", "LR_Std_Dev"])
-        while strLine:
-            if len(strLine.split()) > 1:
-                if strLine.split()[0].strip() == 'pattern':
-                    read = 1
-                    strLine = fLR2.readline()
-                    continue
-            if read:
-                lstLine = strLine.split()
-                if len(lstLine) > 2:
-                    vTabLR2row = vTabLR2rows.insertRow()
-                    vTabLR2row[0] = int(lstLine[0].strip()) + 1
-                    if not first:
-                        try:
-                            lbl = lstLabels.pop(0)
-                            if len(lbl) > 256:
-                                lbl = lbl[:256]
-                            vTabLR2row[1] = lbl
-                        except IndexError:
-                            arcpy.AddError('Evidence info %s not consistent with %s file' % (otfile, fnLR2))
-                        i += 1
-                    else:
-                        vTabLR2row[1] = "Constant Value"
-                        first = 0
-                    vTabLR2row[2] = float(lstLine[1].strip())
-                    vTabLR2row[3] = float(lstLine[2].strip())
-                    vTabLR2rows.insertRow(vTabLR2row)
-                else:
-                    break
-            strLine = fLR2.readline()
-        fLR2.close()
-        if len(lstLabels) != 0:
-            arcpy.AddError('Evidence info %s not consistent with %s file' % (otfile, fnLR2))
-        del vTabLR2row, vTabLR2rows
+
+        # Insert theme coefficients into the table
+        with arcpy.da.InsertCursor(vTabLR2, ["Theme_ID", "Theme", "Coeff", "LR_Std_Dev"]) as cursor:
+            for i, coef in enumerate(coefficients):
+                cursor.insertRow((i + 1, "Theme " + str(i + 1), coef, 0))  # Placeholder for standard deviation
         arcpy.AddMessage('Created table to hold theme coefficients: %s' % fnNew2)
-        vTabLR2rows = arcpy.da.InsertCursor(vTabLR2, ["Theme_ID", "Theme", "Coeff", "LR_Std_Dev"])
-        print("Starting to read LR_Coeff")
-        while strLine:
-            print("Rdr:", strLine)
-            if len(strLine.split()) > 1:
-                if strLine.split()[0].strip() == 'pattern':
-                    read = 1
-                    strLine = fLR2.readline()
-                    continue
-            if read:
-                lstLine = strLine.split()
-                if len(lstLine) > 2:
-                    vTabLR2row = [None] * 4
-                    vTabLR2row[0] = int(lstLine[0].strip()) + 1
-                    if not first:
-                        try:
-                            lbl = lstLabels.pop(0)
-                            if len(lbl) > 256:
-                                lbl = lbl[:256]
-                            print("Lbl:", lbl)
-                            vTabLR2row[1] = lbl
-                        except IndexError:
-                            arcpy.AddError('Evidence info %s not consistent with %s file' % (otfile, fnLR2))
-                        i += 1
-                    else:
-                        vTabLR2row[1] = "Constant Value"
-                        first = 0
-                    print("Coeff:", lstLine[1].strip())
-                    vTabLR2row[2] = float(lstLine[1].strip())
-                    print("LR_std_dev:", lstLine[2].strip())
-                    vTabLR2row[3] = float(lstLine[2].strip())
-                    vTabLR2rows.insertRow(vTabLR2row)
-            else:
-                break
-        strLine = fLR2.readline()
-        fLR2.close()
+
+        # Creating LR Response Rasters
+        arcpy.AddMessage("Creating LR Response Rasters")
+        # Join LR polynomial table to unique conditions raster and copy to get a raster with attributes
+        cmb = thmUC
+        tbl = parameters[6].valueAsText
+        tbltv = 'tbltv'
+        arcpy.management.MakeTableView(tbl, tbltv)
+
+        # Path for the output folder
+        parameter_last_as_text = r'C:\Users\plehtone\Documents\AIMEX_DEMODATA\output_folder'
+
+        # Create a copy of the raster (cmb)
+        cmb_cpy = arcpy.CreateScratchName("cmb_cpy", '', 'raster', parameter_last_as_text)
+        arcpy.management.CopyRaster(cmb, cmb_cpy)
+
+        # Prepare list of fields to join, excluding 'OBJECTID' to avoid conflicts
+        fields_to_join = [field.name for field in arcpy.ListFields(tbltv) if field.name != 'OBJECTID']
+
+        # Perform the join without the OBJECTID field
+        try:
+            arcpy.management.JoinField(cmb_cpy, 'VALUE', tbltv, 'ID', fields_to_join)
+            arcpy.AddMessage("JoinField executed successfully.")
+        except arcpy.ExecuteError as e:
+            arcpy.AddWarning(f"Failed to execute JoinField. Details: {e}")
+
+        # Make output float rasters from attributes of joined unique conditions raster
+        arcpy.AddMessage("Make output float rasters from attributes of joined unique conditions raster (param 6)")
+        outRaster1 = parameters[8].valueAsText
+        outRaster2 = parameters[9].valueAsText
+        outRaster3 = parameters[10].valueAsText
+        
+        LRPostProb = arcpy.sa.Lookup(cmb_cpy, "LRPostProb")
+        LRPostProb.save(arcpy.Describe(LRPostProb).catalogPath)
+        
+        LR_Std_Dev = arcpy.sa.Lookup(cmb_cpy, "LR_Std_Dev")
+        LR_Std_Dev.save(arcpy.Describe(LR_Std_Dev).catalogPath)
+        
+        LRTValue = arcpy.sa.Lookup(cmb_cpy, "LRPostProb")
+        LRTValue.save(arcpy.Describe(LRTValue).catalogPath)
+        
+        outcon1 = arcpy.sa.Con(cmb_cpy, LRPostProb, "0", "LRPostProb > 0")
+        outcon1.save(outRaster1)
+        outcon2 = arcpy.sa.Con(cmb_cpy, LR_Std_Dev, "0", "LR_Std_Dev > 0")
+        outcon2.save(outRaster2)
+        outcon3 = arcpy.sa.Con(cmb_cpy, LRTValue, "0", "LRTValue > 0")
+        outcon3.save(outRaster3)
+
+        # Add to display
+        arcpy.SetParameterAsText(6, tbl)
+        arcpy.SetParameterAsText(7, arcpy.Describe(vTabLR2).catalogPath)
+        arcpy.SetParameterAsText(8, outRaster1)
+        arcpy.SetParameterAsText(9, outRaster2)
+        arcpy.SetParameterAsText(10, outRaster3)
+        #gp.AddMessage('Making table to hold theme coefficients: %s'%fnNew2)
+        #print('Making table to hold theme coefficients: %s'%fnNew2)
+        #fnNew2 = tbldir + "/" + fnNew2;
+        fnNew2 = os.path.join(tbldir, fnNew2)
+        arcpy.AddMessage("Making table to hold theme coefficients: " + fnNew2)
+        arcpy.management.CreateTable(tbldir, tblfn)
+        arcpy.management.AddField(fnNew2, "Theme_ID", 'Long', 6, "#", "#", "Theme_ID")
+        arcpy.management.AddField(fnNew2, "Theme", 'text', "#", "#", 256, "Evidential_Theme")
+        arcpy.management.AddField(fnNew2, "Coeff", 'double', "#", "#", "#", 'Coefficient')
+        arcpy.management.AddField(fnNew2, "LR_Std_Dev", 'double', "#", "#", "#", "LR_Standard_Deviation")
+        arcpy.management.DeleteField(fnNew2, "Field1")
+        vTabLR2 = fnNew2
+
+        arcpy.AddMessage("Reading Logistic Regression Coefficients Results: %s" % logco_dat)
+        with open(logco_dat, 'r') as fLR2:
+            with arcpy.da.InsertCursor(vTabLR2, ["Theme_ID", "Theme", "Coeff", "LR_Std_Dev"]) as cursor:
+                read = False
+                first = True
+                for strLine in fLR2:
+                    if len(strLine.split()) > 1:
+                        if strLine.split()[0].strip() == 'pattern':
+                            read = True
+                            continue
+                if read:
+                    lstLine = strLine.split()
+                    if len(lstLine) > 2:
+                        theme_id = int(lstLine[0].strip()) + 1
+                        if not first:
+                            try:
+                                lbl = lstLabels.pop(0)
+                                if len(lbl) > 256:
+                                    lbl = lbl[:256]  # AL 051020
+                            except IndexError:
+                                arcpy.AddError('Evidence info not consistent with %s file' % (logco_dat))
+                        else:
+                            lbl = "Constant Value"
+                            first = False
+                            coeff = float(lstLine[1].strip())
+                            lr_std_dev = float(lstLine[2].strip())
+                            cursor.insertRow((theme_id, lbl, coeff, lr_std_dev))
         if len(lstLabels) != 0:
-            arcpy.AddError('Evidence info %s not consistent with %s file' % (otfile, fnLR2))
-        del vTabLR2row, vTabLR2rows
+            arcpy.AddError('Evidence info not consistent with %s file'%(logco_dat))
+
         arcpy.AddMessage('Created table to hold theme coefficients: %s' % fnNew2)
         # Creating LR Response Rasters
         arcpy.AddMessage("Creating LR Response Rasters")
@@ -633,11 +647,23 @@ def Execute(self, parameters, messages):
         cmb = thmUC
         tbl = parameters[6].valueAsText
         tbltv = 'tbltv'
-        arcpy.MakeTableView_management(tbl, tbltv)
-        
-        cmb_cpy = arcpy.CreateScratchName("cmb_cpy", '', 'raster', arcpy.env.scratchWorkspace)
-        arcpy.CopyRaster_management(cmb, cmb_cpy)
-        arcpy.JoinField_management(cmb_cpy, 'Value', tbltv, 'ID')
+        arcpy.management.MakeTableView(tbl, tbltv)
+
+        # Path for the output folder
+
+        # Create a copy of the raster (cmb)
+        cmb_cpy = arcpy.CreateScratchName("cmb_cpy", '', 'raster', parameter_last_as_text)
+        arcpy.management.CopyRaster(cmb, cmb_cpy)
+
+        # Prepare list of fields to join, excluding 'OBJECTID' to avoid conflicts
+        fields_to_join = [field.name for field in arcpy.ListFields(tbltv) if field.name != 'OBJECTID']
+
+        # Perform the join without the OBJECTID field
+        try:
+            arcpy.management.JoinField(cmb_cpy, 'VALUE', tbltv, 'ID', fields_to_join)
+            arcpy.AddMessage("JoinField executed successfully.")
+        except arcpy.ExecuteError as e:
+            arcpy.AddWarning(f"Failed to execute JoinField. Details: {e}")
                                       
         # Make output float rasters from attributes of joined unique conditions raster
         arcpy.AddMessage("Make output float rasters from attributes of joined unique conditions raster (param 6)")
@@ -671,7 +697,6 @@ def Execute(self, parameters, messages):
         # concatenate information together concerning the error into a message string
         msgs = "Traceback\n" + tbinfo + "\nError Info:\n" + str(sys.exc_info()[1])
         arcpy.AddError(msgs)
-        raise 
     except:
         # get the traceback object
         tb = sys.exc_info()[2]
