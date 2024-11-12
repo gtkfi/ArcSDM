@@ -1505,7 +1505,7 @@ class LogisticRegressionTool(object):
         param52.value = "%Workspace%\LR_coeff"
         
         param6 = arcpy.Parameter(
-        displayName="Output post probablity raster",
+        displayName="Output post probability raster",
         name="Output_Post_Probability_raster",
         datatype="DERasterDataset",
         parameterType="Required",
@@ -1527,8 +1527,15 @@ class LogisticRegressionTool(object):
         parameterType="Required",
         direction="Output")
         param63.value = "%Workspace%\LR_conf"
+        
+        param12 = arcpy.Parameter(
+        displayName="Output file folder",
+        name="Output_file_folder",
+        datatype="DEFolder",
+        parameterType="Optional",
+        direction="Output")
                                   
-        params = [param0, param1, paramInputWeights, param2, param3, param4, param5, param52, param6, param62, param63]
+        params = [param0, param1, paramInputWeights, param2, param3, param4, param5, param52, param6, param62, param63, param12]
         return params
 
     def isLicensed(self):
