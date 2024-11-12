@@ -49,23 +49,18 @@ def Execute(self, parameters, messages):
         # Create Generalized Class tables
         Wts_Rasters = []
         for Input_Raster, Wts_Table in zip(Input_Rasters, Wts_Tables):
-            arcpy.AddMessage("%-20s %s" % ("Input_Raster: ", str(Input_Raster)))
-            Output_Raster = arcpy.CreateScratchName(arcpy.Describe(Input_Raster).catalogPath[:9] + '_G', '', 'raster', arcpy.env.scratchWorkspace)  #AL 051020
-            arcpy.AddMessage("%-20s %s" % ("Output_Raster: ", str(Output_Raster)))
+            Output_Raster = arcpy.CreateScratchName(arcpy.Describe(Input_Raster).catalogPath[:9] + '_G', '', 'raster', arcpy.env.scratchWorkspace)
 
             # If using GDB database, remove numbers and underscore from the beginning of the Output_Raster #AL 061020
-            #if arcpy.env.workspaceType != "FileSystem":
             outbase = os.path.basename(Output_Raster)
+            if arcpy.Describe(arcpy.env.workspace).workspaceType != "FileSystem":
+                outbase = os.path.basename(Output_Raster)
             while len(outbase) > 0 and (outbase[:1] <= "9" or outbase[:1] == "_"):
                 outbase = outbase[1:]
             Output_Raster = os.path.dirname(Output_Raster) + "\\" + outbase
 
             arcpy.env.snapRaster = Input_Raster
-            out_bands_raster = arcpy.ia.ExtractBand(Input_Raster, [1])
-            
-            gdb_path = arcpy.env.workspace
-            feature_class = Input_Raster
-            table_to_join = f"{gdb_path}\\{Wts_Table}"
+
             # Specify the fields to join on
             join_field_fc = "Value"  # Field in the feature class
             join_field_table = "CLASS"  # Field in the table
