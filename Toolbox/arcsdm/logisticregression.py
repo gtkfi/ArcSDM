@@ -1,4 +1,5 @@
 import os
+import sys
 import math
 import arcpy
 import numpy as np
@@ -157,33 +158,64 @@ def Execute(self, parameters, messages):
             else:
                 lstPnts.append(0)
 
-        # Perform logistic regression using numpy
+        # Perform logistic regression using numpy for multi-class support
         case_data = np.array([lstsVals[0], lstPnts, lstAreas[0]]).T
         X = case_data[:, :-2]  # Features
-        y = case_data[:, -2]    # Target variable (number of points)
+        y = case_data[:, -2].astype(int)  # Target variable (number of points)
+        # Number of classes
+        num_classes = len(np.unique(y))
+        y = np.clip(y, 0, num_classes - 1)  # Ensure y values are within the range of num_classes
         sample_weight = case_data[:, -1]  # Sample weights (area)
 
-        # Define the logistic function
-        def logistic_func(params, X):
-            return 1 / (1 + np.exp(-np.dot(X, params)))
+        # Define the softmax function
+        def softmax(z):
+            exp_z = np.exp(z - np.max(z, axis=1, keepdims=True))
+            return exp_z / np.sum(exp_z, axis=1, keepdims=True)
 
-        # Define the cost function for logistic regression
-        def cost_function(params, X, y, sample_weight):
-            predictions = logistic_func(params, X)
-            cost = -np.sum(sample_weight * (y * np.log(predictions) + (1 - y) * np.log(1 - predictions)))
+        # Define the cost function for multi-class logistic regression
+        def cost_function(params, X, y, sample_weight, num_classes):
+            m, n = X.shape
+            params = params.reshape((num_classes, n + 1))
+            X_with_intercept = np.hstack([np.ones((m, 1)), X])
+            logits = np.dot(X_with_intercept, params.T)
+            probs = softmax(logits)
+            y_one_hot = np.eye(num_classes)[y.astype(int)]
+            cost = -np.sum(sample_weight * y_one_hot * np.log(probs)) / m
             return cost
 
+        # Define the gradient function for multi-class logistic regression
+        def gradient(params, X, y, sample_weight, num_classes):
+            m, n = X.shape
+            params = params.reshape((num_classes, n + 1))
+            X_with_intercept = np.hstack([np.ones((m, 1)), X])
+            logits = np.dot(X_with_intercept, params.T)
+            probs = softmax(logits)
+            y_one_hot = np.eye(num_classes)[y.astype(int)]
+            grad = np.dot((probs - y_one_hot).T, X_with_intercept) / m
+            grad = grad * sample_weight[:, np.newaxis]
+            return grad.flatten()
+
         # Initial parameters (including intercept)
-        initial_params = np.zeros(X.shape[1] + 1)
-        X_with_intercept = np.hstack([np.ones((X.shape[0], 1)), X])
+        initial_params = np.zeros((num_classes, X.shape[1] + 1)).flatten()
 
         # Minimize the cost function
-        result = minimize(cost_function, initial_params, args=(X_with_intercept, y, sample_weight), method='BFGS')
-        params = result.x
+        result = minimize(cost_function, initial_params, args=(X, y, sample_weight, num_classes), method='BFGS', jac=gradient)
+        params = result.x.reshape((num_classes, X.shape[1] + 1))
 
-        # Get the coefficients and intercept
-        intercept = params[0]
-        coefficients = params[1:]
+        intercept = params[:, 0]
+        print("Intercept:", intercept)  # Access the intercept to avoid the compile error
+        intercept = params[:, 0]
+        coefficients = params[:, 1:]
+
+        # Define lstLine variable with logistic regression results
+        lstLine = []
+        for i in range(num_classes):
+            lstLine.append([
+                str(i + 1),  # ID
+                str(params[i, 0]),  # LRPostProb
+                str(params[i, 1]) if params.shape[1] > 1 else '0',  # LR_Std_Dev
+                str(params[i, 2]) if params.shape[1] > 2 else '0'   # LRTValue
+            ])
 
         # Create a table to hold logistic regression results
         fnNew = parameters[6].valueAsText
@@ -206,8 +238,8 @@ def Execute(self, parameters, messages):
 
         # Insert logistic regression results into the table
         with arcpy.da.InsertCursor(vTabLR, ["ID", "LRPostProb", "LR_Std_Dev", "LRTValue"]) as cursor:
-            for i, coef in enumerate(coefficients):
-                cursor.insertRow((i + 1, coef, 0, 0))  # Placeholder for standard deviation and T-value
+            for line in lstLine:
+                cursor.insertRow(line)
         arcpy.AddMessage('Created table to hold logistic regression results: %s' % fnNew)
 
         lstLabels = []
@@ -234,7 +266,11 @@ def Execute(self, parameters, messages):
         # Insert theme coefficients into the table
         with arcpy.da.InsertCursor(vTabLR2, ["Theme_ID", "Theme", "Coeff", "LR_Std_Dev"]) as cursor:
             for i, coef in enumerate(coefficients):
-                cursor.insertRow((i + 1, "Theme " + str(i + 1), coef, 0))  # Placeholder for standard deviation
+                arcpy.AddWarning(f'coefficients: {coefficients}')
+                arcpy.AddWarning(f'coefficients: {coefficients.ndim}')
+                arcpy.AddWarning(f'coefficients: {coefficients.shape}')
+                arcpy.AddWarning(f'coef: {coef}')
+                cursor.insertRow((i + 1, "Theme " + str(i + 1), coef[0], 0))  # Placeholder for standard deviation
         arcpy.AddMessage('Created table to hold theme coefficients: %s' % fnNew2)
 
         # Creating LR Response Rasters
