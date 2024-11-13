@@ -266,10 +266,6 @@ def Execute(self, parameters, messages):
         # Insert theme coefficients into the table
         with arcpy.da.InsertCursor(vTabLR2, ["Theme_ID", "Theme", "Coeff", "LR_Std_Dev"]) as cursor:
             for i, coef in enumerate(coefficients):
-                arcpy.AddWarning(f'coefficients: {coefficients}')
-                arcpy.AddWarning(f'coefficients: {coefficients.ndim}')
-                arcpy.AddWarning(f'coefficients: {coefficients.shape}')
-                arcpy.AddWarning(f'coef: {coef}')
                 cursor.insertRow((i + 1, "Theme " + str(i + 1), coef[0], 0))  # Placeholder for standard deviation
         arcpy.AddMessage('Created table to hold theme coefficients: %s' % fnNew2)
 
