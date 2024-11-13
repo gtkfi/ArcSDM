@@ -1,5 +1,4 @@
 import os
-import sys
 import math
 import arcpy
 import numpy as np
@@ -41,6 +40,9 @@ def Execute(self, parameters, messages):
 
         # Get Training sites feature layer
         TrainPts = parameters[3].valueAsText
+        
+        # Get Missing data value
+        missing_data_value = parameters[4].valueAsText
 
         # Get output raster name
         thmUC = arcpy.CreateScratchName("tmp_UCras", '', 'raster', arcpy.env.scratchWorkspace)
@@ -110,6 +112,15 @@ def Execute(self, parameters, messages):
                 for i, fld in enumerate(evflds):
                     lstsVals[i].append(ucrow[i])
                     lstAreas[i].append(ucrow[-1] * cellSize * cellSize / (1000000.0 * unitCell))
+
+        # Handle missing values by replacing them with a weighted mean
+        for i in range(len(lstsVals)):
+            values = np.array(lstsVals[i])
+            weights = np.array(lstAreas[i])
+            mask = values == float(missing_data_value)
+            weighted_mean = np.average(values[~mask], weights=weights[~mask])
+            values[mask] = weighted_mean
+            lstsVals[i] = values.tolist()
 
         # Check Maximum area of conditions so not to exceed 100,000 unit areas
         maxArea = max(lstAreas[0])
