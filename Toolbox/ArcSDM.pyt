@@ -17,6 +17,7 @@ import arcsdm.nninputfiles
 import arcsdm.grand_wofe_lr
 import arcsdm.fuzzyroc
 import arcsdm.fuzzyroc2
+import arcsdm.pca
 
 from arcsdm.common import execute_tool
 
@@ -37,7 +38,7 @@ class Toolbox(object):
         self.tools = [PartitionNNInputFiles, CombineNNOutputFiles, NeuralNetworkOutputFiles, NeuralNetworkInputFiles, 
         CalculateWeightsTool,SiteReductionTool,CategoricalMembershipTool,
         CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, FuzzyROC, FuzzyROC2, LogisticRegressionTool, Symbolize, 
-        ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues, GrandWofe]
+        ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues, GrandWofe, PCA]
 
 
 class GrandWofe(object):
@@ -1825,4 +1826,139 @@ class FuzzyROC2(object):
     def execute(self, parameters, messages):
         """The source code of the tool."""
         execute_tool(arcsdm.fuzzyroc2.Execute, self, parameters, messages)
+        return
+    
+class PCA(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Principal Component Analysis"
+        self.description = "Perform Principal Component Analysis on input rasters"
+        self.canRunInBackground = False
+        self.category = "Analysis"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        
+        # Input data parameter
+        param0 = arcpy.Parameter(
+            displayName="Input Data",
+            name="input_data",
+            datatype=["GPRasterLayer", "Table", "Feature Layer"],
+            parameterType="Required",
+            direction="Input"
+        )
+
+        # Number of components parameter
+        param1 = arcpy.Parameter(
+            displayName="Number of Components",
+            name="number_of_components",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input"
+        )
+
+        # Columns parameter
+        param2 = arcpy.Parameter(
+            displayName="Columns",
+            name="columns",
+            datatype="GPString",
+            parameterType="Optional",
+            direction="Input",
+            multiValue=True
+        )
+
+        # Scaler type parameter
+        param3 = arcpy.Parameter(
+            displayName="Scaler Type",
+            name="scaler_type",
+            datatype="GPString",
+            parameterType="Optional",
+            direction="Input"
+        )
+        param3.filter.list = ["standard", "min_max", "robust"]
+        param3.value = "standard"
+
+        # Nodata handling parameter
+        param4 = arcpy.Parameter(
+            displayName="Nodata Handling",
+            name="nodata_handling",
+            datatype="GPString",
+            parameterType="Optional",
+            direction="Input"
+        )
+        param4.filter.list = ["remove", "replace"]
+        param4.value = "remove"
+
+        # Nodata value parameter
+        param5 = arcpy.Parameter(
+            displayName="Nodata Value",
+            name="nodata_value",
+            datatype="GPDouble",
+            parameterType="Optional",
+            direction="Input"
+        )
+        param5.value = -99
+
+        param6 = arcpy.Parameter(
+            displayName="Transformed data",
+            name="transformed_data",
+            datatype="DETable",
+            parameterType="Required",
+            direction="Output"
+        )
+        param6.value = r"%Workspace%\transformed_raster"
+        
+        param7 = arcpy.Parameter(
+            displayName="Computed principal components",
+            name="computed_principal_components",
+            datatype="DETable",
+            parameterType="Required",
+            direction="Output"
+        )
+        param7.value = r"%Workspace%\computed_principal_components"
+        
+        param8 = arcpy.Parameter(
+            displayName="Explained variances",
+            name="explained_variances",
+            datatype="DETable",
+            parameterType="Required",
+            direction="Output"
+        )
+        param8.value = r"%Workspace%\explained_variances"
+        
+        param9 = arcpy.Parameter(
+            displayName="Explained variance ratios for each component",
+            name="variance_ratios",
+            datatype="DETable",
+            parameterType="Required",
+            direction="Output"
+        )
+        param9.value = r"%Workspace%\variance_ratios"
+
+        params = [param0, param1, param2, param3, param4, param5, param6, param7, param8, param9]
+        return params
+
+    def isLicensed(self):    
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        execute_tool(arcsdm.pca.Execute, self, parameters, messages)
         return
