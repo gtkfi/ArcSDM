@@ -1845,7 +1845,8 @@ class PCA(object):
             name="input_data",
             datatype=["GPRasterLayer", "Table", "Feature Layer"],
             parameterType="Required",
-            direction="Input"
+            direction="Input",
+            multiValue=True
         )
 
         # Number of components parameter
@@ -1906,7 +1907,7 @@ class PCA(object):
             parameterType="Required",
             direction="Output"
         )
-        param6.value = r"%Workspace%\transformed_raster"
+        param6.value = 'transformed_raster'
         
         param7 = arcpy.Parameter(
             displayName="Computed principal components",
@@ -1915,7 +1916,7 @@ class PCA(object):
             parameterType="Required",
             direction="Output"
         )
-        param7.value = r"%Workspace%\computed_principal_components"
+        param7.value = 'computed_principal_components'
         
         param8 = arcpy.Parameter(
             displayName="Explained variances",
@@ -1924,7 +1925,7 @@ class PCA(object):
             parameterType="Required",
             direction="Output"
         )
-        param8.value = r"%Workspace%\explained_variances"
+        param8.value = 'explained_variances'
         
         param9 = arcpy.Parameter(
             displayName="Explained variance ratios for each component",
@@ -1933,7 +1934,7 @@ class PCA(object):
             parameterType="Required",
             direction="Output"
         )
-        param9.value = r"%Workspace%\variance_ratios"
+        param9.value = 'variance_ratios'
 
         params = [param0, param1, param2, param3, param4, param5, param6, param7, param8, param9]
         return params
