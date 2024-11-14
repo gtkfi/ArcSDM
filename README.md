@@ -38,6 +38,15 @@ Status of the toolbox should be updated to wiki https://github.com/gtkfi/ArcSDM/
 
 Development has started by GTK to migrate this tool for ArcGIS Pro 3.0+ (ArcSDM 6.0)
 
+## Usage of the ArcSDM Python env
+
+[How to use Python environments in ArcGIS Pro](https://pro.arcgis.com/en/pro-app/latest/arcpy/get-started/activate-an-environment.htm)
+
+1. Find the arcsdm-py3-env in the repository.
+2. Change ArcGIS Pro to use arcsdm-py3-env:
+![Using ArcSDM Python Environment](C:\Users\plehtone\source\repos\ArcSDM\img\use_arcsdm-py3-env.PNG)
+
+
 
 ## History:
 16.10.2020 5.03-1 merging fuzzy membership files into fuzzy overlay files rewritten<br> 
