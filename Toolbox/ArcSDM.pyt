@@ -1858,85 +1858,75 @@ class PCA(object):
             direction="Input"
         )
 
-        # Columns parameter
-        param2 = arcpy.Parameter(
-            displayName="Columns",
-            name="columns",
-            datatype="GPString",
-            parameterType="Optional",
-            direction="Input",
-            multiValue=True
-        )
-
         # Scaler type parameter
-        param3 = arcpy.Parameter(
+        param2 = arcpy.Parameter(
             displayName="Scaler Type",
             name="scaler_type",
             datatype="GPString",
             parameterType="Optional",
             direction="Input"
         )
-        param3.filter.list = ["standard", "min_max", "robust"]
-        param3.value = "standard"
+        param2.filter.list = ["standard", "min_max", "robust"]
+        param2.value = "standard"
 
         # Nodata handling parameter
-        param4 = arcpy.Parameter(
+        param3 = arcpy.Parameter(
             displayName="Nodata Handling",
             name="nodata_handling",
             datatype="GPString",
             parameterType="Optional",
             direction="Input"
         )
-        param4.filter.list = ["remove", "replace"]
-        param4.value = "remove"
+        param3.filter.list = ["remove", "replace"]
+        param3.value = "remove"
 
         # Nodata value parameter
-        param5 = arcpy.Parameter(
+        param4 = arcpy.Parameter(
             displayName="Nodata Value",
             name="nodata_value",
             datatype="GPDouble",
             parameterType="Optional",
             direction="Input"
         )
-        param5.value = -99
+        param4.value = -99
 
-        param6 = arcpy.Parameter(
+        param5 = arcpy.Parameter(
             displayName="Transformed data",
             name="transformed_data",
             datatype="DETable",
             parameterType="Required",
             direction="Output"
         )
-        param6.value = 'transformed_raster'
+        param5.value = 'transformed_raster'
         
-        param7 = arcpy.Parameter(
+        param6 = arcpy.Parameter(
             displayName="Computed principal components",
             name="computed_principal_components",
             datatype="DETable",
             parameterType="Required",
             direction="Output"
         )
-        param7.value = 'computed_principal_components'
+        param6.value = 'computed_principal_components'
         
-        param8 = arcpy.Parameter(
+        param7 = arcpy.Parameter(
             displayName="Explained variances",
             name="explained_variances",
             datatype="DETable",
             parameterType="Required",
             direction="Output"
         )
-        param8.value = 'explained_variances'
+        param7.value = 'explained_variances'
         
-        param9 = arcpy.Parameter(
+        param8 = arcpy.Parameter(
             displayName="Explained variance ratios for each component",
             name="variance_ratios",
             datatype="DETable",
             parameterType="Required",
             direction="Output"
         )
-        param9.value = 'variance_ratios'
+        param8.value = 'variance_ratios'
 
-        params = [param0, param1, param2, param3, param4, param5, param6, param7, param8, param9]
+        params = [param0, param1, param2, param3, param4, param5, param6, param7, param8]
         return params
 
     def isLicensed(self):    
