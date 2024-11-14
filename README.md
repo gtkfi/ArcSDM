@@ -44,7 +44,7 @@ Development has started by GTK to migrate this tool for ArcGIS Pro 3.0+ (ArcSDM 
 
 1. Find the arcsdm-py3-env in the repository.
 2. Change ArcGIS Pro to use arcsdm-py3-env:
-![Using ArcSDM Python Environment](C:\Users\plehtone\source\repos\ArcSDM\img\use_arcsdm-py3-env.PNG)
+![Using ArcSDM Python Environment](img\use_arcsdm-py3-env.PNG)
 
 
 
