@@ -6,6 +6,8 @@ Compute defined number of principal components for numeric input data and transf
 
 Before computation, data is scaled according to specified scaler and NaN values removed or replaced.
 Optionally, a nodata value can be given to handle similarly as NaN values.
+
+This tool is based on the PCA implementation in the scikit-learn library originally developed by University of Turku.
 """
 
 import arcpy
@@ -18,7 +20,7 @@ SCALERS = {"standard": StandardScaler, "min_max": MinMaxScaler, "robust": Robust
 
 def Execute(self, parameters, messages):
     """The source code of the tool."""
-    input_data = parameters[0].valueAsText.split(';') if ';' in parameters[0].valueAsText else parameters.valueAsText
+    input_data = parameters[0].valueAsText.split(';')
     number_of_components = parameters[1].value
     scaler_type = parameters[2].valueAsText
     nodata_handling = parameters[3].valueAsText
@@ -55,11 +57,7 @@ def Execute(self, parameters, messages):
             arcpy.da.NumPyArrayToTable(transformed_data, transformed_data_output)
         arcpy.AddMessage(f'Transformed data is saved in {transformed_data_output}')
 
-        if principal_components.ndim is 2 or principal_components.ndim is 3:
-            arcpy.NumPyArrayToRaster(principal_components).save(principal_components_output)  
-        else:
-            arcpy.da.NumPyArrayToTable(principal_components, principal_components_output)
-        arcpy.AddMessage(f'Principal components is saved in {principal_components_output}')
+        arcpy.AddMessage(f'Principal components {principal_components}')
             
         if explained_variances.ndim is 2 or explained_variances.ndim is 3:
             arcpy.NumPyArrayToRaster(explained_variances).save(explained_variances_output)
