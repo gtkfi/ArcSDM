@@ -40,6 +40,10 @@ Development has started by GTK to migrate this tool for ArcGIS Pro 3.0+ (ArcSDM 
 
 ## Usage of the ArcSDM Python env
 
+At the moment is this advised to clone the ArcGIS Pro Python env and downloading the necessary packages to the cloned Python env.
+Do not clone it to the default AppData folder. This might cause the required packages to not install.
+Please clone the Python env to for example C:\user\path_to_a_folder\arcpy-py3-env
+
 [How to use Python environments in ArcGIS Pro](https://pro.arcgis.com/en/pro-app/latest/arcpy/get-started/activate-an-environment.htm)
 
 1. Find the arcsdm-py3-env in the repository.
