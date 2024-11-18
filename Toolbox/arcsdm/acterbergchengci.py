@@ -8,11 +8,12 @@ Spatial Data Modeller for ESRI* ArcGIS 9.2
 Copyright 2007
 Gary L Raines, Reno, NV, USA: production and certification
 Don L Sawatzky, Spokane, WA, USA: Python software development
-    
+
 Converted to ArcSDM toolbox to ArcMap by GTK 2016
 """
 import sys, string, os, math, traceback, math
 import arcpy
+import arcpy.management
 from arcsdm.floatingrasterarray import FloatRasterSearchcursor
 
 arcpy.CheckOutExtension("spatial")
@@ -32,21 +33,20 @@ def Calculate(self, parameters, messages):
         #CellSize
         CellSize = float(arcpy.env.cellSize)
         #ExpNumTP = arcpy.GetCount_management(TrainSites) #Num of Selected sites
-        result = arcpy.GetCount_management(TrainSites)
+        result = arcpy.management.GetCount(TrainSites)
         ExpNumTP = int(result.getOutput(0))
         ConvFac = (CellSize**2)/1000000.0 / UnitArea
-        TRasRows = FloatRasterSearchcursor(arcpy, PostProb)
         PredT = 0.0
-        for TRasRow in TRasRows:
-            PredT += (TRasRow.Value * TRasRow.Count)
+        with arcpy.da.SearchCursor(PostProb, ["Value", "Count"]) as cursor:
+            for row in cursor:
+                PredT += (row[0] * row[1])
         PredT *= ConvFac
-        del TRasRow, TRasRows
-        TRasRows = FloatRasterSearchcursor(arcpy, PPStd)
+
         TVar = 0.0
-        for TRasRow in TRasRows:
-            TVar += (TRasRow.Value * TRasRow.Count * ConvFac )**2
+        with arcpy.da.SearchCursor(PPStd, ["Value", "Count"]) as cursor:
+            for row in cursor:
+                TVar += (row[0] * row[1] * ConvFac) ** 2
         TStd = math.sqrt(TVar)
-        del TRasRow, TRasRows
         TS = (PredT - ExpNumTP) / TStd
         #PostProb
         n = ExpNumTP
@@ -159,4 +159,3 @@ def ZtoF(Z):
     return PZ
 ##'      Return
 ##'      End
-
