@@ -8,16 +8,16 @@ Spatial Data Modeller for ESRI* ArcGIS 9.2
 Copyright 2007
 Gary L Raines, Reno, NV, USA: production and certification
 Don L Sawatzky, Spokane, WA, USA: Python software development
-    
+
 Converted to ArcSDM toolbox to ArcMap by GTK 2016
 """
 import sys, string, os, math, traceback, math
 import arcpy
+import arcpy.management
 from arcsdm.floatingrasterarray import FloatRasterSearchcursor
-import arcgisscripting
-gp = arcgisscripting.create()
-gp.CheckOutExtension("spatial")
-gp.OverwriteOutput = 1
+
+arcpy.CheckOutExtension("spatial")
+arcpy.env.overwriteOutput = True
 
 def Calculate(self, parameters, messages):
     messages.addMessage("Starting Agterberg-Cheng CI Test")
@@ -32,29 +32,28 @@ def Calculate(self, parameters, messages):
         sdmuc = basename.split("_")[0]
         #CellSize
         CellSize = float(arcpy.env.cellSize)
-        #ExpNumTP = gp.GetCount(TrainSites) #Num of Selected sites
-        result = arcpy.GetCount_management(TrainSites)
+        #ExpNumTP = arcpy.GetCount_management(TrainSites) #Num of Selected sites
+        result = arcpy.management.GetCount(TrainSites)
         ExpNumTP = int(result.getOutput(0))
         ConvFac = (CellSize**2)/1000000.0 / UnitArea
-        TRasRows = FloatRasterSearchcursor(gp,PostProb)
         PredT = 0.0
-        for TRasRow in TRasRows:
-            PredT += (TRasRow.Value * TRasRow.Count)
+        with arcpy.da.SearchCursor(PostProb, ["Value", "Count"]) as cursor:
+            for row in cursor:
+                PredT += (row[0] * row[1])
         PredT *= ConvFac
-        del TRasRow,TRasRows
-        TRasRows = FloatRasterSearchcursor(gp,PPStd)
+
         TVar = 0.0
-        for TRasRow  in TRasRows:
-            TVar += (TRasRow.Value * TRasRow.Count * ConvFac )**2
+        with arcpy.da.SearchCursor(PPStd, ["Value", "Count"]) as cursor:
+            for row in cursor:
+                TVar += (row[0] * row[1] * ConvFac) ** 2
         TStd = math.sqrt(TVar)
-        del TRasRow,TRasRows
         TS = (PredT - ExpNumTP) / TStd
         #PostProb
         n = ExpNumTP
         T = PredT
         #STD = TStd
-        P = ZtoF(TS) *100.0
-        if P>= 50.0: overallCI = 100.0 * (100.0 - P) / 50.0
+        P = ZtoF(TS) * 100.0
+        if P >= 50.0: overallCI = 100.0 * (100.0 - P) / 50.0
         else: overallCI = 100.0 * (100.0 - (50 + (50 - P))) / 50.0
 
         Text = """
@@ -89,15 +88,15 @@ def Calculate(self, parameters, messages):
         Post Probability Std Deviation: %(10)s\r
         Training Sites: %(11)s
         \r
-        """ % {'0': overallCI, '1': sdmuc, '2':n, '3':T, '4':T-n, '5':TStd, '6':n/T, '7':TS, '8':ZtoF(TS)*100.0, '9':PostProb,
-               '10':PPStd, '11':TrainSites}
+        """ % {'0': overallCI, '1': sdmuc, '2': n, '3': T, '4': T-n, '5': TStd, '6': n/T, '7': TS, '8': ZtoF(TS)*100.0, '9': PostProb,
+               '10': PPStd, '11': TrainSites}
 
         messages.addMessage(Text)
 
         if SaveFile:
-            file = open(SaveFile,"w")
+            file = open(SaveFile, "w")
             file.write(Text)
-            messages.addMessage("Text File saved: %s"%SaveFile)
+            messages.addMessage("Text File saved: %s" % SaveFile)
 
     except Exception as Msg:
         # get the traceback object
@@ -106,10 +105,10 @@ def Calculate(self, parameters, messages):
         tbinfo = traceback.format_tb(tb)[0]
         # concatenate information together concerning the error into a message string
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-            str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
+            str(sys.exc_type) + ": " + str(sys.exc_value) + "\n"
         messages.addErrorMessage(pymsg)
         # print messages for use in Python/PythonWin
-        print (pymsg)
+        print(pymsg)
         raise
 
 def ZtoF(Z):
@@ -160,4 +159,3 @@ def ZtoF(Z):
     return PZ
 ##'      Return
 ##'      End
-
