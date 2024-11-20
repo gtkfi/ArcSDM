@@ -37,7 +37,7 @@ class Toolbox(object):
         self.tools = [PartitionNNInputFiles, CombineNNOutputFiles, NeuralNetworkOutputFiles, NeuralNetworkInputFiles, 
         CalculateWeightsTool,SiteReductionTool,CategoricalMembershipTool,
         CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, FuzzyROC, FuzzyROC2, LogisticRegressionTool, Symbolize, 
-        ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues, GrandWofe]
+        ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues, GrandWofe, TrainMLPClassifierTool]
 
 
 class GrandWofe(object):
@@ -1825,4 +1825,153 @@ class FuzzyROC2(object):
     def execute(self, parameters, messages):
         """The source code of the tool."""
         execute_tool(arcsdm.fuzzyroc2.Execute, self, parameters, messages)
+        return
+class TrainMLPClassifierTool(object):
+    def __init__(self):
+        """Train a Multi-Layer Perceptron (MLP) classifier with the given parameters."""
+        self.label = "Train MLP Classifier"
+        self.description = "Train a Multi-Layer Perceptron (MLP) classifier with the given parameters."
+        self.canRunInBackground = False
+        self.category = "Prediction"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        param_X = arcpy.Parameter(
+            displayName="Input Features",
+            name="X",
+            datatype="GPTableView",
+            parameterType="Required",
+            direction="Input")
+
+        param_y = arcpy.Parameter(
+            displayName="Target Variable",
+            name="y",
+            datatype="Field",
+            parameterType="Required",
+            direction="Input")
+        param_y.parameterDependencies = [param_X.name]
+
+        param_neurons = arcpy.Parameter(
+            displayName="Neurons per Layer",
+            name="neurons",
+            datatype="GPString",
+            parameterType="Required",
+            direction="Input")
+
+        param_activation = arcpy.Parameter(
+            displayName="Activation Function",
+            name="activation",
+            datatype="GPString",
+            parameterType="Required",
+            direction="Input")
+
+        param_output_neurons = arcpy.Parameter(
+            displayName="Output Neurons",
+            name="output_neurons",
+            datatype="GPLong",
+            parameterType="Required",
+            direction="Input")
+
+        param_last_activation = arcpy.Parameter(
+            displayName="Last Layer Activation Function",
+            name="last_activation",
+            datatype="GPString",
+            parameterType="Required",
+            direction="Input")
+
+        param_epochs = arcpy.Parameter(
+            displayName="Epochs",
+            name="epochs",
+            datatype="GPLong",
+            parameterType="Required",
+            direction="Input")
+
+        param_batch_size = arcpy.Parameter(
+            displayName="Batch Size",
+            name="batch_size",
+            datatype="GPLong",
+            parameterType="Required",
+            direction="Input")
+
+        param_optimizer = arcpy.Parameter(
+            displayName="Optimizer",
+            name="optimizer",
+            datatype="GPString",
+            parameterType="Required",
+            direction="Input")
+
+        param_learning_rate = arcpy.Parameter(
+            displayName="Learning Rate",
+            name="learning_rate",
+            datatype="GPDouble",
+            parameterType="Required",
+            direction="Input")
+
+        param_loss_function = arcpy.Parameter(
+            displayName="Loss Function",
+            name="loss_function",
+            datatype="GPString",
+            parameterType="Required",
+            direction="Input")
+
+        param_dropout_rate = arcpy.Parameter(
+            displayName="Dropout Rate",
+            name="dropout_rate",
+            datatype="GPDouble",
+            parameterType="Optional",
+            direction="Input")
+
+        param_early_stopping = arcpy.Parameter(
+            displayName="Early Stopping",
+            name="early_stopping",
+            datatype="GPBoolean",
+            parameterType="Optional",
+            direction="Input")
+
+        param_es_patience = arcpy.Parameter(
+            displayName="Early Stopping Patience",
+            name="es_patience",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
+
+        param_validation_metrics = arcpy.Parameter(
+            displayName="Validation Metrics",
+            name="validation_metrics",
+            datatype="GPString",
+            parameterType="Optional",
+            direction="Input")
+
+        param_validation_split = arcpy.Parameter(
+            displayName="Validation Split",
+            name="validation_split",
+            datatype="GPDouble",
+            parameterType="Optional",
+            direction="Input")
+
+        param_random_state = arcpy.Parameter(
+            displayName="Random State",
+            name="random_state",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
+
+        params = [param_X, param_y, param_neurons, param_activation, param_output_neurons, param_last_activation, param_epochs, param_batch_size, param_optimizer, param_learning_rate, param_loss_function, param_dropout_rate, param_early_stopping, param_es_patience, param_validation_metrics, param_validation_split, param_random_state]
+        return params
+
+    def isLicensed(self):
+        """Set whether tool is licensed to execute."""
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal validation is performed. This method is called whenever a parameter has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool parameter. This method is called after internal validation."""
+        return
+
+    def execute(self, parameters, messages):
+        """Execute the tool."""
+        execute_tool(arcsdm.mlp.Execute, self, parameters, messages)
         return

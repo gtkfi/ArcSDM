@@ -103,7 +103,7 @@ def _check_ML_model_data_input(X: np.ndarray, y: np.ndarray):
         )
 
 
-def train_MLP_classifier(
+def Execute(
     X: np.ndarray,
     y: np.ndarray,
     neurons: Sequence[int],
