@@ -29,7 +29,7 @@ def save_model(model: Union[BaseEstimator, keras.Model], path: Path) -> None:
         model: Trained model.
         path: Path where the model should be saved. Include the .joblib file extension.
     """
-    joblib.dump(model, path)
+    joblib.dump(model, path + ".joblib")
 
 
 def load_model(path: Path) -> Union[BaseEstimator, keras.Model]:

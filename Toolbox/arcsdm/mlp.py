@@ -1,11 +1,13 @@
 from numbers import Number
 
 import arcpy
+import arcpy.da
 import joblib
 import numpy as np
 from typing import Literal, Optional, Sequence, Tuple
 from tensorflow import keras
 from keras.metrics import CategoricalCrossentropy, MeanAbsoluteError, MeanSquaredError, Precision, Recall
+from keras.layers import Flatten
 from keras.optimizers import SGD, Adagrad, Adam, RMSprop
 
 
@@ -80,14 +82,10 @@ def _check_MLP_inputs(
         raise arcpy.AddError("Number of output neurons must be greater than 0.")
 
     if output_neurons > 1 and loss_function == "binary_crossentropy":
-        raise arcpy.AddError(
-            "Number of output neurons must be 1 when used loss function is binary crossentropy."
-        )
+        raise arcpy.AddError("Number of output neurons must be 1 when used loss function is binary crossentropy.")
 
     if output_neurons <= 2 and loss_function == "categorical_crossentropy":
-        raise arcpy.AddError(
-            "Number of output neurons must be greater than 2 when used loss function is categorical crossentropy."
-        )
+        raise arcpy.AddError("Number of output neurons must be greater than 2 when used loss function is categorical crossentropy.")
 
 
 def _check_ML_model_data_input(X: np.ndarray, y: np.ndarray):
@@ -99,9 +97,7 @@ def _check_ML_model_data_input(X: np.ndarray, y: np.ndarray):
     n_samples_y = y.shape[0]
 
     if n_samples_X != n_samples_y:
-        raise arcpy.AddError(
-            f"The number of samples in X and y must be equal, but got {n_samples_X} in X and {n_samples_y} in y."
-        )
+        raise arcpy.AddError(f"The number of samples in X and y must be equal, but got {n_samples_X} in X and {n_samples_y} in y.")
 
 
 def train_MLP_classifier(
@@ -199,6 +195,8 @@ def train_MLP_classifier(
 
     model.add(keras.layers.Dense(units=output_neurons, activation=last_activation))
 
+    model.add(Flatten())
+
     model.compile(
         optimizer=_keras_optimizer(optimizer, learning_rate=learning_rate),
         loss=loss_function,
@@ -220,33 +218,38 @@ def train_MLP_classifier(
     )
 
     return model, history
-    
-    
 
 
-def Execute_train_MLP_classifier(self, parameters, messages):
-    X = parameters[0].valueAsText
+def Execute_MLP_classifier(self, parameters, messages):
+    x = parameters[0].valueAsText
     y = parameters[1].valueAsText
     neurons = [int(n) for n in parameters[2].valueAsText.split(',')]
     validation_split = float(parameters[3].value) if parameters[3].value else 0.2
-    validation_data = None  # Assuming validation_data is not provided via parameters
-    activation = parameters[4].valueAsText
-    output_neurons = int(parameters[5].value)
-    last_activation = parameters[6].valueAsText
-    epochs = int(parameters[7].value)
-    batch_size = int(parameters[8].value)
-    optimizer = parameters[9].valueAsText
-    learning_rate = float(parameters[10].value)
-    loss_function = parameters[11].valueAsText
-    dropout_rate = float(parameters[12].value) if parameters[12].value else None
-    early_stopping = parameters[13].value
-    es_patience = int(parameters[14].value)
-    metrics = parameters[15].valueAsText.split(',')
-    random_state = int(parameters[16].value) if parameters[16].value else None
-    output_file = parameters[17].valueAsText
+    validation_data = parameters[4].valueAsText if parameters[4].valueAsText else None
+    activation = parameters[5].valueAsText
+    output_neurons = parameters[6].value
+    last_activation = parameters[7].valueAsText
+    epochs = parameters[8].value
+    batch_size = int(parameters[9].value)
+    optimizer = parameters[10].valueAsText
+    learning_rate = float(parameters[11].value)
+    loss_function = parameters[12].valueAsText
+    dropout_rate = float(parameters[13].value) if parameters[13].value else None
+    early_stopping = parameters[14].value
+    es_patience = int(parameters[15].value)
+    metrics = parameters[16].valueAsText.split(',')
+    random_state = int(parameters[17].value) if parameters[17].value else None
+    output_file = parameters[18].valueAsText
+    
+    x_as_array = arcpy.da.FeatureClassToNumPyArray(x, "*")
+    x_as_array = np.array([list(row) for row in x_as_array])
+
+    y_as_array = arcpy.da.FeatureClassToNumPyArray(y, "*")
+    y_as_array = np.array([list(row) for row in y_as_array])
+
     model, history = train_MLP_classifier(
-        X=X,
-        y=y,
+        X=x_as_array,
+        y=y_as_array,
         neurons=neurons,
         validation_split=validation_split,
         validation_data=validation_data,
@@ -266,7 +269,7 @@ def Execute_train_MLP_classifier(self, parameters, messages):
     )
     
     arcpy.AddMessage("Model training completed.")
-    arcpy.AddMessage(f"Saving model to {output_file}")
+    arcpy.AddMessage(f"Saving model to {output_file}.joblib")
     arcpy.AddMessage(f"Model training history:")
     arcpy.AddMessage(f"{history.history}")
     
