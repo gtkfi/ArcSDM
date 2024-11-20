@@ -1839,14 +1839,14 @@ class TrainMLPClassifierTool(object):
         param_X = arcpy.Parameter(
             displayName="Input Features",
             name="X",
-            datatype="GPTableView",
+            datatype=["DEFeatureClass", "GPRasterLayer"],
             parameterType="Required",
             direction="Input")
 
         param_y = arcpy.Parameter(
             displayName="Target Variable",
             name="y",
-            datatype="Field",
+            datatype=["DEFeatureClass", "GPRasterLayer"],
             parameterType="Required",
             direction="Input")
         param_y.parameterDependencies = [param_X.name]
@@ -1857,7 +1857,6 @@ class TrainMLPClassifierTool(object):
             datatype="GPString",
             parameterType="Required",
             direction="Input")
-        param_neurons.info = "Enter the number of neurons for each layer separated by commas. For example, 100,50,25."
 
         param_validation_split = arcpy.Parameter(
             displayName="Validation Split",
@@ -2028,5 +2027,5 @@ class TrainMLPClassifierTool(object):
 
     def execute(self, parameters, messages):
         """Execute the tool."""
-        execute_tool(arcsdm.mlp.Execute_train_MLP_classifier, self, parameters, messages)
+        execute_tool(arcsdm.mlp.Execute_MLP_classifier, self, parameters, messages)
         return
