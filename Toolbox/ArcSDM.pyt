@@ -17,7 +17,7 @@ import arcsdm.nninputfiles
 import arcsdm.grand_wofe_lr
 import arcsdm.fuzzyroc
 import arcsdm.fuzzyroc2
-
+import arcsdm.mlp
 from arcsdm.common import execute_tool
 
 
@@ -1864,6 +1864,9 @@ class TrainMLPClassifierTool(object):
             datatype="GPString",
             parameterType="Required",
             direction="Input")
+        param_activation.filter.type = "ValueList"
+        param_activation.filter.list = ["relu", "linear", "sigmoid", "tanh"]
+        param_activation.value = "relu"
 
         param_output_neurons = arcpy.Parameter(
             displayName="Output Neurons",
@@ -1973,5 +1976,5 @@ class TrainMLPClassifierTool(object):
 
     def execute(self, parameters, messages):
         """Execute the tool."""
-        execute_tool(arcsdm.mlp.Execute, self, parameters, messages)
+        execute_tool(arcsdm.mlp.train_MLP_classifier, self, parameters, messages)
         return

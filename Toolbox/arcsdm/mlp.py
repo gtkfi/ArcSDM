@@ -4,8 +4,8 @@ import arcpy
 import numpy as np
 from typing import Literal, Optional, Sequence, Tuple
 from tensorflow import keras
-from tensorflow.python.keras.metrics import CategoricalCrossentropy, MeanAbsoluteError, MeanSquaredError, Precision, Recall
-from tensorflow.python.keras.optimizers import SGD, Adagrad, Adam, RMSprop
+from keras.metrics import CategoricalCrossentropy, MeanAbsoluteError, MeanSquaredError, Precision, Recall
+from keras.optimizers import SGD, Adagrad, Adam, RMSprop
 
 
 def _keras_optimizer(optimizer: str, **kwargs):
@@ -103,7 +103,7 @@ def _check_ML_model_data_input(X: np.ndarray, y: np.ndarray):
         )
 
 
-def Execute(
+def train_MLP_classifier(
     X: np.ndarray,
     y: np.ndarray,
     neurons: Sequence[int],
