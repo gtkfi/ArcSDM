@@ -1852,10 +1852,26 @@ class TrainMLPClassifierTool(object):
         param_y.parameterDependencies = [param_X.name]
 
         param_neurons = arcpy.Parameter(
-            displayName="Neurons per Layer",
+            displayName="Neurons per Layer. A comma separeted list of integers: e.g. 10,5,10",
             name="neurons",
             datatype="GPString",
             parameterType="Required",
+            direction="Input")
+        param_neurons.info = "Enter the number of neurons for each layer separated by commas. For example, 100,50,25."
+
+        param_validation_split = arcpy.Parameter(
+            displayName="Validation Split",
+            name="validation_split",
+            datatype="GPDouble",
+            parameterType="Optional",
+            direction="Input")
+        param_validation_split.value = 0.2
+
+        param_validation_data = arcpy.Parameter(
+            displayName="Validation Data",
+            name="validation_data",
+            datatype="GPTableView",
+            parameterType="Optional",
             direction="Input")
 
         param_activation = arcpy.Parameter(
@@ -1874,6 +1890,7 @@ class TrainMLPClassifierTool(object):
             datatype="GPLong",
             parameterType="Required",
             direction="Input")
+        param_output_neurons.value = 1
 
         param_last_activation = arcpy.Parameter(
             displayName="Last Layer Activation Function",
@@ -1881,6 +1898,9 @@ class TrainMLPClassifierTool(object):
             datatype="GPString",
             parameterType="Required",
             direction="Input")
+        param_last_activation.filter.type = "ValueList"
+        param_last_activation.filter.list = ["sigmoid", "softmax"]
+        param_last_activation.value = "sigmoid"
 
         param_epochs = arcpy.Parameter(
             displayName="Epochs",
@@ -1888,6 +1908,7 @@ class TrainMLPClassifierTool(object):
             datatype="GPLong",
             parameterType="Required",
             direction="Input")
+        param_epochs.value = 50
 
         param_batch_size = arcpy.Parameter(
             displayName="Batch Size",
@@ -1895,6 +1916,7 @@ class TrainMLPClassifierTool(object):
             datatype="GPLong",
             parameterType="Required",
             direction="Input")
+        param_batch_size.value = 32
 
         param_optimizer = arcpy.Parameter(
             displayName="Optimizer",
@@ -1902,6 +1924,9 @@ class TrainMLPClassifierTool(object):
             datatype="GPString",
             parameterType="Required",
             direction="Input")
+        param_optimizer.filter.type = "ValueList"
+        param_optimizer.filter.list = ["adam", "adagrad", "rmsprop", "sdg"]
+        param_optimizer.value = "adam"
 
         param_learning_rate = arcpy.Parameter(
             displayName="Learning Rate",
@@ -1909,6 +1934,7 @@ class TrainMLPClassifierTool(object):
             datatype="GPDouble",
             parameterType="Required",
             direction="Input")
+        param_learning_rate.value = 0.001
 
         param_loss_function = arcpy.Parameter(
             displayName="Loss Function",
@@ -1916,6 +1942,9 @@ class TrainMLPClassifierTool(object):
             datatype="GPString",
             parameterType="Required",
             direction="Input")
+        param_loss_function.filter.type = "ValueList"
+        param_loss_function.filter.list = ["binary_crossentropy", "categorical_crossentropy"]
+        param_loss_function.value = "binary_crossentropy"
 
         param_dropout_rate = arcpy.Parameter(
             displayName="Dropout Rate",
@@ -1937,20 +1966,17 @@ class TrainMLPClassifierTool(object):
             datatype="GPLong",
             parameterType="Optional",
             direction="Input")
+        param_es_patience.value = 5
 
-        param_validation_metrics = arcpy.Parameter(
+        param_metrics = arcpy.Parameter(
             displayName="Validation Metrics",
             name="validation_metrics",
             datatype="GPString",
             parameterType="Optional",
             direction="Input")
-
-        param_validation_split = arcpy.Parameter(
-            displayName="Validation Split",
-            name="validation_split",
-            datatype="GPDouble",
-            parameterType="Optional",
-            direction="Input")
+        param_metrics.filter.type = "ValueList"
+        param_metrics.filter.list = ["accuracy", "precision", "recall"]
+        param_metrics.value = "accuracy"
 
         param_random_state = arcpy.Parameter(
             displayName="Random State",
@@ -1958,8 +1984,34 @@ class TrainMLPClassifierTool(object):
             datatype="GPLong",
             parameterType="Optional",
             direction="Input")
+        
+        param_output_file = arcpy.Parameter(
+            displayName="Output Model File",
+            name="output_file",
+            datatype="DEFile",
+            parameterType="Required",
+            direction="Output")
 
-        params = [param_X, param_y, param_neurons, param_activation, param_output_neurons, param_last_activation, param_epochs, param_batch_size, param_optimizer, param_learning_rate, param_loss_function, param_dropout_rate, param_early_stopping, param_es_patience, param_validation_metrics, param_validation_split, param_random_state]
+        params = [param_X,
+                  param_y,
+                  param_neurons,
+                  param_validation_split,
+                  param_validation_data,
+                  param_activation,
+                  param_output_neurons,
+                  param_last_activation,
+                  param_epochs,
+                  param_batch_size,
+                  param_optimizer,
+                  param_learning_rate,
+                  param_loss_function,
+                  param_dropout_rate,
+                  param_early_stopping,
+                  param_es_patience,
+                  param_metrics,
+                  param_random_state,
+                  param_output_file
+                ]
         return params
 
     def isLicensed(self):
@@ -1976,5 +2028,5 @@ class TrainMLPClassifierTool(object):
 
     def execute(self, parameters, messages):
         """Execute the tool."""
-        execute_tool(arcsdm.mlp.train_MLP_classifier, self, parameters, messages)
+        execute_tool(arcsdm.mlp.Execute_train_MLP_classifier, self, parameters, messages)
         return

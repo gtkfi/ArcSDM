@@ -1,6 +1,7 @@
 from numbers import Number
 
 import arcpy
+import joblib
 import numpy as np
 from typing import Literal, Optional, Sequence, Tuple
 from tensorflow import keras
@@ -118,7 +119,7 @@ def train_MLP_classifier(
     learning_rate: Number = 0.001,
     loss_function: Literal["binary_crossentropy", "categorical_crossentropy"] = "binary_crossentropy",
     dropout_rate: Optional[Number] = None,
-    early_stopping: bool = True,
+    early_stopping: Optional[bool] = True,
     es_patience: int = 5,
     metrics: Optional[Sequence[Literal["accuracy", "precision", "recall"]]] = ["accuracy"],
     random_state: Optional[int] = None,
@@ -218,7 +219,58 @@ def train_MLP_classifier(
         callbacks=callbacks,
     )
 
-    return model, history.history
+    return model, history
+    
+    
+
+
+def Execute_train_MLP_classifier(self, parameters, messages):
+    X = parameters[0].valueAsText
+    y = parameters[1].valueAsText
+    neurons = [int(n) for n in parameters[2].valueAsText.split(',')]
+    validation_split = float(parameters[3].value) if parameters[3].value else 0.2
+    validation_data = None  # Assuming validation_data is not provided via parameters
+    activation = parameters[4].valueAsText
+    output_neurons = int(parameters[5].value)
+    last_activation = parameters[6].valueAsText
+    epochs = int(parameters[7].value)
+    batch_size = int(parameters[8].value)
+    optimizer = parameters[9].valueAsText
+    learning_rate = float(parameters[10].value)
+    loss_function = parameters[11].valueAsText
+    dropout_rate = float(parameters[12].value) if parameters[12].value else None
+    early_stopping = parameters[13].value
+    es_patience = int(parameters[14].value)
+    metrics = parameters[15].valueAsText.split(',')
+    random_state = int(parameters[16].value) if parameters[16].value else None
+    output_file = parameters[17].valueAsText
+    model, history = train_MLP_classifier(
+        X=X,
+        y=y,
+        neurons=neurons,
+        validation_split=validation_split,
+        validation_data=validation_data,
+        activation=activation,
+        output_neurons=output_neurons,
+        last_activation=last_activation,
+        epochs=epochs,
+        batch_size=batch_size,
+        optimizer=optimizer,
+        learning_rate=learning_rate,
+        loss_function=loss_function,
+        dropout_rate=dropout_rate,
+        early_stopping=early_stopping,
+        es_patience=es_patience,
+        metrics=metrics,
+        random_state=random_state,
+    )
+    
+    arcpy.AddMessage("Model training completed.")
+    arcpy.AddMessage(f"Saving model to {output_file}")
+    arcpy.AddMessage(f"Model training history:")
+    arcpy.AddMessage(f"{history.history}")
+    
+    joblib.dump(model, output_file)
 
 
 def train_MLP_regressor(
