@@ -21,59 +21,61 @@ SCALERS = {"standard": StandardScaler, "min_max": MinMaxScaler, "robust": Robust
 def Execute(self, parameters, messages):
     """The source code of the tool."""
     input_data = parameters[0].valueAsText.split(';')
-    number_of_components = parameters[1].value
-    scaler_type = parameters[2].valueAsText
-    nodata_handling = parameters[3].valueAsText
-    nodata_value = parameters[4].value
+    nodata_value = parameters[1].value
+    number_of_components = parameters[2].value
+    scaler_type = parameters[3].valueAsText
+    nodata_handling = parameters[4].valueAsText
     transformed_data_output = parameters[5].valueAsText
-    principal_components_output = parameters[6].valueAsText
-    explained_variances_output = parameters[7].valueAsText
-    explained_variance_ratios_output = parameters[8].valueAsText
-
+    
     datasets = []
     for data in input_data:
+        desc = arcpy.Describe(data)
         # Load input data
-        if arcpy.Describe(data).dataType == "RasterDataset" or arcpy.Describe(data).dataType == "RasterLayer":
+        if desc.dataType == "RasterDataset" or desc.dataType == "RasterLayer":
             data = arcpy.RasterToNumPyArray(data)
-        elif arcpy.Describe(input_data).dataType == "Table":
-            data = pd.DataFrame(arcpy.da.TableToNumPyArray(data, "*"))
-        elif arcpy.Describe(data).dataType == "FeatureLayer":
+        elif desc.dataType == "Table":
+            data = pd.DataFrame(arcpy.da.TableToNumPyArray(data))
+        elif desc.dataType == "FeatureLayer":
             data = arcpy.da.FeatureClassToNumPyArray(data, "*")
+        arcpy.AddWarning(f'data shape: {data.shape} data ndim: {data.ndim}')
         datasets.append(data)
     
-    stacked_arrays = np.stack(datasets, axis=0)
+    try:
+        # Check if all datasets have the same shape
+        if len(set([dataset.shape for dataset in datasets])) > 1:
+            raise arcpy.ExecuteError
+    except arcpy.ExecuteError:
+        arcpy.AddError("Input datasets have different shapes.")
+        
+    
+    stacked_array = np.stack(datasets, axis=0)
 
     # Perform PCA
     transformed_data, principal_components, explained_variances, explained_variance_ratios = compute_pca(
-        stacked_arrays, number_of_components, scaler_type, nodata_handling, nodata_value
+        stacked_array, number_of_components, scaler_type, nodata_handling, nodata_value
     )
 
     arcpy.AddMessage('='*5 + ' PCA results ' + '='*5)
     # Save output data
-    if isinstance(transformed_data, np.ndarray):
-        if transformed_data.ndim is 2 or transformed_data.ndim is 3:
-            arcpy.NumPyArrayToRaster(transformed_data).save(transformed_data_output)
-        else:
-            arcpy.da.NumPyArrayToTable(transformed_data, transformed_data_output)
+    if transformed_data.ndim is 2 or transformed_data.ndim is 3:
+        desc_input = arcpy.Describe(input_data[0])
+        transformed_data_raster = arcpy.NumPyArrayToRaster(transformed_data,
+                                                           lower_left_corner=desc_input.extent.lowerLeft, 
+                                                           x_cell_size=desc_input.meanCellWidth,
+                                                           y_cell_size=desc_input.meanCellHeight)
+        transformed_data_raster.save(transformed_data_output)
+        
         arcpy.AddMessage(f'Transformed data is saved in {transformed_data_output}')
+    else:
+        arcpy.da.NumPyArrayToTable(transformed_data, transformed_data_output)
+        arcpy.AddMessage(f'Transformed data is saved as a table in {transformed_data_output}')
 
-        arcpy.AddMessage(f'Principal components {principal_components}')
+    arcpy.AddMessage(f'Principal components {principal_components}')
+        
+    arcpy.AddMessage(f'Explained variances {explained_variances}')
+    
+    arcpy.AddMessage(f'Explained variance ratio {explained_variance_ratios}')
             
-        if explained_variances.ndim is 2 or explained_variances.ndim is 3:
-            arcpy.NumPyArrayToRaster(explained_variances).save(explained_variances_output)
-        else:
-            arcpy.AddMessage(f'Explained variances {explained_variances}')
-            #arcpy.da.NumPyArrayToTable(explained_variances, explained_variances_output)
-            
-        if explained_variance_ratios.ndim is 2 or explained_variance_ratios.ndim is 3:
-            arcpy.NumPyArrayToRaster(explained_variance_ratios).save(explained_variance_ratios_output)
-        else:
-            arcpy.AddMessage(f'Explained variance ratio {explained_variance_ratios}')
-            #arcpy.da.NumPyArrayToTable(explained_variance_ratios, explained_variance_ratios_output)
-            
-    elif isinstance(transformed_data, pd.DataFrame):
-        arcpy.da.NumPyArrayToTable(transformed_data.to_numpy(), transformed_data_output)
-
     return
 
 def _prepare_array_data(
@@ -110,7 +112,8 @@ def _handle_missing_values(
         return feature_matrix, None
 
     else:
-        raise arcpy.AddError("Invalid nodata_handling value. Choose 'remove' or 'replace'.")
+        raise arcpy.AddError(f"Invalid nodata_handling value: {nodata_handling}. Choose 'remove' or 'replace'.")
+
 
 def _compute_pca(
     feature_matrix, number_of_components, scaler_type
@@ -134,53 +137,59 @@ def compute_pca(
     nodata_handling = "remove",
     nodata = None
 ):
+    try:
+        if number_of_components is not None and number_of_components < 1:
+            raise arcpy.AddError("The number of principal components should be >= 1.")
 
-    if number_of_components is not None and number_of_components < 1:
-        raise arcpy.AddError("The number of principal components should be >= 1.")
-
-    # Get feature matrix (Numpy array) from various input types
-    #if isinstance(data, np.ndarray):
-    feature_matrix = data
-    feature_matrix = feature_matrix.astype(float)
-    if feature_matrix.ndim == 2:  # Table-like data (assumme it is a DataFrame transformed to Numpy array)
-        feature_matrix, nan_mask = _prepare_array_data(
-            feature_matrix, nodata_handling=nodata_handling, nodata_value=nodata, reshape=False
-        )
-    elif feature_matrix.ndim == 3:  # Assume data represents multiband raster data
-        rows, cols = feature_matrix.shape[1], feature_matrix.shape[2]
-        feature_matrix, nan_mask = _prepare_array_data(
-            feature_matrix, nodata_handling=nodata_handling, nodata_value=nodata, reshape=True
-        )
-    else:
-        raise arcpy.AddError(
-            f"Unsupported input data format. {feature_matrix.ndim} dimensions detected for given array."
-        )
-
-    # Default number of components to number of features in data if not defined
-    if number_of_components is None:
-        number_of_components = feature_matrix.shape[1]
-
-    if number_of_components > feature_matrix.shape[1]:
-        arcpy.AddError(
-            "The number of principal components is too high for the given input data "
-            + f"({number_of_components} > {feature_matrix.shape[1]})."
-        )
-
-    # Core PCA computation
-    transformed_data, principal_components, explained_variances, explained_variance_ratios = _compute_pca(
-        feature_matrix, number_of_components, scaler_type
-    )
-
-    if nodata_handling == "remove" and nan_mask is not None:
-        transformed_data_with_nans = np.full((nan_mask.size, transformed_data.shape[1]), np.nan)
-        transformed_data_with_nans[~nan_mask, :] = transformed_data
-        transformed_data = transformed_data_with_nans
-
-    # Convert PCA output to proper format
-    if isinstance(data, np.ndarray):
-        if data.ndim == 3:
-            transformed_data_out = transformed_data.reshape(rows, cols, -1).transpose(2, 0, 1)
+        # Get feature matrix (Numpy array) from various input types
+        #if isinstance(data, np.ndarray):
+        feature_matrix = data
+        feature_matrix = feature_matrix.astype(float)
+        if feature_matrix.ndim == 2:  # Table-like data (assumme it is a DataFrame transformed to Numpy array)
+            feature_matrix, nan_mask = _prepare_array_data(
+                feature_matrix, nodata_handling=nodata_handling, nodata_value=nodata, reshape=False
+            )
+        elif feature_matrix.ndim == 3:  # Assume data represents multiband raster data
+            rows, cols = feature_matrix.shape[1], feature_matrix.shape[2]
+            feature_matrix, nan_mask = _prepare_array_data(
+                feature_matrix, nodata_handling=nodata_handling, nodata_value=nodata, reshape=True
+            )
         else:
-            transformed_data_out = transformed_data
+            raise arcpy.AddError(
+                f"Unsupported input data format. {feature_matrix.ndim} dimensions detected for given array."
+            )
 
-    return transformed_data_out, principal_components, explained_variances, explained_variance_ratios
+        # Default number of components to number of features in data if not defined
+        if number_of_components is None:
+            number_of_components = feature_matrix.shape[1]
+
+        if number_of_components > feature_matrix.shape[1]:
+            arcpy.AddError(
+                "The number of principal components is too high for the given input data "
+                + f"({number_of_components} > {feature_matrix.shape[1]})."
+            )
+
+        # Core PCA computation
+        transformed_data, principal_components, explained_variances, explained_variance_ratios = _compute_pca(
+            feature_matrix, number_of_components, scaler_type
+        )
+
+        if nodata_handling == "remove" and nan_mask is not None:
+            transformed_data_with_nans = np.full((nan_mask.size, transformed_data.shape[1]), np.nan)
+            transformed_data_with_nans[~nan_mask, :] = transformed_data
+            transformed_data = transformed_data_with_nans
+
+        # Convert PCA output to proper format
+        if isinstance(data, np.ndarray):
+            if data.ndim == 3:
+                transformed_data_out = transformed_data.reshape(rows, cols, -1).transpose(2, 0, 1)
+            else:
+                transformed_data_out = transformed_data
+
+        return transformed_data_out, principal_components, explained_variances, explained_variance_ratios
+
+
+    
+    except arcpy.ExecuteError:
+        arcpy.AddError("PCA computation failed.")
+        return None, None, None, None
