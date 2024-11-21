@@ -46,10 +46,11 @@ Please clone the Python env to for example C:\user\path_to_a_folder\arcpy-py3-en
 
 [How to use Python environments in ArcGIS Pro](https://pro.arcgis.com/en/pro-app/latest/arcpy/get-started/activate-an-environment.htm)
 
-1. Find the arcsdm-py3-env in the repository.
+1. Clone the repository using ArcGIS Pro: Project -> Package Manager.
 2. Change ArcGIS Pro to use arcsdm-py3-env:
 ![Using ArcSDM Python Environment](./img/use_arcsdm-py3-env.PNG)
-
+3. Restart ArcGIS pro
+4. Install Scikit-learn, Tensorflow and Imbalanced-learn.
 
 
 ## History:
