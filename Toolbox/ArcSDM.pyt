@@ -1853,7 +1853,7 @@ class PCA(object):
             displayName="NoData Value",
             name="nodata_value",
             datatype="GPLong",
-            parameterType="Required",
+            parameterType="Optional",
             direction="Input"
         )
         param_nodata_value.value = -99
