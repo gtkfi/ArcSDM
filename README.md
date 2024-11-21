@@ -53,7 +53,7 @@ To use ArcSDM with ArcGIS Pro, follow these steps:
 1. **Clone the Repository**:
     - Open ArcGIS Pro.
     - Navigate to `Project` -> `Package Manager`.
-    - Clone the repository to your local machine.
+    - Clone the environment (not in the default location) to your local machine.
 
 2. **Change ArcGIS Pro to Use ArcSDM Python Environment**:
     - Set ArcGIS Pro to use the `arcsdm-py3-env` environment.
