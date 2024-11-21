@@ -203,9 +203,9 @@ def train_MLP_classifier(
         metrics=[_keras_metric(metric) for metric in metrics],
     )
 
-    # 3. Train the model
-    # Early stopping callback
-    callbacks = [keras.callbacks.EarlyStopping(monitor="val_loss", patience=es_patience)] if early_stopping else []
+    weights_dict = {}
+
+    weight_callback = keras.callbacks.LambdaCallback(on_epoch_end=lambda epoch, logs: weights_dict.update({epoch:model.get_weights()}))
 
     history = model.fit(
         X,
@@ -214,8 +214,15 @@ def train_MLP_classifier(
         validation_split=validation_split if validation_split else 0.0,
         validation_data=validation_data,
         batch_size=batch_size,
-        callbacks=callbacks,
+        callbacks=weight_callback,
     )
+    
+    # retrive weights
+    for epoch,weights in weights_dict.items():
+        arcpy.AddMessage("Weights for 2nd Layer of epoch #" + str(epoch))
+        arcpy.AddMessage(weights[2])
+        arcpy.AddMessage("Bias for 2nd Layer of epoch #" + str(epoch))
+        arcpy.AddMessage(weights[3])
 
     return model, history
 
@@ -241,11 +248,22 @@ def Execute_MLP_classifier(self, parameters, messages):
     random_state = int(parameters[17].value) if parameters[17].value else None
     output_file = parameters[18].valueAsText
     
-    x_as_array = arcpy.da.FeatureClassToNumPyArray(x, "*")
-    x_as_array = np.array([list(row) for row in x_as_array])
+    desc_x = arcpy.Describe(x)
+    desc_y = arcpy.Describe(y)
 
-    y_as_array = arcpy.da.FeatureClassToNumPyArray(y, "*")
-    y_as_array = np.array([list(row) for row in y_as_array])
+    if desc_x.datasetType == 'RasterDataset' or desc_x == 'RasterLayer':
+        x_as_array = arcpy.RasterToNumPyArray(x)
+        x_as_array = np.array([list(row) for row in x_as_array])
+    else:
+        x_as_array = arcpy.da.FeatureClassToNumPyArray(x, [field.name for field in arcpy.ListFields(x) if field.type != 'OID'])
+        x_as_array = np.array(x_as_array.tolist())
+
+    if desc_y.datasetType == 'RasterDataset' or desc_y == 'RasterLayer':
+        y_as_array = arcpy.RasterToNumPyArray(y)
+        y_as_array = np.array([list(row) for row in y_as_array])
+    else:
+        y_as_array = arcpy.da.FeatureClassToNumPyArray(y, [field.name for field in arcpy.ListFields(y) if field.type != 'OID'])
+        y_as_array = np.array(y_as_array.tolist())
 
     model, history = train_MLP_classifier(
         X=x_as_array,
