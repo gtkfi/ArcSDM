@@ -17,7 +17,12 @@ import arcsdm.nninputfiles
 import arcsdm.grand_wofe_lr
 import arcsdm.fuzzyroc
 import arcsdm.fuzzyroc2
+<<<<<<< HEAD
 import arcsdm.mlp
+=======
+import arcsdm.pca
+
+>>>>>>> master
 from arcsdm.common import execute_tool
 
 
@@ -37,7 +42,11 @@ class Toolbox(object):
         self.tools = [PartitionNNInputFiles, CombineNNOutputFiles, NeuralNetworkOutputFiles, NeuralNetworkInputFiles, 
         CalculateWeightsTool,SiteReductionTool,CategoricalMembershipTool,
         CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, FuzzyROC, FuzzyROC2, LogisticRegressionTool, Symbolize, 
+<<<<<<< HEAD
         ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues, GrandWofe, TrainMLPClassifierTool]
+=======
+        ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues, GrandWofe, PCA]
+>>>>>>> master
 
 
 class GrandWofe(object):
@@ -1826,6 +1835,7 @@ class FuzzyROC2(object):
         """The source code of the tool."""
         execute_tool(arcsdm.fuzzyroc2.Execute, self, parameters, messages)
         return
+
 class TrainMLPClassifierTool(object):
     def __init__(self):
         """Train a Multi-Layer Perceptron (MLP) classifier with the given parameters."""
@@ -2028,4 +2038,105 @@ class TrainMLPClassifierTool(object):
     def execute(self, parameters, messages):
         """Execute the tool."""
         execute_tool(arcsdm.mlp.Execute_MLP_classifier, self, parameters, messages)
+
+    
+class PCA(object):
+    def __init__(self):
+        """Principal Component Analysis (Raster)"""
+        self.label = "Principal Component Analysis (Raster)"
+        self.description = "Perform Principal Component Analysis on input rasters"
+        self.canRunInBackground = False
+        self.category = "Exploratory Analysis"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        
+        # Input data parameter
+        param_input_rasters = arcpy.Parameter(
+            displayName="Input Raster Layer(s)",
+            name="input_rasters",
+            datatype=["GPRasterLayer", "GPRasterDataLayer"],
+            parameterType="Required",
+            direction="Input",
+            multiValue=True
+        )
+        
+        param_nodata_value = arcpy.Parameter(
+            displayName="NoData Value",
+            name="nodata_value",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input"
+        )
+        param_nodata_value.value = -99
+
+        param_num_components = arcpy.Parameter(
+            displayName="Number of Components",
+            name="num_components",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input"
+        )
+
+        param_scaler_type = arcpy.Parameter(
+            displayName="Scaler Type",
+            name="scaler_type",
+            datatype="GPString",
+            parameterType="Optional",
+            direction="Input"
+        )
+        param_scaler_type.filter.list = ["standard", "min_max", "robust"]
+        param_scaler_type.value = "standard"
+
+        param_nodata_handling = arcpy.Parameter(
+            displayName="Nodata Handling",
+            name="nodata_handling",
+            datatype="GPString",
+            parameterType="Optional",
+            direction="Input"
+        )
+        param_nodata_handling.filter.list = ["remove", "replace"]
+        param_nodata_handling.value = "remove"
+
+        param_transformed_data = arcpy.Parameter(
+            displayName="Transformed Data",
+            name="transformed_data",
+            datatype="DETable",
+            parameterType="Required",
+            direction="Output"
+        )
+        param_transformed_data.value = 'transformed_raster'
+
+        params = [param_input_rasters,
+                  param_nodata_value,
+                  param_num_components,
+                  param_scaler_type,
+                  param_nodata_handling,
+                  param_transformed_data,
+                ]
+        return params
+
+    def isLicensed(self):    
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        execute_tool(arcsdm.pca.Execute, self, parameters, messages)
         return
