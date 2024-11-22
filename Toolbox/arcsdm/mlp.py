@@ -11,6 +11,8 @@ from keras.metrics import CategoricalCrossentropy, MeanAbsoluteError, MeanSquare
 from keras.layers import Flatten
 from keras.optimizers import SGD, Adagrad, Adam, RMSprop
 
+from utils.input_to_numpy_array import input_to_numpy_array
+
 
 def _keras_optimizer(optimizer: str, **kwargs):
     """Create a Keras optimizer from given name and parameters."""
@@ -258,22 +260,8 @@ def Execute_MLP_classifier(self, parameters, messages):
     output_file = parameters[18].valueAsText
 
     try:
-        desc_x = arcpy.Describe(x)
-        desc_y = arcpy.Describe(y)
-
-        if desc_x.datasetType == 'RasterDataset' or desc_x == 'RasterLayer':
-            x_as_array = arcpy.RasterToNumPyArray(x)
-            x_as_array = np.array([list(row) for row in x_as_array])
-        else:
-            x_as_array = arcpy.da.FeatureClassToNumPyArray(x, [field.name for field in arcpy.ListFields(x) if field.type != 'OID'])
-            x_as_array = np.array(x_as_array.tolist())
-
-        if desc_y.datasetType == 'RasterDataset' or desc_y == 'RasterLayer':
-            y_as_array = arcpy.RasterToNumPyArray(y)
-            y_as_array = np.array([list(row) for row in y_as_array])
-        else:
-            y_as_array = arcpy.da.FeatureClassToNumPyArray(y, [field.name for field in arcpy.ListFields(y) if field.type != 'OID'])
-            y_as_array = np.array(y_as_array.tolist())
+        x_as_array = input_to_numpy_array(x)
+        y_as_array = input_to_numpy_array(y)
 
         model, history = train_MLP_classifier(
             X=x_as_array,

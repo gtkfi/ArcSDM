@@ -14,9 +14,10 @@ Original implementation is included in EIS Toolkit (https://github.com/GispoCodi
 import sys
 import arcpy
 import numpy as np
-import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
+
+from utils.input_to_numpy_array import input_to_numpy_array
 
 SCALERS = {"standard": StandardScaler, "min_max": MinMaxScaler, "robust": RobustScaler}
 
@@ -32,16 +33,8 @@ def Execute(self, parameters, messages):
     try:
         datasets = []
         for data in input_data:
-            desc = arcpy.Describe(data)
-            # Load input data
-            if desc.dataType == "RasterDataset" or desc.dataType == "RasterLayer":
-                data = arcpy.RasterToNumPyArray(data)
-            datasets.append(data)
-        
-            # Check if all datasets have the same shape
-            if len(set([dataset.shape for dataset in datasets])) > 1:
-                arcpy.AddError("Input datasets have different shapes.")
-                raise arcpy.ExecuteError
+            data_as_array = input_to_numpy_array(data)
+            datasets.append(data_as_array)
             
         
         stacked_array = np.stack(datasets, axis=0)
