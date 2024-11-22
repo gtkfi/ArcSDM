@@ -17,12 +17,9 @@ import arcsdm.nninputfiles
 import arcsdm.grand_wofe_lr
 import arcsdm.fuzzyroc
 import arcsdm.fuzzyroc2
-<<<<<<< HEAD
 import arcsdm.mlp
-=======
 import arcsdm.pca
 
->>>>>>> master
 from arcsdm.common import execute_tool
 
 
@@ -42,11 +39,7 @@ class Toolbox(object):
         self.tools = [PartitionNNInputFiles, CombineNNOutputFiles, NeuralNetworkOutputFiles, NeuralNetworkInputFiles, 
         CalculateWeightsTool,SiteReductionTool,CategoricalMembershipTool,
         CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, FuzzyROC, FuzzyROC2, LogisticRegressionTool, Symbolize, 
-<<<<<<< HEAD
-        ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues, GrandWofe, TrainMLPClassifierTool]
-=======
-        ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues, GrandWofe, PCA]
->>>>>>> master
+        ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues, GrandWofe, TrainMLPClassifierTool, PCA]
 
 
 class GrandWofe(object):
