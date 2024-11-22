@@ -88,7 +88,8 @@ def _prepare_array_data(
         feature_matrix = feature_matrix.transpose(1, 2, 0).reshape(rows * cols, bands)
 
     if feature_matrix.size == 0:
-        raise arcpy.AddError("Input data is empty.")
+        arcpy.AddError("Input data is empty.")
+        raise arcpy.ExecuteError
 
     return _handle_missing_values(feature_matrix, nodata_handling, nodata_value)
 
@@ -114,7 +115,8 @@ def _handle_missing_values(
         return feature_matrix, None
 
     else:
-        raise arcpy.AddError(f"Invalid nodata_handling value: {nodata_handling}. Choose 'remove' or 'replace'.")
+        arcpy.AddError(f"Invalid nodata_handling value: {nodata_handling}. Choose 'remove' or 'replace'.")
+        raise arcpy.ExecuteError
 
 
 def _compute_pca(
