@@ -8,6 +8,7 @@ Before computation, data is scaled according to specified scaler and NaN values 
 Optionally, a nodata value can be given to handle similarly as NaN values.
 
 This tool is based on the PCA implementation in the scikit-learn library originally developed by University of Turku.
+Original implementation is included in EIS Toolkit (https://github.com/GispoCoding/eis_toolkit).
 """
 
 import sys
