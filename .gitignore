@@ -14,3 +14,5 @@ data/*
 *.idea/*
 
 Toolbox/arcsdm/DEBUG
+
+arcsdm-py3-env
