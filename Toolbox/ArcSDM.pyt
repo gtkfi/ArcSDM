@@ -1844,6 +1844,7 @@ class TrainMLPClassifierTool(object):
             name="X",
             datatype=["DEFeatureClass", "GPRasterLayer"],
             parameterType="Required",
+            multiValue=True,
             direction="Input")
 
         param_y = arcpy.Parameter(
