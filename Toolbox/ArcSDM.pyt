@@ -1854,6 +1854,14 @@ class TrainMLPClassifierTool(object):
             parameterType="Required",
             direction="Input")
         param_y.parameterDependencies = [param_X.name]
+        
+        param_nodata_value = arcpy.Parameter(
+            displayName="NoData Value",
+            name="nodata_value",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
+        param_nodata_value.value = -99
 
         param_neurons = arcpy.Parameter(
             displayName="Neurons per Layer. A comma separeted list of integers: e.g. 10,5,10",
