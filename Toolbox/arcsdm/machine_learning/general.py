@@ -12,7 +12,6 @@ from sklearn.base import BaseEstimator
 from sklearn.model_selection import KFold, LeaveOneOut, StratifiedKFold, train_test_split
 from tensorflow import keras
 
-from scoring import score_predictions
 
 SPLIT = "split"
 KFOLD_CV = "kfold_cv"
@@ -20,7 +19,7 @@ SKFOLD_CV = "skfold_cv"
 LOO_CV = "loo_cv"
 NO_VALIDATION = "none"
 
-arcpy.AddError
+
 def save_model(model: Union[BaseEstimator, keras.Model], path: Path) -> None:
     """
     Save a trained Sklearn model to a .joblib file.
@@ -44,7 +43,7 @@ def load_model(path: Path) -> Union[BaseEstimator, keras.Model]:
     """
     return joblib.load(path)
 
-
+'''
 def split_data(
     *data: Union[np.ndarray, pd.DataFrame, sparse._csr.csr_matrix, List[Number]],
     split_size: float = 0.2,
@@ -103,13 +102,14 @@ def reshape_predictions(
     if nodata_mask is not None:
         full_predictions_array[~nodata_mask.ravel()] = predictions
     predictions_reshaped = full_predictions_array.reshape((height, width))
-    return predictions_reshaped
+    return predictions_reshaped'''
 
 
 def prepare_data_for_ml(
     feature_raster_files: Sequence[Union[str, os.PathLike]],
     label_file: Optional[Union[str, os.PathLike]] = None,
-) -> Tuple[np.ndarray, Optional[np.ndarray], rasterio.profiles.Profile, Any]:
+    nodata_value: Optional[Number] = None,
+) -> Tuple[np.ndarray, Optional[np.ndarray], Any]:
     """
     Prepare data ready for machine learning model training.
 
@@ -140,35 +140,29 @@ def prepare_data_for_ml(
 
     def _read_and_stack_feature_raster(filepath: Union[str, os.PathLike]) -> Tuple[np.ndarray, dict]:
         """Read all bands of raster file with feature/evidence data in a stack."""
-        with rasterio.open(filepath) as src:
-            raster_data = np.stack([src.read(i) for i in range(1, src.count + 1)])
-            profile = src.profile
-        return raster_data, profile
+        raster = arcpy.Raster(filepath)
+        raster_data = np.stack([raster.getRasterBand(i).readAsArray() for i in range(1, raster.bandCount + 1)])
+        return raster_data
 
     if len(feature_raster_files) < 2:
         raise arcpy.AddError(f"Expected more than one feature raster file: {len(feature_raster_files)}.")
 
     # Read and stack feature rasters
-    feature_data, profiles = zip(*[_read_and_stack_feature_raster(file) for file in feature_raster_files])
-    if not check_raster_grids(profiles, same_extent=True):
-        raise arcpy.AddError("Input feature rasters should have same grid properties.")
-
-    reference_profile = profiles[0]
-    nodata_values = [profile["nodata"] for profile in profiles]
+    feature_data = zip(*[_read_and_stack_feature_raster(file) for file in feature_raster_files])
 
     # Reshape feature rasters for ML and create mask
     reshaped_data = []
     nodata_mask = None
 
-    for raster, nodata in zip(feature_data, nodata_values):
+    for raster in feature_data:
         raster_reshaped = raster.reshape(raster.shape[0], -1).T
         reshaped_data.append(raster_reshaped)
 
         nan_mask = (raster_reshaped == np.nan).any(axis=1)
         combined_mask = nan_mask if nodata_mask is None else nodata_mask | nan_mask
 
-        if nodata is not None:
-            raster_mask = (raster_reshaped == nodata).any(axis=1)
+        if nodata_value is not None:
+            raster_mask = (raster_reshaped == nodata_value).any(axis=1)
             combined_mask = combined_mask | raster_mask
 
         nodata_mask = combined_mask
@@ -176,18 +170,30 @@ def prepare_data_for_ml(
     X = np.concatenate(reshaped_data, axis=1)
 
     if label_file is not None:
-        # Check label file type and process accordingly
-        file_extension = os.path.splitext(label_file)[1].lower()
-
-        with rasterio.open(label_file) as label_raster:
-            y = label_raster.read(1)  # Assuming labels are in the first band
-            label_nodata = label_raster.nodata
-            profiles = list(profiles)
-            profiles.append(label_raster.profile)
-            if not check_raster_grids(profiles, same_extent=True):
-                raise arcpy.AddError(
-                    "Label raster should have the same grid properties as feature rasters."
+        desc = arcpy.Describe(label_file)
+        
+        if desc.dataType == "FeatureClass" or desc.dataType == "Shapefile":
+            # Rasterize vector file
+            with arcpy.EnvManager(outputCoordinateSystem=feature_raster_files[0]):
+                label_raster = arcpy.FeatureToRaster_conversion(
+                    in_features=label_file,
+                    field="FID",
+                    out_raster=os.path.join(arcpy.env.scratchFolder, "label_raster"),
+                    cell_size=arcpy.Raster(feature_raster_files[0]).meanCellWidth,
                 )
+
+            with arcpy.Raster(label_raster) as label_raster:
+                y = label_raster.read(1)
+                label_nodata = label_raster.noDataValue
+
+                label_nodata_mask = y == label_nodata
+
+                # Combine masks and apply to feature and label data
+                nodata_mask = nodata_mask | label_nodata_mask.ravel()
+        else:
+            label_raster = arcpy.Raster(label_file)
+            y = label_raster.readAsArray()
+            label_nodata = label_raster.noDataValue
 
             label_nodata_mask = y == label_nodata
 
@@ -201,9 +207,9 @@ def prepare_data_for_ml(
 
     X = X[~nodata_mask]
 
-    return X, y, reference_profile, nodata_mask
+    return X, y, nodata_mask
 
-
+'''
 def read_data_for_evaluation(
     rasters: Sequence[Union[str, os.PathLike]]
 ) -> Tuple[Sequence[np.ndarray], rasterio.profiles.Profile, Any]:
@@ -397,4 +403,4 @@ def _get_cross_validator(
     else:
         raise arcpy.AddError(f"CV method was not recognized: {cv}")
 
-    return cross_validator
+    return cross_validator'''
