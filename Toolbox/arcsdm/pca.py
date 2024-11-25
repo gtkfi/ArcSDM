@@ -17,7 +17,7 @@ import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 
-from utils.input_to_numpy_array import input_to_numpy_array
+from utils.input_to_numpy_array import input_to_numpy_arrays
 
 SCALERS = {"standard": StandardScaler, "min_max": MinMaxScaler, "robust": RobustScaler}
 
@@ -31,17 +31,13 @@ def Execute(self, parameters, messages):
     transformed_data_output = parameters[5].valueAsText
     
     try:
-        datasets = []
-        for data in input_data:
-            data_as_array = input_to_numpy_array(data)
-            datasets.append(data_as_array)
+        data_as_array = input_to_numpy_arrays(input_data)
             
-        
-        stacked_array = np.stack(datasets, axis=0)
+        stacked_arrays = np.stack(data_as_array, axis=0)
 
         # Perform PCA
         transformed_data, principal_components, explained_variances, explained_variance_ratios = compute_pca(
-            stacked_array, number_of_components, scaler_type, nodata_handling, nodata_value
+            stacked_arrays, number_of_components, scaler_type, nodata_handling, nodata_value
         )
 
         arcpy.AddMessage('='*5 + ' PCA results ' + '='*5)

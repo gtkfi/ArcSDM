@@ -11,7 +11,7 @@ from keras.metrics import CategoricalCrossentropy, MeanAbsoluteError, MeanSquare
 from keras.layers import Flatten
 from keras.optimizers import SGD, Adagrad, Adam, RMSprop
 
-from utils.input_to_numpy_array import input_to_numpy_array
+from utils.input_to_numpy_array import input_to_numpy_arrays
 
 
 def _keras_optimizer(optimizer: str, **kwargs):
@@ -260,9 +260,9 @@ def Execute_MLP_classifier(self, parameters, messages):
     output_file = parameters[18].valueAsText
 
     try:
-        x_as_array = input_to_numpy_array(x)
-        y_as_array = input_to_numpy_array(y)
-
+        x_as_array = input_to_numpy_arrays(x)
+        y_as_array = input_to_numpy_arrays(y)
+        
         model, history = train_MLP_classifier(
             X=x_as_array,
             y=y_as_array,
