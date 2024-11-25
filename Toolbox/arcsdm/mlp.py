@@ -11,7 +11,7 @@ from keras.metrics import CategoricalCrossentropy, MeanAbsoluteError, MeanSquare
 from keras.layers import Flatten
 from keras.optimizers import SGD, Adagrad, Adam, RMSprop
 
-from utils.input_to_numpy_array import input_to_numpy_arrays
+from arcsdm.machine_learning.general import prepare_data_for_ml, save_model
 
 
 def _keras_optimizer(optimizer: str, **kwargs):
@@ -239,33 +239,34 @@ def train_MLP_classifier(
 
 
 def Execute_MLP_classifier(self, parameters, messages):
-    x = parameters[0].valueAsText
-    y = parameters[1].valueAsText
-    neurons = [int(n) for n in parameters[2].valueAsText.split(',')]
-    validation_split = float(parameters[3].value) if parameters[3].value else 0.2
-    validation_data = parameters[4].valueAsText if parameters[4].valueAsText else None
-    activation = parameters[5].valueAsText
-    output_neurons = parameters[6].value
-    last_activation = parameters[7].valueAsText
-    epochs = parameters[8].value
-    batch_size = int(parameters[9].value)
-    optimizer = parameters[10].valueAsText
-    learning_rate = float(parameters[11].value)
-    loss_function = parameters[12].valueAsText
-    dropout_rate = float(parameters[13].value) if parameters[13].value else None
-    early_stopping = parameters[14].value
-    es_patience = int(parameters[15].value)
-    metrics = parameters[16].valueAsText.split(',')
-    random_state = int(parameters[17].value) if parameters[17].value else None
-    output_file = parameters[18].valueAsText
+    input_rasters = parameters[0].valueAsText
+    target_labels = parameters[1].valueAsText
+    nodata_value = parameters[2].value
+    neurons = [int(n) for n in parameters[3].valueAsText.split(',')]
+    validation_split = float(parameters[4].value) if parameters[4].value else 0.2
+    validation_data = parameters[5].valueAsText if parameters[5].valueAsText else None
+    activation = parameters[6].valueAsText
+    output_neurons = parameters[7].value
+    last_activation = parameters[8].valueAsText
+    epochs = parameters[9].value
+    batch_size = int(parameters[10].value)
+    optimizer = parameters[11].valueAsText
+    learning_rate = float(parameters[12].value)
+    loss_function = parameters[13].valueAsText
+    dropout_rate = float(parameters[14].value) if parameters[14].value else None
+    early_stopping = parameters[15].value
+    es_patience = int(parameters[16].value)
+    metrics = parameters[17].valueAsText.split(',')
+    random_state = int(parameters[18].value) if parameters[18].value else None
+    output_file = parameters[19].valueAsText
 
     try:
-        x_as_array = input_to_numpy_arrays(x)
-        y_as_array = input_to_numpy_arrays(y)
+
+        X, y, _ = prepare_data_for_ml(input_rasters, target_labels, nodata_value)
         
         model, history = train_MLP_classifier(
-            X=x_as_array,
-            y=y_as_array,
+            X=X,
+            y=y,
             neurons=neurons,
             validation_split=validation_split,
             validation_data=validation_data,
@@ -289,7 +290,7 @@ def Execute_MLP_classifier(self, parameters, messages):
         arcpy.AddMessage(f"Model training history:")
         arcpy.AddMessage(f"{history.history}")
         
-        joblib.dump(model, output_file)
+        save_model(model, output_file)
 
     # Return geoprocessing specific errors
     except arcpy.ExecuteError:    
