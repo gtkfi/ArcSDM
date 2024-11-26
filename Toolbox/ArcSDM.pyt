@@ -1848,12 +1848,11 @@ class TrainMLPClassifierTool(object):
             direction="Input")
 
         param_y = arcpy.Parameter(
-            displayName="Target Variable",
+            displayName="Target Labels",
             name="y",
             datatype=["DEFeatureClass", "GPRasterLayer"],
             parameterType="Required",
             direction="Input")
-        param_y.parameterDependencies = [param_X.name]
         
         param_nodata_value = arcpy.Parameter(
             displayName="NoData Value",
@@ -2002,9 +2001,11 @@ class TrainMLPClassifierTool(object):
             datatype="DEFile",
             parameterType="Required",
             direction="Output")
+        param_output_file.value = "model"
 
         params = [param_X,
                   param_y,
+                  param_nodata_value,
                   param_neurons,
                   param_validation_split,
                   param_validation_data,
