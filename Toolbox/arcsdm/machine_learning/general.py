@@ -1,17 +1,14 @@
 import os
 import arcpy
+import joblib
 from numbers import Number
 from pathlib import Path
-
-import joblib
 import numpy as np
-import pandas as pd
 from typing import Any, List, Literal, Optional, Sequence, Tuple, Union
 from scipy import sparse
 from sklearn.base import BaseEstimator
 from sklearn.model_selection import KFold, LeaveOneOut, StratifiedKFold, train_test_split
 from tensorflow import keras
-
 
 SPLIT = "split"
 KFOLD_CV = "kfold_cv"
@@ -137,13 +134,31 @@ def _check_grid_properties(raster_files):
         if (rows != ref_rows or cols != ref_cols or
             cell_size_x != ref_cell_size_x or cell_size_y != ref_cell_size_y or
             extent != ref_extent):
-            arcpy.AddError(f"Raster {raster_file} does not match the grid properties of the reference raster.")
-            arcpy.AddError(f"Reference raster: {ref_desc.name}, {ref_desc.extent}, {ref_desc.meanCellWidth}, {ref_desc.meanCellHeight}")
-            arcpy.AddError(f"{raster_file}: {desc.name}, {desc.extent}, {desc.meanCellWidth}, {desc.meanCellHeight}")
-            raise arcpy.ExecuteError
+            return False
 
-    return
+    return True
 
+def _resample_raster(input_raster, reference_raster, output_path):
+    """
+    Resample the input raster to match the grid properties of the reference raster.
+
+    Args:
+        input_raster: Path to the input raster to be resampled.
+        reference_raster: Path to the reference raster with the desired grid properties.
+        output_path: Path to save the resampled raster.
+
+    Returns:
+        Path to the resampled raster.
+    """
+
+    ref_raster = arcpy.Raster(reference_raster)
+    resampled_raster = arcpy.management.Resample(
+        in_raster=input_raster,
+        out_raster=output_path,
+        cell_size=ref_raster.meanCellWidth,
+        resampling_type="NEAREST"
+    )
+    return resampled_raster
 
 def prepare_data_for_ml(
     feature_raster_files,
@@ -181,7 +196,8 @@ def prepare_data_for_ml(
     def _read_and_stack_feature_raster(filepath: Union[str, os.PathLike]) -> Tuple[np.ndarray, dict]:
         """Read all bands of raster file with feature/evidence data in a stack."""
         desc = arcpy.Describe(filepath)
-        out_bands_raster = [arcpy.ia.ExtractBand(filepath, band_ids=i) for i in range(1, desc.bandCount + 1)] 
+        path_to_raster = desc.catalogPath
+        out_bands_raster = [arcpy.ia.ExtractBand(path_to_raster, band_ids=i) for i in range(1, desc.bandCount + 1)] 
         dataset = [arcpy.RasterToNumPyArray(band) for band in out_bands_raster] 
         raster_data = np.stack(dataset)
         return raster_data
@@ -190,17 +206,44 @@ def prepare_data_for_ml(
         arcpy.AddError(f"Expected more than one feature raster file: {len(feature_raster_files)}.")
         raise arcpy.ExecuteError
     
-    rasters_to_check = feature_raster_files
+    rasters_to_check = feature_raster_files.copy()
     rasters_to_check.append(label_file)
-    _check_grid_properties(rasters_to_check)
-    # Read and stack feature rasters
-    feature_data = [_read_and_stack_feature_raster(file) for file in feature_raster_files]
+
+    grid_check = _check_grid_properties(rasters_to_check)
+    
+    if not grid_check:
+        arcpy.AddWarning("Resampling feature rasters to match grid properties of the first raster.")
+        reference_raster = feature_raster_files[0]
+        resampled_feature_raster_files = []
+        for i, raster_file in enumerate(feature_raster_files):
+            
+            resampled_raster = _resample_raster(raster_file,
+                                                reference_raster,
+                                                os.path.join(arcpy.env.scratchFolder,
+                                                f"resampled_feature_raster_{i}.tif"))
+            
+            resampled_feature_raster_files.append(resampled_raster)
+        
+        feature_raster_files = resampled_feature_raster_files
+        feature_data = [_read_and_stack_feature_raster(file) for file in resampled_feature_raster_files]
+    else:
+        # Read and stack feature rasters
+        feature_data = [_read_and_stack_feature_raster(file) for file in feature_raster_files]
+
+    # Verify that all feature rasters have the same shape after resampling
+    shapes = [raster.shape for raster in feature_data]
+    if len(set(shapes)) > 1:
+        arcpy.AddWarning(f"Feature rasters do not have the same shape after resampling: {shapes}")
+        arcpy.AddWarning("Cropping feature rasters to the smallest common shape.")
+        min_shape = np.min([raster.shape for raster in feature_data], axis=0)
+        feature_data = [raster[:, :min_shape[1], :min_shape[2]] for raster in feature_data]
 
     # Reshape feature rasters for ML and create mask
     reshaped_data = []
     nodata_mask = None
 
     for raster in feature_data:
+
         # Reshape each raster to 2D array where each row is a pixel and each column is a band
         raster_reshaped = raster.reshape(raster.shape[0], -1).T
         reshaped_data.append(raster_reshaped)
@@ -211,7 +254,7 @@ def prepare_data_for_ml(
 
         # Create a mask for nodata values if nodata_value is provided
         if nodata_value is not None:
-            raster_mask = (raster_reshaped == nodata_value).any(axis=1)
+            raster_mask = (raster_reshaped == np.nan).any(axis=1)
             combined_mask = combined_mask | raster_mask
 
         # Combine NaN and nodata masks
@@ -220,37 +263,57 @@ def prepare_data_for_ml(
     X = np.concatenate(reshaped_data, axis=1)
 
     if label_file is not None:
+        
+        label_resampled = _resample_raster(label_file, feature_raster_files[0], os.path.join(arcpy.env.scratchFolder, "label_RS"))
+        
         desc = arcpy.Describe(label_file)
         
         if desc.dataType == "FeatureClass" or desc.dataType == "Shapefile":
             # Rasterize vector file
             with arcpy.EnvManager(outputCoordinateSystem=feature_raster_files[0]):
-                label_raster = arcpy.FeatureToRaster_conversion(
+                label_raster = arcpy.conversion.FeatureToRaster(
                     in_features=label_file,
                     field="FID",
                     out_raster=os.path.join(arcpy.env.scratchFolder, "label_raster"),
                     cell_size=arcpy.Raster(feature_raster_files[0]).meanCellWidth,
                 )
 
-            with arcpy.Raster(label_raster) as label_raster:
+            with arcpy.Raster(label_resampled) as label_raster:
                 y = label_raster.read(1)
                 label_nodata = label_raster.noDataValue
 
                 label_nodata_mask = y == label_nodata
 
+                # Resample label raster to match feature raster grid properties
+                '''label_raster_resampled = _resample_raster(
+                    label_raster, feature_raster_files[0], os.path.join(arcpy.env.scratchFolder, "label_raster_resampled")
+                )'''
+
+                y_resampled = arcpy.RasterToNumPyArray(label_raster)
+                label_nodata_mask_resampled = y_resampled == label_nodata
+
                 # Combine masks and apply to feature data
-                nodata_mask = nodata_mask | label_nodata_mask.ravel()
+                nodata_mask = nodata_mask | label_nodata_mask_resampled.ravel()
         else:
-           # label_raster = arcpy.Raster(label_file)
-            y = arcpy.RasterToNumPyArray(label_file)
-            #label_nodata = label_raster.noDataValue
 
+            label_resampled = _resample_raster(label_file, feature_raster_files[0], os.path.join(arcpy.env.scratchFolder, "y_resampled"))
+            desc_label_resampled = arcpy.Describe(label_resampled)
+            y = arcpy.RasterToNumPyArray(desc_label_resampled.catalogPath)
+            
             label_nodata_mask = y == nodata_value
+            
+            # Truncate the larger array to match the smaller one
+            min_size = min(nodata_mask.size, label_nodata_mask.size)
+            nodata_mask = nodata_mask[:min_size]
+            label_nodata_mask = label_nodata_mask.ravel()[:min_size]
 
-            # Combine masks and apply to label data            
-            nodata_mask = nodata_mask | label_nodata_mask.ravel()
+            # Combine masks and apply to label data
+            nodata_mask = nodata_mask | label_nodata_mask
 
-        y = y.ravel()[~nodata_mask]
+        # Flatten label data and make sure it has the same size as the mask
+        y = y.ravel()[:nodata_mask.size]
+        y = y[~nodata_mask]
+        
 
     else:
         y = None
