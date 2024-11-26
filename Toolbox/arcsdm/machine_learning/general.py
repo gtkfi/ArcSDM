@@ -105,8 +105,48 @@ def reshape_predictions(
     return predictions_reshaped'''
 
 
+def _check_grid_properties(raster_files):
+    """
+    Check that all input rasters have the same grid properties.
+
+    Args:
+        raster_files: List of filepaths to raster files.
+
+    Returns:
+        bool: True if all rasters have the same grid properties, False otherwise.
+    """
+    if not raster_files:
+        raise ValueError("No raster files provided.")
+
+    # Get properties of the first raster as reference
+    ref_desc = arcpy.Describe(raster_files[0])
+    ref_rows = ref_desc.height
+    ref_cols = ref_desc.width
+    ref_cell_size_x = ref_desc.meanCellWidth
+    ref_cell_size_y = ref_desc.meanCellHeight
+    ref_extent = ref_desc.extent
+
+    for raster_file in raster_files[1:]:
+        desc = arcpy.Describe(raster_file)
+        rows = desc.height
+        cols = desc.width
+        cell_size_x = desc.meanCellWidth
+        cell_size_y = desc.meanCellHeight
+        extent = desc.extent
+
+        if (rows != ref_rows or cols != ref_cols or
+            cell_size_x != ref_cell_size_x or cell_size_y != ref_cell_size_y or
+            extent != ref_extent):
+            arcpy.AddError(f"Raster {raster_file} does not match the grid properties of the reference raster.")
+            arcpy.AddError(f"Reference raster: {ref_desc.name}, {ref_desc.extent}, {ref_desc.meanCellWidth}, {ref_desc.meanCellHeight}")
+            arcpy.AddError(f"{raster_file}: {desc.name}, {desc.extent}, {desc.meanCellWidth}, {desc.meanCellHeight}")
+            raise arcpy.ExecuteError
+
+    return
+
+
 def prepare_data_for_ml(
-    feature_raster_files: Sequence[Union[str, os.PathLike]],
+    feature_raster_files,
     label_file: Optional[Union[str, os.PathLike]] = None,
     nodata_value: Optional[Number] = None,
 ) -> Tuple[np.ndarray, Optional[np.ndarray], Any]:
@@ -140,31 +180,41 @@ def prepare_data_for_ml(
 
     def _read_and_stack_feature_raster(filepath: Union[str, os.PathLike]) -> Tuple[np.ndarray, dict]:
         """Read all bands of raster file with feature/evidence data in a stack."""
-        raster = arcpy.Raster(filepath)
-        raster_data = np.stack([raster.getRasterBand(i).readAsArray() for i in range(1, raster.bandCount + 1)])
+        desc = arcpy.Describe(filepath)
+        out_bands_raster = [arcpy.ia.ExtractBand(filepath, band_ids=i) for i in range(1, desc.bandCount + 1)] 
+        dataset = [arcpy.RasterToNumPyArray(band) for band in out_bands_raster] 
+        raster_data = np.stack(dataset)
         return raster_data
 
     if len(feature_raster_files) < 2:
-        raise arcpy.AddError(f"Expected more than one feature raster file: {len(feature_raster_files)}.")
-
+        arcpy.AddError(f"Expected more than one feature raster file: {len(feature_raster_files)}.")
+        raise arcpy.ExecuteError
+    
+    rasters_to_check = feature_raster_files
+    rasters_to_check.append(label_file)
+    _check_grid_properties(rasters_to_check)
     # Read and stack feature rasters
-    feature_data = zip(*[_read_and_stack_feature_raster(file) for file in feature_raster_files])
+    feature_data = [_read_and_stack_feature_raster(file) for file in feature_raster_files]
 
     # Reshape feature rasters for ML and create mask
     reshaped_data = []
     nodata_mask = None
 
     for raster in feature_data:
+        # Reshape each raster to 2D array where each row is a pixel and each column is a band
         raster_reshaped = raster.reshape(raster.shape[0], -1).T
         reshaped_data.append(raster_reshaped)
 
+        # Create a mask for NaN values
         nan_mask = (raster_reshaped == np.nan).any(axis=1)
         combined_mask = nan_mask if nodata_mask is None else nodata_mask | nan_mask
 
+        # Create a mask for nodata values if nodata_value is provided
         if nodata_value is not None:
             raster_mask = (raster_reshaped == nodata_value).any(axis=1)
             combined_mask = combined_mask | raster_mask
 
+        # Combine NaN and nodata masks
         nodata_mask = combined_mask
 
     X = np.concatenate(reshaped_data, axis=1)
@@ -188,16 +238,16 @@ def prepare_data_for_ml(
 
                 label_nodata_mask = y == label_nodata
 
-                # Combine masks and apply to feature and label data
+                # Combine masks and apply to feature data
                 nodata_mask = nodata_mask | label_nodata_mask.ravel()
         else:
-            label_raster = arcpy.Raster(label_file)
-            y = label_raster.readAsArray()
-            label_nodata = label_raster.noDataValue
+           # label_raster = arcpy.Raster(label_file)
+            y = arcpy.RasterToNumPyArray(label_file)
+            #label_nodata = label_raster.noDataValue
 
-            label_nodata_mask = y == label_nodata
+            label_nodata_mask = y == nodata_value
 
-            # Combine masks and apply to feature and label data
+            # Combine masks and apply to label data            
             nodata_mask = nodata_mask | label_nodata_mask.ravel()
 
         y = y.ravel()[~nodata_mask]
