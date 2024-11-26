@@ -12,6 +12,7 @@ from keras.layers import Flatten
 from keras.optimizers import SGD, Adagrad, Adam, RMSprop
 
 from arcsdm.machine_learning.general import prepare_data_for_ml, save_model
+from utils.arcpy_callback import ArcPyLoggingCallback
 
 
 def _keras_optimizer(optimizer: str, **kwargs):
@@ -184,6 +185,7 @@ def train_MLP_classifier(
         Error: Shape of X or y is invalid.
     """
     # 1. Check input data
+    arcpy.AddMessage("Checking input data...")
     _check_ML_model_data_input(X=X, y=y)
     _check_MLP_inputs(
         neurons=neurons,
@@ -201,10 +203,12 @@ def train_MLP_classifier(
         keras.utils.set_random_seed(random_state)
 
     # 2. Create and compile a sequential model
+    arcpy.AddMessage("Creating and compiling a sequential model...")
     model = keras.Sequential()
 
     model.add(keras.layers.Input(shape=(X.shape[1],)))
 
+    arcpy.AddMessage("Adding hidden layers...")
     for neuron in neurons:
         model.add(keras.layers.Dense(units=neuron, activation=activation))
 
@@ -215,16 +219,19 @@ def train_MLP_classifier(
 
     model.add(Flatten())
 
+    arcpy.AddMessage("Compiling the model...")
     model.compile(
         optimizer=_keras_optimizer(optimizer, learning_rate=learning_rate),
         loss=loss_function,
         metrics=[_keras_metric(metric) for metric in metrics],
     )
-
+    
     # 3. Train the model
     # Early stopping callback
     callbacks = [keras.callbacks.EarlyStopping(monitor="val_loss", patience=es_patience)] if early_stopping else []
-
+    callbacks.append(ArcPyLoggingCallback(epochs))
+    
+    arcpy.AddMessage("Training the model...")
     history = model.fit(
         X,
         y,
@@ -239,31 +246,35 @@ def train_MLP_classifier(
 
 
 def Execute_MLP_classifier(self, parameters, messages):
-    input_rasters = parameters[0].valueAsText
-    target_labels = parameters[1].valueAsText
-    nodata_value = parameters[2].value
-    neurons = [int(n) for n in parameters[3].valueAsText.split(',')]
-    validation_split = float(parameters[4].value) if parameters[4].value else 0.2
-    validation_data = parameters[5].valueAsText if parameters[5].valueAsText else None
-    activation = parameters[6].valueAsText
-    output_neurons = parameters[7].value
-    last_activation = parameters[8].valueAsText
-    epochs = parameters[9].value
-    batch_size = int(parameters[10].value)
-    optimizer = parameters[11].valueAsText
-    learning_rate = float(parameters[12].value)
-    loss_function = parameters[13].valueAsText
-    dropout_rate = float(parameters[14].value) if parameters[14].value else None
-    early_stopping = parameters[15].value
-    es_patience = int(parameters[16].value)
-    metrics = parameters[17].valueAsText.split(',')
-    random_state = int(parameters[18].value) if parameters[18].value else None
-    output_file = parameters[19].valueAsText
-
+    
     try:
-
-        X, y, _ = prepare_data_for_ml(input_rasters, target_labels, nodata_value)
+        input_rasters = parameters[0].valueAsText.split(';')
+        target_labels = parameters[1].valueAsText
+        nodata_value = parameters[2].value
+        neurons = [int(n) for n in parameters[3].valueAsText.split(',')]
+        validation_split = float(parameters[4].value) if parameters[4].value else 0.2
+        validation_data = parameters[5].valueAsText if parameters[5].valueAsText else None
+        activation = parameters[6].valueAsText
+        output_neurons = parameters[7].value
+        last_activation = parameters[8].valueAsText
+        epochs = parameters[9].value
+        batch_size = int(parameters[10].value)
+        optimizer = parameters[11].valueAsText
+        learning_rate = float(parameters[12].value)
+        loss_function = parameters[13].valueAsText
+        dropout_rate = float(parameters[14].value) if parameters[14].value else None
+        early_stopping = parameters[15].value
+        es_patience = int(parameters[16].value)
+        metrics = parameters[17].valueAsText.split(',')
+        random_state = int(parameters[18].value) if parameters[18].value else None
+        output_file = parameters[19].valueAsText
         
+        arcpy.AddMessage("Starting MLP classifier training...")
+        
+        X, y, _ = prepare_data_for_ml(input_rasters, target_labels, nodata_value)
+
+        arcpy.AddMessage("Data preparation completed.")
+
         model, history = train_MLP_classifier(
             X=X,
             y=y,
