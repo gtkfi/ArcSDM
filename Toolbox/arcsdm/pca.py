@@ -14,9 +14,10 @@ Original implementation is included in EIS Toolkit (https://github.com/GispoCodi
 import sys
 import arcpy
 import numpy as np
-import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
+
+from utils.input_to_numpy_array import input_to_numpy_arrays
 
 SCALERS = {"standard": StandardScaler, "min_max": MinMaxScaler, "robust": RobustScaler}
 
@@ -30,25 +31,13 @@ def Execute(self, parameters, messages):
     transformed_data_output = parameters[5].valueAsText
     
     try:
-        datasets = []
-        for data in input_data:
-            desc = arcpy.Describe(data)
-            # Load input data
-            if desc.dataType == "RasterDataset" or desc.dataType == "RasterLayer":
-                data = arcpy.RasterToNumPyArray(data)
-            datasets.append(data)
-        
-            # Check if all datasets have the same shape
-            if len(set([dataset.shape for dataset in datasets])) > 1:
-                arcpy.AddError("Input datasets have different shapes.")
-                raise arcpy.ExecuteError
+        data_as_array = input_to_numpy_arrays(input_data)
             
-        
-        stacked_array = np.stack(datasets, axis=0)
+        stacked_arrays = np.stack(data_as_array, axis=0)
 
         # Perform PCA
         transformed_data, principal_components, explained_variances, explained_variance_ratios = compute_pca(
-            stacked_array, number_of_components, scaler_type, nodata_handling, nodata_value
+            stacked_arrays, number_of_components, scaler_type, nodata_handling, nodata_value
         )
 
         arcpy.AddMessage('='*5 + ' PCA results ' + '='*5)
