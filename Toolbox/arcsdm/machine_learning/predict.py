@@ -42,7 +42,8 @@ def predict_classifier(
             return labels
     elif isinstance(model, BaseEstimator):
         if not is_classifier(model):
-            raise arcpy.AddError(f"Expected a classifier model: {type(model)}.")
+            arcpy.AddError(f"Expected a classifier model: {type(model)}.")
+            raise arcpy.ExecuteError
         probabilities = model.predict_proba(data).astype(np.float32)
         if probabilities.shape[1] == 2:  # Binary classification
             probabilities = probabilities[:, 1]
@@ -54,7 +55,8 @@ def predict_classifier(
         else:
             return labels
     else:
-        raise arcpy.AddError(f"Model type not recognized: {type(model)}.")
+        arcpy.AddError(f"Model type not recognized: {type(model)}.")
+        raise arcpy.ExecuteError
 
 
 def predict_regressor(
@@ -78,12 +80,15 @@ def predict_regressor(
     """
     if isinstance(model, BaseEstimator):
         if is_classifier(model):
-            raise arcpy.AddError(f"Expected a regressor model: {type(model)}.")
+            arcpy.AddError(f"Expected a regressor model: {type(model)}.")
+            raise arcpy.ExecuteError
     elif isinstance(model, keras.Model):
         if not model.output_shape[-1] == 1:
-            raise arcpy.AddError(f"Expected a single output unit for a regressor model: {type(model)}.")
+            arcpy.AddError(f"Expected a single output unit for a regressor model: {type(model)}.")
+            raise arcpy.ExecuteError
     else:
-        raise arcpy.AddError(f"Model type not recognized: {type(model)}.")
+        arcpy.AddError(f"Model type not recognized: {type(model)}.")
+        raise arcpy.ExecuteError
 
     result = model.predict(data)
     if result.ndim == 2:
