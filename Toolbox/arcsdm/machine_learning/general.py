@@ -1,5 +1,6 @@
 import os
 import arcpy
+import arcpy.ia
 import joblib
 from numbers import Number
 from pathlib import Path
@@ -279,15 +280,10 @@ def prepare_data_for_ml(
                 )
 
             with arcpy.Raster(label_resampled) as label_raster:
-                y = label_raster.read(1)
+                y = arcpy.ia.ExtractBand(label_raster, band_ids=1)
                 label_nodata = label_raster.noDataValue
 
                 label_nodata_mask = y == label_nodata
-
-                # Resample label raster to match feature raster grid properties
-                '''label_raster_resampled = _resample_raster(
-                    label_raster, feature_raster_files[0], os.path.join(arcpy.env.scratchFolder, "label_raster_resampled")
-                )'''
 
                 y_resampled = arcpy.RasterToNumPyArray(label_raster)
                 label_nodata_mask_resampled = y_resampled == label_nodata
