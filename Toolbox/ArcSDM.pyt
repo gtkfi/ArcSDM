@@ -39,12 +39,9 @@ class Toolbox(object):
         # List of tool classes associated with this toolbox
         self.tools = [PartitionNNInputFiles, CombineNNOutputFiles, NeuralNetworkOutputFiles, NeuralNetworkInputFiles, 
         CalculateWeightsTool,SiteReductionTool,CategoricalMembershipTool,
-        CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, FuzzyROC, FuzzyROC2, LogisticRegressionTool, Symbolize, 
-<<<<<<< HEAD
-        ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues, GrandWofe, PCA, Feature_Permutation]
-=======
-        ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues, GrandWofe, TrainMLPClassifierTool, PCA]
->>>>>>> master
+        CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, FuzzyROC, FuzzyROC2, 
+        LogisticRegressionTool, Symbolize, ROCTool, AgterbergChengCITest, AreaFrequencyTable, 
+        GetSDMValues, GrandWofe, TrainMLPClassifierTool, PCA, Feature_Permutation]
 
 
 class GrandWofe(object):
