@@ -16,7 +16,7 @@ from sklearn.base import BaseEstimator
 from sklearn.model_selection import KFold, LeaveOneOut, StratifiedKFold, train_test_split
 from tensorflow import keras
 
-from evaluation.scoring import score_predictions
+from arcsdm.evaluation.scoring import score_predictions
 
 SPLIT = "split"
 KFOLD_CV = "kfold_cv"
@@ -50,11 +50,11 @@ def load_model(path: Path) -> Union[BaseEstimator, keras.Model]:
 
 
 def split_data(
-    *data: Union[np.ndarray, pd.DataFrame, sparse._csr.csr_matrix, List[Number]],
+    *data: Union[np.ndarray, pd.DataFrame, sparse.csr.csr_matrix, List[Number]],
     split_size: float = 0.2,
     random_state: Optional[int] = None,
     shuffle: bool = True,
-) -> List[Union[np.ndarray, pd.DataFrame, sparse._csr.csr_matrix, List[Number]]]:
+) -> List[Union[np.ndarray, pd.DataFrame, sparse.csr.csr_matrix, List[Number]]]:
     """
     Split data into two parts. Can be used for train-test or train-validation splits.
 
