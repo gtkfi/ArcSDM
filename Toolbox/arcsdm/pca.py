@@ -17,24 +17,26 @@ import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 
-from utils.input_to_numpy_array import input_to_numpy_arrays
+from utils.input_to_numpy_array import read_and_stack_rasters
 
 SCALERS = {"standard": StandardScaler, "min_max": MinMaxScaler, "robust": RobustScaler}
 
 def Execute(self, parameters, messages):
     """The source code of the tool."""
-    input_data = parameters[0].valueAsText.split(';')
-    nodata_value = parameters[1].value
-    number_of_components = parameters[2].value
-    scaler_type = parameters[3].valueAsText
-    nodata_handling = parameters[4].valueAsText
-    transformed_data_output = parameters[5].valueAsText
-    
     try:
-        data_as_array = input_to_numpy_arrays(input_data)
+        input_data = parameters[0].valueAsText.split(';')
+        nodata_value = parameters[1].value
+        number_of_components = parameters[2].value
+        scaler_type = parameters[3].valueAsText
+        nodata_handling = parameters[4].valueAsText
+        transformed_data_output = parameters[5].valueAsText
             
-        stacked_arrays = np.stack(data_as_array, axis=0)
-
+        stacked_arrays = read_and_stack_rasters(input_data, nodata_handling = "unify")
+        
+        if len(stacked_arrays) == 1:
+            arcpy.AddError("Only one band found in input data. PCA requires at least two bands.")
+            raise arcpy.ExecuteError
+        
         # Perform PCA
         transformed_data, principal_components, explained_variances, explained_variance_ratios = compute_pca(
             stacked_arrays, number_of_components, scaler_type, nodata_handling, nodata_value
@@ -47,7 +49,8 @@ def Execute(self, parameters, messages):
             transformed_data_raster = arcpy.NumPyArrayToRaster(transformed_data,
                                                             lower_left_corner=desc_input.extent.lowerLeft, 
                                                             x_cell_size=desc_input.meanCellWidth,
-                                                            y_cell_size=desc_input.meanCellHeight)
+                                                            y_cell_size=desc_input.meanCellHeight,
+                                                            value_to_nodata=nodata_value)
             transformed_data_raster.save(transformed_data_output)
             
             arcpy.AddMessage(f'Transformed data is saved in {transformed_data_output}')
