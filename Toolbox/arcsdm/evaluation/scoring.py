@@ -1,10 +1,13 @@
+"""
+Original source: https://github.com/GispoCoding/eis_toolkit
+"""
+
 from numbers import Number
-from typing import Optional
 
 import arcpy
 import numpy as np
 import pandas as pd
-from typing import Dict, Sequence, Union
+from typing import Dict, Optional, Sequence, Union
 from sklearn.metrics import (
     accuracy_score,
     f1_score,
@@ -13,6 +16,7 @@ from sklearn.metrics import (
     precision_score,
     r2_score,
     recall_score,
+    root_mean_squared_error,
 )
 
 
@@ -69,7 +73,7 @@ def _score_predictions(
     elif metric == "mse":
         score = mean_squared_error(y_true, y_pred)
     elif metric == "rmse":
-        score = mean_squared_error(y_true, y_pred, squared=False)
+        score = root_mean_squared_error(y_true, y_pred)
     elif metric == "r2":
         score = r2_score(y_true, y_pred)
     elif metric == "accuracy":
@@ -81,6 +85,7 @@ def _score_predictions(
     elif metric == "f1":
         score = f1_score(y_true, y_pred, average=average_method)
     else:
-        raise arcpy.AddError(f"Unrecognized metric: {metric}")
+        arcpy.AddError(f"Unrecognized metric: {metric}")
+        raise arcpy.ExecuteError
 
     return score
