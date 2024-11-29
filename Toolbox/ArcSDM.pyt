@@ -817,109 +817,128 @@ class CalculateResponse(object):
 
     def getParameterInfo(self):
         """Define parameter definitions"""
-        param0 = arcpy.Parameter(
-        displayName="Input Raster Layer(s)",
-        name="Input_evidence_raster_layers",
-        datatype="GPValueTable",
-        parameterType="Required",
-        direction="Input")
-        param0.columns = [['GPRasterLayer', 'Evidence raster']]
+        param_evidence_rasters = arcpy.Parameter(
+            displayName="Input Raster Layer(s)",
+            name="Input_evidence_raster_layers",
+            datatype="GPValueTable",
+            parameterType="Required",
+            direction="Input"
+        )
+        param_evidence_rasters.columns = [['GPRasterLayer', 'Evidence raster']]
         
-        param1 = arcpy.Parameter(
-        displayName="Evidence type",
-        name="Evidence_Type",
-        datatype="GPValueTable",
-        parameterType="Required",
-        direction="Input")
-        param1.columns = [['GPString', 'Evidence type']]
-        param1.parameterDependencies = ["0"];
+        paramInputWeights = arcpy.Parameter(
+            displayName="Input weights tables",
+            name="input_weights_tables",
+            datatype="GPValueTable",
+            parameterType="Required",
+            direction="Input"
+        )
+        paramInputWeights.columns = [['DETable', 'Weights table']]
+
+        param_evidence_type = arcpy.Parameter(
+            displayName="Evidence type",
+            name="Evidence_Type",
+            datatype="GPValueTable",
+            parameterType="Required",
+            direction="Input"
+        )
+        param_evidence_type.columns = [['GPString', 'Evidence type']]
+        param_evidence_type.parameterDependencies = ["0"]
         
         #param1.filter.type = "ValueList";
         #param1.filter.list = ["o", "c"];
         #param1.value = "o";
         
-        paramInputWeights = arcpy.Parameter(
-        displayName="Input weights tables",
-        name="input_weights_tables",
-        datatype="GPValueTable",
-        parameterType="Required",
-        direction="Input")
-        paramInputWeights.columns = [['DETable', 'Weights table']]
+        param_training_sites_feature = arcpy.Parameter(
+            displayName="Training sites",
+            name="training_sites",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Input"
+        )
         
-        param2 = arcpy.Parameter(
-        displayName="Training sites",
-        name="training_sites",
-        #datatype="DEFeatureClass",
-        datatype="GPFeatureLayer",
-        parameterType="Required",
-        direction="Input")
+        param_ignore_missing_data = arcpy.Parameter(
+            displayName="Ignore missing data",
+            name="Ignore missing data",
+            datatype="Boolean",
+            parameterType="Optional",
+            direction="Input"
+        )
         
-        paramIgnoreMissing = arcpy.Parameter(
-        displayName="Ignore missing data",
-        name="Ignore missing data",
-        datatype="Boolean",
-        parameterType="Optional",
-        direction="Input")
-        #paramIgnoreMissing.value= false;
-        
-        param3 = arcpy.Parameter(
-        displayName="Missing data value",
-        name="Missing_Data_Value",
-        datatype="GPLong",
-        
-        #parameterType="Required",
-        direction="Input")
-        param3.value= -99;
+        param_nodata_value = arcpy.Parameter(
+            displayName="Missing data value",
+            name="Missing_Data_Value",
+            datatype="GPLong",
+            direction="Input"
+        )
+        param_nodata_value.value= -99
 
-        param4 = arcpy.Parameter(
-        displayName="Unit area (km^2)",
-        name="Unit_Area_sq_km",
-        datatype="GPDouble",
-        parameterType="Required",
-        direction="Input")
-        param4.value = "1";
+        param_unit_cell_area = arcpy.Parameter(
+            displayName="Unit area (km^2)",
+            name="Unit_Area_sq_km",
+            datatype="GPDouble",
+            parameterType="Required",
+            direction="Input"
+        )
+        param_unit_cell_area.value = "1"
         
-        param_pprb = arcpy.Parameter(
-        displayName="Output post probablity raster",
-        name="Output_Post_Probability_raster",
-        datatype="DERasterDataset",
-        parameterType="Required",
-        direction="Output")
-        param_pprb.value = "%Workspace%\W_pprb"
+        param_pprb_output = arcpy.Parameter(
+            displayName="Output post probablity raster",
+            name="Output_Post_Probability_raster",
+            datatype="DERasterDataset",
+            parameterType="Required",
+            direction="Output"
+        )
+        param_pprb_output.value = "%Workspace%\W_pprb"
         
-        param_std = arcpy.Parameter(
-        displayName="Output standard deviation raster",
-        name="Output_Standard_Deviation_raster",
-        datatype="DERasterDataset",
-        parameterType="Required",
-        direction="Output")
-        param_std.value = "%Workspace%\W_std"
+        param_std_output = arcpy.Parameter(
+            displayName="Output standard deviation raster",
+            name="Output_Standard_Deviation_raster",
+            datatype="DERasterDataset",
+            parameterType="Required",
+            direction="Output"
+        )
+        param_std_output.value = "%Workspace%\W_std"
         
-        param_md_varianceraster = arcpy.Parameter(
-        displayName="Output MD variance raster",
-        name="output_md_variance_raster",
-        datatype="DERasterDataset",
-        parameterType="Required",
-        direction="Output")
-        param_md_varianceraster.value = "%Workspace%\W_MDvar"
+        param_md_variance_output = arcpy.Parameter(
+            displayName="Output MD variance raster",
+            name="output_md_variance_raster",
+            datatype="DERasterDataset",
+            parameterType="Required",
+            direction="Output"
+        )
+        param_md_variance_output.value = "%Workspace%\W_MDvar"
                 
-        param_totstddev = arcpy.Parameter(
-        displayName="Output Total Std Deviation Raster",
-        name="output_total_std_dev_raster",
-        datatype="DERasterDataset",
-        parameterType="Required",
-        direction="Output")
-        param_totstddev.value = "%Workspace%\W_Tstd"
+        param_total_stddev_output = arcpy.Parameter(
+            displayName="Output Total Std Deviation Raster",
+            name="output_total_std_dev_raster",
+            datatype="DERasterDataset",
+            parameterType="Required",
+            direction="Output"
+        )
+        param_total_stddev_output.value = "%Workspace%\W_Tstd"
         
-        param_Confraster = arcpy.Parameter(
-        displayName="Output confidence raster",
-        name="Output_Confidence_raster",
-        datatype="DERasterDataset",
-        parameterType="Required",
-        direction="Output")
-        param_Confraster.value = "%Workspace%\W_conf"
+        param_confidence_output = arcpy.Parameter(
+            displayName="Output confidence raster",
+            name="Output_Confidence_raster",
+            datatype="DERasterDataset",
+            parameterType="Required",
+            direction="Output"
+        )
+        param_confidence_output.value = "%Workspace%\W_conf"
                                   
-        params = [param0, paramInputWeights, param2, paramIgnoreMissing, param3, param4,  param_pprb, param_std, param_md_varianceraster, param_totstddev,  param_Confraster]
+        params = [
+            param_evidence_rasters, # 0
+            paramInputWeights, # 1
+            param_training_sites_feature, # 2
+            param_ignore_missing_data, # 3
+            param_nodata_value, # 4
+            param_unit_cell_area, # 5
+            param_pprb_output, # 6
+            param_std_output, # 7
+            param_md_variance_output, # 8
+            param_total_stddev_output, # 9
+            param_confidence_output] # 10
         return params
 
     def isLicensed(self):
@@ -928,7 +947,7 @@ class CalculateResponse(object):
             if arcpy.CheckExtension("Spatial") != "Available":
                 raise Exception
         except Exception:
-            return False  # tool cannot be executed        
+            return False
         return True
 
     def updateParameters(self, parameters):
@@ -1092,7 +1111,7 @@ class CalculateResponseOld(object):
 class CalculateWeights(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
-        self.label = "Calculate Weights"
+        self.label = "Calculate weights"
         self.description = "Calculate weight rasters from the inputs"
         self.canRunInBackground = True
         self.category = "Weights of Evidence"
@@ -1115,7 +1134,7 @@ class CalculateWeights(object):
             direction="Input"
         )
 
-        param_training_points_feature = arcpy.Parameter(
+        param_training_sites_feature = arcpy.Parameter(
             displayName="Training points feature",
             name="Training_points",
             datatype="GPFeatureLayer",
@@ -1172,7 +1191,7 @@ class CalculateWeights(object):
         params = [
             param_evidence_raster, # 0
             param_codefield, # 1
-            param_training_points_feature, # 2
+            param_training_sites_feature, # 2
             param_weight_type, # 3
             param_output_table, # 4
             param_studentized_contrast_threshold, # 5
