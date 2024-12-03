@@ -47,28 +47,27 @@ def read_and_stack_rasters(input_data: List[str], nodata_value = -99, nodata_han
             
             # Get band numbers and extract bands
             band_nums = [i for i in range(1, raster.bandCount + 1)]
-            band = arcpy.ia.ExtractBand(raster, band_ids=band_nums)
             
-            # Convert raster bands to numpy array
-            band_data = arcpy.RasterToNumPyArray(band, nodata_to_value=profile["nodata"])
-            
-            # Handle nodata values based on the specified method
-            if nodata_handling == "convert_to_nan":
-                # If the data type is integer, convert nodata values to the minimum value of the data type
-                if np.issubdtype(band_data.dtype, np.integer):
-                    band_data[band_data == nodata_value] = np.iinfo(band_data.dtype).min
-                else:
+            for band_num in band_nums:
+                band = arcpy.ia.ExtractBand(raster, band_ids=band_num)
+                # Convert raster bands to numpy float array 
+                # Float array is used as np.nan is not supported in integer arrays
+                band_data = arcpy.RasterToNumPyArray(band, nodata_to_value = nodata_value)
+                band_data = band_data.astype(float)
+
+                # Handle nodata values based on the specified method
+                if nodata_handling == "convert_to_nan":
                     band_data[band_data == nodata_value] = np.nan
-            elif nodata_handling == "unify":
-                band_data[nodata_value] = -9999
-            elif nodata_handling == "raise_exception":
-                nodata_values.append(profile["nodata"])
-                if len(set(nodata_values)) > 1:
-                    raise arcpy.ExecuteError("Input rasters have varying nodata values.")
-            elif nodata_handling == "none":
-                pass
-            
-            bands.append(band_data)
+                elif nodata_handling == "unify":
+                    band_data[nodata_value] = -9999
+                elif nodata_handling == "raise_exception":
+                    nodata_values.append(profile["nodata"])
+                    if len(set(nodata_values)) > 1:
+                        raise arcpy.ExecuteError("Input rasters have varying nodata values.")
+                elif nodata_handling == "none":
+                    pass
+                
+                bands.append(band_data)
         else:
             arcpy.AddError("Input data is not a raster.")
             raise arcpy.ExecuteError

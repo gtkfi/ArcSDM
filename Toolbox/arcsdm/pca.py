@@ -25,13 +25,13 @@ def Execute(self, parameters, messages):
     """The source code of the tool."""
     try:
         input_data = parameters[0].valueAsText.split(';')
-        nodata_value = parameters[1].value
+        nodata_value = np.float(parameters[1].value) # Convert to float for numpy operations
         number_of_components = parameters[2].value
         scaler_type = parameters[3].valueAsText
         nodata_handling = parameters[4].valueAsText
         transformed_data_output = parameters[5].valueAsText
             
-        stacked_arrays = read_and_stack_rasters(input_data, nodata_handling = "unify")
+        stacked_arrays = read_and_stack_rasters(input_data, nodata_handling = "convert_to_nan")
         
         if len(stacked_arrays) == 1:
             arcpy.AddError("Only one band found in input data. PCA requires at least two bands.")
@@ -50,7 +50,7 @@ def Execute(self, parameters, messages):
                                                             lower_left_corner=desc_input.extent.lowerLeft, 
                                                             x_cell_size=desc_input.meanCellWidth,
                                                             y_cell_size=desc_input.meanCellHeight,
-                                                            value_to_nodata=nodata_value)
+                                                            value_to_nodata=np.nan)
             transformed_data_raster.save(transformed_data_output)
             
             arcpy.AddMessage(f'Transformed data is saved in {transformed_data_output}')
