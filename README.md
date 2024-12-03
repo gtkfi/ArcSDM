@@ -1,25 +1,40 @@
 # ArcSDM
 
-Spatial Data Modeler 6 for ArcGIS Pro 3.0+<Br>
+Spatial Data Modeler 6 for ArcGIS Pro 3.0+
 
+---
+
+## News: 
+
+Development has started by GTK to migrate this tool for ArcGIS Pro 3.0+ (ArcSDM 6.0)
+
+---
 
 ## How to get started? <br>
 
 Standard toolbox of ArcSDM 5 works on ArcGis Desktop 10.3-10.7.1, however the Experimental toolbox requires components that cannot be installed on ArcGis desktop and doesn't work. ArcGIS Pro is supported from version 2.5+ forward.
 
-
 If you want to work on your own data, you can download just the toolbox. If you want to try, evaluate and experiment with ArcSDM you can download our demodata separately from the main package. <br>
 
-ArcSDM wiki contains upto date howtopage: https://github.com/gtkfi/ArcSDM/wiki/Howto-start
+ArcSDM wiki contains a howtopage: https://github.com/gtkfi/ArcSDM/wiki/Howto-start
 
+---
 
 ### Toolbox <br>
-Click "Clone or download" and select the suitable download option for you. "Download Zip" is the safe and easy choice, just open the zip anywhere you like and add the toolbox to ArcGis (Desktop or Pro). <br>
+Click "Clone or download" and select the suitable download option for you. "Download Zip" is the safe and easy choice, just open the zip in a place where ArcGIS Pro has access in your computer and add the toolbox to ArcGIS Pro. <br>
 
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=w-EAv2A2jOM
 " target="_blank"><img src="http://img.youtube.com/vi/w-EAv2A2jOM/0.jpg" 
 alt="How to download and extract the toolbox" width="240" height="180" border="10" /></a>
 
+---
+
+### Compatibility
+ArcSDM 6 is designed for:
+- **ArcGIS Pro:** Version 3.0 or higher
+- **Python Environment:** Python 3.9 or later (managed through ArcGIS Pro's Conda environment)
+
+---
 
 ### Demodata <br>
 Download the demodata as a zip package from our demodata git repository https://github.com/gtkfi/demodata. You can download the release file from here https://github.com/gtkfi/demodata/releases/download/v1.0/ArcSDM_Demodata.zip <br>
@@ -29,14 +44,7 @@ Open and save the zip optionally to your ArcSDM toolbox installation folder as "
 " target="_blank"><img src="http://img.youtube.com/vi/4rU1oDqEUrQ/0.jpg" 
 alt="How to download and extract the toolbox" width="240" height="180" border="10" /></a>
 
-
-### Status
-<br>
-Status of the toolbox should be updated to wiki https://github.com/gtkfi/ArcSDM/wiki/Toolbox-details <bR>
-
-## News: 
-
-Development has started by GTK to migrate this tool for ArcGIS Pro 3.0+ (ArcSDM 6.0)
+---
 
 ## Usage of the ArcSDM Python env
 
@@ -45,6 +53,8 @@ Do not clone it to the default AppData folder. This might cause the required pac
 Please clone the Python env to for example C:\user\path_to_a_folder\arcpy-py3-env
 
 [How to use Python environments in ArcGIS Pro](https://pro.arcgis.com/en/pro-app/latest/arcpy/get-started/activate-an-environment.htm)
+
+---
 
 ## Setting Up ArcSDM Python Environment
 
@@ -66,10 +76,29 @@ To use ArcSDM with ArcGIS Pro, follow these steps:
     - Sometimes packages do not install due to Proxy settings. Please retry or contact your organizations IT Help to enable the installation.
 
 4. **Install Required Packages**:
-    Go
+    - Open the cloned Python environment in ArcGIS Pro.
+    - Use the Package Manager to search for and install the following packages:
+        - Scikit-learn (>=1.4)
+        - TensorFlow
+        - Imbalanced-learn
+    - If you encounter issues due to proxy settings, retry the installation or contact your IT support for assistance.
 
 By following these steps, you will have the necessary environment set up to use ArcSDM with ArcGIS Pro.
 
+---
+
+## Troubleshooting
+
+### Issue: Missing Dependencies
+If dependencies fail to install, verify that you are using the correct Python environment for ArcGIS Pro.
+
+### Issue: Toolbox Not Showing
+Ensure that the toolbox file (`ArcSDM.pyt`) is in a folder accessible to ArcGIS Pro and that it’s properly added to the project.
+
+### Logs and Support
+For error messages or unexpected behavior, check the ArcGIS Pro **Geoprocessing > History** pane for details.
+
+---
 
 ## History:
 16.10.2020 5.03-1 merging fuzzy membership files into fuzzy overlay files rewritten<br> 
