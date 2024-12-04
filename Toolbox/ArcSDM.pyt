@@ -2384,7 +2384,6 @@ class TrainMLPRegressorTool(object):
             parameterType="Required",
             multiValue=True,
             direction="Input")
-        param_X.value = "RC_AS;RC_AEM"
 
         param_y = arcpy.Parameter(
             displayName="Target Labels",
@@ -2392,7 +2391,6 @@ class TrainMLPRegressorTool(object):
             datatype=["DEFeatureClass", "GPRasterLayer"],
             parameterType="Required",
             direction="Input")
-        param_y.value = "output_labels.tiff"
         
         param_nodata_value = arcpy.Parameter(
             displayName="NoData Value",
@@ -2408,7 +2406,6 @@ class TrainMLPRegressorTool(object):
             datatype="GPString",
             parameterType="Required",
             direction="Input")
-        param_neurons.value = "10,5,10"
 
         param_validation_split = arcpy.Parameter(
             displayName="Validation Split",
