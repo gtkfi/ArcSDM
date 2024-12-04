@@ -8,10 +8,16 @@ import sys
 import traceback
 
 import arcsdm.sdmvalues
+import arcsdm.wofe_common
 import arcsdm.workarounds_93
+
+from arcsdm.wofe_common import check_input_data
 
 
 def Execute(self, parameters, messages):
+    # TODO: Remove this after testing is done!
+    # Make sure imported modules are refreshed if the toolbox is refreshed.
+    importlib.reload(arcsdm.wofe_common)
     try:
         evidence_rasters = parameters[0].valueAsText
         weights_tables = parameters[1].valueAsText
@@ -27,7 +33,8 @@ def Execute(self, parameters, messages):
 
         # TODO: Add check for weights table columns depending on weights type (unique weights shouldn't have generalized columns)
 
-        return None
+        check_input_data(evidence_rasters, training_point_feature)
+        
     except arcpy.ExecuteError:
         arcpy.AddError(arcpy.GetMessages(2))
     except Exception:
