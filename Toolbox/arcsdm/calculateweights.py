@@ -72,39 +72,21 @@ def Calculate(self, parameters, messages):
         # 7: MissingDataValue
         # 8: Success
 
-        evidence_layer = parameters[0].valueAsText
+        evidence_raster = parameters[0].valueAsText
         code_name =  parameters[1].valueAsText
-        training_sites = parameters[2].valueAsText
+        training_sites_feature = parameters[2].valueAsText
         selected_weight_type =  parameters[3].valueAsText
         output_weights_table = parameters[4].valueAsText
         studentized_contrast_threshold = parameters[5].value
         unit_area_sq_km = parameters[6].value
         nodata_value = parameters[7].value
 
-        # Verify that the evidence layer has an attribute table
-        test_raster = arcpy.Raster(evidence_layer)
-        if not test_raster.hasRAT:
-            arcpy.AddError("ERROR: The Evidence Layer does not have an attribute table. Use 'Build Raster Attribute Table' tool to add it.")
-            raise arcpy.ExecuteError
-        test_raster = None
-
         # Test data type of Evidence Layer
-        evidence_descr = arcpy.Describe(evidence_layer)
-        evidence_coordsys = evidence_descr.spatialReference.name
+        evidence_descr = arcpy.Describe(evidence_raster)
 
-        arcpy.AddMessage("Evidence Layer is " + evidence_layer + " and its data type is " + evidence_descr.dataType + " and coordinate system is " + evidence_coordsys)
-        evidence_layer, evidence_descr = extract_layer_from_raster_band(evidence_layer, evidence_descr)
+        evidence_raster, evidence_descr = extract_layer_from_raster_band(evidence_raster, evidence_descr)
 
-        # Verify that the evidence layer has data type int
-        value_type = int(arcpy.management.GetRasterProperties(evidence_layer, "VALUETYPE")[0])
-        # See ArcGIS documentation for valuetypes:
-        # https://pro.arcgis.com/en/pro-app/latest/tool-reference/data-management/get-raster-properties.htm
-        if value_type > 8:
-            arcpy.AddError(f"ERROR: Evidence layer should be an integer-type raster! Layer {evidence_layer} has VALUETYPE: {value_type}")
-            raise arcpy.ExecuteError
-
-        # Check that the coordinate systems of the evidence layer and training data match
-        check_input_data([evidence_layer], training_sites)
+        check_input_data([evidence_raster], training_sites_feature)
         
         # If using non gdb database, lets add .dbf
         # If using GDB database, remove numbers and underscore from the beginning of the Weights table name (else block)
@@ -123,20 +105,18 @@ def Calculate(self, parameters, messages):
             if not arcpy.Exists(mask):
                 raise arcpy.ExecuteError("Mask doesn't exist! Set Mask under Analysis/Environments.")
             
-            evidence_layer = arcpy.sa.ExtractByMask(evidence_layer, mask)
+            evidence_raster = arcpy.sa.ExtractByMask(evidence_raster, mask)
 
-        arcsdm.sdmvalues.appendSDMValues(unit_area_sq_km, training_sites)
+        arcsdm.sdmvalues.appendSDMValues(unit_area_sq_km, training_sites_feature)
         arcpy.AddMessage("=" * 10 + " Calculate weights " + "=" * 10)
 
         arcpy.AddMessage ("%-20s %s (%s)" % ("Creating table: ", output_weights_table, selected_weight_type))
 
         # Extract points from training sites feature layer to a raster
         # A new field named RASTERVALU is added to the output to store the extracted values
-        assert isinstance(evidence_layer, object)
+        assert isinstance(evidence_raster, object)
 
-        values_at_training_points = get_evidence_values_at_training_points(evidence_layer, training_sites)
-
-        # training_points_raster = arcsdm.workarounds_93.ExtractValuesToPoints(evidence_layer, training_sites, "TPFID")
+        values_at_training_points = get_evidence_values_at_training_points(evidence_raster, training_sites_feature)
 
         # TODO: in both categorical cases:
         # TODO: get both the evidence and the training data as raster
@@ -148,7 +128,7 @@ def Calculate(self, parameters, messages):
         # TODO: (note: probably easier to work with )
 
         if selected_weight_type in [UNIQUE, CATEGORICAL]:
-            calculate_unique_weights(evidence_layer, values_at_training_points)
+            calculate_unique_weights(evidence_raster, values_at_training_points)
         elif selected_weight_type == ASCENDING:
             calculate_cumulative_weights()
         elif selected_weight_type == DESCENDING:
