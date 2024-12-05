@@ -4,15 +4,9 @@ Spatial Data Modeler 6 for ArcGIS Pro 3.0+
 
 ---
 
-## News: 
+## How to get started?
 
-Development has started by GTK to migrate this tool for ArcGIS Pro 3.0+ (ArcSDM 6.0)
-
----
-
-## How to get started? <br>
-
-Standard toolbox of ArcSDM 5 works on ArcGis Desktop 10.3-10.7.1, however the Experimental toolbox requires components that cannot be installed on ArcGis desktop and doesn't work. ArcGIS Pro is supported from version 2.5+ forward.
+ArcSDM 6 is designed to work with ArcGIS Pro 3.0 and higher. The standard toolbox of ArcSDM 6 requires components that are compatible with ArcGIS Pro. Ensure you have ArcGIS Pro 3.0 or later installed to use ArcSDM 6 effectively.
 
 If you want to work on your own data, you can download just the toolbox. If you want to try, evaluate and experiment with ArcSDM you can download our demodata separately from the main package. <br>
 
