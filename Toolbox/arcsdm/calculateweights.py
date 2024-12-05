@@ -13,7 +13,7 @@ import arcsdm.wofe_common
 
 from arcsdm.common import log_arcsdm_details
 from arcsdm.sdmvalues import log_wofe
-from arcsdm.wofe_common import check_input_data, get_evidence_values_at_training_points
+from arcsdm.wofe_common import check_input_data, get_evidence_values_at_training_points, get_training_point_statistics
 
 ASCENDING = "Ascending"
 DESCENDING = "Descending"
@@ -142,14 +142,8 @@ def Calculate(self, parameters, messages):
 
         arcpy.AddMessage("%-20s %s (%s)" % ("Creating table: ", output_weights_table, selected_weight_type))
 
-        # Extract points from training sites feature layer to a raster
-        # A new field named RASTERVALU is added to the output to store the extracted values
-        assert isinstance(evidence_raster, object)
-
-        arcpy.AddMessage("Extracting evidence values at training points")
-        values_at_training_points_tmp_feature = get_evidence_values_at_training_points(evidence_raster, training_sites_feature)
-        # TODO: finally delete the temp file
-
+        # Calculate number of training sites in each class
+        statistics_table, class_column_name, count_column_name = get_training_point_statistics(evidence_raster, training_sites_feature)
 
         # TODO: in both categorical cases:
         # TODO: get both the evidence and the training data as raster

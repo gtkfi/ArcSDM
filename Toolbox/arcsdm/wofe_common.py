@@ -1,4 +1,5 @@
 import arcpy
+import os
 
 def check_input_data(evidence_rasters, training_point_feature):
     # Check that all rasters have the same coordinate system
@@ -52,3 +53,20 @@ def get_evidence_values_at_training_points(evidence_raster, training_point_featu
     arcpy.sa.ExtractValuesToPoints(training_point_feature, evidence_raster, output_tmp_feature)
 
     return output_tmp_feature
+
+
+def get_training_point_statistics(evidence_raster, training_point_feature):
+    values_at_training_points_tmp_feature = get_evidence_values_at_training_points(evidence_raster, training_point_feature)
+
+    arcpy.management.Delete(os.path.join(arcpy.env.scratchWorkspace, "WtsStatistics"))
+    output_tmp_table = arcpy.management.CreateTable(arcpy.env.scratchWorkspace, "WtsStatistics")
+
+    arcpy.analysis.Statistics(values_at_training_points_tmp_feature, output_tmp_table, "rastervalu Sum", "rastervalu")
+
+    arcpy.management.Delete(values_at_training_points_tmp_feature)
+
+    return output_tmp_table, "rastervalu", "frequency"
+
+
+# TODO: prepare training data - apply mask (if given)
+
