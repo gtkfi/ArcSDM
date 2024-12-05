@@ -17,7 +17,7 @@ import arcsdm.nninputfiles
 import arcsdm.grand_wofe_lr
 import arcsdm.fuzzyroc
 import arcsdm.fuzzyroc2
-
+import arcsdm.smote
 from arcsdm.common import execute_tool
 
 
@@ -37,7 +37,7 @@ class Toolbox(object):
         self.tools = [PartitionNNInputFiles, CombineNNOutputFiles, NeuralNetworkOutputFiles, NeuralNetworkInputFiles, 
         CalculateWeightsTool,SiteReductionTool,CategoricalMembershipTool,
         CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, FuzzyROC, FuzzyROC2, LogisticRegressionTool, Symbolize, 
-        ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues, GrandWofe]
+        ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues, GrandWofe, SMOTE]
 
 
 class GrandWofe(object):
@@ -1719,6 +1719,84 @@ class FuzzyROC(object):
     def execute(self, parameters, messages):
         """The source code of the tool."""
         execute_tool(arcsdm.fuzzyroc.Execute, self, parameters, messages)
+        return
+
+class SMOTE(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "SMOTE"
+        self.description = "Synthetic Minority Over-sampling Technique"
+        self.canRunInBackground = False
+        self.category = "Data Preparation"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        param_X = arcpy.Parameter(
+        displayName="X: The feature matrix (input data as a DataFrame)",
+        name="X",
+        datatype=["GPFeatureLayer","GPRasterLayer"],
+        parameterType="Required",
+        direction="Input")
+
+        param_Y = arcpy.Parameter(
+        displayName="Y: The target labels corresponding to the feature matrix",
+        name="Y",
+        datatype=["GPFeatureLayer","GPRasterLayer"],
+        parameterType="Required",
+        direction="Input")
+
+        sampling_strategy = arcpy.Parameter(
+        displayName="Sampling Strategy",
+        name="sampling_strategy",
+        datatype="GPString",
+        parameterType="Required",
+        direction="Input")
+        sampling_strategy.filter.type = "ValueList"
+        sampling_strategy.filter.list = ["float", "str", "dict", "auto"]
+        sampling_strategy.value = "auto"
+
+        random_state = arcpy.Parameter(
+        displayName="Random State",
+        name="random_state",
+        datatype="GPLong",
+        parameterType="Optional",
+        direction="Input")
+        random_state.value = -99
+
+        smote_output = arcpy.Parameter(
+        displayName="Output File",
+        name="output_file",
+        datatype="DEFile",
+        parameterType="Required",
+        direction="Output")
+        
+
+        params = [param_X, param_Y, sampling_strategy, random_state, smote_output]
+        return params
+
+    def isLicensed(self):
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed        
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        execute_tool(arcsdm.smote.execute_smote, self, parameters, messages)
         return
 
 class FuzzyROC2(object):
