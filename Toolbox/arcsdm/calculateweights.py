@@ -1,10 +1,17 @@
 # -*- coding: utf-8 -*-
 
 import arcpy
+import importlib
 import math
 import os
 import sys
 import traceback
+
+import arcsdm.sdmvalues
+import arcsdm.wofe_common
+
+from arcsdm.wofe_common import check_input_data, get_evidence_values_at_training_points
+
 
 ASCENDING = "Ascending"
 DESCENDING = "Descending"
@@ -42,6 +49,11 @@ def Calculate(self, parameters, messages):
     # TODO: convert evidence feature to raster
     # TODO: make sure mask is used in all steps that it needs to be used in
     # TODO: calculate weights based on weights type
+
+    # TODO: Remove this after testing is done!
+    # Make sure imported modules are refreshed if the toolbox is refreshed.
+    importlib.reload(arcsdm.wofe_common)
+    importlib.reload(arcsdm.sdmvalues)
 
     arcpy.AddMessage("Starting weight calculation")
     arcpy.AddMessage("------------------------------")
@@ -92,13 +104,7 @@ def Calculate(self, parameters, messages):
             raise arcpy.ExecuteError
 
         # Check that the coordinate systems of the evidence layer and training data match
-        training_descr = arcpy.Describe(training_sites)
-        training_coordsys = training_descr.spatialReference.name
-        if evidence_coordsys != training_coordsys:
-            arcpy.AddError("ERROR: Coordinate systems of Evidence Layer and Training Points do not match!" +
-                               "\nCoordinate System of Evidence Layer is: " + evidence_coordsys + 
-                               "\nCoordinate System of Training Points is: " + training_coordsys)
-            raise arcpy.ExecuteError
+        check_input_data([evidence_layer], training_sites)
         
         # If using non gdb database, lets add .dbf
         # If using GDB database, remove numbers and underscore from the beginning of the Weights table name (else block)
@@ -117,7 +123,7 @@ def Calculate(self, parameters, messages):
             if not arcpy.Exists(mask):
                 raise arcpy.ExecuteError("Mask doesn't exist! Set Mask under Analysis/Environments.")
             
-            evidence_layer = arcpy.sa.ExtractByMask(evidence_layer)
+            evidence_layer = arcpy.sa.ExtractByMask(evidence_layer, mask)
 
         arcsdm.sdmvalues.appendSDMValues(unit_area_sq_km, training_sites)
         arcpy.AddMessage("=" * 10 + " Calculate weights " + "=" * 10)
@@ -127,7 +133,10 @@ def Calculate(self, parameters, messages):
         # Extract points from training sites feature layer to a raster
         # A new field named RASTERVALU is added to the output to store the extracted values
         assert isinstance(evidence_layer, object)
-        training_points_raster = arcsdm.workarounds_93.ExtractValuesToPoints(evidence_layer, training_sites, "TPFID")
+
+        values_at_training_points = get_evidence_values_at_training_points(evidence_layer, training_sites)
+
+        # training_points_raster = arcsdm.workarounds_93.ExtractValuesToPoints(evidence_layer, training_sites, "TPFID")
 
         # TODO: in both categorical cases:
         # TODO: get both the evidence and the training data as raster
@@ -139,11 +148,15 @@ def Calculate(self, parameters, messages):
         # TODO: (note: probably easier to work with )
 
         if selected_weight_type in [UNIQUE, CATEGORICAL]:
-            calculate_unique_weights(evidence_layer, training_points_raster)
+            calculate_unique_weights(evidence_layer, values_at_training_points)
         elif selected_weight_type == ASCENDING:
             calculate_cumulative_weights()
         elif selected_weight_type == DESCENDING:
             calculate_cumulative_weights()
 
-    except:
-        print("")
+    except arcpy.ExecuteError:
+        arcpy.AddError(arcpy.GetMessages(2))
+    except Exception:
+        e = sys.exc_info()[1]
+        print(e.args[0])
+        arcpy.AddError(e.args[0])

@@ -146,7 +146,7 @@ def getMaskSize(mapUnits):
             arcpy.AddError(msgs)
         raise
 
-def appendSDMValues(arcpy, unitCell, TrainPts):
+def appendSDMValues(unitCell, TrainPts):
     """
     Append Spatial Data Modeller parameters to Geoprocessor History.
     """

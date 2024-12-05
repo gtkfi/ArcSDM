@@ -963,7 +963,10 @@ class CalculateResponse(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        execute_tool(arcsdm.calculateresponse.Execute, self, parameters, messages)
+        # TODO: remove after testing is done
+        importlib.reload(arcsdm.calculateresponse)
+        arcsdm.calculateresponse.Execute(self, parameters, messages)
+        # execute_tool(arcsdm.calculateresponse.Execute, self, parameters, messages)
         return 
 
 
@@ -1265,8 +1268,10 @@ class CalculateWeights(object):
         #     parameters[6].value
         # )
         # weights_calculator.calculate_weights()
-
-        execute_tool(arcsdm.calculateweights.Calculate, self, parameters, messages)
+        # TODO: remove after testing is done
+        importlib.reload(arcsdm.calculateweights)
+        arcsdm.calculateweights.Calculate(self, parameters, messages)
+        # execute_tool(arcsdm.calculateweights.Calculate, self, parameters, messages)
         return
 
 
