@@ -38,6 +38,38 @@ Status of the toolbox should be updated to wiki https://github.com/gtkfi/ArcSDM/
 
 Development has started by GTK to migrate this tool for ArcGIS Pro 3.0+ (ArcSDM 6.0)
 
+## Usage of the ArcSDM Python env
+
+At the moment is this advised to clone the ArcGIS Pro Python env and downloading the necessary packages to the cloned Python env.
+Do not clone it to the default AppData folder. This might cause the required packages to not install.
+Please clone the Python env to for example C:\user\path_to_a_folder\arcpy-py3-env
+
+[How to use Python environments in ArcGIS Pro](https://pro.arcgis.com/en/pro-app/latest/arcpy/get-started/activate-an-environment.htm)
+
+## Setting Up ArcSDM Python Environment
+
+To use ArcSDM with ArcGIS Pro, follow these steps:
+
+1. **Clone the Repository**:
+    - Open ArcGIS Pro.
+    - Navigate to `Project` -> `Package Manager`.
+    - Clone the environment (not in the default location) to your local machine.
+
+2. **Change ArcGIS Pro to Use ArcSDM Python Environment**:
+    - Set ArcGIS Pro to use the `arcsdm-py3-env` environment.
+    ![Using ArcSDM Python Environment](./img/use_arcsdm-py3-env.PNG)
+
+3. **Restart ArcGIS Pro**:
+    - Close and reopen ArcGIS Pro to apply the changes.
+    - Add Packages Scikit-learn (>=1.4), Tensorflow and Imbalanced-learn by searching those libraries:
+    ![Add Packages to ArcSDM Python Environment](./img/add_packages_arcsdm_py3_env.PNG)
+    - Sometimes packages do not install due to Proxy settings. Please retry or contact your organizations IT Help to enable the installation.
+
+4. **Install Required Packages**:
+    Go
+
+By following these steps, you will have the necessary environment set up to use ArcSDM with ArcGIS Pro.
+
 
 ## History:
 16.10.2020 5.03-1 merging fuzzy membership files into fuzzy overlay files rewritten<br> 

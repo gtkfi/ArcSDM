@@ -7,7 +7,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 
-import pylab
+import matplotlib.pylab as plt
 import arcpy
 import numpy
 import os
@@ -40,8 +40,8 @@ def execute(self, parameters, messages):
     else:
         negatives_descr = None
 
-    pylab.figure()
-    handle, = pylab.plot([0, 1], [0, 1], "k--", lw=2)
+    plt.figure()
+    handle, = plt.plot([0, 1], [0, 1], "k--", lw=2)
 
     legend_items = ["Random guess"]
     plot_handles = [handle]
@@ -65,8 +65,8 @@ def execute(self, parameters, messages):
         _roc_curve, _roc_confints, _auc_value, _auc_confints = CalculateROCCurveAndAUCValueForModel(messages, raster_descr, negatives_descr, positives_x, positives_y)
 
         if _roc_confints:
-            pylab.fill_between(_roc_confints[0][:,0], _roc_confints[0][:,1], _roc_confints[1][:,1], color=color, alpha=0.1)
-        handle, = pylab.plot(_roc_curve[:,0], _roc_curve[:, 1], lw=2, color=color)
+            plt.fill_between(_roc_confints[0][:,0], _roc_confints[0][:,1], _roc_confints[1][:,1], color=color, alpha=0.1)
+        handle, = plt.plot(_roc_curve[:,0], _roc_curve[:, 1], lw=2, color=color)
 
         plot_handles.append(handle)
         legend_items.append("%s (AUC = %.3f)" % (raster_descr.name, _auc_value))
@@ -85,22 +85,16 @@ def execute(self, parameters, messages):
 
     png_path = arcpy.CreateUniqueName("results.png")
 
-    pylab.gca().set_xlim([0, 1])
-    pylab.gca().set_ylim([0, 1])
+    plt.gca().set_xlim([0, 1])
+    plt.gca().set_ylim([0, 1])
 
-    pylab.xlabel("False Positive Rate")
-    pylab.ylabel("True Positive Rate")
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
 
-    try:
-        pylab.legend(plot_handles, legend_items, loc=4)
-    except:
-        try:
-            pylab.legend(plot_handles, legend_items, 4)
-        except:
-            messages.addMessage("Failed to insert legend with matplotlib version %s." % matplotlib.__version__)
+    plt.legend(plot_handles, legend_items, loc=4)
 
-    pylab.savefig(png_path)
-    pylab.close('all')  #AL 120520
+    plt.savefig(png_path)
+    plt.close('all')  #AL 120520
 
     messages.addMessage("Saved ROC curve plot to '%s'." % png_path)
 
