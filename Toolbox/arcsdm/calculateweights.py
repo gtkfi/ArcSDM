@@ -7,11 +7,13 @@ import os
 import sys
 import traceback
 
+import arcsdm.common
 import arcsdm.sdmvalues
 import arcsdm.wofe_common
 
+from arcsdm.common import log_arcsdm_details
+from arcsdm.sdmvalues import log_wofe
 from arcsdm.wofe_common import check_input_data, get_evidence_values_at_training_points
-
 
 ASCENDING = "Ascending"
 DESCENDING = "Descending"
@@ -54,6 +56,7 @@ def Calculate(self, parameters, messages):
     # Make sure imported modules are refreshed if the toolbox is refreshed.
     importlib.reload(arcsdm.wofe_common)
     importlib.reload(arcsdm.sdmvalues)
+    importlib.reload(arcsdm.common)
 
     arcpy.AddMessage("Starting weight calculation")
     arcpy.AddMessage("------------------------------")
@@ -74,6 +77,8 @@ def Calculate(self, parameters, messages):
 
         evidence_raster = parameters[0].valueAsText
         code_name =  parameters[1].valueAsText
+
+        # TODO: make sure the mask is applied to the features
         training_sites_feature = parameters[2].valueAsText
         selected_weight_type =  parameters[3].valueAsText
         output_weights_table = parameters[4].valueAsText
@@ -83,6 +88,16 @@ def Calculate(self, parameters, messages):
 
         # Test data type of Evidence Layer
         evidence_descr = arcpy.Describe(evidence_raster)
+        evidence_coord = evidence_descr.spatialReference
+
+        common_coord_sys = evidence_coord
+        if (arcpy.env.outputCoordinateSystem is not None) and (arcpy.env.outputCoordinateSystem.name.strip() != evidence_coord.name.strip()):
+            common_coord_sys = arcpy.env.outputCoordinateSystem
+
+        # arcpy.AddMessage(f"Coordinate system of output will be: {common_coord_sys.name}")
+        # arcpy.AddMessage(f"Type: {common_coord_sys.type}")
+        # arcpy.AddMessage(f"Linear unit: {common_coord_sys.linearUnitName}")
+        # arcpy.AddMessage(f"Angular unit name: {common_coord_sys.angularUnitName}")
 
         evidence_raster, evidence_descr = extract_layer_from_raster_band(evidence_raster, evidence_descr)
 
@@ -107,16 +122,34 @@ def Calculate(self, parameters, messages):
             
             evidence_raster = arcpy.sa.ExtractByMask(evidence_raster, mask)
 
-        arcsdm.sdmvalues.appendSDMValues(unit_area_sq_km, training_sites_feature)
+
+        # TODO: project the evidence raster to have cell size equal to the unit area defined by the user
+        # TODO: check map units, express unit cell size in map units
+        # (arcpy.management.Resample can be used for this)
+
+
+
+        # Note: arcpy.conversion.PointToRaster honors the following environments:
+        # Auto Commit, Cell Size, Cell Size Projection Method, Compression, Current Workspace, 
+        # Extent, Geographic Transformations, Output CONFIG Keyword, Output Coordinate System, 
+        # Pyramid, Scratch Workspace, Snap Raster, Tile Size
+
+
+
+        log_arcsdm_details()
+        log_wofe(unit_area_sq_km, training_sites_feature)
         arcpy.AddMessage("=" * 10 + " Calculate weights " + "=" * 10)
 
-        arcpy.AddMessage ("%-20s %s (%s)" % ("Creating table: ", output_weights_table, selected_weight_type))
+        arcpy.AddMessage("%-20s %s (%s)" % ("Creating table: ", output_weights_table, selected_weight_type))
 
         # Extract points from training sites feature layer to a raster
         # A new field named RASTERVALU is added to the output to store the extracted values
         assert isinstance(evidence_raster, object)
 
-        values_at_training_points = get_evidence_values_at_training_points(evidence_raster, training_sites_feature)
+        arcpy.AddMessage("Extracting evidence values at training points")
+        values_at_training_points_tmp_feature = get_evidence_values_at_training_points(evidence_raster, training_sites_feature)
+        # TODO: finally delete the temp file
+
 
         # TODO: in both categorical cases:
         # TODO: get both the evidence and the training data as raster
@@ -128,7 +161,7 @@ def Calculate(self, parameters, messages):
         # TODO: (note: probably easier to work with )
 
         if selected_weight_type in [UNIQUE, CATEGORICAL]:
-            calculate_unique_weights(evidence_raster, values_at_training_points)
+            calculate_unique_weights(evidence_raster, values_at_training_points_tmp_feature)
         elif selected_weight_type == ASCENDING:
             calculate_cumulative_weights()
         elif selected_weight_type == DESCENDING:

@@ -42,6 +42,8 @@ def check_input_data(evidence_rasters, training_point_feature):
         if feature_coord_sys != raster_coord_sys:
             raise ValueError(f"Coordinate system of training feature and evidence raster(s) do not match! Training data is in {feature_coord_sys} and evidence data is in {raster_coord_sys}.")
 
+        # TODO: check that the training feature has point geometry
+
 
 # Note: same purpose as ExtractValuesToPoints has in workarounds_93
 # But that one uses shapefile instead of gdb feature class

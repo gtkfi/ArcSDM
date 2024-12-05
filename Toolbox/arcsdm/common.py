@@ -108,3 +108,28 @@ def addToDisplay(layer, name, position):
         m.addDataFromPath(layer)
         layer0 = m.listLayers()[0]
         layer0.name = name
+
+
+def log_arcsdm_details():
+    """
+    Log ArcSDM version details and environment configurations to Geoprocessor History.
+    """
+    arcpy.AddMessage("\n" + "=" * 10 + " ArcSDM version & environment info " + "=" * 10)
+
+    with open(os.path.join(os.path.dirname(__file__), "arcsdm_version.txt"), "r") as myfile:
+        data = myfile.readlines()
+
+    arcpy.AddMessage("%-20s %s" % ("", data[0]))
+    installinfo = arcpy.GetInstallInfo()
+    arcpy.AddMessage("%-20s %s (%s)" % ("Arcgis environment: ", installinfo['ProductName'], installinfo['Version']))
+
+    desc = arcpy.Describe(arcpy.env.workspace)
+    arcpy.AddMessage("%-20s %s (%s)" % ("Workspace: ", arcpy.env.workspace, desc.workspaceType))
+
+    wdesc = arcpy.Describe(arcpy.env.scratchWorkspace)
+    arcpy.AddMessage("%-20s %s (%s)" % ("Scratch workspace:", arcpy.env.scratchWorkspace, wdesc.workspaceType))
+
+    # if wdesc.workspaceType != desc.workspaceType:
+    #     arcpy.AddError("Workspace and scratch workspace must be of the same type!")
+    #     raise arcpy.ExecuteError("Workspace type mismatch")
+
