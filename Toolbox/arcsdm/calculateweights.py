@@ -156,12 +156,23 @@ def Calculate(self, parameters, messages):
         
         codename_field = [] if (code_name is None or code_name == "") else ["CODE","text","5","#","#","Symbol"]
 
-        weights_fields_base = [["Class", "LONG"]] + codename_field + [
+        base_fields = [["Class", "LONG"]] + codename_field + [
             ["Count", "LONG"], # Evidence count (temp)
             ["Frequency", "LONG"], # Training point count (temp)
         ]
-        weights_fields_base = weights_fields_base
-        weights_field_names = [i[0] for i in weights_fields_base]
+        base_fields = base_fields
+        base_field_names = [i[0] for i in base_fields]
+
+        weight_fields = [
+            ["WPLUS", "DOUBLE", "10", "4", "#", "W+"],
+            ["S_WPLUS", "DOUBLE", "10", "4", "#", "W+ Std"],
+            ["WMINUS", "DOUBLE", "10", "4", "#", "W-"],
+            ["S_WMINUS", "DOUBLE", "10", "4", "#", "W- Std"],
+            ["CONTRAST", "DOUBLE", "10", "4", "#", "Contrast_"],
+            ["S_CONTRAST", "DOUBLE", "10", "4", "#", "Contrast_Std"],
+            ["STUD_CNT","DOUBLE", "10", "4", "#", "Studentized_Contrast"]
+        ]
+        weight_field_names = [i[0] for i in weight_fields]
 
         generalized_weight_fields = [] if (selected_weight_type == UNIQUE) else [
             ["GEN_CLASS", "LONG", "#", "#", "#", "Generalized_Class"],
@@ -169,20 +180,13 @@ def Calculate(self, parameters, messages):
             ["W_STD", "DOUBLE", "10", "6", "#", "Generalized_Weight_Std"]
         ]
 
-        weights_fields_all = weights_fields_base + [
+        all_fields = base_fields + [
             ["Area", "DOUBLE"], # Area in km^2 (temp)
             ["AreaUnits", "DOUBLE"], # Area in unit cells (temp)
             ["AREA_SQ_KM", "DOUBLE"], # Area in km^2
             ["AREA_UNITS", "DOUBLE"], # Area in unit cells
             ["NO_POINTS", "LONG"], # Training point count
-            ["WPLUS", "DOUBLE", "10", "4", "#", "W+"],
-            ["S_WPLUS", "DOUBLE", "10", "4", "#", "W+ Std"],
-            ["WMINUS", "DOUBLE", "10", "4", "#", "W-"],
-            ["S_WMINUS", "DOUBLE", "10", "4", "#", "W- Std"],
-            ["CONTRAST", "DOUBLE", "10", "4", "#", "Contrast_"],
-            ["S_CONTRAST", "DOUBLE", "10", "4", "#", "Contrast_Std"],
-            ["STUD_CNT","DOUBLE", "10", "4", "#", "Studentized_Contrast"],
-        ] + generalized_weight_fields
+        ] + weight_fields + generalized_weight_fields
 
         # Generalized weights are for all but unique weights
 
@@ -191,8 +195,10 @@ def Calculate(self, parameters, messages):
 
         arcpy.management.CreateTable(os.path.dirname(output_weights_table), os.path.basename(output_weights_table))
         # arcpy.management.AddFields doesn't allow setting field precision or scale, so add the fields individually
-        for field_details in weights_fields_all:
+        for field_details in all_fields:
             arcpy.management.AddField(output_weights_table, *field_details)
+        for field_name in weight_field_names:
+            arcpy.management.AssignDefaultToField(output_weights_table, field_name, 0.0)
 
         arcpy.AddMessage("Created output weights table")
 
@@ -203,7 +209,7 @@ def Calculate(self, parameters, messages):
         order = "DESC" if (selected_weight_type == DESCENDING) else "ASC"
         order_clause = f"ORDER BY VALUE {order}"
 
-        with arcpy.da.InsertCursor(output_weights_table, weights_field_names) as cursor_weights:
+        with arcpy.da.InsertCursor(output_weights_table, base_field_names) as cursor_weights:
             with arcpy.da.SearchCursor(evidence_attribute_table, evidence_fields, sql_clause=(None, order_clause)) as cursor_evidence:
                 for row_evidence in cursor_evidence:
                     if (code_name is None or code_name == ""):
@@ -235,9 +241,44 @@ def Calculate(self, parameters, messages):
         arcpy.CalculateField_management(output_weights_table, "Area",  "!Count! * %f / 1000000.0" % (evidence_cellsize ** 2), "PYTHON_9.3")
         arcpy.CalculateField_management(output_weights_table, "AreaUnits",  "!Area! / %f" % unit_area_sq_km, "PYTHON_9.3")
 
+        temp_fields = ["Frequency", "Area", "AreaUnits"]
+        fields_to_update = ["NO_POINTS", "AREA_SQ_KM", "AREA_UNITS"]
+
+        area_field_names = ["Class"] + temp_fields + fields_to_update
+    
+        with arcpy.da.UpdateCursor(output_weights_table, area_field_names) as cursor_weights:
+            frequency_tot = 0
+            area_tot = 0.0
+            area_units_tot = 0.0
+
+            for weights_row in cursor_weights:
+                class_category, frequency, area, area_units_temp, no_points, area_sq_km, area_units = weights_row
+
+                # TODO: nodata value should be considered earlier as well?
+                if (selected_weight_type in [ASCENDING, DESCENDING]) and (class_category != nodata_value):
+                    frequency_tot += frequency
+                    area_tot += area
+                    area_units_tot += area_units_temp
+                    no_points = frequency_tot
+                    area_sq_km = area_tot
+                    area_units = area_units_tot
+                else:
+                    no_points = frequency
+                    area_sq_km = area
+                    area_units = area_units_temp
+
+                updated_row = (class_category, frequency, area, area_units_temp, no_points, area_sq_km, area_units)
+                cursor_weights.updateRow(updated_row)
+
+            # arcpy.AddMessage("Finished calculating cumulative fields")
+        
+        # temp_fields_to_delete = ["Count", "Frequency", "Area", "AreaUnits"]
+        temp_fields_to_delete = ["Frequency", "Area", "AreaUnits"]
+        arcpy.management.DeleteField(output_weights_table, temp_fields_to_delete)
 
         if selected_weight_type in [UNIQUE, CATEGORICAL]:
-            calculate_unique_weights(evidence_raster, values_at_training_points_tmp_feature)
+            pass
+            #calculate_unique_weights(evidence_raster, values_at_training_points_tmp_feature)
         elif selected_weight_type == ASCENDING:
             calculate_cumulative_weights()
         elif selected_weight_type == DESCENDING:
