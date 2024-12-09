@@ -1577,7 +1577,7 @@ class LogisticRegressionPredictTool(object):
     def getParameterInfo(self):
         """Define parameter definitions"""
         param_X = arcpy.Parameter(
-            displayName="Feature Matrix (X)",
+            displayName="Evidence Data (X)",
             name="X",
             datatype=["GPRasterLayer", "GPRasterDataLayer"],
             multiValue=True,
@@ -1586,7 +1586,7 @@ class LogisticRegressionPredictTool(object):
         )
 
         param_y = arcpy.Parameter(
-            displayName="Target Vector (y)",
+            displayName="Target labels (y)",
             name="y",
             datatype=["GPRasterLayer", "GPRasterDataLayer"],
             parameterType="Required",
