@@ -37,13 +37,130 @@ def extract_layer_from_raster_band(evidence_layer, evidence_descr):
         return evidence_layer, evidence_descr
 
 
-def calculate_unique_weights(evidence_raster, training_site_raster):
-    # TODO: select unique classes
-    pass
+def calculate_weights(pattern_tp_count, pattern_area_sq_km, unit_area_sq_km, tp_count, total_area_sq_km, class_category):
+    if pattern_tp_count > tp_count:
+        arcpy.AddWarning(f"Unable to calculate weights: more than one training point per unit cell in study area for class {class_category}!")
+        return tuple([0.0] * 7)
+
+    return calculate_weights_bonham_carter(pattern_tp_count, pattern_area_sq_km, unit_area_sq_km, tp_count, total_area_sq_km)
 
 
-def calculate_cumulative_weights():
-    pass
+def calculate_weights_bonham_carter(pattern_tp_count, pattern_area_sq_km, unit_area_sq_km, tp_count, total_area_sq_km):
+    """
+    Calculate weights for a binary pattern.
+
+    Based on 'Fortran Program for Calculating Weights of Evidence' in Appendix II of Bonham-Carter (1994).
+
+    Args:
+        pattern_tp_count: <int>
+            Number of training points in the pattern.
+        pattern_area_sq_km: <float>
+            Area of binary pattern.
+        unit_area_sq_km: <float>
+            Area of unit cell.
+        tp_count: <int>
+            Number of training points in the area of study.
+        total_area_sq_km: <float>
+            Size of the area of study.
+
+    Returns:
+        A tuple of:
+            W+
+            Standard deviation of W+
+            W-
+            Standard deviation of W-
+            Contrast
+            Standard deviation of contrast
+            Studentized contrast
+
+    References:
+        Bonham-Carter, Graeme F. (1994). Geographic Information Systems for Geoscientists: Modelling with GIS. Pergamon. Oxford. 1st Edition.
+    """
+    # Area of study region
+    s = total_area_sq_km
+
+    # Area of binary map pattern
+    b = pattern_area_sq_km
+
+    # TODO: Implement various traps to handle acceptable data anomalies
+    # TODO: Implement non-zero check for denominators and logs
+
+    # Area of unit cell
+    unit = unit_area_sq_km
+
+    # No of deposits on pattern
+    db = pattern_tp_count
+
+    # Total no of deposits
+    ds = tp_count
+
+    # Total area (unit cells)
+    s = s / unit
+
+    # Total area of binary pattern (unit cells)
+    b = b / unit
+
+    pbd = db / ds
+    pbdb = (b - db) / (s - ds)
+
+    # Odds ratio
+    or_ = db * (s - b - ds + db) / (b - db) / (ds - db)
+
+    # Sufficiency ratio LS
+    ls = pbd / pbdb
+
+    # W+
+    wp = math.log(ls)
+
+    vp = 1.0 / db + 1.0 / (b - db)
+    # Standard deviation of W+
+    sp = math.sqrt(vp)
+
+    pbbd = (ds - db) / ds
+    pbbdb = (s - b - ds + db) / (s - ds)
+
+    # Necessity ratio LN
+    ln = pbbd / pbbdb
+
+    # W-
+    wm = math.log(ln)
+
+    vm = 1.0 / (ds - db) + 1.0 / (s - b - ds + db)
+    # Standard deviation of W-
+    sm = math.sqrt(vm)
+
+    # Contrast
+    c = wp - wm
+
+    # Standard deviation of contrast
+    sc = math.sqrt(vp + vm)
+
+    # Prior probability
+    priorp = ds / s
+
+    vprip = priorp / s
+    # Standard deviation of prior probability
+    sprip = math.sqrt(vprip)
+
+    # Standard deviation of prior log odds
+    sprilo = sprip / priorp
+
+    prioro = priorp / (1 - priorp)
+    # Prior log odds
+    prilo = math.log(prioro)
+
+    # Conditional probability of deposit given pattern
+    cpp = math.exp(prilo + wp)
+    cpp = cpp / (1.0 + cpp)
+
+    # Conditional probability of deposit given no pattern
+    cpm = math.exp(prilo + wm)
+    cpm = cpm / (1.0 + cpm)
+
+    # Bonham-Carter's (1994) Fortran program additionally outputs the Studentized Contrast: c / sc
+    stud_c = c / sc
+
+    return (wp, sp, wm, sm, c, sc, stud_c)
 
 
 def Calculate(self, parameters, messages):
@@ -246,6 +363,9 @@ def Calculate(self, parameters, messages):
 
         area_field_names = ["Class"] + temp_fields + fields_to_update
     
+        training_point_count = 0
+        total_area_sq_km = 0.0
+
         with arcpy.da.UpdateCursor(output_weights_table, area_field_names) as cursor_weights:
             frequency_tot = 0
             area_tot = 0.0
@@ -263,6 +383,10 @@ def Calculate(self, parameters, messages):
                     area_sq_km = area_tot
                     area_units = area_units_tot
                 else:
+                    if class_category != nodata_value:
+                        training_point_count += frequency
+                        total_area_sq_km += area
+
                     no_points = frequency
                     area_sq_km = area
                     area_units = area_units_temp
@@ -270,19 +394,34 @@ def Calculate(self, parameters, messages):
                 updated_row = (class_category, frequency, area, area_units_temp, no_points, area_sq_km, area_units)
                 cursor_weights.updateRow(updated_row)
 
-            # arcpy.AddMessage("Finished calculating cumulative fields")
-        
+            if selected_weight_type in [ASCENDING, DESCENDING]:
+                training_point_count = frequency_tot
+                total_area_sq_km = area_tot
+
+        arcpy.AddMessage(f"Total number of training points: {training_point_count}, total area (km^2): {total_area_sq_km}")
+
         # temp_fields_to_delete = ["Count", "Frequency", "Area", "AreaUnits"]
         temp_fields_to_delete = ["Frequency", "Area", "AreaUnits"]
         arcpy.management.DeleteField(output_weights_table, temp_fields_to_delete)
 
-        if selected_weight_type in [UNIQUE, CATEGORICAL]:
-            pass
-            #calculate_unique_weights(evidence_raster, values_at_training_points_tmp_feature)
-        elif selected_weight_type == ASCENDING:
-            calculate_cumulative_weights()
-        elif selected_weight_type == DESCENDING:
-            calculate_cumulative_weights()
+        # Calculate weights
+        # Required fields:
+        # all the weights fields
+        # "NO_POINTS", "AREA_SQ_KM"
+        # also need: unit_area_sq_km, training_point_count, total_area
+
+        fields_to_update = ["Class", "NO_POINTS", "AREA_SQ_KM"] + weight_field_names
+        
+        with arcpy.da.UpdateCursor(output_weights_table, fields_to_update) as cursor_weights:
+            for weights_row in cursor_weights:
+                class_category, no_points, area_sq_km, wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt = weights_row
+
+                if class_category != nodata_value:
+                    wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt = calculate_weights(no_points, area_sq_km, unit_area_sq_km, training_point_count, total_area_sq_km, selected_weight_type)
+
+                    updated_row = (class_category, no_points, area_sq_km, wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt)
+                    cursor_weights.updateRow(updated_row)
+
 
     except arcpy.ExecuteError:
         arcpy.AddError(arcpy.GetMessages(2))
