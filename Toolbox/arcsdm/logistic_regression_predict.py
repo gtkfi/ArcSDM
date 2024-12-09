@@ -7,7 +7,7 @@ import pandas as pd
 from typing import Literal, Optional, Sequence, Tuple, Union
 from sklearn.linear_model import LogisticRegression
 
-from arcsdm.machine_learning.general import prepare_data_for_ml, _train_and_validate_sklearn_model, save_model
+from arcsdm.machine_learning.general import prepare_data_for_ml, train_and_validate_sklearn_model, save_model
 
 
 def Execute(self, parameters, messages):
@@ -135,7 +135,7 @@ def logistic_regression_train(
         penalty=penalty, max_iter=max_iter, random_state=random_state, solver=solver, verbose=verbose
     )
 
-    model, metrics = _train_and_validate_sklearn_model(
+    model, metrics = train_and_validate_sklearn_model(
         X=X,
         y=y,
         model=model,

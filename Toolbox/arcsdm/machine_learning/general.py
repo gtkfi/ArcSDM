@@ -395,7 +395,7 @@ def read_data_for_evaluation(
     return masked_data, reference_profile, nodata_mask
 
 
-def _train_and_validate_sklearn_model(
+def train_and_validate_sklearn_model(
     X: Union[np.ndarray, pd.DataFrame],
     y: Union[np.ndarray, pd.Series],
     model: BaseEstimator,
