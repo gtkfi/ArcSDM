@@ -62,10 +62,18 @@ def get_training_point_statistics(evidence_raster, training_point_feature):
     output_tmp_table = arcpy.management.CreateTable(arcpy.env.scratchWorkspace, "WtsStatistics")
 
     arcpy.analysis.Statistics(values_at_training_points_tmp_feature, output_tmp_table, "rastervalu Sum", "rastervalu")
+    # The rastervalu field has type SmallInteger, which is inconvenient
+    # Create a new field with type Integer
+    arcpy.management.CalculateField(
+        in_table=output_tmp_table,
+        field="class_category",
+        expression="int(!rastervalu!)",
+        expression_type="PYTHON3",
+        field_type="LONG")
 
     arcpy.management.Delete(values_at_training_points_tmp_feature)
 
-    return output_tmp_table, "rastervalu", "frequency"
+    return output_tmp_table, "class_category", "frequency"
 
 
 # TODO: prepare training data - apply mask (if given)

@@ -311,7 +311,8 @@ def Calculate(self, parameters, messages):
         #Fill output table rows depending on Type    
         desc = gp.describe(EvidenceLayer)
         cellsize = desc.MeanCellWidth
-        if desc.datatype == 'RasterLayer': EvidenceLayer =desc.catalogpath
+        if desc.datatype == 'RasterLayer':
+            EvidenceLayer =desc.catalogpath
         if Type == "Descending":
             wtsrows = gp.InsertCursor(wtstable)
             try:

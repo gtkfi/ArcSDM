@@ -152,7 +152,89 @@ def Calculate(self, parameters, messages):
         # TODO: -> those are the classes
         # TODO: for each class, get the weights
         # TODO: (probably faster to read the data into a numpy array instead of trying to work with cursors)
-        # TODO: (note: probably easier to work with )
+        # TODO: (note: probably easier to work with)
+        
+        codename_field = [] if (code_name is None or code_name == "") else ["CODE","text","5","#","#","Symbol"]
+
+        weights_fields_base = [["Class", "LONG"]] + codename_field + [
+            ["Count", "LONG"], # Evidence count (temp)
+            ["Frequency", "LONG"], # Training point count (temp)
+        ]
+        weights_fields_base = weights_fields_base
+        weights_field_names = [i[0] for i in weights_fields_base]
+
+        generalized_weight_fields = [] if (selected_weight_type == UNIQUE) else [
+            ["GEN_CLASS", "LONG", "#", "#", "#", "Generalized_Class"],
+            ["WEIGHT", "DOUBLE", "10", "6", "#", "Generalized_Weight"],
+            ["W_STD", "DOUBLE", "10", "6", "#", "Generalized_Weight_Std"]
+        ]
+
+        weights_fields_all = weights_fields_base + [
+            ["Area", "DOUBLE"], # Area in km^2 (temp)
+            ["AreaUnits", "DOUBLE"], # Area in unit cells (temp)
+            ["AREA_SQ_KM", "DOUBLE"], # Area in km^2
+            ["AREA_UNITS", "DOUBLE"], # Area in unit cells
+            ["NO_POINTS", "LONG"], # Training point count
+            ["WPLUS", "DOUBLE", "10", "4", "#", "W+"],
+            ["S_WPLUS", "DOUBLE", "10", "4", "#", "W+ Std"],
+            ["WMINUS", "DOUBLE", "10", "4", "#", "W-"],
+            ["S_WMINUS", "DOUBLE", "10", "4", "#", "W- Std"],
+            ["CONTRAST", "DOUBLE", "10", "4", "#", "Contrast_"],
+            ["S_CONTRAST", "DOUBLE", "10", "4", "#", "Contrast_Std"],
+            ["STUD_CNT","DOUBLE", "10", "4", "#", "Studentized_Contrast"],
+        ] + generalized_weight_fields
+
+        # Generalized weights are for all but unique weights
+
+        evidence_fields = ["VALUE", "COUNT"] + codename_field
+        stats_fields = [class_column_name, count_column_name]
+
+        arcpy.management.CreateTable(os.path.dirname(output_weights_table), os.path.basename(output_weights_table))
+        # arcpy.management.AddFields doesn't allow setting field precision or scale, so add the fields individually
+        for field_details in weights_fields_all:
+            arcpy.management.AddField(output_weights_table, *field_details)
+
+        arcpy.AddMessage("Created output weights table")
+
+        evidence_attribute_table = evidence_raster
+        if evidence_descr.dataType == "RasterLayer":
+            evidence_attribute_table = evidence_descr.catalogPath
+
+        order = "DESC" if (selected_weight_type == DESCENDING) else "ASC"
+        order_clause = f"ORDER BY VALUE {order}"
+
+        with arcpy.da.InsertCursor(output_weights_table, weights_field_names) as cursor_weights:
+            with arcpy.da.SearchCursor(evidence_attribute_table, evidence_fields, sql_clause=(None, order_clause)) as cursor_evidence:
+                for row_evidence in cursor_evidence:
+                    if (code_name is None or code_name == ""):
+                        evidence_class, evidence_count = row_evidence
+                    else:
+                        evidence_class, evidence_count, code_name_field = row_evidence
+                    site_count = 0
+
+                    expression = f"{class_column_name} = {evidence_class}"
+
+                    with arcpy.da.SearchCursor(statistics_table, stats_fields, where_clause=expression) as cursor_stats:
+                        for row_stats in cursor_stats:
+                            # Find the first training point row to have matching class (there should be just one)
+                            if row_stats:
+                                _, site_count = row_stats
+                                break
+                    
+                    if (code_name is None or code_name == ""):
+                        weights_row = (evidence_class, evidence_count, site_count)
+                    else:
+                        weights_row = (evidence_class, code_name_field, evidence_count, site_count)
+                    cursor_weights.insertRow(weights_row)
+
+        evidence_cellsize = evidence_descr.MeanCellWidth
+        # Assuming linear units are in meters
+        # Note! The logged WofE values are calculated with the output cellsize from the env settings
+        # But actual calculation is done with the evidence cellsize
+        # TODO: Do something about this
+        arcpy.CalculateField_management(output_weights_table, "Area",  "!Count! * %f / 1000000.0" % (evidence_cellsize ** 2), "PYTHON_9.3")
+        arcpy.CalculateField_management(output_weights_table, "AreaUnits",  "!Area! / %f" % unit_area_sq_km, "PYTHON_9.3")
+
 
         if selected_weight_type in [UNIQUE, CATEGORICAL]:
             calculate_unique_weights(evidence_raster, values_at_training_points_tmp_feature)
