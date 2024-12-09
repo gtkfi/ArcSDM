@@ -14,7 +14,7 @@ def Execute(self, parameters, messages):
     """The source code of the tool."""
     #try:
     input_data = parameters[0].valueAsText.split(';')
-    target = parameters[1].valueAsText
+    target_labels = parameters[1].valueAsText
     nodata_value = parameters[2].valueAsText
     validation_method = parameters[3].valueAsText
     metrics = parameters[4].valueAsText.split(';')
@@ -27,7 +27,7 @@ def Execute(self, parameters, messages):
     random_state = parameters[11].value
     output_file = parameters[12].valueAsText
 
-    X, y = prepare_data_for_ml(input_data, target, nodata_value)
+    X, y, _ = prepare_data_for_ml(input_data, target_labels, nodata_value)
 
     # Perform Logistic Regression
     model, metrics = logistic_regression_train(
