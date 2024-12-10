@@ -266,7 +266,7 @@ def Calculate(self, parameters, messages):
         Unitarea = float( parameters[6].value)
         MissingDataValue = int( parameters[7].valueAsText) # Python 3 fix, long -> int
         #gp.AddMessage("Debug step 12");
-        arcsdm.sdmvalues.appendSDMValues(gp,  Unitarea, TrainingSites)
+        #arcsdm.sdmvalues.appendSDMValues(Unitarea, TrainingSites)
         arcpy.AddMessage("="*10 + " Calculate weights " + "="*10)
     # Process: ExtractValuesToPoints
         arcpy.AddMessage ("%-20s %s (%s)" %("Creating table:" , wtstable, Type ));
@@ -274,7 +274,7 @@ def Calculate(self, parameters, messages):
         #tempTrainingPoints = gp.createscratchname("OutPoints", "FC", "shapefile", gp.scratchworkspace)
         #gp.ExtractValuesToPoints_sa(TrainingSites, EvidenceLayer, tempTrainingPoints, "NONE", "VALUE_ONLY")
         assert isinstance(EvidenceLayer, object)
-        tempTrainingPoints = arcsdm.workarounds_93.ExtractValuesToPoints(gp, EvidenceLayer, TrainingSites, "TPFID")
+        tempTrainingPoints = arcsdm.workarounds_93.ExtractValuesToPoints(EvidenceLayer, TrainingSites, "TPFID")
     # Process: Summarize Frequency and manage fields
     
         #Statistics = gp.createuniquename("WtsStatistics.dbf")

@@ -91,7 +91,7 @@ def Execute(self, parameters, messages):
             NoDataArg = '#'
         UnitArea = parameters[5].value #gp.GetParameter(5)
         
-        arcsdm.sdmvalues.appendSDMValues(gp, UnitArea, Training_Points)
+        arcsdm.sdmvalues.appendSDMValues(UnitArea, Training_Points)
     # Local variables...
 
         

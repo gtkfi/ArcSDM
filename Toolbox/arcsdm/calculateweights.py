@@ -39,13 +39,46 @@ def extract_layer_from_raster_band(evidence_layer, evidence_descr):
 
 def calculate_weights(pattern_tp_count, pattern_area_sq_km, unit_area_sq_km, tp_count, total_area_sq_km, class_category):
     if pattern_tp_count > tp_count:
-        arcpy.AddWarning(f"Unable to calculate weights: more than one training point per unit cell in study area for class {class_category}!")
+        arcpy.AddWarning(f"Unable to calculate weights for class {class_category}: more than one training point per unit cell in study area!")
+        return tuple([0.0] * 7)
+    
+    if pattern_tp_count == tp_count:
+        # Fix the pattern deposit count so that the studentized contrast behaves better in the case of perfect correlation
+        # See Issue #66 for details
+        # Note: The old code had a comment about this not working when total_cell_count - pattern_cell_count < tp_count - pattern_tp_count
+        pattern_tp_count -= 0.99
+    
+    if (pattern_tp_count == 0) or (tp_count == 0):
+        return tuple([0.0] * 7)
+    
+    if (pattern_tp_count < 0) or (tp_count < 0):
+        arcpy.AddWarning(f"Unable to calculate weights for class {class_category}: encountered non-positive training point count!")
+        return tuple([0.0] * 7)
+    
+    if (pattern_area_sq_km < 0) or (total_area_sq_km <= 0):
+        arcpy.AddWarning(f"Unable to calculate weights for class {class_category}: encountered non-positive area!")
         return tuple([0.0] * 7)
 
-    return calculate_weights_bonham_carter(pattern_tp_count, pattern_area_sq_km, unit_area_sq_km, tp_count, total_area_sq_km)
+    # Total area (unit cells)
+    total_cell_count = total_area_sq_km / unit_area_sq_km
+
+    # Total area of binary pattern (unit cells)
+    pattern_cell_count = pattern_area_sq_km / unit_area_sq_km
+
+    if total_cell_count - tp_count <= 0.0:
+        # TODO: fix, will result in division by zero
+        pass
+
+    if pattern_cell_count - pattern_tp_count <= 0.0:
+        pattern_cell_count = pattern_tp_count + 1
+
+    if (total_cell_count - pattern_cell_count) <= (tp_count - pattern_tp_count):
+        pattern_cell_count = total_cell_count + pattern_tp_count - tp_count - 0.99
+
+    return calculate_weights_bonham_carter(pattern_tp_count, pattern_cell_count, tp_count, total_cell_count)
 
 
-def calculate_weights_bonham_carter(pattern_tp_count, pattern_area_sq_km, unit_area_sq_km, tp_count, total_area_sq_km):
+def calculate_weights_bonham_carter(pattern_tp_count, pattern_area_cells, tp_count, total_area_cells):
     """
     Calculate weights for a binary pattern.
 
@@ -54,14 +87,12 @@ def calculate_weights_bonham_carter(pattern_tp_count, pattern_area_sq_km, unit_a
     Args:
         pattern_tp_count: <int>
             Number of training points in the pattern.
-        pattern_area_sq_km: <float>
-            Area of binary pattern.
-        unit_area_sq_km: <float>
-            Area of unit cell.
+        pattern_area_cells: <float>
+            Area of binary pattern in unit cells.
         tp_count: <int>
             Number of training points in the area of study.
-        total_area_sq_km: <float>
-            Size of the area of study.
+        total_area_cells: <float>
+            Size of the area of study in unit cells.
 
     Returns:
         A tuple of:
@@ -77,16 +108,10 @@ def calculate_weights_bonham_carter(pattern_tp_count, pattern_area_sq_km, unit_a
         Bonham-Carter, Graeme F. (1994). Geographic Information Systems for Geoscientists: Modelling with GIS. Pergamon. Oxford. 1st Edition.
     """
     # Area of study region
-    s = total_area_sq_km
+    s = total_area_cells
 
     # Area of binary map pattern
-    b = pattern_area_sq_km
-
-    # TODO: Implement various traps to handle acceptable data anomalies
-    # TODO: Implement non-zero check for denominators and logs
-
-    # Area of unit cell
-    unit = unit_area_sq_km
+    b = pattern_area_cells
 
     # No of deposits on pattern
     db = pattern_tp_count
@@ -94,17 +119,11 @@ def calculate_weights_bonham_carter(pattern_tp_count, pattern_area_sq_km, unit_a
     # Total no of deposits
     ds = tp_count
 
-    # Total area (unit cells)
-    s = s / unit
-
-    # Total area of binary pattern (unit cells)
-    b = b / unit
-
     pbd = db / ds
     pbdb = (b - db) / (s - ds)
 
     # Odds ratio
-    or_ = db * (s - b - ds + db) / (b - db) / (ds - db)
+    # or_ = db * (s - b - ds + db) / (b - db) / (ds - db)
 
     # Sufficiency ratio LS
     ls = pbd / pbdb
@@ -143,9 +162,9 @@ def calculate_weights_bonham_carter(pattern_tp_count, pattern_area_sq_km, unit_a
     sprip = math.sqrt(vprip)
 
     # Standard deviation of prior log odds
-    sprilo = sprip / priorp
+    # sprilo = sprip / priorp
 
-    prioro = priorp / (1 - priorp)
+    prioro = priorp / (1.0 - priorp)
     # Prior log odds
     prilo = math.log(prioro)
 
