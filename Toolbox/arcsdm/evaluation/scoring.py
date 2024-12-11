@@ -16,7 +16,6 @@ from sklearn.metrics import (
     precision_score,
     r2_score,
     recall_score,
-    root_mean_squared_error,
 )
 
 
