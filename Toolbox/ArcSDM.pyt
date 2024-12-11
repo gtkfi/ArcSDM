@@ -1843,7 +1843,7 @@ class TrainMLPClassifierTool(object):
         param_X = arcpy.Parameter(
             displayName="Input Features",
             name="X",
-            datatype=["DEFeatureClass", "GPRasterLayer"],
+            datatype=["GPRasterLayer"],
             parameterType="Required",
             multiValue=True,
             direction="Input")
@@ -1851,7 +1851,7 @@ class TrainMLPClassifierTool(object):
         param_y = arcpy.Parameter(
             displayName="Target Labels",
             name="y",
-            datatype=["DEFeatureClass", "GPRasterLayer"],
+            datatype=["GPRasterLayer", "GPFeatureLayer"],
             parameterType="Required",
             direction="Input")
         
@@ -1970,6 +1970,7 @@ class TrainMLPClassifierTool(object):
             datatype="GPBoolean",
             parameterType="Optional",
             direction="Input")
+        param_early_stopping.value = True
 
         param_es_patience = arcpy.Parameter(
             displayName="Early Stopping Patience",
@@ -2053,10 +2054,11 @@ class TrainMLPRegressorTool(object):
 
     def getParameterInfo(self):
         """Define parameter definitions"""
+
         param_X = arcpy.Parameter(
             displayName="Input Features",
             name="X",
-            datatype=["DEFeatureClass", "GPRasterLayer"],
+            datatype=["GPRasterLayer"],
             parameterType="Required",
             multiValue=True,
             direction="Input")
@@ -2064,7 +2066,7 @@ class TrainMLPRegressorTool(object):
         param_y = arcpy.Parameter(
             displayName="Target Labels",
             name="y",
-            datatype=["DEFeatureClass", "GPRasterLayer"],
+            datatype=["GPRasterLayer", "GPFeatureLayer"],
             parameterType="Required",
             direction="Input")
         
@@ -2183,6 +2185,7 @@ class TrainMLPRegressorTool(object):
             datatype="GPBoolean",
             parameterType="Optional",
             direction="Input")
+        param_early_stopping.value = True
 
         param_es_patience = arcpy.Parameter(
             displayName="Early Stopping Patience",
