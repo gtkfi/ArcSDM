@@ -73,7 +73,7 @@ def _score_predictions(
     elif metric == "mse":
         score = mean_squared_error(y_true, y_pred)
     elif metric == "rmse":
-        score = root_mean_squared_error(y_true, y_pred)
+        score = mean_squared_error(y_true, y_pred, squared=False)
     elif metric == "r2":
         score = r2_score(y_true, y_pred)
     elif metric == "accuracy":
