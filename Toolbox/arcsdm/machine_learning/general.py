@@ -277,7 +277,7 @@ def prepare_data_for_ml(
         if desc.dataType == "FeatureClass" or desc.dataType == "FeatureLayer":
 
             # Rasterize vector file
-            rasterized_vector = rasterize_vector(feature_raster_files[0], label_file)
+            rasterized_vector = rasterize_vector(rasters_to_check[0], label_file)
 
             # Convert raster to numpy array
             y = arcpy.RasterToNumPyArray(rasterized_vector)
