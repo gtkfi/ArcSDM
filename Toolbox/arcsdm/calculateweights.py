@@ -37,7 +37,17 @@ def extract_layer_from_raster_band(evidence_layer, evidence_descr):
         return evidence_layer, evidence_descr
 
 
-def calculate_weights(pattern_tp_count, pattern_area_sq_km, unit_area_sq_km, tp_count, total_area_sq_km, class_category):
+def calculate_weights_sq_km(pattern_tp_count, pattern_area_sq_km, unit_area_sq_km, tp_count, total_area_sq_km, class_category):
+    # Total area (unit cells)
+    total_cell_count = total_area_sq_km / unit_area_sq_km
+
+    # Total area of binary pattern (unit cells)
+    pattern_cell_count = pattern_area_sq_km / unit_area_sq_km
+
+    return calculate_weights(pattern_tp_count, pattern_cell_count, tp_count, total_cell_count, class_category)
+
+
+def calculate_weights(pattern_tp_count, pattern_cell_count, tp_count, total_cell_count, class_category):
     if pattern_tp_count > tp_count:
         arcpy.AddWarning(f"Unable to calculate weights for class {class_category}: more than one training point per unit cell in study area!")
         return tuple([0.0] * 7)
@@ -55,15 +65,9 @@ def calculate_weights(pattern_tp_count, pattern_area_sq_km, unit_area_sq_km, tp_
         arcpy.AddWarning(f"Unable to calculate weights for class {class_category}: encountered non-positive training point count!")
         return tuple([0.0] * 7)
     
-    if (pattern_area_sq_km < 0) or (total_area_sq_km <= 0):
+    if (pattern_cell_count < 0) or (total_cell_count <= 0):
         arcpy.AddWarning(f"Unable to calculate weights for class {class_category}: encountered non-positive area!")
         return tuple([0.0] * 7)
-
-    # Total area (unit cells)
-    total_cell_count = total_area_sq_km / unit_area_sq_km
-
-    # Total area of binary pattern (unit cells)
-    pattern_cell_count = pattern_area_sq_km / unit_area_sq_km
 
     if total_cell_count - tp_count <= 0.0:
         # TODO: fix, will result in division by zero
@@ -119,7 +123,10 @@ def calculate_weights_bonham_carter(pattern_tp_count, pattern_area_cells, tp_cou
     # Total no of deposits
     ds = tp_count
 
+    # The probability of binary pattern B being present, given the presence of a deposit
     pbd = db / ds
+
+    # The probability of B being present, given the absence of a deposit
     pbdb = (b - db) / (s - ds)
 
     # Odds ratio
@@ -135,7 +142,10 @@ def calculate_weights_bonham_carter(pattern_tp_count, pattern_area_cells, tp_cou
     # Standard deviation of W+
     sp = math.sqrt(vp)
 
+    # The probability of B being absent, given the presence of a deposit
     pbbd = (ds - db) / ds
+
+    # The probability of B being absent, given the absence of a deposit
     pbbdb = (s - b - ds + db) / (s - ds)
 
     # Necessity ratio LN
@@ -157,9 +167,9 @@ def calculate_weights_bonham_carter(pattern_tp_count, pattern_area_cells, tp_cou
     # Prior probability
     priorp = ds / s
 
-    vprip = priorp / s
+    # vprip = priorp / s
     # Standard deviation of prior probability
-    sprip = math.sqrt(vprip)
+    # sprip = math.sqrt(vprip)
 
     # Standard deviation of prior log odds
     # sprilo = sprip / priorp
@@ -315,6 +325,7 @@ def Calculate(self, parameters, messages):
             ["WEIGHT", "DOUBLE", "10", "6", "#", "Generalized_Weight"],
             ["W_STD", "DOUBLE", "10", "6", "#", "Generalized_Weight_Std"]
         ]
+        generalized_weight_field_names = [i[0] for i in generalized_weight_fields]
 
         all_fields = base_fields + [
             ["Area", "DOUBLE"], # Area in km^2 (temp)
@@ -436,11 +447,140 @@ def Calculate(self, parameters, messages):
                 class_category, no_points, area_sq_km, wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt = weights_row
 
                 if class_category != nodata_value:
-                    wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt = calculate_weights(no_points, area_sq_km, unit_area_sq_km, training_point_count, total_area_sq_km, selected_weight_type)
+                    wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt = calculate_weights_sq_km(no_points, area_sq_km, unit_area_sq_km, training_point_count, total_area_sq_km, selected_weight_type)
 
                     updated_row = (class_category, no_points, area_sq_km, wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt)
                     cursor_weights.updateRow(updated_row)
 
+        # Required fields for generalization
+        fields_to_read = ["OBJECTID", "CLASS", "AREA_UNITS", "NO_POINTS"] + weight_field_names
+        fields_to_update = ["OBJECTID", "CLASS"] + generalized_weight_field_names
+
+        # Generalize weights for non-unique weight selections
+        if selected_weight_type in [ASCENDING, DESCENDING]:
+            # Find the row with the maximum contrast value
+            max_contrast_OID = -1
+            max_contrast = -9999999.0
+            tp_count = 0
+            area_cell_count = 0.0
+            max_wplus = -9999.0
+            max_s_wplus = -9999.0
+            max_wminus = -9999.0
+            max_s_wminus = -9999.0
+            max_std_contrast = -9999.0
+
+            threshold_clause = f"STUD_CNT >= {studentized_contrast_threshold}"
+            with arcpy.da.SearchCursor(output_weights_table, fields_to_read, where_clause=threshold_clause) as cursor_weights:
+                for row in cursor_weights:
+                    oid, class_category, area_units, no_points, wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt = row
+                    
+                    if class_category != nodata_value:
+                        if contrast > max_contrast:
+                            max_contrast_OID = oid
+                            max_contrast = contrast
+                            tp_count = no_points
+                            area_cell_count = area_units
+                            max_wplus = wplus
+                            max_s_wplus = s_wplus
+                            max_wminus = wminus
+                            max_s_wminus = s_wminus
+
+            if max_contrast_OID >= 0:
+                update_clause = f"OBJECTID <= {max_contrast_OID}"
+                
+                with arcpy.da.UpdateCursor(output_weights_table, fields_to_update) as cursor_generalized:
+                    for row in cursor_generalized:
+                        oid, class_category, gen_class, weight, w_std = row
+                        
+                        if class_category == nodata_value:
+                            gen_class = nodata_value
+                            weight = 0.0
+                            w_std = 0.0
+                        else:
+                            if oid <= max_contrast_OID:
+                                gen_class = 2
+                                weight = max_wplus
+                                w_std = max_s_wplus
+                            else:
+                                gen_class = 1
+                                weight = max_wminus
+                                w_std = max_s_wminus
+
+                        updated_row = (oid, class_category, gen_class, weight, w_std)
+                        cursor_generalized.updateRow(updated_row)
+            else:
+                arcpy.AddWarning(f"Unable to generalize weights! No contrast for type {selected_weight_type} satisties the user-defined confidence level {studentized_contrast_threshold}")
+                arcpy.AddWarning(f"Table {output_weights_table} is incomplete.")
+
+        elif selected_weight_type == CATEGORICAL:
+            # Reclassify
+            classify_clause = f"(STUD_CNT > {-1 * studentized_contrast_threshold}) and (STUD_CNT < {studentized_contrast_threshold})"
+            reclassified = False
+
+            tp_count_99 = 0
+            unit_cell_count_99 = 0.0
+            tp_count = 0
+            unit_cell_count = 0.0
+
+            # TODO: count cells in class 99
+            # TODO: count deposits in class 99
+
+            with arcpy.da.UpdateCursor(output_weights_table, ["Class", "AREA_UNITS", "NO_POINTS"] + weight_field_names + generalized_weight_field_names) as cursor_categorical:
+                for row in cursor_categorical:
+                    class_category, area_units, no_points, wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt, gen_class, weight, w_std = row
+
+                    if (class_category != nodata_value) and (abs(stud_cnt) < studentized_contrast_threshold):
+                        gen_class = 99
+                        tp_count_99 += no_points
+                        unit_cell_count_99 += area_units
+                        reclassified = True
+                    else:
+                        gen_class = class_category
+
+                    tp_count += no_points
+                    unit_cell_count += area_units
+
+                    # Set generalized weights to defaults (will be updated for class 99)
+                    weight = wplus
+                    w_std = s_wplus
+                    
+                    updated_row = (class_category, area_units, no_points, wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt, gen_class, weight, w_std)
+                    cursor_categorical.updateRow(updated_row)
+
+            if not reclassified:
+                arcpy.AddWarning(f"Unable to generalize classes with the given studentized contrast threshold!")
+            else:
+                # TODO: sort by class?
+
+                # TODO: implement zero checks:
+                # cannot be zero:
+                # tp_count
+                # (unit_cell_count - tp_count)
+                # cannot be negative:
+                # (tp_count_99 / tp_count)
+                # (unit_cell_count_99 - tp_count_99) / (unit_cell_count - tp_count)
+
+                arcpy.AddMessage(f"Class 99 TPs: {tp_count_99}, class 99 area: {unit_cell_count_99}, total TP count: {tp_count}, total area: {unit_cell_count}")
+                arcpy.AddMessage("Calculating generalized weight for class 99")
+
+                gen_weight_99, gen_w_std_99, _, _, _, _, _ = calculate_weights(tp_count_99, unit_cell_count_99, tp_count, unit_cell_count, 99)
+
+                # gen_weight_99 = math.log(tp_count_99 / tp_count) - math.log((unit_cell_count_99 - tp_count_99) / (unit_cell_count - tp_count))
+                # gen_w_std_99 = math.sqrt((1.0 / tp_count_99) + (1.0 / (tp_count_99 - unit_cell_count_99)))
+
+                arcpy.AddMessage(f"Generalized weight: {gen_weight_99}, STD of generalized weight: {gen_w_std_99}")
+
+                categorical_clause = f"GEN_CLASS = 99"
+
+                with arcpy.da.UpdateCursor(output_weights_table, generalized_weight_field_names, where_clause=categorical_clause) as cursor_generalized:
+                    for row in cursor_generalized:
+                        gen_class, weight, w_std = row
+
+                        weight = gen_weight_99
+                        w_std = gen_w_std_99
+
+                        updated_row = (gen_class, weight, w_std)
+                        cursor_generalized.updateRow(updated_row)
 
     except arcpy.ExecuteError:
         arcpy.AddError(arcpy.GetMessages(2))
