@@ -1,19 +1,12 @@
-# -*- coding: utf-8 -*-
-
 import arcpy
-import importlib
 import math
 import os
 import sys
 import traceback
 
-import arcsdm.common
-import arcsdm.sdmvalues
-import arcsdm.wofe_common
-
 from arcsdm.common import log_arcsdm_details
 from arcsdm.sdmvalues import log_wofe
-from arcsdm.wofe_common import check_input_data, get_evidence_values_at_training_points, get_training_point_statistics
+from arcsdm.wofe_common import check_input_data, get_training_point_statistics
 
 ASCENDING = "Ascending"
 DESCENDING = "Descending"
@@ -23,7 +16,7 @@ UNIQUE = "Unique"
 
 def extract_layer_from_raster_band(evidence_layer, evidence_descr):
     if evidence_descr.dataType == "RasterBand":
-    # Try to change RasterBand to RasterDataset
+        # Try to change RasterBand to RasterDataset
         evidence1 = os.path.split(evidence_layer)
         evidence2 = os.path.split(evidence1[0])
         if (evidence1[1] == evidence2[1]) or (evidence1[1][:4] == "Band"):
@@ -193,33 +186,11 @@ def calculate_weights_bonham_carter(pattern_tp_count, pattern_area_cells, tp_cou
 
 
 def Calculate(self, parameters, messages):
-    # TODO: make relevant checks to input parameters
-    # TODO: convert evidence feature to raster
-    # TODO: make sure mask is used in all steps that it needs to be used in
-    # TODO: calculate weights based on weights type
-
-    # TODO: Remove this after testing is done!
-    # Make sure imported modules are refreshed if the toolbox is refreshed.
-    importlib.reload(arcsdm.wofe_common)
-    importlib.reload(arcsdm.sdmvalues)
-    importlib.reload(arcsdm.common)
-
     arcpy.AddMessage("Starting weight calculation")
     arcpy.AddMessage("------------------------------")
     try:
         arcpy.env.overwriteOutput = True
-        arcpy.AddMessage("overwriteOutput set to True")
-
-        # Input parameters are as follows:
-        # 0: EvidenceRasterLayer
-        # 1: EvidenceRasterCodefield (what is this?)
-        # 2: TrainingPoints
-        # 3: Type
-        # 4: OutputWeightsTable
-        # 5: ConfidenceLevelOfStudentizedContrast
-        # 6: UnitAreaKm2
-        # 7: MissingDataValue
-        # 8: Success
+        arcpy.AddMessage("Setting overwriteOutput to True")
 
         evidence_raster = parameters[0].valueAsText
         code_name =  parameters[1].valueAsText
@@ -232,19 +203,7 @@ def Calculate(self, parameters, messages):
         unit_area_sq_km = parameters[6].value
         nodata_value = parameters[7].value
 
-        # Test data type of Evidence Layer
         evidence_descr = arcpy.Describe(evidence_raster)
-        evidence_coord = evidence_descr.spatialReference
-
-        common_coord_sys = evidence_coord
-        if (arcpy.env.outputCoordinateSystem is not None) and (arcpy.env.outputCoordinateSystem.name.strip() != evidence_coord.name.strip()):
-            common_coord_sys = arcpy.env.outputCoordinateSystem
-
-        # arcpy.AddMessage(f"Coordinate system of output will be: {common_coord_sys.name}")
-        # arcpy.AddMessage(f"Type: {common_coord_sys.type}")
-        # arcpy.AddMessage(f"Linear unit: {common_coord_sys.linearUnitName}")
-        # arcpy.AddMessage(f"Angular unit name: {common_coord_sys.angularUnitName}")
-
         evidence_raster, evidence_descr = extract_layer_from_raster_band(evidence_raster, evidence_descr)
 
         check_input_data([evidence_raster], training_sites_feature)
@@ -268,20 +227,6 @@ def Calculate(self, parameters, messages):
             
             evidence_raster = arcpy.sa.ExtractByMask(evidence_raster, mask)
 
-
-        # TODO: project the evidence raster to have cell size equal to the unit area defined by the user
-        # TODO: check map units, express unit cell size in map units
-        # (arcpy.management.Resample can be used for this)
-
-
-
-        # Note: arcpy.conversion.PointToRaster honors the following environments:
-        # Auto Commit, Cell Size, Cell Size Projection Method, Compression, Current Workspace, 
-        # Extent, Geographic Transformations, Output CONFIG Keyword, Output Coordinate System, 
-        # Pyramid, Scratch Workspace, Snap Raster, Tile Size
-
-
-
         log_arcsdm_details()
         log_wofe(unit_area_sq_km, training_sites_feature)
         arcpy.AddMessage("=" * 10 + " Calculate weights " + "=" * 10)
@@ -290,15 +235,6 @@ def Calculate(self, parameters, messages):
 
         # Calculate number of training sites in each class
         statistics_table, class_column_name, count_column_name = get_training_point_statistics(evidence_raster, training_sites_feature)
-
-        # TODO: in both categorical cases:
-        # TODO: get both the evidence and the training data as raster
-        # TODO: in case of training data: set default value as 1 & fill value as 0
-        # TODO: get the unique values in the evidence raster (should already be classified, so give a warning if there are a lot of classes)
-        # TODO: -> those are the classes
-        # TODO: for each class, get the weights
-        # TODO: (probably faster to read the data into a numpy array instead of trying to work with cursors)
-        # TODO: (note: probably easier to work with)
         
         codename_field = [] if (code_name is None or code_name == "") else ["CODE","text","5","#","#","Symbol"]
 
@@ -333,9 +269,11 @@ def Calculate(self, parameters, messages):
             ["AREA_SQ_KM", "DOUBLE"], # Area in km^2
             ["AREA_UNITS", "DOUBLE"], # Area in unit cells
             ["NO_POINTS", "LONG"], # Training point count
-        ] + weight_fields + generalized_weight_fields
+        ] + weight_fields
 
         # Generalized weights are for all but unique weights
+        if selected_weight_type != UNIQUE:
+            all_fields = all_fields + generalized_weight_fields
 
         evidence_fields = ["VALUE", "COUNT"] + codename_field
         stats_fields = [class_column_name, count_column_name]
@@ -379,6 +317,8 @@ def Calculate(self, parameters, messages):
                     else:
                         weights_row = (evidence_class, code_name_field, evidence_count, site_count)
                     cursor_weights.insertRow(weights_row)
+
+        arcpy.management.Delete(statistics_table)
 
         evidence_cellsize = evidence_descr.MeanCellWidth
         # Assuming linear units are in meters
@@ -428,17 +368,8 @@ def Calculate(self, parameters, messages):
                 training_point_count = frequency_tot
                 total_area_sq_km = area_tot
 
-        arcpy.AddMessage(f"Total number of training points: {training_point_count}, total area (km^2): {total_area_sq_km}")
-
-        # temp_fields_to_delete = ["Count", "Frequency", "Area", "AreaUnits"]
-        temp_fields_to_delete = ["Frequency", "Area", "AreaUnits"]
+        temp_fields_to_delete = ["Count", "Frequency", "Area", "AreaUnits"]
         arcpy.management.DeleteField(output_weights_table, temp_fields_to_delete)
-
-        # Calculate weights
-        # Required fields:
-        # all the weights fields
-        # "NO_POINTS", "AREA_SQ_KM"
-        # also need: unit_area_sq_km, training_point_count, total_area
 
         fields_to_update = ["Class", "NO_POINTS", "AREA_SQ_KM"] + weight_field_names
         
@@ -514,16 +445,12 @@ def Calculate(self, parameters, messages):
 
         elif selected_weight_type == CATEGORICAL:
             # Reclassify
-            classify_clause = f"(STUD_CNT > {-1 * studentized_contrast_threshold}) and (STUD_CNT < {studentized_contrast_threshold})"
             reclassified = False
 
             tp_count_99 = 0
             unit_cell_count_99 = 0.0
             tp_count = 0
             unit_cell_count = 0.0
-
-            # TODO: count cells in class 99
-            # TODO: count deposits in class 99
 
             with arcpy.da.UpdateCursor(output_weights_table, ["Class", "AREA_UNITS", "NO_POINTS"] + weight_field_names + generalized_weight_field_names) as cursor_categorical:
                 for row in cursor_categorical:
@@ -550,23 +477,7 @@ def Calculate(self, parameters, messages):
             if not reclassified:
                 arcpy.AddWarning(f"Unable to generalize classes with the given studentized contrast threshold!")
             else:
-                # TODO: sort by class?
-
-                # TODO: implement zero checks:
-                # cannot be zero:
-                # tp_count
-                # (unit_cell_count - tp_count)
-                # cannot be negative:
-                # (tp_count_99 / tp_count)
-                # (unit_cell_count_99 - tp_count_99) / (unit_cell_count - tp_count)
-
-                arcpy.AddMessage(f"Class 99 TPs: {tp_count_99}, class 99 area: {unit_cell_count_99}, total TP count: {tp_count}, total area: {unit_cell_count}")
-                arcpy.AddMessage("Calculating generalized weight for class 99")
-
                 gen_weight_99, gen_w_std_99, _, _, _, _, _ = calculate_weights(tp_count_99, unit_cell_count_99, tp_count, unit_cell_count, 99)
-
-                # gen_weight_99 = math.log(tp_count_99 / tp_count) - math.log((unit_cell_count_99 - tp_count_99) / (unit_cell_count - tp_count))
-                # gen_w_std_99 = math.sqrt((1.0 / tp_count_99) + (1.0 / (tp_count_99 - unit_cell_count_99)))
 
                 arcpy.AddMessage(f"Generalized weight: {gen_weight_99}, STD of generalized weight: {gen_w_std_99}")
 

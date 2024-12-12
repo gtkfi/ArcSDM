@@ -2,11 +2,13 @@ import arcpy
 import os
 
 def check_input_data(evidence_rasters, training_point_feature):
-    # Check that all rasters have the same coordinate system
+    """
+    Check that the coordinate system of all inputs match.
 
-    # TODO: read multiband rasters
+    Verify that each raster input is of integer type and has an attribute table.
 
-
+    Check that training feature has point geometry.
+    """
     if len(evidence_rasters) > 0:
         raster_description = arcpy.Describe(evidence_rasters[0])
         raster_coord_sys = raster_description.spatialReference.name.strip()
@@ -43,7 +45,8 @@ def check_input_data(evidence_rasters, training_point_feature):
         if feature_coord_sys != raster_coord_sys:
             raise ValueError(f"Coordinate system of training feature and evidence raster(s) do not match! Training data is in {feature_coord_sys} and evidence data is in {raster_coord_sys}.")
 
-        # TODO: check that the training feature has point geometry
+        if feature_description.shapeType != 'Point':
+            raise ValueError(f"Training data should have point geometry! Current geometry is {feature_description.shapeType}.")
 
 
 # Note: same purpose as ExtractValuesToPoints has in workarounds_93
@@ -74,7 +77,3 @@ def get_training_point_statistics(evidence_raster, training_point_feature):
     arcpy.management.Delete(values_at_training_points_tmp_feature)
 
     return output_tmp_table, "class_category", "frequency"
-
-
-# TODO: prepare training data - apply mask (if given)
-
