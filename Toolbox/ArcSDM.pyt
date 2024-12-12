@@ -3,7 +3,7 @@ import arcpy
 
 import arcsdm.sitereduction
 import arcsdm.logisticregression
-import arcsdm.logistic_regression_predict_example
+import arcsdm.logistic_regression_predict
 import arcsdm.calculateweights
 import arcsdm.categoricalreclass
 import arcsdm.categoricalmembership
@@ -1584,16 +1584,14 @@ class LogisticRegressionPredictTool(object):
             parameterType="Required",
             direction="Input"
         )
-        param_X.value = "Idw_K_50m.tif;Idw_La_50m.tif;Idw_P_50m.tif"
 
         param_y = arcpy.Parameter(
             displayName="Target labels (y)",
             name="y",
-            datatype=["GPRasterLayer", "GPRasterDataLayer"],
+            datatype=["GPRasterLayer", "GPRasterDataLayer", "GPFeatureLayer"],
             parameterType="Required",
             direction="Input"
         )
-        param_y.value = "output_labels.tiff"
         
         param_nodata_value = arcpy.Parameter(
             displayName="NoData Value",
@@ -1720,7 +1718,7 @@ class LogisticRegressionPredictTool(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        execute_tool(arcsdm.logistic_regression_predict_example.Execute, self, parameters, messages)
+        execute_tool(arcsdm.logistic_regression_predict.Execute, self, parameters, messages)
         return  
 
 class AgterbergChengCITest(object):
