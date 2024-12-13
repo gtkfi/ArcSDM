@@ -4,6 +4,7 @@ import arcpy
 import arcsdm.sitereduction
 import arcsdm.logisticregression
 import arcsdm.calculateweights
+import arcsdm.calculateweights_old
 import arcsdm.categoricalreclass
 import arcsdm.categoricalmembership
 import arcsdm.tocfuzzification
@@ -25,7 +26,7 @@ from arcsdm.common import execute_tool
 
 
 import importlib
-from imp import reload
+from imp import reload;
 
 
 
@@ -38,7 +39,7 @@ class Toolbox(object):
 
         # List of tool classes associated with this toolbox
         self.tools = [PartitionNNInputFiles, CombineNNOutputFiles, NeuralNetworkOutputFiles, NeuralNetworkInputFiles, 
-        CalculateWeights, SiteReductionTool,CategoricalMembershipTool,
+        CalculateWeights, CalculateWeightsToolOld, SiteReductionTool,CategoricalMembershipTool,
         CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, CalculateResponseOld, FuzzyROC, FuzzyROC2, LogisticRegressionTool, Symbolize, 
         ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues, GrandWofe, TrainMLPClassifierTool, 
         TrainMLPRegressorTool, PCA]
@@ -367,8 +368,11 @@ class NeuralNetworkOutputFiles(object):
             reload(arcsdm.nnoutputfiles);
         arcsdm.nnoutputfiles.execute(self, parameters, messages)
         return
-
-
+        
+                
+        
+                
+         
 class NeuralNetworkInputFiles(object):
     
     def __init__(self):
@@ -1252,7 +1256,160 @@ class CalculateWeights(object):
         return
 
     def execute(self, parameters, messages):
+        """The source code of the tool."""
+        # arcpy.AddMessage(f"param 0: {parameters[0].valueAsText}")
+        # input_evidence_raster = arcsdm.calculateweights.InputEvidenceRaster(parameters[0].valueAsText)
+        # input_training_feature = arcsdm.calculateweights.InputTrainingDataFeature(parameters[2].valueAsText)
+        # weights_calculator = arcsdm.calculateweights.WeightsCalculator(
+        #     input_evidence_raster,
+        #     input_training_feature,
+        #     parameters[3].valueAsText,
+        #     parameters[4].valueAsText,
+        #     parameters[6].value
+        # )
+        # weights_calculator.calculate_weights()
+        # TODO: remove after testing is done
+        importlib.reload(arcsdm.calculateweights)
         arcsdm.calculateweights.Calculate(self, parameters, messages)
+        # execute_tool(arcsdm.calculateweights.Calculate, self, parameters, messages)
+        return
+
+
+class CalculateWeightsToolOld(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Calculate Weights (Old)"
+        self.description = "Calculate weight rasters from the inputs"
+        self.canRunInBackground = False
+        self.category = "Weights of Evidence"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        param0 = arcpy.Parameter(
+        displayName="Evidence Raster Layer",
+        name="evidence_raster_layer",
+        datatype="GPRasterLayer",
+        parameterType="Required",
+        direction="Input")
+
+        param1 = arcpy.Parameter(
+        displayName="Evidence raster codefield",
+        name="Evidence_Raster_Code_Field",
+        datatype="Field",
+        parameterType="Optional",
+        direction="Input")
+
+        paramTrainingPoints = arcpy.Parameter(
+        displayName="Training points",
+        name="Training_points",
+        datatype="GPFeatureLayer",
+        parameterType="Required",
+        direction="Input")
+        
+        param2 = arcpy.Parameter(
+        displayName="Type",
+        name="Type",
+        datatype="GPString",
+        parameterType="Required",
+        direction="Input")
+        param2.filter.type = "ValueList";
+        param2.filter.list = ["Descending", "Ascending", "Categorical", "Unique"];
+        param2.value = "";
+        
+        param3 = arcpy.Parameter(
+        displayName="Output weights table",
+        name="output_weights_table",
+        datatype="DETable",
+        parameterType="Required",
+        direction="Output")
+
+        param4 = arcpy.Parameter(
+        displayName="Confidence Level of Studentized Contrast",
+        name="Confidence_Level_of_Studentized_Contrast",
+        datatype="GPDouble",
+        parameterType="Required",
+        direction="Input")
+        param4.value = "2";
+                           
+        param5 = arcpy.Parameter(
+        displayName="Unit area (km2)",
+        name="Unit_Area__sq_km_",
+        datatype="GPDouble",
+        parameterType="Required",
+        direction="Input")
+        param5.value = "1";
+        
+        param6 = arcpy.Parameter(
+        displayName="Missing data value",
+        name="Missing_Data_Value",
+        datatype="GPLong",
+        parameterType="Required",
+        direction="Input")
+        param6.value = "-99";
+                          
+
+        paramSuccess = arcpy.Parameter(
+        displayName="Success",
+        name="success",
+        datatype="Boolean",
+        parameterType="Optional",
+        direction="Output")
+
+
+                          
+        params = [param0, param1, paramTrainingPoints, param2, param3, param4, param5, param6, paramSuccess]
+        return params
+
+    def isLicensed(self):
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed        
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        if parameters[0].value and parameters[3].value:
+            if (parameters[0].altered or paramaters[3].altered) and not parameters[4].altered:
+                layer = parameters[0].valueAsText;
+                desc = arcpy.Describe(layer)
+                name = desc.file;
+                type = parameters[3].valueAsText;
+                char = type[:1];
+                if (char != 'U'):
+                    if (char != 'C'):
+                        char = 'C' + char; #Output  _C + first letter of type unless it is U
+                    else:
+                        char = 'CT'; # Unless it is C, then it is CT... 
+                #Update name accordingly
+                resulttmp = "%WORKSPACE%\\" + name + "_" + char;
+                #parameters[4].value = resulttmp.replace(".","");  #Remove illegal characters
+                resulttmp = resulttmp.replace(".","");
+                #Add .dbf to Weights Table Name if Workspace is not File Geodatabase #AL 250820
+                #If using GDB database, remove numbers and underscore from the beginning of the name (else block) #AL 071020
+                if not ".gdb" in arcpy.env.workspace:
+                    resulttmp = resulttmp + ".dbf"
+                else:
+                    wtsbase = os.path.basename(resulttmp)
+                    while len(wtsbase) > 0 and (wtsbase[:1] <= "9" or wtsbase[:1] == "_"):
+                        wtsbase = wtsbase[1:]
+                    resulttmp = os.path.dirname(resulttmp) + "\\" + wtsbase
+                parameters[4].value = resulttmp
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+     
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        execute_tool(arcsdm.calculateweights_old.Calculate, self, parameters, messages)
         return
 
         
