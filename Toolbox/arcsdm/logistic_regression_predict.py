@@ -15,19 +15,20 @@ def Execute(self, parameters, messages):
     #try:
     input_data = parameters[0].valueAsText.split(';')
     target_labels = parameters[1].valueAsText
-    nodata_value = parameters[2].valueAsText
-    validation_method = parameters[3].valueAsText
-    metrics = parameters[4].valueAsText.split(';')
-    split_size = parameters[5].value
-    cv_folds = parameters[6].value
-    penalty = parameters[7].valueAsText if parameters[7].valueAsText != "none" else None
-    max_iter = parameters[8].value
-    solver = parameters[9].valueAsText
-    verbose = parameters[10].value
-    random_state = parameters[11].value
-    output_file = parameters[12].valueAsText
+    X_nodata_value = parameters[2].valueAsText
+    y_nodata_value = parameters[3].valueAsText
+    validation_method = parameters[4].valueAsText
+    metrics = parameters[5].valueAsText.split(';')
+    split_size = parameters[6].value
+    cv_folds = parameters[7].value
+    penalty = parameters[8].valueAsText if parameters[8].valueAsText != "none" else None
+    max_iter = parameters[9].value
+    solver = parameters[10].valueAsText
+    verbose = parameters[11].value
+    random_state = parameters[12].value
+    output_file = parameters[13].valueAsText
 
-    X, y, _ = prepare_data_for_ml(input_data, target_labels, nodata_value)
+    X, y, _ = prepare_data_for_ml(input_data, target_labels, X_nodata_value, y_nodata_value)
 
     # Perform Logistic Regression
     model, metrics = logistic_regression_train(
@@ -121,8 +122,8 @@ def logistic_regression_train(
         The trained Logistic Regression classifier and metric scores as a dictionary.
 
     Raises:
-        InvalidParameterValueException: If some of the numeric parameters are given invalid input values.
-        NonMatchingParameterLengthsException: X and y have mismatching sizes.
+        arcpy.ExecuteError: If some of the numeric parameters are given invalid input values.
+        arcpy.ExecuteError: X and y have mismatching sizes.
     """
     if max_iter < 1:
         arcpy.AddError("Max iter must be > 0.")
