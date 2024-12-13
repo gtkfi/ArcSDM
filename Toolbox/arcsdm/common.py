@@ -132,4 +132,3 @@ def log_arcsdm_details():
     # if wdesc.workspaceType != desc.workspaceType:
     #     arcpy.AddError("Workspace and scratch workspace must be of the same type!")
     #     raise arcpy.ExecuteError("Workspace type mismatch")
-

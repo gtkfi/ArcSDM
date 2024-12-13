@@ -21,9 +21,9 @@ import arcsdm.fuzzyroc
 import arcsdm.fuzzyroc2
 import arcsdm.mlp
 import arcsdm.pca
+import arcsdm.wofe_common
 
 from arcsdm.common import execute_tool
-
 
 import importlib
 from imp import reload;
@@ -42,7 +42,67 @@ class Toolbox(object):
         CalculateWeights, CalculateWeightsToolOld, SiteReductionTool,CategoricalMembershipTool,
         CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, CalculateResponseOld, FuzzyROC, FuzzyROC2, LogisticRegressionTool, Symbolize, 
         ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues, GrandWofe, TrainMLPClassifierTool, 
-        TrainMLPRegressorTool, PCA]
+        TrainMLPRegressorTool, PCA, TestTool]
+
+
+class TestTool(object):
+    def __init__(self):
+        self.label = "WofE testing"
+        self.description = "For temp testing"
+        self.canRunInBackground = False
+        self.category = "Weights of Evidence"
+
+    def getParameterInfo(self):
+        param_evidence_raster = arcpy.Parameter(
+            displayName="Evidence raster layer",
+            name="evidence_raster_layer",
+            datatype="GPRasterLayer",
+            parameterType="Optional",
+            direction="Input"
+        )
+
+        param_training_sites_feature = arcpy.Parameter(
+            displayName="Training points feature",
+            name="Training_points",
+            datatype="GPFeatureLayer",
+            parameterType="Optional",
+            direction="Input"
+        )
+
+        param_unit_cell_area = arcpy.Parameter(
+            displayName="Unit area (km2)",
+            name="Unit_Area_sq_km_",
+            datatype="GPDouble",
+            parameterType="Optional",
+            direction="Input"
+        )
+        param_unit_cell_area.value = "1"
+
+        params = [
+            param_evidence_raster,
+            param_training_sites_feature,
+            param_unit_cell_area
+        ]
+        return params
+    
+    def isLicensed(self):
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False
+        return True
+
+    def updateParameters(self, parameters):
+        return
+
+    def updateMessages(self, parameters):
+        return
+    
+    def execute(self, parameters, messages):
+        importlib.reload(arcsdm.wofe_common)
+        arcsdm.wofe_common.get_study_area_size_sq_km(self, parameters, messages)
+        return
 
 
 class GrandWofe(object):
