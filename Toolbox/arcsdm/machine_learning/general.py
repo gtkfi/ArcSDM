@@ -173,7 +173,8 @@ def _resample_raster(input_raster, reference_raster, output_path):
 def prepare_data_for_ml(
     feature_raster_files,
     label_file: Optional[Union[str, os.PathLike]] = None,
-    nodata_value: Optional[Number] = None,
+    X_nodata_value: Optional[Number] = None,
+    y_nodata_value: Optional[Number] = None,
 ) -> Tuple[np.ndarray, Optional[np.ndarray], Any]:
     """
     Prepare data ready for machine learning model training.
@@ -262,7 +263,7 @@ def prepare_data_for_ml(
         combined_mask = nan_mask if nodata_mask is None else nodata_mask | nan_mask
 
         # Create a mask for nodata values if nodata_value is provided
-        if nodata_value is not None:
+        if X_nodata_value is not None:
             raster_mask = (raster_reshaped == np.nan).any(axis=1)
             combined_mask = combined_mask | raster_mask
 
@@ -286,7 +287,8 @@ def prepare_data_for_ml(
             desc_label_resampled = arcpy.Describe(label_resampled)
             y = arcpy.RasterToNumPyArray(desc_label_resampled.catalogPath)
             
-            label_nodata_mask = y == nodata_value
+            # Mask nodata label nodata values
+            label_nodata_mask = y == y_nodata_value if y_nodata_value is not None else 0
             
             # Truncate the larger array to match the smaller one
             min_size = min(nodata_mask.size, label_nodata_mask.size)

@@ -1576,31 +1576,36 @@ class LogisticRegressionPredictTool(object):
 
     def getParameterInfo(self):
         """Define parameter definitions"""
+
         param_X = arcpy.Parameter(
-            displayName="Evidence Data (X)",
+            displayName="Input Features",
             name="X",
-            datatype=["GPRasterLayer", "GPRasterDataLayer"],
-            multiValue=True,
+            datatype=["GPRasterLayer"],
             parameterType="Required",
-            direction="Input"
-        )
+            multiValue=True,
+            direction="Input")
 
         param_y = arcpy.Parameter(
-            displayName="Target labels (y)",
+            displayName="Target Labels",
             name="y",
-            datatype=["GPRasterLayer", "GPRasterDataLayer", "GPFeatureLayer"],
+            datatype=["GPRasterLayer", "GPFeatureLayer"],
             parameterType="Required",
-            direction="Input"
-        )
+            direction="Input")
         
-        param_nodata_value = arcpy.Parameter(
-            displayName="NoData Value",
-            name="nodata_value",
-            datatype="GPDouble",
+        param_X_nodata_value = arcpy.Parameter(
+            displayName="Input Feature NoData Value",
+            name="X_nodata_value",
+            datatype="GPLong",
             parameterType="Optional",
-            direction="Input"
-        )
-        param_nodata_value.value = -99
+            direction="Input")
+        param_X_nodata_value.value = -99
+        
+        param_y_nodata_value = arcpy.Parameter(
+            displayName="Label NoData Value",
+            name="y_nodata_value",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
 
         param_validation_method = arcpy.Parameter(
             displayName="Validation Method",
@@ -1698,7 +1703,7 @@ class LogisticRegressionPredictTool(object):
         param_output_model.value = "output_model_log_res"
 
         params = [
-            param_X, param_y, param_nodata_value, param_validation_method, param_metrics, param_split_size,
+            param_X, param_y, param_X_nodata_value, param_y_nodata_value, param_validation_method, param_metrics, param_split_size,
             param_cv_folds, param_penalty, param_max_iter, param_solver, param_verbose, param_random_state,
             param_output_model
         ]
@@ -1996,6 +2001,7 @@ class TrainMLPClassifierTool(object):
 
     def getParameterInfo(self):
         """Define parameter definitions"""
+
         param_X = arcpy.Parameter(
             displayName="Input Features",
             name="X",
@@ -2011,13 +2017,20 @@ class TrainMLPClassifierTool(object):
             parameterType="Required",
             direction="Input")
         
-        param_nodata_value = arcpy.Parameter(
-            displayName="NoData Value",
-            name="nodata_value",
+        param_X_nodata_value = arcpy.Parameter(
+            displayName="Input Feature NoData Value",
+            name="X_nodata_value",
             datatype="GPLong",
             parameterType="Optional",
             direction="Input")
-        param_nodata_value.value = -99
+        param_X_nodata_value.value = -99
+        
+        param_y_nodata_value = arcpy.Parameter(
+            displayName="Label NoData Value",
+            name="y_nodata_value",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
 
         param_neurons = arcpy.Parameter(
             displayName="Neurons per Layer. A comma separeted list of integers: e.g. 10,5,10",
@@ -2163,7 +2176,8 @@ class TrainMLPClassifierTool(object):
 
         params = [param_X,
                   param_y,
-                  param_nodata_value,
+                  param_X_nodata_value,
+                  param_y_nodata_value,
                   param_neurons,
                   param_validation_split,
                   param_validation_data,
@@ -2226,13 +2240,20 @@ class TrainMLPRegressorTool(object):
             parameterType="Required",
             direction="Input")
         
-        param_nodata_value = arcpy.Parameter(
-            displayName="NoData Value",
-            name="nodata_value",
+        param_X_nodata_value = arcpy.Parameter(
+            displayName="Input Feature NoData Value",
+            name="X_nodata_value",
             datatype="GPLong",
             parameterType="Optional",
             direction="Input")
-        param_nodata_value.value = -99
+        param_X_nodata_value.value = -99
+        
+        param_y_nodata_value = arcpy.Parameter(
+            displayName="Label NoData Value",
+            name="y_nodata_value",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
 
         param_neurons = arcpy.Parameter(
             displayName="Neurons per Layer. A comma separeted list of integers: e.g. 10,5,10",
@@ -2378,7 +2399,8 @@ class TrainMLPRegressorTool(object):
 
         params = [param_X,
                   param_y,
-                  param_nodata_value,
+                  param_X_nodata_value,
+                  param_y_nodata_value,
                   param_neurons,
                   param_validation_split,
                   param_validation_data,
