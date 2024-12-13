@@ -10,14 +10,14 @@ def rasterize_vector(raster_file_path: str, label_file: str):
     """
     reference_raster = arcpy.Raster(raster_file_path)
     desc_ref_raster = arcpy.Describe(reference_raster)
-    
+
     filename = os.path.basename(desc_ref_raster.catalogPath)
     arcpy.AddWarning(f"Setting Environment extent to be the same as in {filename}")
     arcpy.env.extent = desc_ref_raster.extent
     arcpy.AddWarning(f"Setting Environment cell size to be the same as in {filename}")
     arcpy.env.cellSize = desc_ref_raster.meanCellWidth
     arcpy.AddWarning(f"Setting Environment Snap Raster to be {filename}")
-    arcpy.env.snapRaster = desc_ref_raster
+    arcpy.env.snapRaster = raster_file_path
 
     # Create an empty raster with the same extent and cell size as the reference raster
     empty_raster = sa.CreateConstantRaster(0, "INTEGER", desc_ref_raster.meanCellWidth, desc_ref_raster.extent)
