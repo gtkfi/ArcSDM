@@ -209,3 +209,24 @@ def get_training_point_statistics(evidence_raster, training_point_feature):
     arcpy.management.Delete(values_at_training_points_tmp_feature)
 
     return output_tmp_table, "class_category", "frequency"
+
+
+def apply_mask_to_raster(evidence_raster, nodata_value=None):
+    mask = arcpy.env.mask
+    if mask:
+        if not arcpy.Exists(mask):
+            raise ValueError("Mask doesn't exist! Set Mask under Analysis/Environments.")
+
+    mask_descr = arcpy.Describe(mask)
+    masked_evidence_raster = arcpy.sa.ExtractByMask(evidence_raster, mask_descr.catalogPath)
+
+    if nodata_value is not None:
+        masked_evidence_descr = arcpy.Describe(masked_evidence_raster)
+        temp_nodata_mask = arcpy.sa.IsNull(masked_evidence_descr.catalogPath)
+
+        # Set nodata value to nodata areas within the mask
+        masked_evidence_raster = arcpy.sa.Con(temp_nodata_mask, nodata_value, evidence_raster, "VALUE = 1")
+    
+        arcpy.management.Delete(masked_evidence_descr.catalogPath)
+    
+    return masked_evidence_raster

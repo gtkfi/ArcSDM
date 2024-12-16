@@ -5,7 +5,7 @@ import sys
 import traceback
 
 from arcsdm.common import log_arcsdm_details
-from arcsdm.wofe_common import check_input_data, get_training_point_statistics, log_wofe
+from arcsdm.wofe_common import apply_mask_to_raster, check_input_data, get_training_point_statistics, log_wofe
 
 
 ASCENDING = "Ascending"
@@ -220,24 +220,10 @@ def Calculate(self, parameters, messages):
                 wtsbase = wtsbase[1:]
             output_weights_table = os.path.dirname(output_weights_table) + "\\" + wtsbase
 
-        mask = arcpy.env.mask
-        if mask:
-            if not arcpy.Exists(mask):
-                raise arcpy.ExecuteError("Mask doesn't exist! Set Mask under Analysis/Environments.")
-
-        # TODO: if the given nodata value differs from the raster nodata value, update the working raster nodata value?
-        
-        mask_descr = arcpy.Describe(mask)
-        temp_masked_evidence_raster = arcpy.sa.ExtractByMask(evidence_raster, mask_descr.catalogPath)
-        temp_masked_evidence_descr = arcpy.Describe(temp_masked_evidence_raster)
-        temp_nodata_mask = arcpy.sa.IsNull(temp_masked_evidence_descr.catalogPath)
-
-        # Set nodata value
-        masked_evidence_raster = arcpy.sa.Con(temp_nodata_mask, nodata_value, evidence_raster, "VALUE = 1")
+        # TODO: differentiate between original nodata value and missing data from applying study area mask?
+        masked_evidence_raster = apply_mask_to_raster(evidence_raster, nodata_value)
         masked_evidence_descr = arcpy.Describe(masked_evidence_raster)
         # Evidence raster preparation is now done
-
-        arcpy.management.Delete(temp_masked_evidence_descr.catalogPath)
 
         log_arcsdm_details()
         total_area_sq_km_from_mask, training_point_count = log_wofe(unit_cell_area_sq_km, training_sites_feature)

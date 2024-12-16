@@ -65,13 +65,15 @@ def Execute(self, parameters, messages):
                     wtsbase = wtsbase[1:]
                 weights_table = os.path.dirname(weights_table) + "\\" + wtsbase
             
+            # TODO: make sure this results in unique names
             output_raster_name = input_raster.replace(".", "_")
             output_raster_name = output_raster_name[:10] + "W"
             if workspace_type != "FileSystem":
                 while len(output_raster_name) > 0 and (output_raster_name[:1] <= "9" or output_raster_name[:1] == "_"):
                     output_raster_name = output_raster_name[1:]
-
-
+            
+            tmp_W_raster = arcpy.CreateScratchName("", "", "RasterDataset", arcpy.env.scratchWorkspace)
+            # arcpy.management.CopyRaster()
 
             i += 1
 
