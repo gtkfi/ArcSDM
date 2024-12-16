@@ -26,7 +26,7 @@ import arcsdm.wofe_common
 from arcsdm.common import execute_tool
 
 import importlib
-from imp import reload;
+from imp import reload
 
 
 
@@ -101,7 +101,8 @@ class TestTool(object):
     
     def execute(self, parameters, messages):
         importlib.reload(arcsdm.wofe_common)
-        arcsdm.wofe_common.get_study_area_size_sq_km(self, parameters, messages)
+        importlib.reload(arcsdm.common)
+        arcsdm.wofe_common.log_wofe(self, parameters, messages)
         return
 
 
