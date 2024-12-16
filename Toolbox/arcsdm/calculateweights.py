@@ -5,8 +5,7 @@ import sys
 import traceback
 
 from arcsdm.common import log_arcsdm_details
-from arcsdm.sdmvalues import log_wofe
-from arcsdm.wofe_common import check_input_data, get_study_area_size_sq_km, get_training_point_statistics
+from arcsdm.wofe_common import check_input_data, get_study_area_size_sq_km, get_training_point_statistics, log_wofe
 
 ASCENDING = "Ascending"
 DESCENDING = "Descending"
@@ -193,14 +192,14 @@ def Calculate(self, parameters, messages):
         arcpy.AddMessage("Setting overwriteOutput to True")
 
         evidence_raster = parameters[0].valueAsText
-        code_name =  parameters[1].valueAsText
+        code_name = parameters[1].valueAsText
 
         # TODO: make sure the mask is applied to the features
         training_sites_feature = parameters[2].valueAsText
         selected_weight_type =  parameters[3].valueAsText
         output_weights_table = parameters[4].valueAsText
         studentized_contrast_threshold = parameters[5].value
-        unit_area_sq_km = parameters[6].value
+        unit_cell_area_sq_km = parameters[6].value
         nodata_value = parameters[7].value
 
         evidence_descr = arcpy.Describe(evidence_raster)
@@ -224,19 +223,31 @@ def Calculate(self, parameters, messages):
         if mask:
             if not arcpy.Exists(mask):
                 raise arcpy.ExecuteError("Mask doesn't exist! Set Mask under Analysis/Environments.")
-            
-            evidence_raster = arcpy.sa.ExtractByMask(evidence_raster, mask)
+
+        # TODO: if the given nodata value differs from the raster nodata value, update the working raster nodata value?
+        
+        mask_descr = arcpy.Describe(mask)
+        temp_masked_evidence_raster = arcpy.sa.ExtractByMask(evidence_raster, mask_descr.catalogPath)
+        temp_masked_evidence_descr = arcpy.Describe(temp_masked_evidence_raster)
+        temp_nodata_mask = arcpy.sa.IsNull(temp_masked_evidence_descr.catalogPath)
+
+        # Set nodata value
+        masked_evidence_raster = arcpy.sa.Con(temp_nodata_mask, nodata_value, evidence_raster, "VALUE = 1")
+        masked_evidence_descr = arcpy.Describe(masked_evidence_raster)
+        # Evidence raster preparation is now done
+
+        arcpy.management.Delete(temp_masked_evidence_descr.catalogPath)
 
         log_arcsdm_details()
-        log_wofe(unit_area_sq_km, training_sites_feature)
-        arcpy.AddMessage("=" * 10 + " Calculate weights " + "=" * 10)
+        total_area_sq_km_from_mask, training_point_count = log_wofe(unit_cell_area_sq_km, training_sites_feature)
 
+        arcpy.AddMessage("=" * 10 + " Calculate weights " + "=" * 10)
         arcpy.AddMessage("%-20s %s (%s)" % ("Creating table: ", output_weights_table, selected_weight_type))
 
         # Calculate number of training sites in each class
-        statistics_table, class_column_name, count_column_name = get_training_point_statistics(evidence_raster, training_sites_feature)
+        statistics_table, class_column_name, count_column_name = get_training_point_statistics(masked_evidence_raster, training_sites_feature)
         
-        codename_field = [] if (code_name is None or code_name == "") else ["CODE","text","5","#","#","Symbol"]
+        codename_field = [] if (code_name is None or code_name == "") else ["CODE", "text", "5", "#", "#", "Symbol"]
 
         base_fields = [["Class", "LONG"]] + codename_field + [
             ["Count", "LONG"], # Evidence count (temp)
@@ -287,9 +298,7 @@ def Calculate(self, parameters, messages):
 
         arcpy.AddMessage("Created output weights table")
 
-        evidence_attribute_table = evidence_raster
-        if evidence_descr.dataType == "RasterLayer":
-            evidence_attribute_table = evidence_descr.catalogPath
+        evidence_attribute_table = masked_evidence_descr.catalogPath
 
         order = "DESC" if (selected_weight_type == DESCENDING) else "ASC"
         order_clause = f"ORDER BY VALUE {order}"
@@ -320,13 +329,10 @@ def Calculate(self, parameters, messages):
 
         arcpy.management.Delete(statistics_table)
 
-        evidence_cellsize = evidence_descr.MeanCellWidth
-        # Assuming linear units are in meters
-        # Note! The logged WofE values are calculated with the output cellsize from the env settings
-        # But actual calculation is done with the evidence cellsize
-        # TODO: Do something about this
+        evidence_cellsize = masked_evidence_descr.MeanCellWidth
+        # TODO: Assumes linear units of evidence raster is in meters - this needs to be checked!
         arcpy.CalculateField_management(output_weights_table, "Area",  "!Count! * %f / 1000000.0" % (evidence_cellsize ** 2), "PYTHON_9.3")
-        arcpy.CalculateField_management(output_weights_table, "AreaUnits",  "!Area! / %f" % unit_area_sq_km, "PYTHON_9.3")
+        arcpy.CalculateField_management(output_weights_table, "AreaUnits",  "!Area! / %f" % unit_cell_area_sq_km, "PYTHON_9.3")
 
         temp_fields = ["Frequency", "Area", "AreaUnits"]
         fields_to_update = ["NO_POINTS", "AREA_SQ_KM", "AREA_UNITS"]
@@ -368,6 +374,8 @@ def Calculate(self, parameters, messages):
                 training_point_count = frequency_tot
                 total_area_sq_km = area_tot
 
+        arcpy.AddMessage(f"Total area (km^2) from log_wofe: {total_area_sq_km_from_mask}, from evidence cursor: {total_area_sq_km}")
+
         temp_fields_to_delete = ["Count", "Frequency", "Area", "AreaUnits"]
         arcpy.management.DeleteField(output_weights_table, temp_fields_to_delete)
 
@@ -378,7 +386,7 @@ def Calculate(self, parameters, messages):
                 class_category, no_points, area_sq_km, wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt = weights_row
 
                 if class_category != nodata_value:
-                    wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt = calculate_weights_sq_km(no_points, area_sq_km, unit_area_sq_km, training_point_count, total_area_sq_km, selected_weight_type)
+                    wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt = calculate_weights_sq_km(no_points, area_sq_km, unit_cell_area_sq_km, training_point_count, total_area_sq_km, selected_weight_type)
 
                     updated_row = (class_category, no_points, area_sq_km, wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt)
                     cursor_weights.updateRow(updated_row)
@@ -389,7 +397,7 @@ def Calculate(self, parameters, messages):
 
         # Generalize weights for non-unique weight selections
         if selected_weight_type in [ASCENDING, DESCENDING]:
-            # Find the row with the maximum contrast value
+            # Find the row with the maximum contrast value that has a studentized contrast that satisfies the threshold condition
             max_contrast_OID = -1
             max_contrast = -9999999.0
             tp_count = 0

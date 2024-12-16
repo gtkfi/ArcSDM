@@ -102,7 +102,7 @@ class TestTool(object):
     def execute(self, parameters, messages):
         importlib.reload(arcsdm.wofe_common)
         importlib.reload(arcsdm.common)
-        arcsdm.wofe_common.log_wofe(self, parameters, messages)
+        #arcsdm.wofe_common.log_wofe(self, parameters, messages)
         return
 
 

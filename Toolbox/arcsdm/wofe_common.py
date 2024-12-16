@@ -97,23 +97,21 @@ def get_selected_point_count(point_feature):
     return point_count
 
 
-def log_wofe(self, parameters, messages):
+def log_wofe(unit_cell_area_sq_km, training_points):
     """
     Log WofE parameters to Geoprocessor History.
     """
     try:
-        unit_cell_area_sq_km = parameters[2].value
-        TrainPts = parameters[1].valueAsText
         arcpy.AddMessage("\n" + "=" * 10 + " WofE parameters " + "=" * 10)
 
-        total_area = get_study_area_size_sq_km()
-        arcpy.AddMessage("%-20s %s" % ("Mask size (km^2):", str(total_area)))
+        total_area_sq_km = get_study_area_size_sq_km()
+        arcpy.AddMessage("%-20s %s" % ("Mask size (km^2):", str(total_area_sq_km)))
         arcpy.AddMessage("%-20s %s" % ("Unit Cell Size:", unit_cell_area_sq_km))
         
         unit_cell_area_sq_km = float(unit_cell_area_sq_km)
-        unit_cells_count = float(total_area) / unit_cell_area_sq_km
+        unit_cells_count = float(total_area_sq_km) / unit_cell_area_sq_km
 
-        training_point_count = get_selected_point_count(TrainPts)
+        training_point_count = get_selected_point_count(training_points)
 
         arcpy.AddMessage("%-20s %s" % ("# Training Sites:", training_point_count))
         arcpy.AddMessage("%-20s %s" % ("Unit Cell Area:", "{} km^2, Cells in area: {} ".format(unit_cell_area_sq_km, unit_cells_count)))
@@ -127,10 +125,12 @@ def log_wofe(self, parameters, messages):
             arcpy.AddError('Incorrect no. of training sites or unit cell area. TrainingPointsResult {}'.format(priorprob))
 
         arcpy.AddMessage("%-20s %0.6f" % ("Prior Probability:", priorprob))
-        arcpy.AddMessage("%-20s %s" % ("Training Points:", arcpy.Describe(TrainPts).catalogPath))
+        arcpy.AddMessage("%-20s %s" % ("Training Points:", arcpy.Describe(training_points).catalogPath))
         arcpy.AddMessage("%-20s %s" % ("Study Area Raster:", arcpy.Describe(arcpy.env.mask).catalogPath))
-        arcpy.AddMessage("%-20s %s" % ("Study Area Area:", str(total_area) + " km^2"))
+        arcpy.AddMessage("%-20s %s" % ("Study Area Area:", str(total_area_sq_km) + " km^2"))
         arcpy.AddMessage("")
+
+        return total_area_sq_km, training_point_count
     except arcpy.ExecuteError as e:
         if not all(e.args):
             arcpy.AddMessage("Calculate weights caught arcpy.ExecuteError: ")
