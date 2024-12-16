@@ -13,7 +13,7 @@ import arcsdm.calculateresponse_old
 import arcsdm.symbolize
 import arcsdm.roctool
 import arcsdm.acterbergchengci
-import arcsdm.rescale_raster;
+import arcsdm.rescale_raster
 from arcsdm.areafrequency import Execute
 import arcsdm.nninputfiles
 import arcsdm.grand_wofe_lr
@@ -27,7 +27,6 @@ from arcsdm.common import execute_tool
 
 import importlib
 from imp import reload
-
 
 
 class Toolbox(object):

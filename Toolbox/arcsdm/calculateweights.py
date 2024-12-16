@@ -7,6 +7,7 @@ import traceback
 from arcsdm.common import log_arcsdm_details
 from arcsdm.wofe_common import check_input_data, get_training_point_statistics, log_wofe
 
+
 ASCENDING = "Ascending"
 DESCENDING = "Descending"
 CATEGORICAL = "Categorical"

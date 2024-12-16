@@ -87,13 +87,13 @@ def Execute(self, parameters, messages):
         arcsdm.sdmvalues.appendSDMValues(UnitArea, Training_Points)
     # Local variables...
         
-    #Getting Study Area in counts and sq. kilometers
+    # Getting Study Area in counts and sq. kilometers
    
-        Counts = arcsdm.sdmvalues.getMaskSize(arcsdm.sdmvalues.getMapUnits(True));
-        gp.AddMessage("\n"+"="*21+" Starting calculate response "+"="*21)
+        Counts = arcsdm.sdmvalues.getMaskSize(arcsdm.sdmvalues.getMapUnits(True))
+        gp.AddMessage("\n" + "=" * 21 + " Starting calculate response " + "=" * 21)
         # CellSize = float(gp.CellSize)
         Study_Area = Counts / UnitArea # getMaskSize returns mask size in sqkm now - TODO: WHy is this divided with UnitArea? (Counts * CellSize * CellSize / 1000000.0) / UnitArea
-        gp.AddMessage( ("%-20s %s" % ("Study Area:",  str(Study_Area))))
+        gp.AddMessage(("%-20s %s" % ("Study Area:", str(Study_Area))))
 
         # Get number of training points
         numTPs = gp.GetCount_management(Training_Points)
@@ -110,7 +110,8 @@ def Execute(self, parameters, messages):
         gp.AddMessage("Input rasters: " + str(Input_Rasters))
         # These lines causing BUG. Commented because these are not nocessary (Unicamp 190718 / AL 200720) 
         #for i, s in enumerate(Input_Rasters):
-        #    Input_Rasters[i] = s.strip("'"); #arcpy.Describe(s.strip("'")).file
+        #    Input_Rasters[i] = s.strip("'")
+        # arcpy.Describe(s.strip("'")).file
         gp.AddMessage("Input rasters: " + str(Input_Rasters))
         
         # Get input weight tables
@@ -152,11 +153,11 @@ def Execute(self, parameters, messages):
             #++ Can't assume only a layer from ArcMap.
     ##        Output_Raster = os.path.join(gp.ScratchWorkspace,Input_Raster[:11] + "_W")
             ##Output_Raster = os.path.basename(Input_Raster)[:11] + "_W"
-            #outputrastername = (Input_Raster[:9]) + "_W"; 
+            #outputrastername = (Input_Raster[:9]) + "_W"
             #TODO: Do we need to consider if the file names collide with shapes? We got collision with featureclasses
             #desc = arcpy.Describe(Input_Raster)
 
-            Wts_Table = Wts_Tables[i]           
+            Wts_Table = Wts_Tables[i]
 
             # When workspace type is File System, Input Weight Table also must end with .dbf
             # If using GDB database, remove numbers and underscore from the beginning of the name (else block)
@@ -173,7 +174,7 @@ def Execute(self, parameters, messages):
             
             arcpy.AddMessage("Processing " + Input_Raster)
             
-            outputrastername = Input_Raster.replace(".","_")
+            outputrastername = Input_Raster.replace(".", "_")
 
             # If using GDB database, remove numbers and underscore from the beginning of the outputrastername
             outputrastername = outputrastername[:10] + "W"
@@ -237,7 +238,7 @@ def Execute(self, parameters, messages):
             # Delete old temp_raster
             if gp.exists(Temp_Raster):
                 arcpy.Delete_management(Temp_Raster)
-                gc.collect();
+                gc.collect()
                 arcpy.ClearWorkspaceCache_management()
 
                 gp.AddMessage("Deleted tempraster")
@@ -444,7 +445,7 @@ def Execute(self, parameters, messages):
             SUM_args_list = []
             for Std_Raster in Std_Rasters:
                 SUM_args_list.append("SQR(\"%s\")" % Std_Raster)
-            SUM_args = " + ".join(SUM_args_list);
+            SUM_args = " + ".join(SUM_args_list)
             gp.AddMessage("Sum_args: " + SUM_args + "\n" + "="*41)
        
             Constant = 1.0 / float(numTPs)
@@ -523,7 +524,7 @@ def Execute(self, parameters, messages):
         gp.addmessage("InExpression 4====> " + InExpression)
         try: 
             #gp.MultiOutputMapAlgebra_sa(InExpression)
-            #output_raster = arcpy.gp.RasterCalculator_sa(InExpression, Confidence);
+            #output_raster = arcpy.gp.RasterCalculator_sa(InExpression, Confidence)
             gp.SingleOutputMapAlgebra_sa(InExpression, Confidence)
             gp.SetParameterAsText(10,Confidence)
         except:

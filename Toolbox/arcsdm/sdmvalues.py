@@ -32,7 +32,7 @@ ToMetric = {
 debuglevel = 0
 
 # Global variable to store mask size, initially set to -1
-# globalmasksize = -1
+globalmasksize = -1
 
 def testdebugfile():
     """

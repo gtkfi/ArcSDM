@@ -1,17 +1,12 @@
 
 import arcpy
-import gc
 import importlib
-import math
 import os
 import sys
-import traceback
 
-import arcsdm.sdmvalues
 import arcsdm.wofe_common
-import arcsdm.workarounds_93
 
-from arcsdm.wofe_common import check_input_data
+from arcsdm.wofe_common import check_input_data, log_wofe
 
 
 def Execute(self, parameters, messages):
@@ -24,6 +19,12 @@ def Execute(self, parameters, messages):
         training_point_feature = parameters[2].valueAsText
         is_ignore_missing_data_selected = parameters[3].value
         nodata_value = parameters[4].value
+        unit_cell_area_sq_km = parameters[5].value
+        output_pprb_raster = parameters[6].valueAsText
+        output_std_raster = parameters[7].valueAsText
+        output_md_variance = parameters[8].valueAsText
+        output_total_stddev = parameters[9].valueAsText
+        output_confidence_raster = parameters[10].valueAsText
 
         evidence_rasters = evidence_rasters.split(";")
         weights_tables = weights_tables.split(";")
@@ -39,11 +40,40 @@ def Execute(self, parameters, messages):
         # TODO: use the env Cell Size instead. not all of the evidence rasters necessarily have the same cell size
         # TODO: evidence rasters should be resampled to env Cell Size?
         evidence_cellsize = arcpy.Describe(evidence_rasters[0]).MeanCellWidth
-        
-        # TODO: apply mask
-        study_area_sq_km = 0.0
-        study_area_cell_count = 0.0
 
+        total_area_sq_km_from_mask, training_point_count = log_wofe(unit_cell_area_sq_km, training_point_feature)
+        arcpy.AddMessage(f"Input evidence rasters: {evidence_rasters}")
+
+        workspace_type = arcpy.Describe(arcpy.env.workspace).workspaceType
+
+        # TODO: check that the order of the evidence rasters and the associated weights tables matches, e.g. by checking the number of classes
+
+        i = 0
+
+        while i < len(evidence_rasters):
+            input_raster = evidence_rasters[i]
+            weights_table = weights_tables[i]
+
+            arcpy.AddMessage(f"Processing evidence layer {input_raster} and weights table {weights_table}")
+
+            if workspace_type == "FileSystem":
+                if not weights_table.endswith(".dbf"):
+                    weights_table += ".dbf"
+            else:
+                wtsbase = os.path.basename(weights_table)
+                while len(wtsbase) > 0 and (wtsbase[:1] <= "9" or wtsbase[:1] == "_"):
+                    wtsbase = wtsbase[1:]
+                weights_table = os.path.dirname(weights_table) + "\\" + wtsbase
+            
+            output_raster_name = input_raster.replace(".", "_")
+            output_raster_name = output_raster_name[:10] + "W"
+            if workspace_type != "FileSystem":
+                while len(output_raster_name) > 0 and (output_raster_name[:1] <= "9" or output_raster_name[:1] == "_"):
+                    output_raster_name = output_raster_name[1:]
+
+
+
+            i += 1
 
         
     except arcpy.ExecuteError:
