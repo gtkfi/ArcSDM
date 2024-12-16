@@ -26,6 +26,8 @@ def Execute(self, parameters, messages):
         output_total_stddev = parameters[9].valueAsText
         output_confidence_raster = parameters[10].valueAsText
 
+        # TODO: handle unique case somehow - is not generalizes, so cannot be used as input
+
         evidence_rasters = evidence_rasters.split(";")
         weights_tables = weights_tables.split(";")
 
@@ -65,6 +67,8 @@ def Execute(self, parameters, messages):
                     wtsbase = wtsbase[1:]
                 weights_table = os.path.dirname(weights_table) + "\\" + wtsbase
             
+
+
             # TODO: make sure this results in unique names
             output_raster_name = input_raster.replace(".", "_")
             output_raster_name = output_raster_name[:10] + "W"
@@ -74,6 +78,11 @@ def Execute(self, parameters, messages):
             
             tmp_W_raster = arcpy.CreateScratchName("", "", "RasterDataset", arcpy.env.scratchWorkspace)
             # arcpy.management.CopyRaster()
+
+            
+            # Note: the step in the old code where the mask gets used is the Lookup function
+            # TODO: go properly through the old code to see if mask should be applied earlier
+            # (it might affect the logic itself, and possibly the performance)
 
             i += 1
 

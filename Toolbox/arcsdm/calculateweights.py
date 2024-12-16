@@ -5,29 +5,19 @@ import sys
 import traceback
 
 from arcsdm.common import log_arcsdm_details
-from arcsdm.wofe_common import apply_mask_to_raster, check_input_data, get_training_point_statistics, log_wofe
+from arcsdm.wofe_common import (
+    apply_mask_to_raster,
+    check_input_data,
+    extract_layer_from_raster_band,
+    get_training_point_statistics,
+    log_wofe
+)
 
 
 ASCENDING = "Ascending"
 DESCENDING = "Descending"
 CATEGORICAL = "Categorical"
 UNIQUE = "Unique"
-
-
-def extract_layer_from_raster_band(evidence_layer, evidence_descr):
-    if evidence_descr.dataType == "RasterBand":
-        # Try to change RasterBand to RasterDataset
-        evidence1 = os.path.split(evidence_layer)
-        evidence2 = os.path.split(evidence1[0])
-        if (evidence1[1] == evidence2[1]) or (evidence1[1][:4] == "Band"):
-            new_evidence_layer = evidence1[0]
-            new_evidence_descr = arcpy.Describe(evidence_layer)
-            arcpy.AddMessage("Evidence Layer is now " + new_evidence_layer + " and its data type is " + new_evidence_descr.dataType)
-            return new_evidence_layer, new_evidence_descr
-        else:
-            arcpy.ExecuteError("ERROR: Data Type of Evidence Layer cannot be RasterBand, use Raster Dataset.")
-    else:
-        return evidence_layer, evidence_descr
 
 
 def calculate_weights_sq_km(pattern_tp_count, pattern_area_sq_km, unit_area_sq_km, tp_count, total_area_sq_km, class_category):

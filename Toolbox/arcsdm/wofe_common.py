@@ -230,3 +230,19 @@ def apply_mask_to_raster(evidence_raster, nodata_value=None):
         arcpy.management.Delete(masked_evidence_descr.catalogPath)
     
     return masked_evidence_raster
+
+
+def extract_layer_from_raster_band(evidence_layer, evidence_descr):
+    if evidence_descr.dataType == "RasterBand":
+        # Try to change RasterBand to RasterDataset
+        evidence1 = os.path.split(evidence_layer)
+        evidence2 = os.path.split(evidence1[0])
+        if (evidence1[1] == evidence2[1]) or (evidence1[1][:4] == "Band"):
+            new_evidence_layer = evidence1[0]
+            new_evidence_descr = arcpy.Describe(evidence_layer)
+            arcpy.AddMessage("Evidence Layer is now " + new_evidence_layer + " and its data type is " + new_evidence_descr.dataType)
+            return new_evidence_layer, new_evidence_descr
+        else:
+            raise ValueError("ERROR: Data Type of Evidence Layer cannot be RasterBand, use Raster Dataset.")
+    else:
+        return evidence_layer, evidence_descr

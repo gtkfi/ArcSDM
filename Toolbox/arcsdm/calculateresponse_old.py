@@ -479,7 +479,8 @@ def Execute(self, parameters, messages):
                 MDRasters = rasterList
                 try:
                     MDVariance = parameters[8].valueAsText #gp.GetParameterAsText(8)
-                    if gp.exists(MDVariance): arcpy.Delete_management(MDVariance)
+                    if gp.exists(MDVariance):
+                        arcpy.Delete_management(MDVariance)
                     #<== Tool DOES NOT EXIST = FAIL
                     #gp.MissingDataVariance_sdm(rasterList,PostProb,MDVariance)
                     arcsdm.missingdatavar_func.MissingDataVariance(gp,rasterList,PostProb,MDVariance)
@@ -518,7 +519,7 @@ def Execute(self, parameters, messages):
         #PostProb_StdRL = gp.describe(Total_Std).catalogpath
         Confidence = parameters[10].valueAsText #gp.GetParameterAsText(10)
         #InExpression = PostProbRL + " / " + PostProb_StdRL
-        InExpression = "%s / %s" %(PostProb,PostProb_Std)  # PreARcGis pro
+        InExpression = "%s / %s" %(PostProb, PostProb_Std)  # PreARcGis pro
         #InExpression = '"%s" / "%s"' %(PostProbRL,PostProb_StdRL)
         #gp.AddMessage("InExpression = " + str(InExpression))
         gp.addmessage("InExpression 4====> " + InExpression)

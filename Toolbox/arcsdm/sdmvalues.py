@@ -85,7 +85,7 @@ def getMaskSize(mapUnits):
             return globalmasksize
         desc = arcpy.Describe(arcpy.env.mask)
 
-        if desc.dataType == "RasterLayer" or desc.dataType == "RasterBand":
+        if desc.dataType in ["RasterLayer", "RasterDataset", "RasterBand"]:
             if not str(arcpy.env.cellSize).replace('.', '', 1).replace(',', '', 1).isdigit():
                 arcpy.AddMessage("*" * 50)
                 arcpy.AddError("ERROR: Cell Size must be numeric when mask is raster. Check Environments!")
