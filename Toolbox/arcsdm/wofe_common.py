@@ -1,40 +1,9 @@
 import arcpy
-import numpy as np
 import os
 import sys
 import traceback
 
 from arcsdm.common import select_features_by_mask
-
-
-def get_output_map_units(silent=False):
-    """
-    Get the map units from the output coordinate system.
-    """
-    try:
-        ocs = arcpy.env.outputCoordinateSystem
-        if not ocs:
-            if not silent:
-                arcpy.AddWarning("Output coordinate system not set - defaulting mapunit to meter")
-            return "meter"
-        if ocs.type == 'Projected':
-            return ocs.linearUnitName
-        elif ocs.type == 'Geographic':
-            return ocs.angularUnitName
-        else:
-            return None
-    except arcpy.ExecuteError as error:
-        if not all(error.args):
-            arcpy.AddMessage("SDMValues caught arcpy.ExecuteError: ")
-            args = error.args[0]
-            args.split('\n')
-            arcpy.AddError(args)
-        raise
-    except:
-        tb = sys.exc_info()[2]
-        errors = traceback.format_exc()
-        arcpy.AddError(errors)
-
 
 
 def get_study_area_size_sq_km():
