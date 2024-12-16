@@ -57,16 +57,6 @@ def dwrite(message):
     if debuglevel > 0 or debug > 0:
         arcpy.AddMessage("Debug: " + message)
 
-def execute(self, parameters, messages):
-    """
-    Obsolete function to execute the tool. Needs refactoring.
-    """
-    dwrite("Starting sdmvalues")
-    TrainingSites = parameters[0].valueAsText
-    Unitarea = float(parameters[1].value)
-    appendSDMValues(Unitarea, TrainingSites)
-    arcpy.AddMessage("\n" + "=" * 40)
-    arcpy.AddMessage("\n")
 
 # Old
 def getPriorProb(TrainPts, unitCell, mapUnits):

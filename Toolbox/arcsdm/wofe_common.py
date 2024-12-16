@@ -3,7 +3,22 @@ import os
 import sys
 import traceback
 
-from arcsdm.common import select_features_by_mask
+from arcsdm.common import log_arcsdm_details, select_features_by_mask
+
+
+def execute(self, parameters, messages):
+    try:
+        training_site_feature = parameters[0].valueAsText
+        unit_cell_area_sq_km = parameters[1].value
+        
+        log_arcsdm_details()
+        log_wofe(unit_cell_area_sq_km, training_site_feature)
+        arcpy.AddMessage("\n" + "=" * 40)
+    except arcpy.ExecuteError:
+        arcpy.AddError(arcpy.GetMessages(2))
+    except Exception:
+        e = sys.exc_info()[1]
+        arcpy.AddError(e.args[0])
 
 
 def get_study_area_size_sq_km():

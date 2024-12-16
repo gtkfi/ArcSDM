@@ -570,40 +570,34 @@ class NeuralNetworkInputFiles(object):
         #wait_for_debugger(15);
         arcsdm.nninputfiles.execute(self, parameters, messages)
         return
-        
-        
-class GetSDMValues(object):                
-    def __init__(self):
-        """Define the tool (tool name is the name of the class)."""
-        self.label = "Get SDM parameters"
-        self.description = "This tool is used to view the Environment and SDM modeling parameters that have been set by the user. All of the values reported by this tool must be set to values specific to the model to be made. Using the ESRI default values will cause SDM to fail. If the Environment is not completely set, then an error message stating \"Improper SDM setup\" will occur. The successful running of this tool does not assure that the setup is correct; only that the default values have been changed. See the Environment Settings section of the Help file for Calculate Weights for the details."
 
-        self.canRunInBackground = False
-        self.category = "Utilities"
+
+class GetSDMValues(object):
+    def __init__(self):
+        self.label = "Log WofE details"
+        self.description = "This tool is used to view details related to the the training site and study area for Weights of Evidence."
+        self.canRunInBackground = True
+        self.category = "Weights of Evidence"
 
     def getParameterInfo(self):
-        """Define parameter definitions"""
-               
+        param_training_sites_feature = arcpy.Parameter(
+            displayName="Training sites",
+            name="training_sites",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Input"
+        )
         
-        paramTrainingSites = arcpy.Parameter(
-        displayName="Training sites",
-        name="training_sites",
-        datatype="GPFeatureLayer",
-        parameterType="Required",
-        direction="Input")
-
-        
-        
-        paramUnitArea = arcpy.Parameter(
-        displayName="Unit area (km2)",
-        name="Unit_Area__sq_km_",
-        datatype="GPDouble",
-        parameterType="Required",
-        direction="Input")
-        paramUnitArea.value = "1"
-        
+        param_unit_cell_area = arcpy.Parameter(
+            displayName="Unit area (km2)",
+            name="Unit_Area__sq_km_",
+            datatype="GPDouble",
+            parameterType="Required",
+            direction="Input"
+        )
+        param_unit_cell_area.value = "1"
                                   
-        params = [paramTrainingSites, paramUnitArea]
+        params = [param_training_sites_feature, param_unit_cell_area]
         return params
 
     def isLicensed(self):    
@@ -631,14 +625,12 @@ class GetSDMValues(object):
         """The source code of the tool."""
         #3.4
         try:
-            importlib.reload (arcsdm.sdmvalues)
-        except :
-            reload(arcsdm.sdmvalues);
-        #messages.AddMessage("Waiting for debugger")
-        #wait_for_debugger(15);
-        arcsdm.sdmvalues.execute(self, parameters, messages)
-        return
-                                                             
+            importlib.reload(arcsdm.wofe_common)
+        except:
+            pass
+
+        arcsdm.wofe_common.execute(self, parameters, messages)
+        return                                                       
         
         
 class AreaFrequencyTable(object):
