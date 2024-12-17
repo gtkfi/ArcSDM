@@ -70,13 +70,13 @@ def Execute(self, parameters, messages):
     
         ''' Parameters '''
         
-        Evidence = parameters[0].valueAsText #gp.GetParameterAsText(0)
-        Wts_Tables = parameters[1].valueAsText #gp.GetParameterAsText(1)
-        Training_Points = parameters[2].valueAsText #gp.GetParameterAsText(2)
+        Evidence = parameters[0].valueAsText # gp.GetParameterAsText(0)
+        Wts_Tables = parameters[1].valueAsText # gp.GetParameterAsText(1)
+        Training_Points = parameters[2].valueAsText # gp.GetParameterAsText(2)
         trainingDescr = arcpy.Describe(Training_Points)
         trainingCoord = trainingDescr.spatialReference.name
-        IgnoreMsgData = parameters[3].value #gp.GetParameter(3)
-        MissingDataValue = parameters[4].value #gp.GetParameter(4)
+        IgnoreMsgData = parameters[3].value # gp.GetParameter(3)
+        MissingDataValue = parameters[4].value # gp.GetParameter(4)
         
         if IgnoreMsgData: # for nodata argument to CopyRaster tool
             NoDataArg = MissingDataValue
@@ -85,10 +85,8 @@ def Execute(self, parameters, messages):
         UnitArea = parameters[5].value # gp.GetParameter(5)
         
         arcsdm.sdmvalues.appendSDMValues(UnitArea, Training_Points)
-    # Local variables...
         
-    # Getting Study Area in counts and sq. kilometers
-   
+        # Getting Study Area in counts and sq. kilometers
         Counts = arcsdm.sdmvalues.getMaskSize(arcsdm.sdmvalues.getMapUnits(True))
         gp.AddMessage("\n" + "=" * 21 + " Starting calculate response " + "=" * 21)
         # CellSize = float(gp.CellSize)
@@ -291,14 +289,14 @@ def Execute(self, parameters, messages):
         
         # This used to be comma separated, now +
         Input_Data_Str = ' + '.join('"{0}"'.format(w) for w in Wts_Rasters)
-        arcpy.AddMessage(" Input_data_str: " + Input_Data_Str)
-        Constant = math.log(Prior_prob/(1.0 - Prior_prob))
+        arcpy.AddMessage("Input_data_str: " + Input_Data_Str)
+        Constant = math.log(Prior_prob / (1.0 - Prior_prob))
         
         if len(Wts_Rasters) == 1:
             InExpressionPLOG = "%s + %s" % (Constant, Input_Data_Str)
         else:
             InExpressionPLOG = "%s + (%s)" % (Constant, Input_Data_Str)
-        gp.AddMessage(" InexpressionPlog: " + InExpressionPLOG)
+        gp.AddMessage("InexpressionPlog: " + InExpressionPLOG)
 
     ##    PostLogit = os.path.join(gp.Workspace, OutputPrefix + "_PLOG")
     ##    try:
@@ -326,7 +324,6 @@ def Execute(self, parameters, messages):
             #InExpression = "%s = Exp(%s) / (1.0 + Exp(%s))" %(PostProb, InExpressionPLOG, InExpressionPLOG)
             InExpression = "Exp(%s) / (1.0 + Exp(%s))" % (InExpressionPLOG, InExpressionPLOG)
             gp.AddMessage("InExpression = " + str(InExpression))
-            #gp.addmessage("InExpression 1 ====> "  + InExpression)
             # Fix: This is obsolete
             #gp.MultiOutputMapAlgebra_sa(InExpression)
             gp.AddMessage("Postprob: " + PostProb)
@@ -366,7 +363,7 @@ def Execute(self, parameters, messages):
             Wts_Table = Wts_Tables[i]
             # If using non gdb database, lets add .dbf
             # If using GDB database, remove numbers and underscore from the beginning of the name (else block)
-            if (wsdesc.workspaceType == "FileSystem"):
+            if wsdesc.workspaceType == "FileSystem":
                 if not(Wts_Table.endswith('.dbf')):
                     Wts_Table += ".dbf"
             else:
@@ -432,7 +429,7 @@ def Execute(self, parameters, messages):
             Std_Rasters.append(Output_Raster)
             gp.AddMessage(Output_Raster)  
            
-        gp.AddMessage("\nCreating Post Probability STD Raster...\n"+"="*41)
+        gp.AddMessage("\nCreating Post Probability STD Raster...\n" + "=" * 41)
         #SQRT(SUM(SQR(kbgeol2_STD), SQR(kjenks_Std), SQR(rclssb2_Std)))
         PostProb_Std = parameters[7].valueAsText # gp.GetParameterAsText(7)
         
@@ -446,11 +443,11 @@ def Execute(self, parameters, messages):
             for Std_Raster in Std_Rasters:
                 SUM_args_list.append("SQR(\"%s\")" % Std_Raster)
             SUM_args = " + ".join(SUM_args_list)
-            gp.AddMessage("Sum_args: " + SUM_args + "\n" + "="*41)
+            gp.AddMessage("Sum_args: " + SUM_args + "\n" + "=" * 41)
        
             Constant = 1.0 / float(numTPs)
             ##InExpression = "SQRT(SQR(%s) * (%s + SUM(%s)))" % (PostProb, Constant, SUM_args)
-            InExpression = "SQRT(SQR(%s) * (%s + SUM(%s)))" % (PostProb, Constant, SUM_args) # Pre ARcGis pro
+            InExpression = "SQRT(SQR(%s) * (%s + SUM(%s)))" % (PostProb, Constant, SUM_args) # Pre ArcGIS Pro
             #InExpression = "SquareRoot(Square(\"%s\") * (%s +(%s)))" % (PostProb, Constant, SUM_args)
             gp.AddMessage("InExpression = " + str(InExpression))
         #SQRT(SUM(SQR(rclssb2_md_S),SQR(kbgeol2_md_S)))
@@ -483,7 +480,7 @@ def Execute(self, parameters, messages):
                         arcpy.Delete_management(MDVariance)
                     #<== Tool DOES NOT EXIST = FAIL
                     #gp.MissingDataVariance_sdm(rasterList,PostProb,MDVariance)
-                    arcsdm.missingdatavar_func.MissingDataVariance(gp,rasterList,PostProb,MDVariance)
+                    arcsdm.missingdatavar_func.MissingDataVariance(gp, rasterList, PostProb, MDVariance)
                     Total_Std = parameters[9].valueAsText # gp.GetParameterAsText(9)
                     InExpression = 'SQRT(SUM(SQR(%s),%s))' % (PostProb_Std, MDVariance)
                     # OBsolete, replaced with raster calc
@@ -521,8 +518,7 @@ def Execute(self, parameters, messages):
         #InExpression = PostProbRL + " / " + PostProb_StdRL
         InExpression = "%s / %s" %(PostProb, PostProb_Std)  # PreARcGis pro
         #InExpression = '"%s" / "%s"' %(PostProbRL,PostProb_StdRL)
-        #gp.AddMessage("InExpression = " + str(InExpression))
-        gp.addmessage("InExpression 4====> " + InExpression)
+        gp.AddMessage("InExpression 4====> " + InExpression)
         try: 
             #gp.MultiOutputMapAlgebra_sa(InExpression)
             #output_raster = arcpy.gp.RasterCalculator_sa(InExpression, Confidence)

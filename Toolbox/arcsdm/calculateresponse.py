@@ -14,6 +14,12 @@ def Execute(self, parameters, messages):
     # Make sure imported modules are refreshed if the toolbox is refreshed.
     importlib.reload(arcsdm.wofe_common)
     try:
+        arcpy.env.overwriteOutput = True
+        arcpy.AddMessage("Setting overwriteOutput to True")
+
+        arcpy.SetLogHistory(True)
+        arcpy.AddMessage("Setting LogHistory to True")
+
         evidence_rasters = parameters[0].valueAsText
         weights_tables = parameters[1].valueAsText
         training_point_feature = parameters[2].valueAsText
@@ -44,6 +50,10 @@ def Execute(self, parameters, messages):
         evidence_cellsize = arcpy.Describe(evidence_rasters[0]).MeanCellWidth
 
         total_area_sq_km_from_mask, training_point_count = log_wofe(unit_cell_area_sq_km, training_point_feature)
+        area_cell_count = total_area_sq_km_from_mask / unit_cell_area_sq_km
+        prior_probability = float(training_point_count) / area_cell_count
+
+        arcpy.AddMessage("%-20s %s"% ("Prior probability:" , str(prior_probability)))
         arcpy.AddMessage(f"Input evidence rasters: {evidence_rasters}")
 
         workspace_type = arcpy.Describe(arcpy.env.workspace).workspaceType
