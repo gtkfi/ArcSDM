@@ -1309,21 +1309,7 @@ class CalculateWeights(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        # arcpy.AddMessage(f"param 0: {parameters[0].valueAsText}")
-        # input_evidence_raster = arcsdm.calculateweights.InputEvidenceRaster(parameters[0].valueAsText)
-        # input_training_feature = arcsdm.calculateweights.InputTrainingDataFeature(parameters[2].valueAsText)
-        # weights_calculator = arcsdm.calculateweights.WeightsCalculator(
-        #     input_evidence_raster,
-        #     input_training_feature,
-        #     parameters[3].valueAsText,
-        #     parameters[4].valueAsText,
-        #     parameters[6].value
-        # )
-        # weights_calculator.calculate_weights()
-        # TODO: remove after testing is done
-        importlib.reload(arcsdm.calculateweights)
-        arcsdm.calculateweights.Calculate(self, parameters, messages)
-        # execute_tool(arcsdm.calculateweights.Calculate, self, parameters, messages)
+        execute_tool(arcsdm.calculateweights.Calculate, self, parameters, messages)
         return
 
 
