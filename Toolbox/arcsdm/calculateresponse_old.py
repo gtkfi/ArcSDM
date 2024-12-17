@@ -60,7 +60,7 @@ def Execute(self, parameters, messages):
         except:
             importlib.reload(arcsdm.sdmvalues)
             importlib.reload(arcsdm.workarounds_93)
-        # Create the Geoprocessor object
+
         # Todo: Refactor to arcpy.
         import arcgisscripting
         gp = arcgisscripting.create()
@@ -103,13 +103,7 @@ def Execute(self, parameters, messages):
 
         # Get input evidence rasters
         Input_Rasters = Evidence.split(";")
-        
-        # Process things and removve grouplayer names including EXTRA ' ' symbols around spaced grouplayer name
-        gp.AddMessage("Input rasters: " + str(Input_Rasters))
-        # These lines causing BUG. Commented because these are not nocessary (Unicamp 190718 / AL 200720) 
-        #for i, s in enumerate(Input_Rasters):
-        #    Input_Rasters[i] = s.strip("'")
-        # arcpy.Describe(s.strip("'")).file
+
         gp.AddMessage("Input rasters: " + str(Input_Rasters))
         
         # Get input weight tables
@@ -127,12 +121,7 @@ def Execute(self, parameters, messages):
         # For each input_raster create a weights raster from the raster and its weights table.
         mdidx = 0
 
-        # Method selection: 0 = ArcGIS Pro & FileSystem, 1 = all other  
         wsdesc = arcpy.Describe(gp.workspace)
-        method = 1
-        if str(arcpy.GetInstallInfo()['ProductName']) == "ArcGISPro" and wsdesc.workspaceType == "FileSystem":
-            method = 0
-        arcpy.AddMessage("Method = " + str(method))
 
         ''' Weight rasters '''
         
@@ -146,14 +135,6 @@ def Execute(self, parameters, messages):
             if inputCoord != trainingCoord:
                 arcpy.AddError("ERROR: Coordinate System of Input Raster is " + inputCoord + " and Training points it is " + trainingCoord + ". These must be same.")
                 raise
-
-            #++ Needs to be able to extract input raster name from full path.
-            #++ Can't assume only a layer from ArcMap.
-    ##        Output_Raster = os.path.join(gp.ScratchWorkspace,Input_Raster[:11] + "_W")
-            ##Output_Raster = os.path.basename(Input_Raster)[:11] + "_W"
-            #outputrastername = (Input_Raster[:9]) + "_W"
-            #TODO: Do we need to consider if the file names collide with shapes? We got collision with featureclasses
-            #desc = arcpy.Describe(Input_Raster)
 
             Wts_Table = Wts_Tables[i]
 
@@ -179,7 +160,7 @@ def Execute(self, parameters, messages):
             if wsdesc.workspaceType != "FileSystem":
                 while len(outputrastername) > 0 and (outputrastername[:1] <= "9" or outputrastername[:1] == "_"):
                     outputrastername = outputrastername[1:]
-            #outputrastername = desc.nameString + "_W2"
+
             # Create _W raster
             Output_Raster = gp.CreateScratchName(outputrastername, '', 'rst', gp.scratchworkspace)
             
@@ -187,23 +168,8 @@ def Execute(self, parameters, messages):
             i += 1
             
             dwrite("WtsTable is " + Wts_Table)
-            #Wts_Table = gp.Describe(Wts_Table).CatalogPath
-            ## >>>>> Section replaced by join and lookup below >>>>>
-            ##        try:
-            ##            gp.CreateRaster_sdm(Input_Raster, Wts_Table, "CLASS", "WEIGHT", Output_Raster, IgnoreMsgData , MissingDataValue)
-            ##        except:
-            ##            gp.AddError(gp.getMessages(2))
-            ##            raise
-            ##        else:
-            ##            gp.AddWarning(gp.getMessages(1))
-            ##            gp.AddMessage(gp.getMessages(0))
-            ## <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-            #<==RDB Updated code
-            #Same as CreateRaster above
-            #++ Removed try: finally: statment as logic did not create any added effect.
-            #++ only forced the remove join but what happens if join fails?        
-            #++ Need to create in-memory Raster Layer for Join
+     
+            # Need to create in-memory Raster Layer for Join
             # Check for unsigned integer raster; cannot have negative missing data
             if NoDataArg != '#' and gp.describe(Input_Raster).pixeltype.upper().startswith('U'):
                 NoDataArg2 = '#'
@@ -212,23 +178,14 @@ def Execute(self, parameters, messages):
             # Create new rasterlayer from input raster -> Result RasterLayer
             RasterLayer = "OutRas_lyr"
 
-            if method == 0:
-                arcpy.MakeRasterLayer_management(Input_Raster, RasterLayer)
+            arcpy.MakeRasterLayer_management(Input_Raster, RasterLayer)
 
-            #++ AddJoin requires and input layer or tableview not Input Raster Dataset.
+            # AddJoin requires and input layer or tableview not Input Raster Dataset.
             # Join result layer with weights table
             dwrite("Layer and Rasterlayer: " + Input_Raster + ", " + RasterLayer)
 
-            if method == 0:
-                arcpy.AddJoin_management(RasterLayer, "VALUE", Wts_Table, "CLASS")
-            # This is where it crashes on ISsue 44!https://github.com/gtkfi/ArcSDM/issues/44
-            #return
-            
-            # These are born in wrong place when the scratch workspace is filegeodatabase
-            #Temp_Raster = os.path.join(arcpy.env.scratchFolder,'temp_raster')
-            # Note! ScratchFolder doesn't seem to work            
-            #Note Scratch these:
-            #Temp_Raster = os.path.join(arcpy.env.scratchWorkspace,'temp_raster')
+            arcpy.AddJoin_management(RasterLayer, "VALUE", Wts_Table, "CLASS")
+
             Temp_Raster = gp.CreateScratchName('tmp_rst', '', 'rst', gp.scratchworkspace)
             dwrite("Temp_Raster=" + Temp_Raster)
             dwrite("Wts_Table=" + Wts_Table)
@@ -242,32 +199,11 @@ def Execute(self, parameters, messages):
                 gp.AddMessage("Deleted tempraster")
             
             # Copy created and joined raster to temp_raster
-            if method == 0:
-                arcpy.CopyRaster_management(RasterLayer, Temp_Raster, '#', '#', NoDataArg2)
-            else:
-                arcpy.CopyRaster_management(Input_Raster, Temp_Raster, '#', '#', NoDataArg2)
-                gp.JoinField_management(Temp_Raster, 'Value', Wts_Table, 'CLASS')
+            arcpy.CopyRaster_management(RasterLayer, Temp_Raster, '#', '#', NoDataArg2)
             arcpy.AddMessage("Output_Raster: " + Output_Raster)
-            
-            #gp.Lookup_sa(Temp_Raster,"WEIGHT",Output_Raster)
-            # This doesn't work in ArcGis Pro
             
             outras = arcpy.sa.Lookup(Temp_Raster,"WEIGHT")
             outras.save(Output_Raster)
-            
-            #return
-            #gp.addwarning(gp.getmessages())
-            # ISsue 44 fix
-            #arcpy.ClearWorkspaceCache_management()
-            #arcpy.Delete_management(RasterLayer)
-            
-            #++ Optionally you can remove join but not necessary because join is on the layer
-            #++ Better to just delete layer
-    ##        #++ get name of join from the input table (without extention)
-    ##        join = os.path.splitext(os.path.basename(Wts_Table))
-    ##        join_name = join[0]
-    ##        gp.RemoveJoin_management(RasterLayer,join_name)
-            #<==
             
             if not gp.Exists(Output_Raster):
                 gp.AddError( " " + Output_Raster + " does not exist.")
@@ -283,7 +219,6 @@ def Execute(self, parameters, messages):
             arcpy.AddMessage(" ") # Cycle done - add ONE linefeed
         
         # Get Post Logit Raster
-        ''' Post Logit Raster '''
         
         gp.AddMessage("\nGetting Post Logit raster...\n" + "=" * 41)
         
@@ -311,28 +246,25 @@ def Execute(self, parameters, messages):
 
         # Get Post Probability Raster
         
-        gp.AddMessage("\nCreating Post Probability Raster...\n"+"="*41)
+        gp.AddMessage("\nCreating Post Probability Raster...\n" + "=" * 41)
         try:
             #pass
             #PostLogitRL = os.path.join(gp.Workspace, "PostLogitRL")
             #gp.MakeRasterLayer_management(PostLogit, PostLogitRL)
             #InExpression = "EXP(%s) / ( 1.0 + EXP(%s))" %(PostLogitRL, PostLogitRL)
             PostProb = parameters[6].valueAsText #gp.GetParameterAsText(6)
-            ##InExpression = "EXP(%s) / (1.0 + EXP(%s))" %(InExpressionPLOG, InExpressionPLOG)
             
-            # Pre arcgis pro expression
-            #InExpression = "%s = Exp(%s) / (1.0 + Exp(%s))" %(PostProb, InExpressionPLOG, InExpressionPLOG)
             InExpression = "Exp(%s) / (1.0 + Exp(%s))" % (InExpressionPLOG, InExpressionPLOG)
             gp.AddMessage("InExpression = " + str(InExpression))
             # Fix: This is obsolete
             #gp.MultiOutputMapAlgebra_sa(InExpression)
             gp.AddMessage("Postprob: " + PostProb)
             #output_raster = gp.RasterCalculator(InExpression, PostProb)
-            #output_raster.save(postprob)            
+            #output_raster.save(postprob)
             gp.SingleOutputMapAlgebra_sa(InExpression, PostProb)
             # Pro/10 this needs to be done differently....
             #output_raster = arcpy.sa.RasterCalculator(InExpression, PostProb)
-            #output_raster.save(postprob)            
+            #output_raster.save(postprob)
             
             gp.SetParameterAsText(6, PostProb)
         except:
@@ -349,10 +281,8 @@ def Execute(self, parameters, messages):
         mdidx = 0
         for Input_Raster in Input_Rasters:
             arcpy.AddMessage(" Processing " + Input_Raster)
-            #++ Needs to be able to extract input raster name from full path.
-            #++ Can't assume only a layer from ArcMap.
-            ##Output_Raster = Input_Raster[:11] + "_S"
-            ##Output_Raster = os.path.basename(Input_Raster)[:11] + "_S"  
+            # Needs to be able to extract input raster name from full path.
+            # Can't assume only a layer from ArcMap.
             stdoutputrastername = os.path.basename(Input_Raster[:9]).replace(".","_") + "S" # No . allowed in filegeodatgabases
             # If using GDB database, remove numbers and underscore from the beginning of the name (else block)
             if (wsdesc.workspaceType != "FileSystem"):
@@ -377,8 +307,8 @@ def Execute(self, parameters, messages):
     ##        gp.CreateRaster_sdm(Input_Raster, Wts_Table, "CLASS", "W_STD", Output_Raster, IgnoreMsgData, MissingDataValue)
             gp.AddMessage("OutputRaster:" + Output_Raster + " exists: " + str(gp.Exists(Output_Raster)))
             
-            #++ Same as calculate weight rasters above
-            #++ Need to create in-memory Raster Layer for Join
+            # Same as calculate weight rasters above
+            # Need to create in-memory Raster Layer for Join
             # Check for unsigned integer raster; cannot have negative missing data
             
             if NoDataArg != '#' and gp.describe(Input_Raster).pixeltype.upper().startswith('U'):
@@ -387,13 +317,11 @@ def Execute(self, parameters, messages):
                 NoDataArg2 = NoDataArg
             dwrite("NoDataArg = " + str(NoDataArg))
             RasterLayer = "OutRas_lyr2"
-            if method == 0:
-                gp.makerasterlayer(Input_Raster, RasterLayer)
-                #++ Input to AddJoin must be a Layer or TableView
-                gp.AddJoin_management(RasterLayer, "Value", Wts_Table, "CLASS")
-            # Folder doesn't seem to do the trick...
-            #Temp_Raster = os.path.join(arcpy.env.scratchFolder,'temp_raster')
-            #Temp_Raster = os.path.join(arcpy.env.scratchWorkspace,'temp_raster2')
+
+            gp.makerasterlayer(Input_Raster, RasterLayer)
+            # Input to AddJoin must be a Layer or TableView
+            gp.AddJoin_management(RasterLayer, "Value", Wts_Table, "CLASS")
+
             Temp_Raster = gp.CreateScratchName('tmp_rst', '', 'rst', gp.scratchworkspace)
             
             if gp.exists(Temp_Raster): 
@@ -401,31 +329,18 @@ def Execute(self, parameters, messages):
                 gc.collect()
                 arcpy.ClearWorkspaceCache_management()
                 gp.AddMessage("Tmprst deleted.")
+            
             dwrite("RasterLayer=" + RasterLayer)
             dwrite("Temp_Raster=" + Temp_Raster)
             
-            if method == 0:
-                arcpy.CopyRaster_management(RasterLayer, Temp_Raster, "#", "#", NoDataArg2)
-            else:
-                arcpy.CopyRaster_management(Input_Raster, Temp_Raster, "#", "#", NoDataArg2)
-                gp.JoinField_management(Temp_Raster, 'Value', Wts_Table, 'CLASS')
+            arcpy.CopyRaster_management(RasterLayer, Temp_Raster, "#", "#", NoDataArg2)
 
-            gp.Lookup_sa(Temp_Raster,"W_STD",Output_Raster)
-            # Issue 44 fix - no delete on temprasters
-            #arcpy.Delete_management(RasterLayer)
-
-            #++ Optionally you can remove join but not necessary because join is on the layer
-            #++ Better to just delete layer
-    ##        #get name of join from the input table (without extenstion)
-    ##        join = os.path.splitext(os.path.basename(Wts_Table))
-    ##        join_name = join[0]
-    ##        gp.RemoveJoin_management(RasterLayer,join_name)
-            #<==
+            gp.Lookup_sa(Temp_Raster, "W_STD", Output_Raster)
             
             if not gp.Exists(Output_Raster):
                 gp.AddError(Output_Raster + " does not exist.")
                 raise
-            #Output_Raster = gp.Describe(Output_Raster).CatalogPath
+            # Output_Raster = gp.Describe(Output_Raster).CatalogPath
             Std_Rasters.append(Output_Raster)
             gp.AddMessage(Output_Raster)  
            
@@ -436,7 +351,7 @@ def Execute(self, parameters, messages):
         
         #TODO: Figure out what this does!? TR
         #TODO: This is always false now
-        if len(Std_Rasters) == 1: #If there is only one input... ??? TR 
+        if len(Std_Rasters) == 1: # If there is only one input... ??? TR 
             InExpression = '"%s"' % (Std_Rasters[0])
         else:
             SUM_args_list = []
@@ -446,17 +361,17 @@ def Execute(self, parameters, messages):
             gp.AddMessage("Sum_args: " + SUM_args + "\n" + "=" * 41)
        
             Constant = 1.0 / float(numTPs)
-            ##InExpression = "SQRT(SQR(%s) * (%s + SUM(%s)))" % (PostProb, Constant, SUM_args)
-            InExpression = "SQRT(SQR(%s) * (%s + SUM(%s)))" % (PostProb, Constant, SUM_args) # Pre ArcGIS Pro
-            #InExpression = "SquareRoot(Square(\"%s\") * (%s +(%s)))" % (PostProb, Constant, SUM_args)
+
+            InExpression = "SQRT(SQR(%s) * (%s + SUM(%s)))" % (PostProb, Constant, SUM_args)
             gp.AddMessage("InExpression = " + str(InExpression))
+
         #SQRT(SUM(SQR(rclssb2_md_S),SQR(kbgeol2_md_S)))
         try:
             gp.addmessage("InExpression 2 ====> " + InExpression)
-            #gp.MultiOutputMapAlgebra_sa(InExpression)
-            #output_raster = gp.RasterCalculator(InExpression, PostProb_Std)
+            # gp.MultiOutputMapAlgebra_sa(InExpression)
+            # output_raster = gp.RasterCalculator(InExpression, PostProb_Std)
             gp.SingleOutputMapAlgebra_sa(InExpression, PostProb_Std)
-            gp.SetParameterAsText(7,PostProb_Std)
+            gp.SetParameterAsText(7, PostProb_Std)
         except:
             gp.AddError(gp.getMessages(2))
             raise
@@ -475,23 +390,17 @@ def Execute(self, parameters, messages):
     ##                MDRasters.append(str(rasterList[i]))
                 MDRasters = rasterList
                 try:
-                    MDVariance = parameters[8].valueAsText #gp.GetParameterAsText(8)
+                    MDVariance = parameters[8].valueAsText # gp.GetParameterAsText(8)
                     if gp.exists(MDVariance):
                         arcpy.Delete_management(MDVariance)
-                    #<== Tool DOES NOT EXIST = FAIL
-                    #gp.MissingDataVariance_sdm(rasterList,PostProb,MDVariance)
+
                     arcsdm.missingdatavar_func.MissingDataVariance(gp, rasterList, PostProb, MDVariance)
                     Total_Std = parameters[9].valueAsText # gp.GetParameterAsText(9)
                     InExpression = 'SQRT(SUM(SQR(%s),%s))' % (PostProb_Std, MDVariance)
-                    # OBsolete, replaced with raster calc
-                    #InExpression = "\"%s\" = SQRT(SUM(SQR(\"%s\"),\"%s\"))" % (Total_Std, PostProb_Std, MDVariance)
-                    #InExpression = "SquareRoot(SUM ( Square (\"%s\"),\"%s\"))" % ( PostProb_Std, MDVariance)
-                    #InExpression = "SquareRoot( Square (\"%s\") + \"%s\")" % ( PostProb_Std, MDVariance)
-                    #gp.SetParameterAsText(8,MDVariance)
+
                     gp.AddMessage("Calculating Total STD...")
                     gp.addmessage("InExpression 3 ====> " + InExpression)
-                    #gp.MultiOutputMapAlgebra_sa(InExpression)
-                    #output_raster = gp.RasterCalculator(InExpression, Total_Std)
+
                     gp.SingleOutputMapAlgebra_sa(InExpression, Total_Std)
                     gp.SetParameterAsText(9, Total_Std)
                 except:
@@ -507,23 +416,15 @@ def Execute(self, parameters, messages):
             Total_Std = PostProb_Std
         # Confidence is PP / sqrt(totVar)
         gp.AddMessage("\nCalculating Confidence...\n" + "=" * 41)
-        # PostProb1 / PP_Std
-    ##    PostProbRL = os.path.join( gp.Workspace, "PostProbRL")
-    ##    gp.MakeRasterLayer_management(PostProb,PostProbRL)
-        #PostProbRL = gp.describe(PostProb).catalogpath
-    ##    PostProb_StdRL = os.path.join( gp.Workspace, "PostProb_StdRL")
-    ##    gp.MakeRasterLayer_management(Total_Std, PostProb_StdRL)
-        #PostProb_StdRL = gp.describe(Total_Std).catalogpath
-        Confidence = parameters[10].valueAsText #gp.GetParameterAsText(10)
-        #InExpression = PostProbRL + " / " + PostProb_StdRL
-        InExpression = "%s / %s" %(PostProb, PostProb_Std)  # PreARcGis pro
-        #InExpression = '"%s" / "%s"' %(PostProbRL,PostProb_StdRL)
+
+        Confidence = parameters[10].valueAsText # gp.GetParameterAsText(10)
+        InExpression = "%s / %s" % (PostProb, PostProb_Std)
         gp.AddMessage("InExpression 4====> " + InExpression)
         try: 
             #gp.MultiOutputMapAlgebra_sa(InExpression)
             #output_raster = arcpy.gp.RasterCalculator_sa(InExpression, Confidence)
             gp.SingleOutputMapAlgebra_sa(InExpression, Confidence)
-            gp.SetParameterAsText(10,Confidence)
+            gp.SetParameterAsText(10, Confidence)
         except:
             gp.AddError(gp.getMessages(2))
             raise
