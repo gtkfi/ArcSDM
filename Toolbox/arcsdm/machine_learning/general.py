@@ -288,8 +288,11 @@ def prepare_data_for_ml(
             y = arcpy.RasterToNumPyArray(desc_label_resampled.catalogPath)
             
             # Mask nodata label nodata values
-            label_nodata_mask = y == y_nodata_value if y_nodata_value is not None else 0
-            
+            if y_nodata_value is not None:
+                label_nodata_mask = y == y_nodata_value
+            else:
+                label_nodata_mask = np.zeros_like(y, dtype=bool)
+
             # Truncate the larger array to match the smaller one
             min_size = min(nodata_mask.size, label_nodata_mask.size)
             nodata_mask = nodata_mask[:min_size]
