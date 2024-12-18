@@ -18,148 +18,102 @@
     Cell A2: [R1] = CON([rclssb2_md_w] == 0.0, [crap_pprb], 0.0)
     Cell E2: [UPDPOSTODDS] = CON([R2] == 0.0, 0.0, Exp(Ln([R2]) + [rclssb2_md_w]))
 """
-# Import system modules
 import sys, os, traceback
-from arcsdm.floatingrasterarray import FloatRasterSearchcursor    #AL 150620 added arcsdm.
+from arcsdm.floatingrasterarray import FloatRasterSearchcursor
+
 
 def TotalAreaFromCounts(gp,Input_Raster,CellSize):
-    #Weights raster is a float-type raster, so convert it to get Counts
-    #gp.AddMessage('TotalAreaFromCounts....'+str((Input_Raster)))
-    #IsNul_Wts = os.path.join(gp.scratchworkspace,("IsNul_"+os.path.basename(Input_Raster))[:13])
-    #if gp.exists(IsNul_Wts): gp.Delete(IsNul_Wts) 
-    IsNul_Wts = gp.createuniquename(("IsNul_"+os.path.basename(Input_Raster))[:11], gp.scratchworkspace)
+    IsNul_Wts = gp.createuniquename(("IsNul_" + os.path.basename(Input_Raster))[:11], gp.scratchworkspace)
     gp.IsNull_sa(Input_Raster, IsNul_Wts)
     rasrows = gp.SearchCursor(IsNul_Wts, 'Value = 0')
     rasrow = rasrows.Next()
     TotalCount = rasrow.Count
     return float(TotalCount) * CellSize * CellSize / 1000000
 
+
 def MissingDataVariance(gp, Wts_Rasters, PostProb, OutputName):
-##    #gp.AddMessage("Args: %s"%sys.argv)
-##    PostProb = gp.GetParameterAsText(1)
     CellSize = float(gp.CellSize)
-##    OutputName = gp.GetParameterAsText(2)
-##    #gp.AddMessage("Parameters: %s,%s,%s,%s" %(Wts_Rasters,OutputName,PostProb,CellSize))
 
     # Local variables...
 
     try:
-        #gp.AddMessage("Args: %s"%sys.argv)
-        #Local Variables.....
+        # Local Variables.....
         i = 0
         
-        #Create Total Missing Data Variance list
+        # Create Total Missing Data Variance list
         TotClsVars = []
 
-        #Loop throught Wts Rasters        
+        # Loop throught Wts Rasters
         for Wts_Raster0 in Wts_Rasters:
             gp.AddMessage("Missing data Variance for: " + Wts_Raster0)
             Wts_Raster = gp.describe(Wts_Raster0).catalogpath
-            TotDataArea = TotalAreaFromCounts(gp,Wts_Raster,CellSize)
+            TotDataArea = TotalAreaFromCounts(gp, Wts_Raster, CellSize)
             gp.AddMessage('TotDataArea = %.0f' % TotDataArea)
             
-            #Start MD Variance raster
-            #Get PostProb raster of MD cells
-            R1 = os.path.join(gp.ScratchWorkspace,"R1")
-            if gp.Exists(R1): gp.Delete(R1)
-            Exp0 = "CON(%s == 0.0,%s,0.0)" % (Wts_Raster,PostProb)
-            gp.AddMessage("R1="+Exp0)
-            gp.SingleOutputMapAlgebra_sa(Exp0,R1)
-            #Get PostODDs raster of MD cells
-            R2 = os.path.join(gp.ScratchWorkspace,"R2")
-            if gp.Exists(R2): gp.Delete(R2)
-            Exp = "%s / (1.0 - %s)" % (R1,R1)
-            gp.AddMessage("R2="+Exp)
-            gp.SingleOutputMapAlgebra_sa(Exp,R2)
+            # Start MD Variance raster
+            # Get PostProb raster of MD cells
+            R1 = os.path.join(gp.ScratchWorkspace, "R1")
+            if gp.Exists(R1):
+                gp.Delete(R1)
+            Exp0 = "CON(%s == 0.0,%s,0.0)" % (Wts_Raster, PostProb)
+            gp.AddMessage("R1=" + Exp0)
+            gp.SingleOutputMapAlgebra_sa(Exp0, R1)
+            # Get PostODDs raster of MD cells
+            R2 = os.path.join(gp.ScratchWorkspace, "R2")
+            if gp.Exists(R2):
+                gp.Delete(R2)
+            Exp = "%s / (1.0 - %s)" % (R1, R1)
+            gp.AddMessage("R2=" + Exp)
+            gp.SingleOutputMapAlgebra_sa(Exp, R2)
             gp.AddMessage("R2 exists: " + str(gp.Exists(R2)))
             
-            #Get Total Variance of MD cells
-            #Create total class variances list
+            # Get Total Variance of MD cells
+            # Create total class variances list
             ClsVars = []
 
-            #gp.AddMessage(gp.describe(Wts_Raster).DataType)
-    ##        if gp.describe(Wts_Raster).DataType == 'RasterLayer':
-    ##            theRaster = Wts_Raster
-    ##        else:
-    ##            theRaster = 'theRaster'
-    ##            gp.MakeRasterLayer(Wts_Raster,theRaster)
-            Wts_RasterRows = FloatRasterSearchcursor(gp,Wts_Raster)
+            Wts_RasterRows = FloatRasterSearchcursor(gp, Wts_Raster)
             j = 0
             """ Cannot be done by single raster; must generate a raster for each value """
             for Wts_RasterRow in Wts_RasterRows:
-                #???????????????????????????????????????????????
                 if Wts_RasterRow.Value == 0.0:
                     continue
-                #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-                ClsVar = str(os.path.join(gp.ScratchWorkspace,"ClsVar%s%s"%(i,j)))
+                ClsVar = str(os.path.join(gp.ScratchWorkspace, "ClsVar%s%s" % (i, j)))
                 j += 1
-                if gp.Exists(ClsVar): gp.Delete(ClsVar)
-                #gp.AddMessage("Weight=%s" % Wts_RasterRow.Value)
-                Exp1 = 'CON(%s == 0.0,0.0,EXP(LN(%s) + %s))' % (R2,R2,Wts_RasterRow.Value)
+                if gp.Exists(ClsVar):
+                    gp.Delete(ClsVar)
+                Exp1 = 'CON(%s == 0.0,0.0,EXP(LN(%s) + %s))' % (R2, R2, Wts_RasterRow.Value)
                 Exp2 = "%s / (1 + %s)" % (Exp1,Exp1)
                 ClsArea = float(Wts_RasterRow.Count) * CellSize * CellSize / 1000000.0
-                #gp.AddMessage("Class Area=%s" % ClsArea)
-                Exp3 = "SQR(%s - %s) * (%s / %s)" % (Exp2,R1,ClsArea,TotDataArea)
-                #gp.AddMessage("ClsVar%s%s: "%(i,j) + Exp3)
-                gp.SingleOutputMapAlgebra_sa(Exp3,ClsVar)
-                #gp.AddMessage("Class Variance=%s" % ClsVar)
+                Exp3 = "SQR(%s - %s) * (%s / %s)" % (Exp2, R1, ClsArea, TotDataArea)
+                gp.SingleOutputMapAlgebra_sa(Exp3, ClsVar)
                 ClsVars.append(str(ClsVar)) # Save the class variance raster
 
             del Wts_RasterRows
-            #Sum the class variances
-            TotClsVar = os.path.join(gp.ScratchWorkspace,"TotClsVar%s"%i)
-            i+=1
-            if gp.Exists(TotClsVar): gp.Delete(TotClsVar)
+            # Sum the class variances
+            TotClsVar = os.path.join(gp.ScratchWorkspace, "TotClsVar%s" % i)
+            i += 1
+            if gp.Exists(TotClsVar):
+                gp.Delete(TotClsVar)
             Exp = "SUM%s" % str(tuple(ClsVars))
-            #gp.AddMessage("TotClsVar%s: "%i+Exp)
-            gp.SingleOutputMapAlgebra_sa(Exp,TotClsVar)
+            gp.SingleOutputMapAlgebra_sa(Exp, TotClsVar)
             TotClsVars.append(str(TotClsVar))
                
-        #Create Total Missing Data Variance raster and list
+        # Create Total Missing Data Variance raster and list
         else:
             if len(Wts_Rasters) > 0:
                 TotVarMD = OutputName
                 Exp = "SUM%s" % str(tuple(TotClsVars))
-                #gp.AddMessage(OutputName + ": " + Exp)
                 gp.SingleOutputMapAlgebra_sa(Exp, TotVarMD)
-                
-    #except Exception,Msg:  # This is invalid syntax #AL 150620
+
     except Exception:
-        # get the traceback object
         tb = sys.exc_info()[2]
-        # tbinfo contains the line number that the code failed on and the code from that line
         tbinfo = traceback.format_tb(tb)[0]
-        # concatenate information together concerning the error into a message string
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
             str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
-        # generate a message string for any geoprocessing tool errors
         msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"
         gp.AddError(msgs)
 
-        # return gp messages for use with a script tool
         gp.AddError(pymsg)
 
-        # print messages for use in Python/PythonWin
-        print (pymsg) #AL 150620 added parenthesis to both lines
-        print (msgs)
-
-if __name__ == "__main__":
-    # TEST SECTION
-    # Create the Geoprocessor object
-    import arcgisscripting
-    gp = arcgisscripting.create()
-
-    # Check out any necessary licenses
-    gp.CheckOutExtension("spatial")
-
-    # Load required toolboxes...
-
-    gp.OverwriteOutput = 1
-    
-    Wts_Rasters = gp.GetParameterAsText(0).split(';')
-    PostProb = gp.GetParameterAsText(1)
-    OutputName = gp.GetParameterAsText(2)
-    #gp.AddMessage("Parameters: %s,%s,%s,%s" %(Wts_Rasters,OutputName,PostProb))
-    MissingDataVariance(gp, Wts_Rasters, PostProb, OutputName)
-    gp.SetParameterAsText(2,OutputName)
-        
+        print(pymsg)
+        print(msgs)
