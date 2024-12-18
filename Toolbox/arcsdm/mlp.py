@@ -2,8 +2,6 @@ from numbers import Number
 
 import sys
 import arcpy
-import arcpy.da
-import joblib
 import numpy as np
 from typing import Literal, Optional, Sequence, Tuple
 from tensorflow import keras
@@ -250,32 +248,103 @@ def Execute_MLP_classifier(self, parameters, messages):
     try:
         input_rasters = parameters[0].valueAsText.split(';')
         target_labels = parameters[1].valueAsText
-        nodata_value = parameters[2].value
-        neurons = [int(n) for n in parameters[3].valueAsText.split(',')]
-        validation_split = float(parameters[4].value) if parameters[4].value else 0.2
-        validation_data = parameters[5].valueAsText if parameters[5].valueAsText else None
-        activation = parameters[6].valueAsText
-        output_neurons = parameters[7].value
-        last_activation = parameters[8].valueAsText
-        epochs = parameters[9].value
-        batch_size = int(parameters[10].value)
-        optimizer = parameters[11].valueAsText
-        learning_rate = float(parameters[12].value)
-        loss_function = parameters[13].valueAsText
-        dropout_rate = float(parameters[14].value) if parameters[14].value else None
-        early_stopping = parameters[15].value
-        es_patience = int(parameters[16].value)
-        metrics = parameters[17].valueAsText.split(',')
-        random_state = int(parameters[18].value) if parameters[18].value else None
-        output_file = parameters[19].valueAsText
+        X_nodata_value = parameters[2].value
+        y_nodata_value = parameters[3].value
+        neurons = [int(n) for n in parameters[4].valueAsText.split(',')]
+        validation_split = float(parameters[5].value) if parameters[5].value else 0.2
+        validation_data = parameters[6].valueAsText if parameters[6].valueAsText else None
+        activation = parameters[7].valueAsText
+        output_neurons = parameters[8].value
+        last_activation = parameters[9].valueAsText
+        epochs = parameters[10].value
+        batch_size = int(parameters[11].value)
+        optimizer = parameters[12].valueAsText
+        learning_rate = float(parameters[13].value)
+        loss_function = parameters[14].valueAsText
+        dropout_rate = float(parameters[15].value) if parameters[15].value else None
+        early_stopping = parameters[16].value
+        es_patience = int(parameters[17].value)
+        metrics = parameters[18].valueAsText.split(',')
+        random_state = int(parameters[19].value) if parameters[19].value else None
+        output_file = parameters[20].valueAsText
         
         arcpy.AddMessage("Starting MLP classifier training...")
         
-        X, y, _ = prepare_data_for_ml(input_rasters, target_labels, nodata_value)
+        X, y, _ = prepare_data_for_ml(input_rasters, target_labels, X_nodata_value, y_nodata_value)
 
         arcpy.AddMessage("Data preparation completed.")
 
         model, history = train_MLP_classifier(
+            X=X,
+            y=y,
+            neurons=neurons,
+            validation_split=validation_split,
+            validation_data=validation_data,
+            activation=activation,
+            output_neurons=output_neurons,
+            last_activation=last_activation,
+            epochs=epochs,
+            batch_size=batch_size,
+            optimizer=optimizer,
+            learning_rate=learning_rate,
+            loss_function=loss_function,
+            dropout_rate=dropout_rate,
+            early_stopping=early_stopping,
+            es_patience=es_patience,
+            metrics=metrics,
+            random_state=random_state,
+        )
+        
+        arcpy.AddMessage("="*5 + "Model training completed." + "="*5)
+        arcpy.AddMessage(f"Saving model to {output_file}.joblib")
+        arcpy.AddMessage(f"Model training history:")
+        arcpy.AddMessage(f"{history.history}")
+        
+        save_model(model, output_file)
+
+    # Return geoprocessing specific errors
+    except arcpy.ExecuteError:    
+        arcpy.AddError(arcpy.GetMessages(2))    
+
+    # Return any other type of error
+    except:
+        # By default any other errors will be caught here
+        e = sys.exc_info()[1]
+        print(e.args[0])
+
+
+def Execute_MLP_regressor(self, parameters, messages):
+    
+    try:
+        input_rasters = parameters[0].valueAsText.split(';')
+        target_labels = parameters[1].valueAsText
+        X_nodata_value = parameters[2].value
+        y_nodata_value = parameters[3].value
+        neurons = [int(n) for n in parameters[4].valueAsText.split(',')]
+        validation_split = float(parameters[5].value) if parameters[5].value else 0.2
+        validation_data = parameters[6].valueAsText if parameters[6].valueAsText else None
+        activation = parameters[7].valueAsText
+        output_neurons = parameters[8].value
+        last_activation = parameters[9].valueAsText
+        epochs = parameters[10].value
+        batch_size = int(parameters[11].value)
+        optimizer = parameters[12].valueAsText
+        learning_rate = float(parameters[13].value)
+        loss_function = parameters[14].valueAsText
+        dropout_rate = float(parameters[15].value) if parameters[15].value else None
+        early_stopping = parameters[16].value
+        es_patience = int(parameters[17].value)
+        metrics = parameters[18].valueAsText.split(',')
+        random_state = int(parameters[19].value) if parameters[19].value else None
+        output_file = parameters[20].valueAsText
+        
+        arcpy.AddMessage("Starting MLP classifier training...")
+        
+        X, y, _ = prepare_data_for_ml(input_rasters, target_labels, X_nodata_value, y_nodata_value)
+
+        arcpy.AddMessage("Data preparation completed.")
+
+        model, history = train_MLP_regressor(
             X=X,
             y=y,
             neurons=neurons,
@@ -393,10 +462,12 @@ def train_MLP_regressor(
         keras.utils.set_random_seed(random_state)
 
     # 2. Create and compile a sequential model
+    arcpy.AddMessage("Creating and compiling a sequential model...")
     model = keras.Sequential()
 
     model.add(keras.layers.Input(shape=(X.shape[1],)))
 
+    arcpy.AddMessage("Adding hidden layers...")
     for neuron in neurons:
         model.add(keras.layers.Dense(units=neuron, activation=activation))
 
@@ -405,15 +476,19 @@ def train_MLP_regressor(
 
     model.add(keras.layers.Dense(units=output_neurons, activation=last_activation))
 
+    arcpy.AddMessage("Compiling the model...")
     model.compile(
         optimizer=_keras_optimizer(optimizer, learning_rate=learning_rate),
         loss=loss_function,
         metrics=[_keras_metric(metric) for metric in metrics],
     )
-
+    
     # 3. Train the model
     # Early stopping callback
     callbacks = [keras.callbacks.EarlyStopping(monitor="val_loss", patience=es_patience)] if early_stopping else []
+    callbacks.append(ArcPyLoggingCallback(epochs))
+    
+    arcpy.AddMessage("Training the model...")
 
     history = model.fit(
         X,
@@ -425,4 +500,4 @@ def train_MLP_regressor(
         callbacks=callbacks,
     )
 
-    return model, history.history
+    return model, history

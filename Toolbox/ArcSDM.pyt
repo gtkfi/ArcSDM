@@ -4,6 +4,7 @@ import arcpy
 import arcsdm.feature_importance
 import arcsdm.sitereduction
 import arcsdm.logisticregression
+import arcsdm.logistic_regression_predict
 import arcsdm.calculateweights
 import arcsdm.categoricalreclass
 import arcsdm.categoricalmembership
@@ -39,6 +40,9 @@ class Toolbox(object):
         # List of tool classes associated with this toolbox
         self.tools = [PartitionNNInputFiles, CombineNNOutputFiles, NeuralNetworkOutputFiles, NeuralNetworkInputFiles, 
         CalculateWeightsTool,SiteReductionTool,CategoricalMembershipTool,
+        CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, FuzzyROC, FuzzyROC2, LogisticRegressionTool, Symbolize, 
+        ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues, GrandWofe, TrainMLPClassifierTool, 
+        TrainMLPRegressorTool, LogisticRegressionPredictTool, PCA]
         CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, FuzzyROC, FuzzyROC2, 
         LogisticRegressionTool, Symbolize, ROCTool, AgterbergChengCITest, AreaFrequencyTable, 
         GetSDMValues, GrandWofe, TrainMLPClassifierTool, PCA, Feature_Permutation]
@@ -1566,6 +1570,166 @@ class LogisticRegressionTool(object):
         
         #execute_tool(arcsdm.logisticregression.Execute, self, parameters, messages)
 
+class LogisticRegressionPredictTool(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Logistic Regression Prediction"
+        self.description = "Train and optionally validate a Logistic Regression classifier model using Sklearn."
+        self.canRunInBackground = False
+        self.category = "Prediction"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+
+        param_X = arcpy.Parameter(
+            displayName="Input Features",
+            name="X",
+            datatype=["GPRasterLayer"],
+            parameterType="Required",
+            multiValue=True,
+            direction="Input")
+
+        param_y = arcpy.Parameter(
+            displayName="Target Labels",
+            name="y",
+            datatype=["GPRasterLayer", "GPFeatureLayer"],
+            parameterType="Required",
+            direction="Input")
+        
+        param_X_nodata_value = arcpy.Parameter(
+            displayName="Input Feature NoData Value",
+            name="X_nodata_value",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
+        param_X_nodata_value.value = -99
+        
+        param_y_nodata_value = arcpy.Parameter(
+            displayName="Label NoData Value",
+            name="y_nodata_value",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
+
+        param_validation_method = arcpy.Parameter(
+            displayName="Validation Method",
+            name="validation_method",
+            datatype="GPString",
+            parameterType="Optional",
+            direction="Input"
+        )
+        param_validation_method.filter.list = ["split", "kfold_cv", "skfold_cv", "loo_cv", "none"]
+        param_validation_method.value = "split"
+
+        param_metrics = arcpy.Parameter(
+            displayName="Metrics",
+            name="metrics",
+            datatype="GPString",
+            parameterType="Optional",
+            direction="Input",
+            multiValue=True
+        )
+        param_metrics.filter.list = ["accuracy", "precision", "recall", "f1", "auc"]
+        param_metrics.value = ["accuracy"]
+
+        param_split_size = arcpy.Parameter(
+            displayName="Split Size",
+            name="split_size",
+            datatype="GPDouble",
+            parameterType="Optional",
+            direction="Input"
+        )
+        param_split_size.value = 0.2
+
+        param_cv_folds = arcpy.Parameter(
+            displayName="Number of CV Folds",
+            name="cv_folds",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input"
+        )
+        param_cv_folds.value = 5
+
+        param_penalty = arcpy.Parameter(
+            displayName="Penalty",
+            name="penalty",
+            datatype="GPString",
+            parameterType="Optional",
+            direction="Input"
+        )
+        param_penalty.filter.list = ["l1", "l2", "elasticnet", "none"]
+        param_penalty.value = "l2"
+
+        param_max_iter = arcpy.Parameter(
+            displayName="Maximum Iterations",
+            name="max_iter",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input"
+        )
+        param_max_iter.value = 100
+
+        param_solver = arcpy.Parameter(
+            displayName="Solver",
+            name="solver",
+            datatype="GPString",
+            parameterType="Optional",
+            direction="Input"
+        )
+        param_solver.filter.list = ["lbfgs", "liblinear", "newton-cg", "newton-cholesky", "sag", "saga"]
+        param_solver.value = "lbfgs"
+
+        param_verbose = arcpy.Parameter(
+            displayName="Verbose",
+            name="verbose",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input"
+        )
+        param_verbose.value = 0
+
+        param_random_state = arcpy.Parameter(
+            displayName="Random State",
+            name="random_state",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input"
+        )
+        param_random_state.value = None
+        
+        param_output_model = arcpy.Parameter(
+            displayName="Output Model",
+            name="output_model",
+            datatype="DEFile",
+            parameterType="Required",
+            direction="Output"
+        )
+        param_output_model.value = "output_model_log_res"
+
+        params = [
+            param_X, param_y, param_X_nodata_value, param_y_nodata_value, param_validation_method, param_metrics, param_split_size,
+            param_cv_folds, param_penalty, param_max_iter, param_solver, param_verbose, param_random_state,
+            param_output_model
+        ]
+        return params
+
+    def isLicensed(self):
+        """Set whether tool is licensed to execute."""
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal validation is performed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool parameter."""
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        execute_tool(arcsdm.logistic_regression_predict.Execute, self, parameters, messages)
+        return  
+
 class AgterbergChengCITest(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
@@ -1841,10 +2005,11 @@ class TrainMLPClassifierTool(object):
 
     def getParameterInfo(self):
         """Define parameter definitions"""
+
         param_X = arcpy.Parameter(
             displayName="Input Features",
             name="X",
-            datatype=["DEFeatureClass", "GPRasterLayer"],
+            datatype=["GPRasterLayer"],
             parameterType="Required",
             multiValue=True,
             direction="Input")
@@ -1852,17 +2017,24 @@ class TrainMLPClassifierTool(object):
         param_y = arcpy.Parameter(
             displayName="Target Labels",
             name="y",
-            datatype=["DEFeatureClass", "GPRasterLayer"],
+            datatype=["GPRasterLayer", "GPFeatureLayer"],
             parameterType="Required",
             direction="Input")
         
-        param_nodata_value = arcpy.Parameter(
-            displayName="NoData Value",
-            name="nodata_value",
+        param_X_nodata_value = arcpy.Parameter(
+            displayName="Input Feature NoData Value",
+            name="X_nodata_value",
             datatype="GPLong",
             parameterType="Optional",
             direction="Input")
-        param_nodata_value.value = -99
+        param_X_nodata_value.value = -99
+        
+        param_y_nodata_value = arcpy.Parameter(
+            displayName="Label NoData Value",
+            name="y_nodata_value",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
 
         param_neurons = arcpy.Parameter(
             displayName="Neurons per Layer. A comma separeted list of integers: e.g. 10,5,10",
@@ -1971,6 +2143,7 @@ class TrainMLPClassifierTool(object):
             datatype="GPBoolean",
             parameterType="Optional",
             direction="Input")
+        param_early_stopping.value = True
 
         param_es_patience = arcpy.Parameter(
             displayName="Early Stopping Patience",
@@ -2007,7 +2180,8 @@ class TrainMLPClassifierTool(object):
 
         params = [param_X,
                   param_y,
-                  param_nodata_value,
+                  param_X_nodata_value,
+                  param_y_nodata_value,
                   param_neurons,
                   param_validation_split,
                   param_validation_data,
@@ -2044,6 +2218,233 @@ class TrainMLPClassifierTool(object):
         """Execute the tool."""
         execute_tool(arcsdm.mlp.Execute_MLP_classifier, self, parameters, messages)
 
+class TrainMLPRegressorTool(object):
+    def __init__(self):
+        """Train a Multi-Layer Perceptron (MLP) regressor with the given parameters."""
+        self.label = "Train MLP Regressor"
+        self.description = "Train a Multi-Layer Perceptron (MLP) regressor with the given parameters."
+        self.canRunInBackground = False
+        self.category = "Prediction"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+
+        param_X = arcpy.Parameter(
+            displayName="Input Features",
+            name="X",
+            datatype=["GPRasterLayer"],
+            parameterType="Required",
+            multiValue=True,
+            direction="Input")
+
+        param_y = arcpy.Parameter(
+            displayName="Target Labels",
+            name="y",
+            datatype=["GPRasterLayer", "GPFeatureLayer"],
+            parameterType="Required",
+            direction="Input")
+        
+        param_X_nodata_value = arcpy.Parameter(
+            displayName="Input Feature NoData Value",
+            name="X_nodata_value",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
+        param_X_nodata_value.value = -99
+        
+        param_y_nodata_value = arcpy.Parameter(
+            displayName="Label NoData Value",
+            name="y_nodata_value",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
+
+        param_neurons = arcpy.Parameter(
+            displayName="Neurons per Layer. A comma separeted list of integers: e.g. 10,5,10",
+            name="neurons",
+            datatype="GPString",
+            parameterType="Required",
+            direction="Input")
+
+        param_validation_split = arcpy.Parameter(
+            displayName="Validation Split",
+            name="validation_split",
+            datatype="GPDouble",
+            parameterType="Optional",
+            direction="Input")
+        param_validation_split.value = 0.2
+
+        param_validation_data = arcpy.Parameter(
+            displayName="Validation Data",
+            name="validation_data",
+            datatype="GPTableView",
+            parameterType="Optional",
+            direction="Input")
+
+        param_activation = arcpy.Parameter(
+            displayName="Activation Function",
+            name="activation",
+            datatype="GPString",
+            parameterType="Required",
+            direction="Input")
+        param_activation.filter.type = "ValueList"
+        param_activation.filter.list = ["relu", "linear", "sigmoid", "tanh"]
+        param_activation.value = "relu"
+
+        param_output_neurons = arcpy.Parameter(
+            displayName="Output Neurons",
+            name="output_neurons",
+            datatype="GPLong",
+            parameterType="Required",
+            direction="Input")
+        param_output_neurons.value = 1
+
+        param_last_activation = arcpy.Parameter(
+            displayName="Last Layer Activation Function",
+            name="last_activation",
+            datatype="GPString",
+            parameterType="Required",
+            direction="Input")
+        param_last_activation.filter.type = "ValueList"
+        param_last_activation.filter.list = ["sigmoid", "softmax"]
+        param_last_activation.value = "sigmoid"
+
+        param_epochs = arcpy.Parameter(
+            displayName="Epochs",
+            name="epochs",
+            datatype="GPLong",
+            parameterType="Required",
+            direction="Input")
+        param_epochs.value = 50
+
+        param_batch_size = arcpy.Parameter(
+            displayName="Batch Size",
+            name="batch_size",
+            datatype="GPLong",
+            parameterType="Required",
+            direction="Input")
+        param_batch_size.value = 32
+
+        param_optimizer = arcpy.Parameter(
+            displayName="Optimizer",
+            name="optimizer",
+            datatype="GPString",
+            parameterType="Required",
+            direction="Input")
+        param_optimizer.filter.type = "ValueList"
+        param_optimizer.filter.list = ["adam", "adagrad", "rmsprop", "sdg"]
+        param_optimizer.value = "adam"
+
+        param_learning_rate = arcpy.Parameter(
+            displayName="Learning Rate",
+            name="learning_rate",
+            datatype="GPDouble",
+            parameterType="Required",
+            direction="Input")
+        param_learning_rate.value = 0.001
+
+        param_loss_function = arcpy.Parameter(
+            displayName="Loss Function",
+            name="loss_function",
+            datatype="GPString",
+            parameterType="Required",
+            direction="Input")
+        param_loss_function.filter.type = "ValueList"
+        param_loss_function.filter.list = ["mse", "mae", "hinge", "huber"]
+        param_loss_function.value = "mse"
+
+        param_dropout_rate = arcpy.Parameter(
+            displayName="Dropout Rate",
+            name="dropout_rate",
+            datatype="GPDouble",
+            parameterType="Optional",
+            direction="Input")
+
+        param_early_stopping = arcpy.Parameter(
+            displayName="Early Stopping",
+            name="early_stopping",
+            datatype="GPBoolean",
+            parameterType="Optional",
+            direction="Input")
+        param_early_stopping.value = True
+
+        param_es_patience = arcpy.Parameter(
+            displayName="Early Stopping Patience",
+            name="es_patience",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
+        param_es_patience.value = 5
+
+        param_metrics = arcpy.Parameter(
+            displayName="Validation Metrics",
+            name="validation_metrics",
+            datatype="GPString",
+            parameterType="Optional",
+            direction="Input")
+        param_metrics.filter.type = "ValueList"
+        param_metrics.filter.list = ["mse", "rmse", "mae", "r2"]
+        param_metrics.value = "mse"
+
+        param_random_state = arcpy.Parameter(
+            displayName="Random State",
+            name="random_state",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
+        
+        param_output_file = arcpy.Parameter(
+            displayName="Output Model File",
+            name="output_file",
+            datatype="DEFile",
+            parameterType="Required",
+            direction="Output")
+        param_output_file.value = "model"
+
+        params = [param_X,
+                  param_y,
+                  param_X_nodata_value,
+                  param_y_nodata_value,
+                  param_neurons,
+                  param_validation_split,
+                  param_validation_data,
+                  param_activation,
+                  param_output_neurons,
+                  param_last_activation,
+                  param_epochs,
+                  param_batch_size,
+                  param_optimizer,
+                  param_learning_rate,
+                  param_loss_function,
+                  param_dropout_rate,
+                  param_early_stopping,
+                  param_es_patience,
+                  param_metrics,
+                  param_random_state,
+                  param_output_file
+                ]
+        return params
+
+    def isLicensed(self):
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal validation is performed. This method is called whenever a parameter has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool parameter. This method is called after internal validation."""
+        return
+
+    def execute(self, parameters, messages):
+        """Execute the tool."""
+        execute_tool(arcsdm.mlp.Execute_MLP_regressor, self, parameters, messages)
     
 class PCA(object):
     def __init__(self):
