@@ -6,51 +6,50 @@ import sklearn.neural_network
 from typing import Optional, Sequence
 from sklearn.inspection import permutation_importance
 
-from utils.input_to_numpy_array import input_to_numpy_arrays
+from utils.input_to_numpy_array import read_and_stack_rasters
 
 def Execute(self, parameters, messages):
     """The source code of the tool."""
 
-    #try:
-        
-    model = parameters[0].valueAsText
-    input_data = parameters[1].valueAsText.split(';')
-    target_data = parameters[2].valueAsText.split(';')
-    feature_names = parameters[3].valueAsText.split(';')
-    n_repeats = parameters[4].value
-    random_state = parameters[5].value
-    output_table = parameters[6].valueAsText
+    try:     
+        model = parameters[0].valueAsText
+        input_data = parameters[1].valueAsText.split(';')
+        target_data = parameters[2].valueAsText.split(';')
+        feature_names = parameters[3].valueAsText.split(';')
+        n_repeats = parameters[4].value
+        random_state = parameters[5].value
+        output_table = parameters[6].valueAsText
 
-    input_as_arrays = input_to_numpy_arrays(input_data)
-    target_as_array = input_to_numpy_arrays(target_data)   
-    
-    stacked_array = np.stack(input_as_arrays, axis=0)
-
-    target_as_np_array = np.array(target_as_array)
-    
-    feature_importance, result = _evaluate_feature_importance(
-                                                            model, 
-                                                            stacked_array, 
-                                                            target_as_np_array, 
-                                                            feature_names, 
-                                                            n_repeats, 
-                                                            random_state)
-    
-    arcpy.da.NumPyArrayToTable(np.array(feature_importance.to_records(index=False)), output_table)
-    
-    arcpy.AddMessage('='*5 + ' Feature Importance finished' + '='*5)
-    
-    arcpy.AddMessage(f'Output table saved to: {output_table}')
-    
-    arcpy.AddMessage(f'Permutation importance:')
-    arcpy.AddMessage(result)
+        input_as_arrays = read_and_stack_rasters(input_data)
+        target_as_array = read_and_stack_rasters(target_data)   
         
-    '''except arcpy.ExecuteError:
+        stacked_array = np.stack(input_as_arrays, axis=0)
+
+        target_as_np_array = np.array(target_as_array)
+        
+        feature_importance, result = _evaluate_feature_importance(
+                                                                model, 
+                                                                stacked_array, 
+                                                                target_as_np_array, 
+                                                                feature_names, 
+                                                                n_repeats, 
+                                                                random_state)
+        
+        arcpy.da.NumPyArrayToTable(np.array(feature_importance.to_records(index=False)), output_table)
+        
+        arcpy.AddMessage('='*5 + ' Feature Importance finished' + '='*5)
+        
+        arcpy.AddMessage(f'Output table saved to: {output_table}')
+        
+        arcpy.AddMessage(f'Permutation importance:')
+        arcpy.AddMessage(result)
+        
+    except arcpy.ExecuteError:
         arcpy.AddError(arcpy.GetMessages(2)) 
     
     except:
         e = sys.exc_info()[1]
-        arcpy.AddError(e.args[0])'''
+        arcpy.AddError(e.args[0])
 
 def _evaluate_feature_importance(
     model: sklearn.base.BaseEstimator,
