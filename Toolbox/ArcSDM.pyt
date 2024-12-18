@@ -1,6 +1,7 @@
 import sys
 import arcpy
 
+import arcsdm.feature_importance
 import arcsdm.sitereduction
 import arcsdm.logisticregression
 import arcsdm.logistic_regression_predict
@@ -41,7 +42,9 @@ class Toolbox(object):
         CalculateWeightsTool,SiteReductionTool,CategoricalMembershipTool,
         CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, FuzzyROC, FuzzyROC2, LogisticRegressionTool, Symbolize, 
         ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues, GrandWofe, TrainMLPClassifierTool, 
-        TrainMLPRegressorTool, LogisticRegressionPredictTool, PCA]
+        TrainMLPRegressorTool, LogisticRegressionPredictTool, PCA, CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, FuzzyROC, FuzzyROC2, 
+        LogisticRegressionTool, Symbolize, ROCTool, AgterbergChengCITest, AreaFrequencyTable, 
+        GetSDMValues, GrandWofe, TrainMLPClassifierTool, PCA, Feature_Permutation]
 
 
 class GrandWofe(object):
@@ -2541,4 +2544,109 @@ class PCA(object):
     def execute(self, parameters, messages):
         """The source code of the tool."""
         execute_tool(arcsdm.pca.Execute, self, parameters, messages)
+        return
+
+class Feature_Permutation(object):
+    def __init__(self):
+        """Feature Permutation"""
+        self.label = "Feature Permutation (Raster)"
+        self.description = "Perform feature permutation on input rasters"
+        self.canRunInBackground = False
+        self.category = "Exploratory Analysis"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        
+        param_permutation_model = arcpy.Parameter(
+            displayName="Permutation Model",
+            name="permutation_model",
+            datatype="DEFile",
+            parameterType="Required",
+            direction="Input"
+        )
+        
+        param_input_data = arcpy.Parameter(
+            displayName="Input Layer(s)",
+            name="input_layers",
+            datatype=["GPRasterLayer", "GPRasterDataLayer"],
+            parameterType="Required",
+            direction="Input",
+            multiValue=True
+        )
+        
+        param_target_data = arcpy.Parameter(
+            displayName="Target Data",
+            name="target_data",
+            datatype=["GPRasterLayer", "GPRasterDataLayer"],
+            parameterType="Required",
+            direction="Input",
+        )
+        
+        param_feature_names = arcpy.Parameter(
+            displayName="Feature Names",
+            name="feature_names",
+            datatype="Field",
+            parameterType="Optional",
+            direction="Input"
+        )
+        param_feature_names.parameterDependencies = [param_input_data.name]
+        param_feature_names.value = "VALUE"
+
+        param_n_repeats = arcpy.Parameter(
+            displayName="Number of Permutations",
+            name="n_repeats",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input"
+        )
+        param_random_state = arcpy.Parameter(
+            displayName="Random State",
+            name="random_state",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input"
+        )
+
+        param_permutation_output = arcpy.Parameter(
+            displayName="Permutation Output",
+            name="permutation_output",
+            datatype="DETable",
+            parameterType="Required",
+            direction="Output"
+        )
+        param_permutation_output.value = 'permutation_output'
+
+        params = [param_permutation_model,
+                  param_input_data,
+                  param_target_data,
+                  param_feature_names,
+                  param_n_repeats,
+                  param_random_state,
+                  param_permutation_output,
+                ]
+        return params
+
+    def isLicensed(self):    
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False  # tool cannot be executed
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed.  This method is called whenever a parameter
+        has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter.  This method is called after internal validation."""
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        execute_tool(arcsdm.feature_importance.Execute, self, parameters, messages)
         return
