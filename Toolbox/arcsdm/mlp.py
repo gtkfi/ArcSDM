@@ -248,28 +248,29 @@ def Execute_MLP_classifier(self, parameters, messages):
     try:
         input_rasters = parameters[0].valueAsText.split(';')
         target_labels = parameters[1].valueAsText
-        nodata_value = parameters[2].value
-        neurons = [int(n) for n in parameters[3].valueAsText.split(',')]
-        validation_split = float(parameters[4].value) if parameters[4].value else 0.2
-        validation_data = parameters[5].valueAsText if parameters[5].valueAsText else None
-        activation = parameters[6].valueAsText
-        output_neurons = parameters[7].value
-        last_activation = parameters[8].valueAsText
-        epochs = parameters[9].value
-        batch_size = int(parameters[10].value)
-        optimizer = parameters[11].valueAsText
-        learning_rate = float(parameters[12].value)
-        loss_function = parameters[13].valueAsText
-        dropout_rate = float(parameters[14].value) if parameters[14].value else None
-        early_stopping = parameters[15].value
-        es_patience = int(parameters[16].value)
-        metrics = parameters[17].valueAsText.split(',')
-        random_state = int(parameters[18].value) if parameters[18].value else None
-        output_file = parameters[19].valueAsText
+        X_nodata_value = parameters[2].value
+        y_nodata_value = parameters[3].value
+        neurons = [int(n) for n in parameters[4].valueAsText.split(',')]
+        validation_split = float(parameters[5].value) if parameters[5].value else 0.2
+        validation_data = parameters[6].valueAsText if parameters[6].valueAsText else None
+        activation = parameters[7].valueAsText
+        output_neurons = parameters[8].value
+        last_activation = parameters[9].valueAsText
+        epochs = parameters[10].value
+        batch_size = int(parameters[11].value)
+        optimizer = parameters[12].valueAsText
+        learning_rate = float(parameters[13].value)
+        loss_function = parameters[14].valueAsText
+        dropout_rate = float(parameters[15].value) if parameters[15].value else None
+        early_stopping = parameters[16].value
+        es_patience = int(parameters[17].value)
+        metrics = parameters[18].valueAsText.split(',')
+        random_state = int(parameters[19].value) if parameters[19].value else None
+        output_file = parameters[20].valueAsText
         
         arcpy.AddMessage("Starting MLP classifier training...")
         
-        X, y, _ = prepare_data_for_ml(input_rasters, target_labels, nodata_value)
+        X, y, _ = prepare_data_for_ml(input_rasters, target_labels, X_nodata_value, y_nodata_value)
 
         arcpy.AddMessage("Data preparation completed.")
 
@@ -317,28 +318,29 @@ def Execute_MLP_regressor(self, parameters, messages):
     try:
         input_rasters = parameters[0].valueAsText.split(';')
         target_labels = parameters[1].valueAsText
-        nodata_value = parameters[2].value
-        neurons = [int(n) for n in parameters[3].valueAsText.split(',')]
-        validation_split = float(parameters[4].value) if parameters[4].value else 0.2
-        validation_data = parameters[5].valueAsText if parameters[5].valueAsText else None
-        activation = parameters[6].valueAsText
-        output_neurons = parameters[7].value
-        last_activation = parameters[8].valueAsText
-        epochs = parameters[9].value
-        batch_size = int(parameters[10].value)
-        optimizer = parameters[11].valueAsText
-        learning_rate = float(parameters[12].value)
-        loss_function = parameters[13].valueAsText
-        dropout_rate = float(parameters[14].value) if parameters[14].value else None
-        early_stopping = parameters[15].value
-        es_patience = int(parameters[16].value)
-        metrics = parameters[17].valueAsText.split(',')
-        random_state = int(parameters[18].value) if parameters[18].value else None
-        output_file = parameters[19].valueAsText
+        X_nodata_value = parameters[2].value
+        y_nodata_value = parameters[3].value
+        neurons = [int(n) for n in parameters[4].valueAsText.split(',')]
+        validation_split = float(parameters[5].value) if parameters[5].value else 0.2
+        validation_data = parameters[6].valueAsText if parameters[6].valueAsText else None
+        activation = parameters[7].valueAsText
+        output_neurons = parameters[8].value
+        last_activation = parameters[9].valueAsText
+        epochs = parameters[10].value
+        batch_size = int(parameters[11].value)
+        optimizer = parameters[12].valueAsText
+        learning_rate = float(parameters[13].value)
+        loss_function = parameters[14].valueAsText
+        dropout_rate = float(parameters[15].value) if parameters[15].value else None
+        early_stopping = parameters[16].value
+        es_patience = int(parameters[17].value)
+        metrics = parameters[18].valueAsText.split(',')
+        random_state = int(parameters[19].value) if parameters[19].value else None
+        output_file = parameters[20].valueAsText
         
         arcpy.AddMessage("Starting MLP classifier training...")
         
-        X, y, _ = prepare_data_for_ml(input_rasters, target_labels, nodata_value)
+        X, y, _ = prepare_data_for_ml(input_rasters, target_labels, X_nodata_value, y_nodata_value)
 
         arcpy.AddMessage("Data preparation completed.")
 
