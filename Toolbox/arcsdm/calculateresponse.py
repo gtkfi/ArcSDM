@@ -1,8 +1,10 @@
 
 import arcpy
 import importlib
+import math
 import os
 import sys
+import traceback
 
 import arcsdm.wofe_common
 
@@ -24,13 +26,17 @@ def Execute(self, parameters, messages):
         weights_tables = parameters[1].valueAsText
         training_point_feature = parameters[2].valueAsText
         is_ignore_missing_data_selected = parameters[3].value
-        nodata_value = parameters[4].value
+        missing_data_value = parameters[4].value
         unit_cell_area_sq_km = parameters[5].value
         output_pprb_raster = parameters[6].valueAsText
         output_std_raster = parameters[7].valueAsText
         output_md_variance = parameters[8].valueAsText
         output_total_stddev = parameters[9].valueAsText
         output_confidence_raster = parameters[10].valueAsText
+
+        nodata_value = missing_data_value
+        if is_ignore_missing_data_selected:
+            nodata_value = "#"
 
         # TODO: handle unique case somehow - is not generalizes, so cannot be used as input
 
@@ -51,17 +57,24 @@ def Execute(self, parameters, messages):
 
         total_area_sq_km_from_mask, training_point_count = log_wofe(unit_cell_area_sq_km, training_point_feature)
         area_cell_count = total_area_sq_km_from_mask / unit_cell_area_sq_km
-        prior_probability = float(training_point_count) / area_cell_count
+        prior_probability = float(str(training_point_count)) / area_cell_count
 
+        arcpy.AddMessage("\n" + "=" * 21 + " Starting calculate response " + "=" * 21)
         arcpy.AddMessage("%-20s %s"% ("Prior probability:" , str(prior_probability)))
         arcpy.AddMessage(f"Input evidence rasters: {evidence_rasters}")
 
         workspace_type = arcpy.Describe(arcpy.env.workspace).workspaceType
+        arcpy.AddMessage(f"Workspace type: {workspace_type}")
 
         # TODO: check that the order of the evidence rasters and the associated weights tables matches, e.g. by checking the number of classes
 
+        tmp_weights_rasters = []
+        tmp_std_rasters = []
+        tmp_rasters_with_missing_data = []
+
         i = 0
 
+        # Create Weight and Standard Deviation rasters
         while i < len(evidence_rasters):
             input_raster = evidence_rasters[i]
             weights_table = weights_tables[i]
@@ -77,29 +90,107 @@ def Execute(self, parameters, messages):
                     wtsbase = wtsbase[1:]
                 weights_table = os.path.dirname(weights_table) + "\\" + wtsbase
             
-
-
-            # TODO: make sure this results in unique names
-            output_raster_name = input_raster.replace(".", "_")
-            output_raster_name = output_raster_name[:10] + "W"
+            # TODO: check if shortening the name is necessary
+            # TODO: make sure these result in unique names if evidence rasters have similar names
+            tmp_W_raster_name = input_raster.replace(".", "_")
+            tmp_W_raster_name = tmp_W_raster_name[:10] + "W"
             if workspace_type != "FileSystem":
-                while len(output_raster_name) > 0 and (output_raster_name[:1] <= "9" or output_raster_name[:1] == "_"):
-                    output_raster_name = output_raster_name[1:]
+                while len(tmp_W_raster_name) > 0 and (tmp_W_raster_name[:1] <= "9" or tmp_W_raster_name[:1] == "_"):
+                    tmp_W_raster_name = tmp_W_raster_name[1:]
             
-            tmp_W_raster = arcpy.CreateScratchName("", "", "RasterDataset", arcpy.env.scratchWorkspace)
-            # arcpy.management.CopyRaster()
+            tmp_S_raster_name = input_raster.replace(".", "_")
+            tmp_S_raster_name = tmp_S_raster_name[:9] + "S"
+            if workspace_type != "FileSystem":
+                while len(tmp_S_raster_name) > 0 and (tmp_S_raster_name[:1] <= "9" or tmp_S_raster_name[:1] == "_"):
+                    tmp_S_raster_name = tmp_S_raster_name[1:]
 
+            # Check for unsigned integer raster - cannot have negative missing data
+            if (nodata_value != "#") and (arcpy.Describe(input_raster).pixelType.upper().startswith("U")):
+                nodata_value = "#"
+
+            # TODO: Join "WEIGHT" from weights_table to "Class" from input_raster
+            # TODO: Lookup "WEIGHT"
+            # TODO: Save as _W raster to scratch
+
+            #arcpy.management.Delete(os.path.join(arcpy.env.scratchWorkspace, "tmp_rst"))
             
+            # In-memory raster
+            arcpy.management.MakeRasterLayer(input_raster, "tmp_rst")
+            arcpy.management.AddJoin("tmp_rst", "VALUE", weights_table, "CLASS")
+
+            tmp_W_output_raster = arcpy.CreateScratchName(tmp_W_raster_name, "", "RasterDataset", arcpy.env.scratchWorkspace)
+            tmp_std_output_raster = arcpy.CreateScratchName(tmp_S_raster_name, "", "RasterDataset", arcpy.env.scratchWorkspace)
+
+            arcpy.management.CopyRaster("tmp_rst", tmp_W_output_raster, "#", "#", nodata_value)
+            arcpy.management.CopyRaster("tmp_rst", tmp_std_output_raster, "#", "#", nodata_value)
+
+            weight_lookup = arcpy.sa.Lookup(tmp_W_output_raster, "WEIGHT")
+            std_lookup = arcpy.sa.Lookup(tmp_std_output_raster, "W_STD")
+
             # Note: the step in the old code where the mask gets used is the Lookup function
             # TODO: go properly through the old code to see if mask should be applied earlier
             # (it might affect the logic itself, and possibly the performance)
+            weight_lookup.save(tmp_W_output_raster)
+            std_lookup.save(tmp_std_output_raster)
+
+            tmp_weights_rasters.append(tmp_W_output_raster)
+            tmp_std_rasters.append(tmp_std_output_raster)
+
+            if not is_ignore_missing_data_selected:
+                clause = "Class = %s" % missing_data_value
+                with arcpy.da.SearchCursor(weights_table, ["Class"], where_clause=clause) as cursor:
+                    for row in cursor:
+                        if row:
+                            tmp_rasters_with_missing_data.append(tmp_W_output_raster)
+                            break
 
             i += 1
 
+        arcpy.AddMessage("\Creating Post Probability Raster...\n" + "=" * 41)
+
+        variable_names = [f'"a{i}"' for i in range(len(tmp_weights_rasters))]
+        weights_sum_expression = " + ".join(i for i in variable_names)
+        prior_logit = math.log(prior_probability / (1.0 - prior_probability))
+
+        if len(tmp_weights_rasters) == 1:
+            posterior_logit_expression = "%s + %s" % (prior_logit, weights_sum_expression)
+        else:
+            posterior_logit_expression = "%s + (%s)" % (prior_logit, weights_sum_expression)
+        
+        arcpy.AddMessage(f"Variables: {variable_names}")
+        arcpy.AddMessage("Posterior logit expression: " + posterior_logit_expression)
+
+        posterior_probability_expression = "Exp(%s) / (1.0 + Exp(%s))" % (posterior_logit_expression, posterior_logit_expression)
+        
+        # NOTE: Conflicting info about the use of RasterCalculator in Esri's documentation
+        # According to a how-to article on raster calculation, RasterCalculator isn't intended for use in scripting environments.
+        # (See: https://support.esri.com/en-us/knowledge-base/how-to-perform-raster-calculation-using-arcpy-000022418)
+        # But the arcpy RasterCalculator page does not mention anything about this.
+        # (See: https://pro.arcgis.com/en/pro-app/latest/arcpy/spatial-analyst/raster-calculator.htm)
+        posterior_probability_result = arcpy.sa.RasterCalculator(tmp_weights_rasters, variable_names, posterior_probability_expression)
+        posterior_probability_result.save(output_pprb_raster)
+
+        arcpy.AddMessage("\nCreating Post Probability STD Raster...\n" + "=" * 41)
+        
+
+        arcpy.AddMessage("Deleting tmp rasters...")
+        for raster in tmp_weights_rasters:
+            arcpy.management.Delete(raster)
+        
+        for raster in tmp_std_rasters:
+            arcpy.management.Delete(raster)
         
     except arcpy.ExecuteError:
         arcpy.AddError(arcpy.GetMessages(2))
     except Exception:
-        e = sys.exc_info()[1]
-        print(e.args[0])
-        arcpy.AddError(e.args[0])
+        # e = sys.exc_info()[1]
+        # print(e.args[0])
+        # arcpy.AddError(e.args[0])
+        tb = sys.exc_info()[2]
+        tbinfo = traceback.format_tb(tb)[0]
+        pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
+            str(sys.exc_info()) + "\n"
+        msgs = "GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
+        arcpy.AddError(msgs)
+
+        arcpy.AddError(pymsg)

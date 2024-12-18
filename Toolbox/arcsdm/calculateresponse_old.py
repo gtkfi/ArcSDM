@@ -202,7 +202,7 @@ def Execute(self, parameters, messages):
             arcpy.CopyRaster_management(RasterLayer, Temp_Raster, '#', '#', NoDataArg2)
             arcpy.AddMessage("Output_Raster: " + Output_Raster)
             
-            outras = arcpy.sa.Lookup(Temp_Raster,"WEIGHT")
+            outras = arcpy.sa.Lookup(Temp_Raster, "WEIGHT")
             outras.save(Output_Raster)
             
             if not gp.Exists(Output_Raster):
@@ -421,8 +421,6 @@ def Execute(self, parameters, messages):
         InExpression = "%s / %s" % (PostProb, PostProb_Std)
         gp.AddMessage("InExpression 4====> " + InExpression)
         try: 
-            #gp.MultiOutputMapAlgebra_sa(InExpression)
-            #output_raster = arcpy.gp.RasterCalculator_sa(InExpression, Confidence)
             gp.SingleOutputMapAlgebra_sa(InExpression, Confidence)
             gp.SetParameterAsText(10, Confidence)
         except:
