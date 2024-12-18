@@ -42,8 +42,7 @@ class Toolbox(object):
         CalculateWeightsTool,SiteReductionTool,CategoricalMembershipTool,
         CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, FuzzyROC, FuzzyROC2, LogisticRegressionTool, Symbolize, 
         ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues, GrandWofe, TrainMLPClassifierTool, 
-        TrainMLPRegressorTool, LogisticRegressionPredictTool, PCA]
-        CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, FuzzyROC, FuzzyROC2, 
+        TrainMLPRegressorTool, LogisticRegressionPredictTool, PCA, CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponse, FuzzyROC, FuzzyROC2, 
         LogisticRegressionTool, Symbolize, ROCTool, AgterbergChengCITest, AreaFrequencyTable, 
         GetSDMValues, GrandWofe, TrainMLPClassifierTool, PCA, Feature_Permutation]
 
@@ -2550,7 +2549,7 @@ class PCA(object):
 class Feature_Permutation(object):
     def __init__(self):
         """Feature Permutation"""
-        self.label = "Feature Permutation"
+        self.label = "Feature Permutation (Raster)"
         self.description = "Perform feature permutation on input rasters"
         self.canRunInBackground = False
         self.category = "Exploratory Analysis"
@@ -2565,12 +2564,11 @@ class Feature_Permutation(object):
             parameterType="Required",
             direction="Input"
         )
-        param_permutation_model.value = r'C:/Users/plehtone/Documents/AIMEX_DEMODATA/testi/aaaaa'
         
         param_input_data = arcpy.Parameter(
             displayName="Input Layer(s)",
             name="input_layers",
-            datatype=["GPRasterLayer", "GPRasterDataLayer", "GPFeatureLayer"],
+            datatype=["GPRasterLayer", "GPRasterDataLayer"],
             parameterType="Required",
             direction="Input",
             multiValue=True
@@ -2579,7 +2577,7 @@ class Feature_Permutation(object):
         param_target_data = arcpy.Parameter(
             displayName="Target Data",
             name="target_data",
-            datatype=["GPRasterLayer", "GPRasterDataLayer", "GPFeatureLayer"],
+            datatype=["GPRasterLayer", "GPRasterDataLayer"],
             parameterType="Required",
             direction="Input",
         )
