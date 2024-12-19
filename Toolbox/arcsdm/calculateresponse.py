@@ -38,8 +38,6 @@ def Execute(self, parameters, messages):
         if is_ignore_missing_data_selected:
             nodata_value = "#"
 
-        # TODO: handle unique case somehow - is not generalizes, so cannot be used as input
-
         evidence_rasters = evidence_rasters.split(";")
         weights_tables = weights_tables.split(";")
 
@@ -93,13 +91,13 @@ def Execute(self, parameters, messages):
             # TODO: check if shortening the name is necessary
             # TODO: make sure these result in unique names if evidence rasters have similar names
             tmp_W_raster_name = input_raster.replace(".", "_")
-            tmp_W_raster_name = tmp_W_raster_name[:10] + "W"
+            tmp_W_raster_name = tmp_W_raster_name + "_W"
             if workspace_type != "FileSystem":
                 while len(tmp_W_raster_name) > 0 and (tmp_W_raster_name[:1] <= "9" or tmp_W_raster_name[:1] == "_"):
                     tmp_W_raster_name = tmp_W_raster_name[1:]
             
             tmp_S_raster_name = input_raster.replace(".", "_")
-            tmp_S_raster_name = tmp_S_raster_name[:9] + "S"
+            tmp_S_raster_name = tmp_S_raster_name + "_S"
             if workspace_type != "FileSystem":
                 while len(tmp_S_raster_name) > 0 and (tmp_S_raster_name[:1] <= "9" or tmp_S_raster_name[:1] == "_"):
                     tmp_S_raster_name = tmp_S_raster_name[1:]
@@ -107,12 +105,6 @@ def Execute(self, parameters, messages):
             # Check for unsigned integer raster - cannot have negative missing data
             if (nodata_value != "#") and (arcpy.Describe(input_raster).pixelType.upper().startswith("U")):
                 nodata_value = "#"
-
-            # TODO: Join "WEIGHT" from weights_table to "Class" from input_raster
-            # TODO: Lookup "WEIGHT"
-            # TODO: Save as _W raster to scratch
-
-            #arcpy.management.Delete(os.path.join(arcpy.env.scratchWorkspace, "tmp_rst"))
             
             # In-memory raster
             arcpy.management.MakeRasterLayer(input_raster, "tmp_rst")
@@ -146,9 +138,11 @@ def Execute(self, parameters, messages):
 
             i += 1
 
+        arcpy.AddMessage("Finished creating tmp rasters")
+
         arcpy.AddMessage("\Creating Post Probability Raster...\n" + "=" * 41)
 
-        variable_names = [f'"a{i}"' for i in range(len(tmp_weights_rasters))]
+        variable_names = [f'"e{i}"' for i in range(len(tmp_weights_rasters))]
         weights_sum_expression = " + ".join(i for i in variable_names)
         prior_logit = math.log(prior_probability / (1.0 - prior_probability))
 
@@ -160,18 +154,44 @@ def Execute(self, parameters, messages):
         arcpy.AddMessage(f"Variables: {variable_names}")
         arcpy.AddMessage("Posterior logit expression: " + posterior_logit_expression)
 
-        posterior_probability_expression = "Exp(%s) / (1.0 + Exp(%s))" % (posterior_logit_expression, posterior_logit_expression)
-        
+        posterior_probability_expression = "Float(Exp(%s) / (1.0 + Exp(%s)))" % (posterior_logit_expression, posterior_logit_expression)
+        arcpy.AddMessage(f"Posterior probability expression: {posterior_probability_expression}")
+
         # NOTE: Conflicting info about the use of RasterCalculator in Esri's documentation
         # According to a how-to article on raster calculation, RasterCalculator isn't intended for use in scripting environments.
         # (See: https://support.esri.com/en-us/knowledge-base/how-to-perform-raster-calculation-using-arcpy-000022418)
         # But the arcpy RasterCalculator page does not mention anything about this.
         # (See: https://pro.arcgis.com/en/pro-app/latest/arcpy/spatial-analyst/raster-calculator.htm)
-        posterior_probability_result = arcpy.sa.RasterCalculator(tmp_weights_rasters, variable_names, posterior_probability_expression)
+        posterior_probability_result = arcpy.sa.RasterCalculator(tmp_weights_rasters, variable_names, posterior_probability_expression, extent_type="UnionOf", cellsize_type="MinOf")
         posterior_probability_result.save(output_pprb_raster)
+
+        # Due to bit depth issue, the resulting raster has pixel depth 64 Bit
+        # See: https://community.esri.com/t5/arcgis-spatial-analyst-questions/controling-bit-depth-of-raster-in-fgdb-format/td-p/125850
 
         arcpy.AddMessage("\nCreating Post Probability STD Raster...\n" + "=" * 41)
         
+        if len(tmp_std_rasters) == 1:
+            # TODO: Just save the Std raster as is
+            pass
+        else:
+            std_input_rasters = [arcpy.Describe(output_pprb_raster).catalogPath] + [arcpy.Describe(s).catalogPath for s in tmp_std_rasters]
+
+            std_variable_names = [f'"e{i}"' for i in range(len(tmp_std_rasters))]
+            variable_names = ['"pprob"'] + std_variable_names
+            std_sum_expression = " + ".join(f'SQR({i})' for i in std_variable_names)
+            constant = 1.0 / float(str(training_point_count))
+            std_expression = 'SQRT(SQR("pprob") * (%s + SUM(%s)))' % (constant, std_sum_expression)
+            
+            arcpy.AddMessage(f"Posterior probability STD expression: {std_expression}")
+            arcpy.AddMessage(f"Input rasters: {std_input_rasters}")
+            arcpy.AddMessage(f"Variable names: {variable_names}")
+
+            # TODO: Continue
+            # Creating the Std raster isn't working at the moment.
+            # Possibly the issue is with the pixel depth and/or cell alignment of the posterior probability raster
+            # Complains about missing VAT, but that is unlikely to be the real issue.
+            std_result = arcpy.sa.RasterCalculator(std_input_rasters, variable_names, std_expression, extent_type="UnionOf", cellsize_type="MinOf")
+            std_result.save(output_std_raster)
 
         arcpy.AddMessage("Deleting tmp rasters...")
         for raster in tmp_weights_rasters:
@@ -183,9 +203,6 @@ def Execute(self, parameters, messages):
     except arcpy.ExecuteError:
         arcpy.AddError(arcpy.GetMessages(2))
     except Exception:
-        # e = sys.exc_info()[1]
-        # print(e.args[0])
-        # arcpy.AddError(e.args[0])
         tb = sys.exc_info()[2]
         tbinfo = traceback.format_tb(tb)[0]
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
