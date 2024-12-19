@@ -1,7 +1,6 @@
 import arcpy
 import os
 import sys
-import traceback
 
 from arcsdm.common import log_arcsdm_details, select_features_by_mask
 
@@ -12,7 +11,7 @@ def execute(self, parameters, messages):
         unit_cell_area_sq_km = parameters[1].value
         
         log_arcsdm_details()
-        log_wofe(unit_cell_area_sq_km, training_site_feature)
+        get_study_area_parameters(unit_cell_area_sq_km, training_site_feature)
         arcpy.AddMessage("\n" + "=" * 40)
     except arcpy.ExecuteError:
         arcpy.AddError(arcpy.GetMessages(2))
@@ -48,8 +47,6 @@ def get_study_area_size_sq_km():
         masked_area_sq_m = element_count * cell_size_sq_m
 
     elif desc.dataType in ["FeatureLayer", "FeatureClass", "ShapeFile"]:
-        geometry_field = desc.shapeFieldName
-
         with arcpy.da.SearchCursor(desc.catalogPath, ["SHAPE@AREA"]) as cursor:
             for row in cursor:
                 masked_area_sq_m += row[0]
@@ -81,59 +78,56 @@ def get_selected_point_count(point_feature):
     return point_count
 
 
-def log_wofe(unit_cell_area_sq_km, training_points):
+# Similar to old sdmvalues.appendSDMValues
+def get_study_area_parameters(unit_cell_area_sq_km, training_points):
     """
-    Log WofE parameters to Geoprocessor History.
+    Use the mask from the geoprocessing environment to calculate the total study area in km^2
+    and the total number of training points. Log WofE parameters to the geoprocessor history.
+
+    Args:
+        unit_cell_area_sq_km:
+            Unit cell area in km^2.
+        training_points:
+            Point geometry feature of training points to use for WofE.
+    
+    Returns:
+        A tuple of:
+            Total area of the study area in km^2. 
+            Number of training points within the study area.
+
     """
-    try:
-        arcpy.AddMessage("\n" + "=" * 10 + " WofE parameters " + "=" * 10)
+    arcpy.AddMessage("\n" + "=" * 10 + " WofE parameters " + "=" * 10)
 
-        total_area_sq_km = get_study_area_size_sq_km()
-        arcpy.AddMessage("%-20s %s" % ("Mask size (km^2):", str(total_area_sq_km)))
-        arcpy.AddMessage("%-20s %s" % ("Unit Cell Size:", unit_cell_area_sq_km))
-        
-        unit_cell_area_sq_km = float(unit_cell_area_sq_km)
-        unit_cells_count = float(total_area_sq_km) / unit_cell_area_sq_km
+    total_area_sq_km = get_study_area_size_sq_km()
+    arcpy.AddMessage("%-20s %s" % ("Mask size (km^2):", str(total_area_sq_km)))
+    arcpy.AddMessage("%-20s %s" % ("Unit Cell Size:", unit_cell_area_sq_km))
+    
+    unit_cell_area_sq_km = float(unit_cell_area_sq_km)
+    unit_cells_count = float(total_area_sq_km) / unit_cell_area_sq_km
 
-        training_point_count = get_selected_point_count(training_points)
+    training_point_count = get_selected_point_count(training_points)
 
-        arcpy.AddMessage("%-20s %s" % ("# Training Sites:", training_point_count))
-        arcpy.AddMessage("%-20s %s" % ("Unit Cell Area:", "{} km^2, Cells in area: {} ".format(unit_cell_area_sq_km, unit_cells_count)))
+    arcpy.AddMessage("%-20s %s" % ("# Training Sites:", training_point_count))
+    arcpy.AddMessage("%-20s %s" % ("Unit Cell Area:", "{} km^2, Cells in area: {} ".format(unit_cell_area_sq_km, unit_cells_count)))
 
-        if unit_cells_count == 0:
-            arcpy.AddError("ERROR: 0 Cells in Area!")
+    if unit_cells_count == 0:
+        arcpy.AddError("ERROR: 0 Cells in Area!")
 
-        priorprob = float(str(training_point_count)) / float(unit_cells_count)
+    priorprob = float(str(training_point_count)) / float(unit_cells_count)
 
-        if not (0 < priorprob <= 1.0):
-            arcpy.AddError('Incorrect no. of training sites or unit cell area. TrainingPointsResult {}'.format(priorprob))
+    if not (0 < priorprob <= 1.0):
+        arcpy.AddError('Incorrect no. of training sites or unit cell area. TrainingPointsResult {}'.format(priorprob))
 
-        arcpy.AddMessage("%-20s %0.6f" % ("Prior Probability:", priorprob))
-        arcpy.AddMessage("%-20s %s" % ("Training Points:", arcpy.Describe(training_points).catalogPath))
-        arcpy.AddMessage("%-20s %s" % ("Study Area Raster:", arcpy.Describe(arcpy.env.mask).catalogPath))
-        arcpy.AddMessage("%-20s %s" % ("Study Area Area:", str(total_area_sq_km) + " km^2"))
-        arcpy.AddMessage("")
+    arcpy.AddMessage("%-20s %0.6f" % ("Prior Probability:", priorprob))
+    arcpy.AddMessage("%-20s %s" % ("Training Points:", arcpy.Describe(training_points).catalogPath))
+    arcpy.AddMessage("%-20s %s" % ("Study Area Raster:", arcpy.Describe(arcpy.env.mask).catalogPath))
+    arcpy.AddMessage("%-20s %s" % ("Study Area Area:", str(total_area_sq_km) + " km^2"))
+    arcpy.AddMessage("")
 
-        return total_area_sq_km, training_point_count
-    except arcpy.ExecuteError as e:
-        if not all(e.args):
-            arcpy.AddMessage("Calculate weights caught arcpy.ExecuteError: ")
-            args = e.args[0]
-            args.split('\n')
-            arcpy.AddError(args)
-        arcpy.AddMessage("-------------- END EXECUTION ---------------")
-        raise
-    except:
-        tb = sys.exc_info()[2]
-        tbinfo = traceback.format_tb(tb)[0]
-        arcpy.AddError(tbinfo)
-        if len(arcpy.GetMessages(2)) > 0:
-            msgs = "SDM GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
-            arcpy.AddError(msgs)
-        raise
+    return total_area_sq_km, training_point_count
 
 
-def check_input_data(evidence_rasters, training_point_feature):
+def check_wofe_inputs(evidence_rasters, training_point_feature):
     """
     Check that the coordinate system of all inputs match.
 
@@ -181,8 +175,8 @@ def check_input_data(evidence_rasters, training_point_feature):
             raise ValueError(f"Training data should have point geometry! Current geometry is {feature_description.shapeType}.")
 
 
-# Note: same purpose as ExtractValuesToPoints has in workarounds_93
-# But that one uses shapefile instead of gdb feature class
+# Note: same purpose as workarounds_93.ExtractValuesToPoints
+# But instead of a shapefile, use a gdb feature class
 def get_evidence_values_at_training_points(evidence_raster, training_point_feature):
     output_tmp_feature = arcpy.CreateScratchName("Extr", "Tmp", "FeatureClass", arcpy.env.scratchWorkspace)
     arcpy.sa.ExtractValuesToPoints(training_point_feature, evidence_raster, output_tmp_feature)
@@ -240,7 +234,7 @@ def extract_layer_from_raster_band(evidence_layer, evidence_descr):
         if (evidence1[1] == evidence2[1]) or (evidence1[1][:4] == "Band"):
             new_evidence_layer = evidence1[0]
             new_evidence_descr = arcpy.Describe(evidence_layer)
-            arcpy.AddMessage("Evidence Layer is now " + new_evidence_layer + " and its data type is " + new_evidence_descr.dataType)
+            arcpy.AddMessage(f"Evidence Layer is now {new_evidence_layer} and its data type is {new_evidence_descr.dataType}")
             return new_evidence_layer, new_evidence_descr
         else:
             raise ValueError("ERROR: Data Type of Evidence Layer cannot be RasterBand, use Raster Dataset.")

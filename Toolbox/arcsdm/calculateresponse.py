@@ -8,7 +8,7 @@ import traceback
 
 import arcsdm.wofe_common
 
-from arcsdm.wofe_common import check_input_data, log_wofe
+from arcsdm.wofe_common import check_wofe_inputs, get_study_area_parameters
 
 
 def Execute(self, parameters, messages):
@@ -46,14 +46,14 @@ def Execute(self, parameters, messages):
 
         # TODO: Add check for weights table columns depending on weights type (unique weights shouldn't have generalized columns)
 
-        check_input_data(evidence_rasters, training_point_feature)
+        check_wofe_inputs(evidence_rasters, training_point_feature)
 
         # TODO: check that all evidence rasters have the same cell size?
         # TODO: use the env Cell Size instead. not all of the evidence rasters necessarily have the same cell size
         # TODO: evidence rasters should be resampled to env Cell Size?
         evidence_cellsize = arcpy.Describe(evidence_rasters[0]).MeanCellWidth
 
-        total_area_sq_km_from_mask, training_point_count = log_wofe(unit_cell_area_sq_km, training_point_feature)
+        total_area_sq_km_from_mask, training_point_count = get_study_area_parameters(unit_cell_area_sq_km, training_point_feature)
         area_cell_count = total_area_sq_km_from_mask / unit_cell_area_sq_km
         prior_probability = float(str(training_point_count)) / area_cell_count
 

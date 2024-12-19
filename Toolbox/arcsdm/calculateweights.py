@@ -7,10 +7,10 @@ import traceback
 from arcsdm.common import log_arcsdm_details
 from arcsdm.wofe_common import (
     apply_mask_to_raster,
-    check_input_data,
+    check_wofe_inputs,
     extract_layer_from_raster_band,
     get_training_point_statistics,
-    log_wofe
+    get_study_area_parameters
 )
 
 
@@ -196,7 +196,7 @@ def Calculate(self, parameters, messages):
         evidence_descr = arcpy.Describe(evidence_raster)
         evidence_raster, evidence_descr = extract_layer_from_raster_band(evidence_raster, evidence_descr)
 
-        check_input_data([evidence_raster], training_sites_feature)
+        check_wofe_inputs([evidence_raster], training_sites_feature)
         
         # If using non gdb database, lets add .dbf
         # If using GDB database, remove numbers and underscore from the beginning of the Weights table name (else block)
@@ -216,7 +216,7 @@ def Calculate(self, parameters, messages):
         # Evidence raster preparation is now done
 
         log_arcsdm_details()
-        total_area_sq_km_from_mask, training_point_count = log_wofe(unit_cell_area_sq_km, training_sites_feature)
+        total_area_sq_km_from_mask, training_point_count = get_study_area_parameters(unit_cell_area_sq_km, training_sites_feature)
 
         arcpy.AddMessage("=" * 10 + " Calculate weights " + "=" * 10)
         arcpy.AddMessage("%-20s %s (%s)" % ("Creating table: ", output_weights_table, selected_weight_type))
@@ -307,7 +307,9 @@ def Calculate(self, parameters, messages):
         arcpy.management.Delete(statistics_table)
 
         evidence_cellsize = masked_evidence_descr.MeanCellWidth
-        # TODO: Assumes linear units of evidence raster is in meters - this needs to be checked!
+        # TODO: 
+        # Assumes linear units of evidence raster is in meters
+        # (The mask unit is checked in get_study_area_parameters, but this should be done for the evidence layer as well.)
         arcpy.CalculateField_management(output_weights_table, "Area",  "!Count! * %f / 1000000.0" % (evidence_cellsize ** 2), "PYTHON_9.3")
         arcpy.CalculateField_management(output_weights_table, "AreaUnits",  "!Area! / %f" % unit_cell_area_sq_km, "PYTHON_9.3")
 
@@ -327,7 +329,6 @@ def Calculate(self, parameters, messages):
             for weights_row in cursor_weights:
                 class_category, frequency, area, area_units_temp, no_points, area_sq_km, area_units = weights_row
 
-                # TODO: nodata value should be considered earlier as well?
                 if (selected_weight_type in [ASCENDING, DESCENDING]) and (class_category != nodata_value):
                     frequency_tot += frequency
                     area_tot += area
@@ -441,6 +442,7 @@ def Calculate(self, parameters, messages):
                 for row in cursor_categorical:
                     class_category, area_units, no_points, wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt, gen_class, weight, w_std = row
 
+                    # TODO: Verify if the missing data class should be generalized to the outside class as well
                     if (class_category != nodata_value) and (abs(stud_cnt) < studentized_contrast_threshold):
                         gen_class = 99
                         tp_count_99 += no_points
@@ -481,6 +483,12 @@ def Calculate(self, parameters, messages):
     except arcpy.ExecuteError:
         arcpy.AddError(arcpy.GetMessages(2))
     except Exception:
-        e = sys.exc_info()[1]
-        print(e.args[0])
-        arcpy.AddError(e.args[0])
+        tb = sys.exc_info()[2]
+        tbinfo = traceback.format_tb(tb)[0]
+        
+        pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
+            str(sys.exc_info()) + "\n"
+        msgs = "GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
+
+        arcpy.AddError(msgs)
+        arcpy.AddError(pymsg)
