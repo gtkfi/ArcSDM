@@ -9,8 +9,8 @@ from arcsdm.wofe_common import (
     apply_mask_to_raster,
     check_wofe_inputs,
     extract_layer_from_raster_band,
-    get_training_point_statistics,
-    get_study_area_parameters
+    get_study_area_parameters,
+    get_training_point_statistics
 )
 
 
@@ -321,13 +321,13 @@ def Calculate(self, parameters, messages):
         training_point_count = 0
         total_area_sq_km = 0.0
 
-        with arcpy.da.UpdateCursor(output_weights_table, area_field_names) as cursor_weights:
+        with arcpy.da.UpdateCursor(output_weights_table, area_field_names) as cursor:
             frequency_tot = 0
             area_tot = 0.0
             area_units_tot = 0.0
 
-            for weights_row in cursor_weights:
-                class_category, frequency, area, area_units_temp, no_points, area_sq_km, area_units = weights_row
+            for row in cursor:
+                class_category, frequency, area, area_units_temp, no_points, area_sq_km, area_units = row
 
                 if (selected_weight_type in [ASCENDING, DESCENDING]) and (class_category != nodata_value):
                     frequency_tot += frequency
@@ -346,28 +346,26 @@ def Calculate(self, parameters, messages):
                     area_units = area_units_temp
 
                 updated_row = (class_category, frequency, area, area_units_temp, no_points, area_sq_km, area_units)
-                cursor_weights.updateRow(updated_row)
+                cursor.updateRow(updated_row)
 
             if selected_weight_type in [ASCENDING, DESCENDING]:
                 training_point_count = frequency_tot
                 total_area_sq_km = area_tot
-
-        arcpy.AddMessage(f"Total area (km^2) from log_wofe: {total_area_sq_km_from_mask}, from evidence cursor: {total_area_sq_km}")
 
         temp_fields_to_delete = ["Count", "Frequency", "Area", "AreaUnits"]
         arcpy.management.DeleteField(output_weights_table, temp_fields_to_delete)
 
         fields_to_update = ["Class", "NO_POINTS", "AREA_SQ_KM"] + weight_field_names
         
-        with arcpy.da.UpdateCursor(output_weights_table, fields_to_update) as cursor_weights:
-            for weights_row in cursor_weights:
-                class_category, no_points, area_sq_km, wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt = weights_row
+        with arcpy.da.UpdateCursor(output_weights_table, fields_to_update) as cursor:
+            for row in cursor:
+                class_category, no_points, area_sq_km, wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt = row
 
                 if class_category != nodata_value:
                     wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt = calculate_weights_sq_km(no_points, area_sq_km, unit_cell_area_sq_km, training_point_count, total_area_sq_km, selected_weight_type)
 
                     updated_row = (class_category, no_points, area_sq_km, wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt)
-                    cursor_weights.updateRow(updated_row)
+                    cursor.updateRow(updated_row)
 
         # Required fields for generalization
         fields_to_read = ["OBJECTID", "CLASS", "AREA_UNITS", "NO_POINTS"] + weight_field_names
@@ -438,8 +436,8 @@ def Calculate(self, parameters, messages):
             tp_count = 0
             unit_cell_count = 0.0
 
-            with arcpy.da.UpdateCursor(output_weights_table, ["Class", "AREA_UNITS", "NO_POINTS"] + weight_field_names + generalized_weight_field_names) as cursor_categorical:
-                for row in cursor_categorical:
+            with arcpy.da.UpdateCursor(output_weights_table, ["Class", "AREA_UNITS", "NO_POINTS"] + weight_field_names + generalized_weight_field_names) as cursor:
+                for row in cursor:
                     class_category, area_units, no_points, wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt, gen_class, weight, w_std = row
 
                     # TODO: Verify if the missing data class should be generalized to the outside class as well
@@ -459,7 +457,7 @@ def Calculate(self, parameters, messages):
                     w_std = s_wplus
                     
                     updated_row = (class_category, area_units, no_points, wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt, gen_class, weight, w_std)
-                    cursor_categorical.updateRow(updated_row)
+                    cursor.updateRow(updated_row)
 
             if not reclassified:
                 arcpy.AddWarning(f"Unable to generalize classes with the given studentized contrast threshold!")

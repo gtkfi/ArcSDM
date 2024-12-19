@@ -124,7 +124,7 @@ def get_study_area_parameters(unit_cell_area_sq_km, training_points):
     arcpy.AddMessage("%-20s %s" % ("Study Area Area:", str(total_area_sq_km) + " km^2"))
     arcpy.AddMessage("")
 
-    return total_area_sq_km, training_point_count
+    return total_area_sq_km, float(str(training_point_count))
 
 
 def check_wofe_inputs(evidence_rasters, training_point_feature):

@@ -18,7 +18,7 @@ import traceback, sys
 from arcsdm.exceptions import SDMError
 import arcpy
 import os
-import numpy
+
 
 # Conversion factors from various units to square kilometers
 ToMetric = {
@@ -58,7 +58,6 @@ def dwrite(message):
         arcpy.AddMessage("Debug: " + message)
 
 
-# Old
 def getPriorProb(TrainPts, unitCell, mapUnits):
     """
     Calculate the prior probability against mask/training points.
@@ -74,7 +73,6 @@ def getPriorProb(TrainPts, unitCell, mapUnits):
     return priorprob
 
 
-# Old
 def getMaskSize(mapUnits):
     """
     Return the mask size in square kilometers.
@@ -140,7 +138,6 @@ def getMaskSize(mapUnits):
         raise
 
 
-# Old
 def appendSDMValues(unitCell, TrainPts):
     """
     Append Spatial Data Modeller parameters to Geoprocessor History.
@@ -236,7 +233,7 @@ def appendSDMValues(unitCell, TrainPts):
             arcpy.AddError(msgs)
         raise
 
-# Old
+
 def getMapConversion(mapUnits):
     """
     Get the conversion factor from the map units to square kilometers.
@@ -245,7 +242,7 @@ def getMapConversion(mapUnits):
     conversion = ToMetric["square %s to square kilometers" % pluralMapUnits[mapUnits]]
     return conversion
 
-# Old
+
 def getMapUnits(silent=False):
     """
     Get the map units from the output coordinate system.

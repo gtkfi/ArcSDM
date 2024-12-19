@@ -55,7 +55,7 @@ def Execute(self, parameters, messages):
 
         total_area_sq_km_from_mask, training_point_count = get_study_area_parameters(unit_cell_area_sq_km, training_point_feature)
         area_cell_count = total_area_sq_km_from_mask / unit_cell_area_sq_km
-        prior_probability = float(str(training_point_count)) / area_cell_count
+        prior_probability = training_point_count / area_cell_count
 
         arcpy.AddMessage("\n" + "=" * 21 + " Starting calculate response " + "=" * 21)
         arcpy.AddMessage("%-20s %s"% ("Prior probability:" , str(prior_probability)))
@@ -179,7 +179,7 @@ def Execute(self, parameters, messages):
             std_variable_names = [f'"e{i}"' for i in range(len(tmp_std_rasters))]
             variable_names = ['"pprob"'] + std_variable_names
             std_sum_expression = " + ".join(f'SQR({i})' for i in std_variable_names)
-            constant = 1.0 / float(str(training_point_count))
+            constant = 1.0 / training_point_count
             std_expression = 'SQRT(SQR("pprob") * (%s + SUM(%s)))' % (constant, std_sum_expression)
             
             arcpy.AddMessage(f"Posterior probability STD expression: {std_expression}")
@@ -205,9 +205,10 @@ def Execute(self, parameters, messages):
     except Exception:
         tb = sys.exc_info()[2]
         tbinfo = traceback.format_tb(tb)[0]
+
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
             str(sys.exc_info()) + "\n"
         msgs = "GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
-        arcpy.AddError(msgs)
 
+        arcpy.AddError(msgs)
         arcpy.AddError(pymsg)
