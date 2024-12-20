@@ -150,7 +150,7 @@ def Execute(self, parameters, messages):
             w_raster_name = w_raster_name[:10] + "W"
             # Needs to be able to extract input raster name from full path.
             # Can't assume only a layer from ArcMap.
-            std_raster_name = os.path.basename(input_raster[:9]).replace(".","_") + "S" # No . allowed in filegeodatgabases
+            std_raster_name = os.path.basename(input_raster[:9]).replace(".", "_") + "S" # No . allowed in filegeodatgabases
 
             # If using GDB database, remove numbers and underscore from the beginning of the names
             if workspace_type != "FileSystem":
@@ -160,8 +160,8 @@ def Execute(self, parameters, messages):
                     std_raster_name = std_raster_name[1:]
 
             # Create the _W & _S rasters that will be used to calculate output rasters
-            output_w_raster = gp.CreateScratchName(w_raster_name, "", "rst", arcpy.env.scratchWorkspace)
-            output_std_raster = gp.CreateScratchName(std_raster_name, "", "rst", arcpy.env.scratchWorkspace)
+            output_w_raster = arcpy.CreateScratchName(w_raster_name, "", "rst", arcpy.env.scratchWorkspace)
+            output_std_raster = arcpy.CreateScratchName(std_raster_name, "", "rst", arcpy.env.scratchWorkspace)
             
             # Increase the count for next round
             i += 1
@@ -178,24 +178,24 @@ def Execute(self, parameters, messages):
             # AddJoin requires an input layer or tableview not Input Raster Dataset.
             tmp_raster_layer = "OutRas_lyr"
 
-            arcpy.MakeRasterLayer_management(input_raster, tmp_raster_layer)
+            arcpy.management.MakeRasterLayer(input_raster, tmp_raster_layer)
             
             # Join result layer with weights table
-            arcpy.AddJoin_management(tmp_raster_layer, "VALUE", weights_table, "CLASS")
+            arcpy.management.AddJoin(tmp_raster_layer, "VALUE", weights_table, "CLASS")
 
-            temp_raster = gp.CreateScratchName("tmp_rst", "", "rst", arcpy.env.scratchWorkspace)
+            temp_raster = arcpy.CreateScratchName("tmp_rst", "", "rst", arcpy.env.scratchWorkspace)
             
             # Delete existing temp_raster
             if arcpy.Exists(temp_raster):
                 arcpy.management.Delete(temp_raster)
                 gc.collect()
-                arcpy.ClearWorkspaceCache_management()
+                arcpy.management.ClearWorkspaceCache()
                 arcpy.AddMessage("Deleted tempraster")
             
             # Copy created and joined in-memory raster to temp_raster
             arcpy.CopyRaster_management(tmp_raster_layer, temp_raster, "#", "#", NoDataArg2)
 
-            arcpy.AddMessage(f"Output_Raster: {output_w_raster}")
+            arcpy.AddMessage(f"Output tmp weights raster: {output_w_raster}")
             
             # Save weights raster
             weight_lookup = arcpy.sa.Lookup(temp_raster, "WEIGHT")
@@ -206,7 +206,8 @@ def Execute(self, parameters, messages):
                 raise
             tmp_weights_rasters.append(output_w_raster)
 
-            gp.Lookup_sa(temp_raster, "W_STD", output_std_raster)
+            std_lookup = arcpy.sa.Lookup(temp_raster, "W_STD")
+            std_lookup.save(output_std_raster)
             
             if not arcpy.Exists(output_std_raster):
                 arcpy.AddError(f"{output_std_raster} does not exist.")

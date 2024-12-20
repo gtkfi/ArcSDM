@@ -106,15 +106,16 @@ def Execute(self, parameters, messages):
             if (nodata_value != "#") and (arcpy.Describe(input_raster).pixelType.upper().startswith("U")):
                 nodata_value = "#"
             
-            # In-memory raster
-            arcpy.management.MakeRasterLayer(input_raster, "tmp_rst")
-            arcpy.management.AddJoin("tmp_rst", "VALUE", weights_table, "CLASS")
+            # Get input raster as an in-memory raster layer, since AddJoin requires a layer
+            tmp_raster_layer = "tmp_rst"
+            arcpy.management.MakeRasterLayer(input_raster, tmp_raster_layer)
+            arcpy.management.AddJoin(tmp_raster_layer, "VALUE", weights_table, "CLASS")
 
             output_w_raster = arcpy.CreateScratchName(w_raster_name, "", "RasterDataset", arcpy.env.scratchWorkspace)
             output_std_raster = arcpy.CreateScratchName(std_raster_name, "", "RasterDataset", arcpy.env.scratchWorkspace)
 
-            arcpy.management.CopyRaster("tmp_rst", output_w_raster, "#", "#", nodata_value)
-            arcpy.management.CopyRaster("tmp_rst", output_std_raster, "#", "#", nodata_value)
+            arcpy.management.CopyRaster(tmp_raster_layer, output_w_raster, "#", "#", nodata_value)
+            arcpy.management.CopyRaster(tmp_raster_layer, output_std_raster, "#", "#", nodata_value)
 
             weight_lookup = arcpy.sa.Lookup(output_w_raster, "WEIGHT")
             std_lookup = arcpy.sa.Lookup(output_std_raster, "W_STD")
