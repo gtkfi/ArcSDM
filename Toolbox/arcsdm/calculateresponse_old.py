@@ -60,14 +60,11 @@ def dwrite(message):
 
 def Execute(self, parameters, messages):
     try:
-        # Todo: Refactor to arcpy.
+        # TODO: Refactor to arcpy.
         gp = arcgisscripting.create()
 
-        # Check out any necessary licenses
         gp.CheckOutExtension("spatial")
-    
-        ''' Parameters '''
-        
+
         Evidence = parameters[0].valueAsText # gp.GetParameterAsText(0)
         Wts_Tables = parameters[1].valueAsText # gp.GetParameterAsText(1)
         Training_Points = parameters[2].valueAsText # gp.GetParameterAsText(2)
@@ -86,8 +83,8 @@ def Execute(self, parameters, messages):
         total_area_sq_km_from_mask, numTPs = get_study_area_parameters(UnitArea, Training_Points)
         
         area_cell_count = total_area_sq_km_from_mask / UnitArea
-        gp.AddMessage(("%-20s %s" % ("Study Area:", str(area_cell_count))))
-        gp.AddMessage("%-20s %s" % ("# training points:", str(numTPs)))
+        arcpy.AddMessage(("%-20s %s" % ("Study Area:", str(area_cell_count))))
+        arcpy.AddMessage("%-20s %s" % ("# training points:", str(numTPs)))
         
         # Prior probability
         prior_probability = numTPs / area_cell_count
@@ -96,14 +93,18 @@ def Execute(self, parameters, messages):
         # Get input evidence rasters
         Input_Rasters = Evidence.split(";")
 
-        gp.AddMessage("Input rasters: " + str(Input_Rasters))
+        arcpy.AddMessage(f"Input rasters: {Input_Rasters}")
         
         # Get input weight tables
         Wts_Tables = Wts_Tables.split(";")
+
+        arcpy.env.overwriteOutput = True
+        arcpy.AddMessage("Setting overwriteOutput to True")
+
+        arcpy.SetLogHistory(True)
+        arcpy.AddMessage("Setting LogHistory to True")
         
         # Create weight raster from raster's associated weights table
-        gp.OverwriteOutput = 1
-        gp.LogHistory = 1
         tmp_weights_rasters = []
         tmp_std_rasters = []
         # Create a list for the Missing Data Variance tool.
@@ -112,173 +113,157 @@ def Execute(self, parameters, messages):
         # NoData cell values within study area.
         # For each input_raster create a weights raster from the raster and its weights table.
 
-        wsdesc = arcpy.Describe(gp.workspace)
-
-        ''' Weight rasters '''
+        workspace_type = arcpy.Describe(arcpy.env.workspace).workspaceType
         
-        gp.AddMessage("\nCreating tmp weight and STD rasters...")
+        arcpy.AddMessage("\nCreating tmp weight and STD rasters...")
         arcpy.AddMessage("=" * 41)
 
         i = 0
         while i < len(Input_Rasters):
-            Input_Raster = Input_Rasters[i]
-            Wts_Table = Wts_Tables[i]
+            input_raster = Input_Rasters[i]
+            weights_table = Wts_Tables[i]
 
             # Check each Input Raster datatype and coordinate system
-            inputDescr = arcpy.Describe(Input_Raster)
+            inputDescr = arcpy.Describe(input_raster)
             inputCoord = inputDescr.spatialReference.name
-            arcpy.AddMessage(Input_Raster + ", Data type: " + inputDescr.datatype + ", Coordinate System: " + inputCoord)
+            arcpy.AddMessage(f"{input_raster}, Data type: {inputDescr.datatype}, Coordinate System: {inputCoord}")
             if inputCoord != trainingCoord:
-                arcpy.AddError("ERROR: Coordinate System of Input Raster is " + inputCoord + " and Training points it is " + trainingCoord + ". These must be same.")
+                arcpy.AddError(f"ERROR: Coordinate System of Input Raster is {inputCoord} and Training points it is {trainingCoord}. These must be same.")
                 raise
 
             # When workspace type is File System, Input Weight Table also must end with .dbf
             # If using GDB database, remove numbers and underscore from the beginning of the name (else block)
-            if wsdesc.workspaceType == "FileSystem":
-                if not(Wts_Table.endswith('.dbf')):
-                    Wts_Table += ".dbf"
+            if workspace_type == "FileSystem":
+                if not(weights_table.endswith(".dbf")):
+                    weights_table += ".dbf"
             else:
-                wtsbase = os.path.basename(Wts_Table)
+                wtsbase = os.path.basename(weights_table)
                 while len(wtsbase) > 0 and (wtsbase[:1] <= "9" or wtsbase[:1] == "_"):
                     wtsbase = wtsbase[1:]
-                Wts_Table = os.path.dirname(Wts_Table) + "\\" + wtsbase
+                weights_table = os.path.dirname(weights_table) + "\\" + wtsbase
 
             # Compare workspaces to make sure they match
             
-            arcpy.AddMessage("Processing " + Input_Raster)
+            arcpy.AddMessage(f"Processing {input_raster}")
             
-            outputrastername = Input_Raster.replace(".", "_")
-
-            # If using GDB database, remove numbers and underscore from the beginning of the outputrastername
-            outputrastername = outputrastername[:10] + "W"
-            if wsdesc.workspaceType != "FileSystem":
-                while len(outputrastername) > 0 and (outputrastername[:1] <= "9" or outputrastername[:1] == "_"):
-                    outputrastername = outputrastername[1:]
-
+            w_raster_name = input_raster.replace(".", "_")
+            w_raster_name = w_raster_name[:10] + "W"
             # Needs to be able to extract input raster name from full path.
             # Can't assume only a layer from ArcMap.
-            stdoutputrastername = os.path.basename(Input_Raster[:9]).replace(".","_") + "S" # No . allowed in filegeodatgabases
-            # If using GDB database, remove numbers and underscore from the beginning of the name (else block)
-            if (wsdesc.workspaceType != "FileSystem"):
-                while len(stdoutputrastername) > 0 and (stdoutputrastername[:1] <= "9" or stdoutputrastername[:1] == "_"):
-                    stdoutputrastername = stdoutputrastername[1:]
+            std_raster_name = os.path.basename(input_raster[:9]).replace(".","_") + "S" # No . allowed in filegeodatgabases
 
-            # Create _W raster
-            Output_Raster = gp.CreateScratchName(outputrastername, '', 'rst', gp.scratchworkspace)
+            # If using GDB database, remove numbers and underscore from the beginning of the names
+            if workspace_type != "FileSystem":
+                while len(w_raster_name) > 0 and (w_raster_name[:1] <= "9" or w_raster_name[:1] == "_"):
+                    w_raster_name = w_raster_name[1:]
+                while len(std_raster_name) > 0 and (std_raster_name[:1] <= "9" or std_raster_name[:1] == "_"):
+                    std_raster_name = std_raster_name[1:]
 
-            # Create _S raster
-            Output_Std_Raster = gp.CreateScratchName(stdoutputrastername, '', 'rst', gp.scratchworkspace)
+            # Create the _W & _S rasters that will be used to calculate output rasters
+            output_w_raster = gp.CreateScratchName(w_raster_name, "", "rst", arcpy.env.scratchWorkspace)
+            output_std_raster = gp.CreateScratchName(std_raster_name, "", "rst", arcpy.env.scratchWorkspace)
             
             # Increase the count for next round
             i += 1
-            
-            dwrite("WtsTable is " + Wts_Table)
      
             # Need to create in-memory Raster Layer for Join
             # Check for unsigned integer raster; cannot have negative missing data
-            if NoDataArg != '#' and gp.describe(Input_Raster).pixeltype.upper().startswith('U'):
-                NoDataArg2 = '#'
+            if NoDataArg != "#" and arcpy.Describe(input_raster).pixelType.upper().startswith("U"):
+                NoDataArg2 = "#"
             else:
                 NoDataArg2 = NoDataArg
 
             # Create new rasterlayer from input raster for both the weights and the std raster -> Result RasterLayer
-            RasterLayer = "OutRas_lyr"
-            RasterLayer2 = "OutRas_lyr2"
+            # These will be in-memory only
+            # AddJoin requires an input layer or tableview not Input Raster Dataset.
+            tmp_w_raster_layer = "OutRas_lyr"
+            tmp_std_raster_layer = "OutRas_lyr2"
 
-            arcpy.MakeRasterLayer_management(Input_Raster, RasterLayer)
-            gp.makerasterlayer(Input_Raster, RasterLayer2)
-
-            # AddJoin requires and input layer or tableview not Input Raster Dataset.
-            # Join result layer with weights table
-            dwrite("Layer and Rasterlayer: " + Input_Raster + ", " + RasterLayer)
-
-            arcpy.AddJoin_management(RasterLayer, "VALUE", Wts_Table, "CLASS")
-            gp.AddJoin_management(RasterLayer2, "Value", Wts_Table, "CLASS")
-
-            Temp_Raster = gp.CreateScratchName('tmp_rst', '', 'rst', gp.scratchworkspace)
-            Temp_Std_Raster = gp.CreateScratchName('tmp_rst', '', 'rst', gp.scratchworkspace)
-            dwrite("Temp_Raster=" + Temp_Raster)
-            dwrite("Temp_Std_Raster=" + Temp_Raster)
-            dwrite("Wts_Table=" + Wts_Table)
+            arcpy.MakeRasterLayer_management(input_raster, tmp_w_raster_layer)
+            gp.makerasterlayer(input_raster, tmp_std_raster_layer)
             
-            # Delete old temp_raster
-            if gp.exists(Temp_Raster):
-                arcpy.Delete_management(Temp_Raster)
+            # Join result layers with weights table
+            arcpy.AddJoin_management(tmp_w_raster_layer, "VALUE", weights_table, "CLASS")
+            gp.AddJoin_management(tmp_std_raster_layer, "Value", weights_table, "CLASS")
+
+            temp_w_raster = gp.CreateScratchName("tmp_rst", "", "rst", arcpy.env.scratchWorkspace)
+            temp_std_raster = gp.CreateScratchName("tmp_rst", "", "rst", arcpy.env.scratchWorkspace)
+            
+            # Delete existing temp rasters
+            if arcpy.Exists(temp_w_raster):
+                arcpy.management.Delete(temp_w_raster)
                 gc.collect()
                 arcpy.ClearWorkspaceCache_management()
-                gp.AddMessage("Deleted tempraster")
+                arcpy.AddMessage("Deleted tempraster")
 
-            if gp.exists(Temp_Std_Raster): 
-                arcpy.Delete_management(Temp_Std_Raster)
+            if arcpy.Exists(temp_std_raster): 
+                arcpy.management.Delete(temp_std_raster)
                 gc.collect()
                 arcpy.ClearWorkspaceCache_management()
-                gp.AddMessage("Tmprst deleted.")
+                arcpy.AddMessage("Tmprst deleted.")
             
-            # Copy created and joined raster to temp_raster
-            arcpy.CopyRaster_management(RasterLayer, Temp_Raster, '#', '#', NoDataArg2)
-            arcpy.CopyRaster_management(RasterLayer2, Temp_Std_Raster, "#", "#", NoDataArg2)
+            # Copy created and joined in-memory raster to temp_raster
+            arcpy.CopyRaster_management(tmp_w_raster_layer, temp_w_raster, "#", "#", NoDataArg2)
+            arcpy.CopyRaster_management(tmp_std_raster_layer, temp_std_raster, "#", "#", NoDataArg2)
 
-            arcpy.AddMessage("Output_Raster: " + Output_Raster)
+            arcpy.AddMessage(f"Output_Raster: {output_w_raster}")
             
-            outras = arcpy.sa.Lookup(Temp_Raster, "WEIGHT")
-            outras.save(Output_Raster)
+            # Save weights raster
+            outras = arcpy.sa.Lookup(temp_w_raster, "WEIGHT")
+            outras.save(output_w_raster)
             
-            if not gp.Exists(Output_Raster):
-                gp.AddError( " " + Output_Raster + " does not exist.")
+            if not arcpy.Exists(output_w_raster):
+                arcpy.AddError(f"{output_w_raster} does not exist.")
                 raise
-            tmp_weights_rasters.append(Output_Raster)
+            tmp_weights_rasters.append(output_w_raster)
 
-            gp.Lookup_sa(Temp_Std_Raster, "W_STD", Output_Std_Raster)
+            gp.Lookup_sa(temp_std_raster, "W_STD", output_std_raster)
             
-            if not gp.Exists(Output_Std_Raster):
-                gp.AddError(Output_Std_Raster + " does not exist.")
+            if not arcpy.Exists(output_std_raster):
+                arcpy.AddError(f"{output_std_raster} does not exist.")
                 raise
-            # Output_Raster = gp.Describe(Output_Std_Raster).CatalogPath
-            tmp_std_rasters.append(Output_Std_Raster)
+            tmp_std_rasters.append(output_std_raster)
 
             # Check for Missing Data in raster's Wts table
             if not IgnoreMsgData:
                 # Update the list for Missing Data Variance Calculation
-                tblrows = gp.SearchCursor(Wts_Table, "Class = %s" % MissingDataValue)
+                tblrows = gp.SearchCursor(weights_table, "Class = %s" % MissingDataValue)
                 tblrow = tblrows.Next()
                 if tblrow:
-                    rasters_with_missing_data.append(gp.Describe(Output_Raster).CatalogPath)
+                    rasters_with_missing_data.append(arcpy.Describe(output_w_raster).catalogPath)
             
-            arcpy.management.Delete(Temp_Raster)
-            arcpy.management.Delete(Temp_Std_Raster)
+            arcpy.management.Delete(temp_w_raster)
+            arcpy.management.Delete(temp_std_raster)
 
             arcpy.AddMessage(" ") # Cycle done - add ONE linefeed
         
         # Get Post Logit Raster
         
-        gp.AddMessage("\nGetting Post Logit raster...\n" + "=" * 41)
-        
-        # This used to be comma separated, now +
+        arcpy.AddMessage("\nGetting Post Logit raster...\n" + "=" * 41)
+
         Input_Data_Str = ' + '.join('"{0}"'.format(w) for w in tmp_weights_rasters)
-        arcpy.AddMessage("Input_data_str: " + Input_Data_Str)
+        arcpy.AddMessage(f"Input_data_str: {Input_Data_Str}")
+
         Constant = math.log(prior_probability / (1.0 - prior_probability))
         
         if len(tmp_weights_rasters) == 1:
             InExpressionPLOG = "%s + %s" % (Constant, Input_Data_Str)
         else:
             InExpressionPLOG = "%s + (%s)" % (Constant, Input_Data_Str)
-        gp.AddMessage("InexpressionPlog: " + InExpressionPLOG)
+
+        arcpy.AddMessage(f"InexpressionPlog: {InExpressionPLOG}")
 
         # Get Post Probability Raster
         
-        gp.AddMessage("\nCreating Post Probability Raster...\n" + "=" * 41)
+        arcpy.AddMessage("\nCreating Post Probability Raster...\n" + "=" * 41)
         try:
-            #pass
-            #PostLogitRL = os.path.join(gp.Workspace, "PostLogitRL")
-            #gp.MakeRasterLayer_management(PostLogit, PostLogitRL)
-            #InExpression = "EXP(%s) / ( 1.0 + EXP(%s))" %(PostLogitRL, PostLogitRL)
             PostProb = parameters[6].valueAsText #gp.GetParameterAsText(6)
             
             InExpression = "Exp(%s) / (1.0 + Exp(%s))" % (InExpressionPLOG, InExpressionPLOG)
-            gp.AddMessage("InExpression = " + str(InExpression))
+            arcpy.AddMessage(f"InExpression = {InExpression}")
             # Fix: This is obsolete
             #gp.MultiOutputMapAlgebra_sa(InExpression)
-            gp.AddMessage("Postprob: " + PostProb)
+            arcpy.AddMessage(f"Postprob: {PostProb}")
             #output_raster = gp.RasterCalculator(InExpression, PostProb)
             #output_raster.save(postprob)
             gp.SingleOutputMapAlgebra_sa(InExpression, PostProb)
@@ -286,108 +271,113 @@ def Execute(self, parameters, messages):
             #output_raster = arcpy.sa.RasterCalculator(InExpression, PostProb)
             #output_raster.save(postprob)
             
-            gp.SetParameterAsText(6, PostProb)
+            arcpy.SetParameterAsText(6, PostProb)
         except:
-            gp.AddError(gp.getMessages(2))
+            arcpy.AddError(arcpy.GetMessages(2))
             raise
         else:
-            gp.AddWarning(gp.getMessages(1))
-            gp.AddMessage(gp.getMessages(0))
+            arcpy.AddWarning(arcpy.GetMessages(1))
+            arcpy.AddMessage(arcpy.GetMessages(0))
 
-        # Create STD raster from raster's associated weights table
-        
-        gp.AddMessage("\nCreating Post Probability STD Raster...\n" + "=" * 41)
+        arcpy.AddMessage("\nCreating Post Probability STD Raster...\n" + "=" * 41)
+
         PostProb_Std = parameters[7].valueAsText # gp.GetParameterAsText(7)
         
         #TODO: Figure out what this does!? TR
         #TODO: This is always false now
-        if len(tmp_std_rasters) == 1: # If there is only one input... ??? TR 
+        if len(tmp_std_rasters) == 1:
             InExpression = '"%s"' % (tmp_std_rasters[0])
         else:
             SUM_args_list = []
             for Std_Raster in tmp_std_rasters:
                 SUM_args_list.append("SQR(\"%s\")" % Std_Raster)
+            
             SUM_args = " + ".join(SUM_args_list)
-            gp.AddMessage("Sum_args: " + SUM_args + "\n" + "=" * 41)
+
+            arcpy.AddMessage("Sum_args: " + SUM_args + "\n" + "=" * 41)
        
             Constant = 1.0 / float(numTPs)
 
             InExpression = "SQRT(SQR(%s) * (%s + SUM(%s)))" % (PostProb, Constant, SUM_args)
-            gp.AddMessage("InExpression = " + str(InExpression))
+            arcpy.AddMessage(f"InExpression = {InExpression}")
 
         try:
-            gp.addmessage("InExpression 2 ====> " + InExpression)
-            # gp.MultiOutputMapAlgebra_sa(InExpression)
-            # output_raster = gp.RasterCalculator(InExpression, PostProb_Std)
+            arcpy.AddMessage(f"InExpression 2 ====> {InExpression}")
+
             gp.SingleOutputMapAlgebra_sa(InExpression, PostProb_Std)
-            gp.SetParameterAsText(7, PostProb_Std)
+
+            arcpy.SetParameterAsText(7, PostProb_Std)
         except:
-            gp.AddError(gp.getMessages(2))
+            arcpy.AddError(arcpy.GetMessages(2))
             raise
         else:
-            gp.AddWarning(gp.getMessages(1))
-            gp.AddMessage(gp.getMessages(0))
+            arcpy.AddWarning(arcpy.GetMessages(1))
+            arcpy.AddMessage(arcpy.GetMessages(0))
         
         # Create Variance of missing data here and create totVar = VarMD + SQR(VarWts)
         if not IgnoreMsgData:
             # Calculate Missing Data Variance
             if len(rasters_with_missing_data) > 0:
-                gp.AddMessage("Calculating Missing Data Variance...")
+                arcpy.AddMessage("Calculating Missing Data Variance...")
                 try:
                     MDVariance = parameters[8].valueAsText # gp.GetParameterAsText(8)
-                    if gp.exists(MDVariance):
-                        arcpy.Delete_management(MDVariance)
+                    if arcpy.Exists(MDVariance):
+                        arcpy.management.Delete(MDVariance)
 
                     MissingDataVariance(gp, rasters_with_missing_data, PostProb, MDVariance)
+
                     Total_Std = parameters[9].valueAsText # gp.GetParameterAsText(9)
                     InExpression = 'SQRT(SUM(SQR(%s),%s))' % (PostProb_Std, MDVariance)
 
-                    gp.AddMessage("Calculating Total STD...")
-                    gp.addmessage("InExpression 3 ====> " + InExpression)
+                    arcpy.AddMessage("Calculating Total STD...")
+                    arcpy.AddMessage(f"InExpression 3 ====> {InExpression}")
 
                     gp.SingleOutputMapAlgebra_sa(InExpression, Total_Std)
-                    gp.SetParameterAsText(9, Total_Std)
+
+                    arcpy.SetParameterAsText(9, Total_Std)
                 except:
-                    gp.AddError(gp.getMessages(2))
+                    arcpy.AddError(arcpy.GetMessages(2))
                     raise
             else:
-                gp.AddWarning("No evidence with missing data. Missing Data Variance not calculated.")
+                arcpy.AddWarning("No evidence with missing data. Missing Data Variance not calculated.")
                 MDVariance = None
                 Total_Std = PostProb_Std
         else:
-            gp.AddWarning("Missing Data Ignored. Missing Data Variance not calculated.")
+            arcpy.AddWarning("Missing Data Ignored. Missing Data Variance not calculated.")
             MDVariance = None
             Total_Std = PostProb_Std
         
         # Confidence is PP / sqrt(totVar)
-        gp.AddMessage("\nCalculating Confidence...\n" + "=" * 41)
+        arcpy.AddMessage("\nCalculating Confidence...\n" + "=" * 41)
 
         Confidence = parameters[10].valueAsText # gp.GetParameterAsText(10)
         InExpression = "%s / %s" % (PostProb, PostProb_Std)
-        gp.AddMessage("InExpression 4====> " + InExpression)
+        arcpy.AddMessage(f"InExpression 4====> {InExpression}")
         try: 
             gp.SingleOutputMapAlgebra_sa(InExpression, Confidence)
-            gp.SetParameterAsText(10, Confidence)
+            arcpy.SetParameterAsText(10, Confidence)
         except:
-            gp.AddError(gp.getMessages(2))
+            arcpy.AddError(arcpy.GetMessages(2))
             raise
         else:
-            gp.AddWarning(gp.getMessages(1))
-            gp.AddMessage(gp.getMessages(0))
+            arcpy.AddWarning(arcpy.GetMessages(1))
+            arcpy.AddMessage(arcpy.GetMessages(0))
         
         # Set derived output parameters
-        gp.SetParameterAsText(6, PostProb)
-        gp.SetParameterAsText(7, PostProb_Std)
-        if MDVariance and (not IgnoreMsgData):
-            gp.SetParameterAsText(8, MDVariance)
-        else:
-            gp.AddWarning('No Missing Data Variance.')
-        if not (Total_Std == PostProb_Std):
-            gp.SetParameterAsText(9, Total_Std)
-        else:
-            gp.AddWarning('Total STD same as Post Probability STD.')
+        arcpy.SetParameterAsText(6, PostProb)
+        arcpy.SetParameterAsText(7, PostProb_Std)
 
-        gp.SetParameterAsText(10, Confidence)
+        if MDVariance and (not IgnoreMsgData):
+            arcpy.SetParameterAsText(8, MDVariance)
+        else:
+            arcpy.AddWarning("No Missing Data Variance.")
+
+        if not (Total_Std == PostProb_Std):
+            arcpy.SetParameterAsText(9, Total_Std)
+        else:
+            arcpy.AddWarning("Total STD same as Post Probability STD.")
+
+        arcpy.SetParameterAsText(10, Confidence)
 
         arcpy.AddMessage("Deleting tmp rasters...")
         for raster in tmp_weights_rasters:
@@ -396,28 +386,26 @@ def Execute(self, parameters, messages):
         for raster in tmp_std_rasters:
             arcpy.management.Delete(raster)
 
-        gp.AddMessage("done\n" + "=" * 41)
+        arcpy.AddMessage("Done\n" + "=" * 41)
     except arcpy.ExecuteError as e:
         arcpy.AddError("\n")
         arcpy.AddMessage("Calculate Response caught arcpy.ExecuteError ")
-        gp.AddError(arcpy.GetMessages())
+        arcpy.AddError(arcpy.GetMessages(2))
         if len(e.args) > 0:
             args = e.args[0]
-            args.split('\n')
+            args.split("\n")
                     
         arcpy.AddMessage("-------------- END EXECUTION ---------------")
         raise 
     except:
         tb = sys.exc_info()[2]
         tbinfo = traceback.format_tb(tb)[0]
+
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
             str(sys.exc_info()) + "\n"
         msgs = "GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
+        
         arcpy.AddError(msgs)
-
         arcpy.AddError(pymsg)
-
-        print(pymsg)
-        print(msgs)
 
         raise

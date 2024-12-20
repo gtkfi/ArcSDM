@@ -40,10 +40,7 @@ def MissingDataVariance(gp, Wts_Rasters, PostProb, OutputName):
     # TODO: Fix - env cell size may differ from actual cell size
     CellSize = float(gp.CellSize)
 
-    # Local variables...
-
     try:
-        # Local Variables.....
         i = 0
         
         # Create Total Missing Data Variance list
@@ -51,10 +48,10 @@ def MissingDataVariance(gp, Wts_Rasters, PostProb, OutputName):
 
         # Loop throught Wts Rasters
         for Wts_Raster0 in Wts_Rasters:
-            gp.AddMessage("Missing data Variance for: " + Wts_Raster0)
-            Wts_Raster = gp.describe(Wts_Raster0).catalogpath
+            arcpy.AddMessage(f"Missing data Variance for: {Wts_Raster0}")
+            Wts_Raster = gp.describe(Wts_Raster0).catalogPath
             TotDataArea = TotalAreaFromCounts(gp, Wts_Raster, CellSize)
-            gp.AddMessage('TotDataArea = %.0f' % TotDataArea)
+            arcpy.AddMessage('TotDataArea = %.0f' % TotDataArea)
             
             # Start MD Variance raster
             # Get PostProb raster of MD cells
@@ -62,16 +59,16 @@ def MissingDataVariance(gp, Wts_Rasters, PostProb, OutputName):
             if gp.Exists(R1):
                 gp.Delete(R1)
             Exp0 = "CON(%s == 0.0,%s,0.0)" % (Wts_Raster, PostProb)
-            gp.AddMessage("R1=" + Exp0)
+            arcpy.AddMessage(f"R1={Exp0}")
             gp.SingleOutputMapAlgebra_sa(Exp0, R1)
             # Get PostODDs raster of MD cells
             R2 = os.path.join(gp.ScratchWorkspace, "R2")
-            if gp.Exists(R2):
-                gp.Delete(R2)
+            if arcpy.Exists(R2):
+                arcpy.management.Delete(R2)
             Exp = "%s / (1.0 - %s)" % (R1, R1)
-            gp.AddMessage("R2=" + Exp)
+            arcpy.AddMessage(f"R2={Exp}")
             gp.SingleOutputMapAlgebra_sa(Exp, R2)
-            gp.AddMessage("R2 exists: " + str(gp.Exists(R2)))
+            arcpy.AddMessage(f"R2 exists: {arcpy.Exists(R2)}")
             
             # Get Total Variance of MD cells
             # Create total class variances list
@@ -85,10 +82,10 @@ def MissingDataVariance(gp, Wts_Rasters, PostProb, OutputName):
                     continue
                 ClsVar = str(os.path.join(gp.ScratchWorkspace, "ClsVar%s%s" % (i, j)))
                 j += 1
-                if gp.Exists(ClsVar):
-                    gp.Delete(ClsVar)
+                if arcpy.Exists(ClsVar):
+                    arcpy.management.Delete(ClsVar)
                 Exp1 = 'CON(%s == 0.0,0.0,EXP(LN(%s) + %s))' % (R2, R2, Wts_RasterRow.Value)
-                Exp2 = "%s / (1 + %s)" % (Exp1,Exp1)
+                Exp2 = "%s / (1 + %s)" % (Exp1, Exp1)
                 ClsArea = float(Wts_RasterRow.Count) * CellSize * CellSize / 1000000.0
                 Exp3 = "SQR(%s - %s) * (%s / %s)" % (Exp2, R1, ClsArea, TotDataArea)
                 gp.SingleOutputMapAlgebra_sa(Exp3, ClsVar)
@@ -98,8 +95,9 @@ def MissingDataVariance(gp, Wts_Rasters, PostProb, OutputName):
             # Sum the class variances
             TotClsVar = os.path.join(gp.ScratchWorkspace, "TotClsVar%s" % i)
             i += 1
-            if gp.Exists(TotClsVar):
-                gp.Delete(TotClsVar)
+            if arcpy.Exists(TotClsVar):
+                arcpy.Delete(TotClsVar)
+            
             Exp = "SUM%s" % str(tuple(ClsVars))
             gp.SingleOutputMapAlgebra_sa(Exp, TotClsVar)
             TotClsVars.append(str(TotClsVar))
@@ -123,12 +121,11 @@ def MissingDataVariance(gp, Wts_Rasters, PostProb, OutputName):
     except Exception:
         tb = sys.exc_info()[2]
         tbinfo = traceback.format_tb(tb)[0]
+        
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
             str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
         msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"
-        gp.AddError(msgs)
 
+        gp.AddError(msgs)
         gp.AddError(pymsg)
 
-        print(pymsg)
-        print(msgs)
