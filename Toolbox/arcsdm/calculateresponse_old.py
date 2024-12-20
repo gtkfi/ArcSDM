@@ -24,13 +24,16 @@
 # ---------------------------------------------------------------------------
 """
 
-import arcsdm.sdmvalues
 import arcpy
 import gc
 import importlib
-import sys
+
+from arcsdm.common import log_arcsdm_details
+from arcsdm.wofe_common import get_study_area_parameters
+
 
 debuglevel = 0
+
 
 def testdebugfile():
     returnvalue = 0 # This because python sucks in detecting outputs from functions
@@ -42,6 +45,7 @@ def testdebugfile():
     if os.path.isfile(dir_path + "/DEBUG"):
         return 1
     return returnvalue
+
 
 def dwrite(message):
     debug = testdebugfile()
@@ -83,23 +87,17 @@ def Execute(self, parameters, messages):
         else:
             NoDataArg = '#'
         UnitArea = parameters[5].value # gp.GetParameter(5)
-        
-        arcsdm.sdmvalues.appendSDMValues(UnitArea, Training_Points)
-        
-        # Getting Study Area in counts and sq. kilometers
-        Counts = arcsdm.sdmvalues.getMaskSize(arcsdm.sdmvalues.getMapUnits(True))
-        gp.AddMessage("\n" + "=" * 21 + " Starting calculate response " + "=" * 21)
-        # CellSize = float(gp.CellSize)
-        Study_Area = Counts / UnitArea # getMaskSize returns mask size in sqkm now - TODO: WHy is this divided with UnitArea? (Counts * CellSize * CellSize / 1000000.0) / UnitArea
-        gp.AddMessage(("%-20s %s" % ("Study Area:", str(Study_Area))))
 
-        # Get number of training points
-        numTPs = gp.GetCount_management(Training_Points)
+        log_arcsdm_details()
+        total_area_sq_km_from_mask, numTPs = get_study_area_parameters(UnitArea, Training_Points)
+        
+        area_cell_count = total_area_sq_km_from_mask / UnitArea
+        gp.AddMessage(("%-20s %s" % ("Study Area:", str(area_cell_count))))
         gp.AddMessage("%-20s %s" % ("# training points:", str(numTPs)))
         
         # Prior probability
-        Prior_prob = float(numTPs) / Study_Area 
-        gp.AddMessage("%-20s %s"% ("Prior_prob:" , str(Prior_prob)))
+        prior_probability = numTPs / area_cell_count
+        arcpy.AddMessage("%-20s %s"% ("Prior probability:" , str(prior_probability)))
 
         # Get input evidence rasters
         Input_Rasters = Evidence.split(";")
@@ -119,7 +117,6 @@ def Execute(self, parameters, messages):
         # Evidence rasters should have missing data values, where necessary, for
         # NoData cell values within study area.
         # For each input_raster create a weights raster from the raster and its weights table.
-        mdidx = 0
 
         wsdesc = arcpy.Describe(gp.workspace)
 
@@ -225,24 +222,13 @@ def Execute(self, parameters, messages):
         # This used to be comma separated, now +
         Input_Data_Str = ' + '.join('"{0}"'.format(w) for w in Wts_Rasters)
         arcpy.AddMessage("Input_data_str: " + Input_Data_Str)
-        Constant = math.log(Prior_prob / (1.0 - Prior_prob))
+        Constant = math.log(prior_probability / (1.0 - prior_probability))
         
         if len(Wts_Rasters) == 1:
             InExpressionPLOG = "%s + %s" % (Constant, Input_Data_Str)
         else:
             InExpressionPLOG = "%s + (%s)" % (Constant, Input_Data_Str)
         gp.AddMessage("InexpressionPlog: " + InExpressionPLOG)
-
-    ##    PostLogit = os.path.join(gp.Workspace, OutputPrefix + "_PLOG")
-    ##    try:
-    ##        pass
-    ##        gp.SingleOutputMapAlgebra_sa(InExpression, PostLogit)
-    ##    except:
-    ##        gp.AddError(gp.getMessages(2))
-    ##        raise
-    ##    else:
-    ##        gp.AddWarning(gp.getMessages(1))
-    ##        gp.AddMessage(gp.getMessages(0))
 
         # Get Post Probability Raster
         
@@ -278,9 +264,8 @@ def Execute(self, parameters, messages):
         gp.AddMessage("\nCreating STD rasters...\n" + "=" * 41)
         Std_Rasters = []
         i = 0
-        mdidx = 0
         for Input_Raster in Input_Rasters:
-            arcpy.AddMessage(" Processing " + Input_Raster)
+            arcpy.AddMessage("Processing " + Input_Raster)
             # Needs to be able to extract input raster name from full path.
             # Can't assume only a layer from ArcMap.
             stdoutputrastername = os.path.basename(Input_Raster[:9]).replace(".","_") + "S" # No . allowed in filegeodatgabases
@@ -345,9 +330,8 @@ def Execute(self, parameters, messages):
             gp.AddMessage(Output_Raster)  
            
         gp.AddMessage("\nCreating Post Probability STD Raster...\n" + "=" * 41)
-        #SQRT(SUM(SQR(kbgeol2_STD), SQR(kjenks_Std), SQR(rclssb2_Std)))
+
         PostProb_Std = parameters[7].valueAsText # gp.GetParameterAsText(7)
-        
         
         #TODO: Figure out what this does!? TR
         #TODO: This is always false now
@@ -365,7 +349,6 @@ def Execute(self, parameters, messages):
             InExpression = "SQRT(SQR(%s) * (%s + SUM(%s)))" % (PostProb, Constant, SUM_args)
             gp.AddMessage("InExpression = " + str(InExpression))
 
-        #SQRT(SUM(SQR(rclssb2_md_S),SQR(kbgeol2_md_S)))
         try:
             gp.addmessage("InExpression 2 ====> " + InExpression)
             # gp.MultiOutputMapAlgebra_sa(InExpression)
@@ -385,10 +368,6 @@ def Execute(self, parameters, messages):
             if len(rasterList) > 0:
                 import arcsdm.missingdatavar_func
                 gp.AddMessage("Calculating Missing Data Variance...")
-    ##            MDRasters=[]
-    ##            for i in range(len(rasterList)):
-    ##                MDRasters.append(str(rasterList[i]))
-                MDRasters = rasterList
                 try:
                     MDVariance = parameters[8].valueAsText # gp.GetParameterAsText(8)
                     if gp.exists(MDVariance):
@@ -414,6 +393,7 @@ def Execute(self, parameters, messages):
             gp.AddWarning("Missing Data Ignored. Missing Data Variance not calculated.")
             MDVariance = None
             Total_Std = PostProb_Std
+        
         # Confidence is PP / sqrt(totVar)
         gp.AddMessage("\nCalculating Confidence...\n" + "=" * 41)
 
