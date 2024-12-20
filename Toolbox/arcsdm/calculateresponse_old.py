@@ -24,11 +24,16 @@
 # ---------------------------------------------------------------------------
 """
 
+import arcgisscripting
 import arcpy
 import gc
-import importlib
+import math
+import os
+import sys
+import traceback
 
 from arcsdm.common import log_arcsdm_details
+from arcsdm.missingdatavar_func import MissingDataVariance
 from arcsdm.wofe_common import get_study_area_parameters
 
 
@@ -55,18 +60,7 @@ def dwrite(message):
 
 def Execute(self, parameters, messages):
     try:
-        import sys, os, math, traceback
-        import arcsdm.sdmvalues
-        import arcsdm.workarounds_93
-        try:
-            importlib.reload(arcsdm.sdmvalues)
-            importlib.reload(arcsdm.workarounds_93)
-        except:
-            importlib.reload(arcsdm.sdmvalues)
-            importlib.reload(arcsdm.workarounds_93)
-
         # Todo: Refactor to arcpy.
-        import arcgisscripting
         gp = arcgisscripting.create()
 
         # Check out any necessary licenses
@@ -122,7 +116,6 @@ def Execute(self, parameters, messages):
 
         ''' Weight rasters '''
         
-        # gp.AddMessage("\nCreating weight rasters ")
         gp.AddMessage("\nCreating tmp weight and STD rasters...")
         arcpy.AddMessage("=" * 41)
 
@@ -250,6 +243,10 @@ def Execute(self, parameters, messages):
                 tblrow = tblrows.Next()
                 if tblrow:
                     rasters_with_missing_data.append(gp.Describe(Output_Raster).CatalogPath)
+            
+            arcpy.management.Delete(Temp_Raster)
+            arcpy.management.Delete(Temp_Std_Raster)
+
             arcpy.AddMessage(" ") # Cycle done - add ONE linefeed
         
         # Get Post Logit Raster
@@ -335,14 +332,13 @@ def Execute(self, parameters, messages):
         if not IgnoreMsgData:
             # Calculate Missing Data Variance
             if len(rasters_with_missing_data) > 0:
-                import arcsdm.missingdatavar_func
                 gp.AddMessage("Calculating Missing Data Variance...")
                 try:
                     MDVariance = parameters[8].valueAsText # gp.GetParameterAsText(8)
                     if gp.exists(MDVariance):
                         arcpy.Delete_management(MDVariance)
 
-                    arcsdm.missingdatavar_func.MissingDataVariance(gp, rasters_with_missing_data, PostProb, MDVariance)
+                    MissingDataVariance(gp, rasters_with_missing_data, PostProb, MDVariance)
                     Total_Std = parameters[9].valueAsText # gp.GetParameterAsText(9)
                     InExpression = 'SQRT(SUM(SQR(%s),%s))' % (PostProb_Std, MDVariance)
 
@@ -392,6 +388,14 @@ def Execute(self, parameters, messages):
             gp.AddWarning('Total STD same as Post Probability STD.')
 
         gp.SetParameterAsText(10, Confidence)
+
+        arcpy.AddMessage("Deleting tmp rasters...")
+        for raster in tmp_weights_rasters:
+            arcpy.management.Delete(raster)
+        
+        for raster in tmp_std_rasters:
+            arcpy.management.Delete(raster)
+
         gp.AddMessage("done\n" + "=" * 41)
     except arcpy.ExecuteError as e:
         arcpy.AddError("\n")

@@ -18,7 +18,11 @@
     Cell A2: [R1] = CON([rclssb2_md_w] == 0.0, [crap_pprb], 0.0)
     Cell E2: [UPDPOSTODDS] = CON([R2] == 0.0, 0.0, Exp(Ln([R2]) + [rclssb2_md_w]))
 """
-import sys, os, traceback
+import arcpy
+import os
+import sys
+import traceback
+
 from arcsdm.floatingrasterarray import FloatRasterSearchcursor
 
 
@@ -28,10 +32,12 @@ def TotalAreaFromCounts(gp,Input_Raster,CellSize):
     rasrows = gp.SearchCursor(IsNul_Wts, 'Value = 0')
     rasrow = rasrows.Next()
     TotalCount = rasrow.Count
+    arcpy.management.Delete(arcpy.Describe(IsNul_Wts).catalogPath)
     return float(TotalCount) * CellSize * CellSize / 1000000
 
 
 def MissingDataVariance(gp, Wts_Rasters, PostProb, OutputName):
+    # TODO: Fix - env cell size may differ from actual cell size
     CellSize = float(gp.CellSize)
 
     # Local variables...
@@ -97,6 +103,9 @@ def MissingDataVariance(gp, Wts_Rasters, PostProb, OutputName):
             Exp = "SUM%s" % str(tuple(ClsVars))
             gp.SingleOutputMapAlgebra_sa(Exp, TotClsVar)
             TotClsVars.append(str(TotClsVar))
+
+            for tmp_raster in ClsVars:
+                arcpy.management.Delete(arcpy.Describe(tmp_raster).catalogPath)
                
         # Create Total Missing Data Variance raster and list
         else:
@@ -104,6 +113,12 @@ def MissingDataVariance(gp, Wts_Rasters, PostProb, OutputName):
                 TotVarMD = OutputName
                 Exp = "SUM%s" % str(tuple(TotClsVars))
                 gp.SingleOutputMapAlgebra_sa(Exp, TotVarMD)
+
+        arcpy.management.Delete(arcpy.Describe(R1).catalogPath)
+        arcpy.management.Delete(arcpy.Describe(R2).catalogPath)
+        
+        for tmp_raster in TotClsVars:
+            arcpy.management.Delete(arcpy.Describe(tmp_raster).catalogPath)
 
     except Exception:
         tb = sys.exc_info()[2]
