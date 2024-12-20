@@ -90,17 +90,17 @@ def Execute(self, parameters, messages):
             
             # TODO: check if shortening the name is necessary
             # TODO: make sure these result in unique names if evidence rasters have similar names
-            tmp_W_raster_name = input_raster.replace(".", "_")
-            tmp_W_raster_name = tmp_W_raster_name + "_W"
+            w_raster_name = input_raster.replace(".", "_")
+            w_raster_name = w_raster_name + "_W"
+
+            std_raster_name = input_raster.replace(".", "_")
+            std_raster_name = std_raster_name + "_S"
+
             if workspace_type != "FileSystem":
-                while len(tmp_W_raster_name) > 0 and (tmp_W_raster_name[:1] <= "9" or tmp_W_raster_name[:1] == "_"):
-                    tmp_W_raster_name = tmp_W_raster_name[1:]
-            
-            tmp_S_raster_name = input_raster.replace(".", "_")
-            tmp_S_raster_name = tmp_S_raster_name + "_S"
-            if workspace_type != "FileSystem":
-                while len(tmp_S_raster_name) > 0 and (tmp_S_raster_name[:1] <= "9" or tmp_S_raster_name[:1] == "_"):
-                    tmp_S_raster_name = tmp_S_raster_name[1:]
+                while len(w_raster_name) > 0 and (w_raster_name[:1] <= "9" or w_raster_name[:1] == "_"):
+                    w_raster_name = w_raster_name[1:]
+                while len(std_raster_name) > 0 and (std_raster_name[:1] <= "9" or std_raster_name[:1] == "_"):
+                    std_raster_name = std_raster_name[1:]
 
             # Check for unsigned integer raster - cannot have negative missing data
             if (nodata_value != "#") and (arcpy.Describe(input_raster).pixelType.upper().startswith("U")):
@@ -110,30 +110,30 @@ def Execute(self, parameters, messages):
             arcpy.management.MakeRasterLayer(input_raster, "tmp_rst")
             arcpy.management.AddJoin("tmp_rst", "VALUE", weights_table, "CLASS")
 
-            tmp_W_output_raster = arcpy.CreateScratchName(tmp_W_raster_name, "", "RasterDataset", arcpy.env.scratchWorkspace)
-            tmp_std_output_raster = arcpy.CreateScratchName(tmp_S_raster_name, "", "RasterDataset", arcpy.env.scratchWorkspace)
+            output_w_raster = arcpy.CreateScratchName(w_raster_name, "", "RasterDataset", arcpy.env.scratchWorkspace)
+            output_std_raster = arcpy.CreateScratchName(std_raster_name, "", "RasterDataset", arcpy.env.scratchWorkspace)
 
-            arcpy.management.CopyRaster("tmp_rst", tmp_W_output_raster, "#", "#", nodata_value)
-            arcpy.management.CopyRaster("tmp_rst", tmp_std_output_raster, "#", "#", nodata_value)
+            arcpy.management.CopyRaster("tmp_rst", output_w_raster, "#", "#", nodata_value)
+            arcpy.management.CopyRaster("tmp_rst", output_std_raster, "#", "#", nodata_value)
 
-            weight_lookup = arcpy.sa.Lookup(tmp_W_output_raster, "WEIGHT")
-            std_lookup = arcpy.sa.Lookup(tmp_std_output_raster, "W_STD")
+            weight_lookup = arcpy.sa.Lookup(output_w_raster, "WEIGHT")
+            std_lookup = arcpy.sa.Lookup(output_std_raster, "W_STD")
 
             # Note: the step in the old code where the mask gets used is the Lookup function
             # TODO: go properly through the old code to see if mask should be applied earlier
             # (it might affect the logic itself, and possibly the performance)
-            weight_lookup.save(tmp_W_output_raster)
-            std_lookup.save(tmp_std_output_raster)
+            weight_lookup.save(output_w_raster)
+            std_lookup.save(output_std_raster)
 
-            tmp_weights_rasters.append(tmp_W_output_raster)
-            tmp_std_rasters.append(tmp_std_output_raster)
+            tmp_weights_rasters.append(output_w_raster)
+            tmp_std_rasters.append(output_std_raster)
 
             if not is_ignore_missing_data_selected:
                 clause = "Class = %s" % missing_data_value
                 with arcpy.da.SearchCursor(weights_table, ["Class"], where_clause=clause) as cursor:
                     for row in cursor:
                         if row:
-                            tmp_rasters_with_missing_data.append(tmp_W_output_raster)
+                            tmp_rasters_with_missing_data.append(output_w_raster)
                             break
 
             i += 1

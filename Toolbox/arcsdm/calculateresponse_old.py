@@ -176,48 +176,37 @@ def Execute(self, parameters, messages):
             # Create new rasterlayer from input raster for both the weights and the std raster -> Result RasterLayer
             # These will be in-memory only
             # AddJoin requires an input layer or tableview not Input Raster Dataset.
-            tmp_w_raster_layer = "OutRas_lyr"
-            tmp_std_raster_layer = "OutRas_lyr2"
+            tmp_raster_layer = "OutRas_lyr"
 
-            arcpy.MakeRasterLayer_management(input_raster, tmp_w_raster_layer)
-            gp.makerasterlayer(input_raster, tmp_std_raster_layer)
+            arcpy.MakeRasterLayer_management(input_raster, tmp_raster_layer)
             
-            # Join result layers with weights table
-            arcpy.AddJoin_management(tmp_w_raster_layer, "VALUE", weights_table, "CLASS")
-            gp.AddJoin_management(tmp_std_raster_layer, "Value", weights_table, "CLASS")
+            # Join result layer with weights table
+            arcpy.AddJoin_management(tmp_raster_layer, "VALUE", weights_table, "CLASS")
 
-            temp_w_raster = gp.CreateScratchName("tmp_rst", "", "rst", arcpy.env.scratchWorkspace)
-            temp_std_raster = gp.CreateScratchName("tmp_rst", "", "rst", arcpy.env.scratchWorkspace)
+            temp_raster = gp.CreateScratchName("tmp_rst", "", "rst", arcpy.env.scratchWorkspace)
             
-            # Delete existing temp rasters
-            if arcpy.Exists(temp_w_raster):
-                arcpy.management.Delete(temp_w_raster)
+            # Delete existing temp_raster
+            if arcpy.Exists(temp_raster):
+                arcpy.management.Delete(temp_raster)
                 gc.collect()
                 arcpy.ClearWorkspaceCache_management()
                 arcpy.AddMessage("Deleted tempraster")
-
-            if arcpy.Exists(temp_std_raster): 
-                arcpy.management.Delete(temp_std_raster)
-                gc.collect()
-                arcpy.ClearWorkspaceCache_management()
-                arcpy.AddMessage("Tmprst deleted.")
             
             # Copy created and joined in-memory raster to temp_raster
-            arcpy.CopyRaster_management(tmp_w_raster_layer, temp_w_raster, "#", "#", NoDataArg2)
-            arcpy.CopyRaster_management(tmp_std_raster_layer, temp_std_raster, "#", "#", NoDataArg2)
+            arcpy.CopyRaster_management(tmp_raster_layer, temp_raster, "#", "#", NoDataArg2)
 
             arcpy.AddMessage(f"Output_Raster: {output_w_raster}")
             
             # Save weights raster
-            outras = arcpy.sa.Lookup(temp_w_raster, "WEIGHT")
-            outras.save(output_w_raster)
+            weight_lookup = arcpy.sa.Lookup(temp_raster, "WEIGHT")
+            weight_lookup.save(output_w_raster)
             
             if not arcpy.Exists(output_w_raster):
                 arcpy.AddError(f"{output_w_raster} does not exist.")
                 raise
             tmp_weights_rasters.append(output_w_raster)
 
-            gp.Lookup_sa(temp_std_raster, "W_STD", output_std_raster)
+            gp.Lookup_sa(temp_raster, "W_STD", output_std_raster)
             
             if not arcpy.Exists(output_std_raster):
                 arcpy.AddError(f"{output_std_raster} does not exist.")
@@ -232,8 +221,7 @@ def Execute(self, parameters, messages):
                 if tblrow:
                     rasters_with_missing_data.append(arcpy.Describe(output_w_raster).catalogPath)
             
-            arcpy.management.Delete(temp_w_raster)
-            arcpy.management.Delete(temp_std_raster)
+            arcpy.management.Delete(temp_raster)
 
             arcpy.AddMessage(" ") # Cycle done - add ONE linefeed
         
