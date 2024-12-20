@@ -1741,6 +1741,7 @@ class SMOTE(object):
         datatype=["GPFeatureLayer","GPRasterLayer"],
         parameterType="Required",
         direction="Input")
+        param_X.value="RC_AEM"
 
         param_Y = arcpy.Parameter(
         displayName="Y: The target labels corresponding to the feature matrix",
@@ -1748,6 +1749,7 @@ class SMOTE(object):
         datatype=["GPFeatureLayer","GPRasterLayer"],
         parameterType="Required",
         direction="Input")
+        param_Y.value="output_labels.tiff"
 
         sampling_strategy = arcpy.Parameter(
         displayName="Sampling Strategy",
@@ -1773,6 +1775,7 @@ class SMOTE(object):
         datatype="DEFile",
         parameterType="Required",
         direction="Output")
+        smote_output.value = "output_file"
         
 
         params = [param_X, param_Y, sampling_strategy, random_state, smote_output]
