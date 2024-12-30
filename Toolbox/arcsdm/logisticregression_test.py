@@ -207,7 +207,7 @@ def Execute(self, parameters, messages):
                 wts_g = gp.createscratchname("Wts_G")
                 gp.MakeRasterLayer_management(Wts_Rasters[evidx], wts_g)
                 #evrows = gp.SearchCursor("Wts_G")
-                evrows = FloatRasterSearchcursor(gp, wts_g)
+                evrows = FloatRasterSearchcursor(wts_g)
                 #evrow = evrows.next()
                 for evrow in evrows:
                     #gp.AddMessage("Value: %s"%evrow.value)

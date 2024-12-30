@@ -38,11 +38,12 @@ VAT.next() returns (ID, VALUE, COUNT)
 """
 
 # Import modules
-import sys, string, os, random, traceback, tempfile
 import arcpy
-import arcsdm.workarounds_93
-from arcsdm.floatingrasterclass import FloatRasterVAT, rowgen
 import importlib
+import os
+
+from arcsdm.common import rowgen
+from arcsdm.floatingrasterarray import FloatRasterVAT
 
 # Create the Geoprocessor object
 arcpy.CheckOutExtension("spatial")

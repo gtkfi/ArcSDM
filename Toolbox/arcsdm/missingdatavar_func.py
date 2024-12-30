@@ -26,7 +26,7 @@ import traceback
 from arcsdm.floatingrasterarray import FloatRasterSearchcursor
 
 
-def TotalAreaFromCounts(gp,Input_Raster,CellSize):
+def TotalAreaFromCounts(gp, Input_Raster, CellSize):
     IsNul_Wts = gp.createuniquename(("IsNul_" + os.path.basename(Input_Raster))[:11], gp.scratchworkspace)
     gp.IsNull_sa(Input_Raster, IsNul_Wts)
     rasrows = gp.SearchCursor(IsNul_Wts, 'Value = 0')
@@ -74,7 +74,7 @@ def MissingDataVariance(gp, Wts_Rasters, PostProb, OutputName):
             # Create total class variances list
             ClsVars = []
 
-            Wts_RasterRows = FloatRasterSearchcursor(gp, Wts_Raster)
+            Wts_RasterRows = FloatRasterSearchcursor(Wts_Raster)
             j = 0
             """ Cannot be done by single raster; must generate a raster for each value """
             for Wts_RasterRow in Wts_RasterRows:

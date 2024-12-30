@@ -18,30 +18,28 @@ scale of 6 or less have FLOAT type in tables and the type DOUBLE for higher scal
     VAT does not include the NODATA value.
     Use getNODATA() to get NODATA value.
 """
-import os, sys, traceback, array, arcpy
+import arcpy
+import array
+import os
 
 class FloatRasterVAT(object):
-    def __init__(self, gp, float_raster, *args):
+    def __init__(self, float_raster, *args):
         """ Generator yields VAT-like rows for floating-point rasters """
-        # Process: RasterToFLOAT_conversion: FLOAT raster to FLOAT file
-        # Get a output scratch file name
         OutAsciiFile = arcpy.CreateUniqueName("tmp_rasfloat.flt", arcpy.env.scratchFolder)
         # Convert float raster to FLOAT file and ASCII header
         arcpy.conversion.RasterToFloat(float_raster, OutAsciiFile)
-        # Create dictionary as pseudo-VAT
+
         # Open ASCII header file and get raster parameters
-        print(OutAsciiFile)
         hdrpath = os.path.splitext(OutAsciiFile)[0] + ".hdr"
-        print(hdrpath)
         try:
             fdin = open(hdrpath, 'r')
-            self.ncols = int(fdin.readline().split()[1].strip())
-            self.nrows = int(fdin.readline().split()[1].strip())
-            self.xllcorner =  float(fdin.readline().split()[1].strip().replace(",","."))
-            self.yllcorner = float(fdin.readline().split()[1].strip().replace(",","."))
-            self.cellsize = float(fdin.readline().split()[1].strip())
+            ncols = int(fdin.readline().split()[1].strip())
+            nrows = int(fdin.readline().split()[1].strip())
+            xllcorner =  float(fdin.readline().split()[1].strip().replace(",", "."))
+            yllcorner = float(fdin.readline().split()[1].strip().replace(",", "."))
+            cellsize = float(fdin.readline().split()[1].strip())
             self.NODATA_value = int(fdin.readline().split()[1].strip())
-            self.byteorder = fdin.readline().split()[1].strip()
+            byteorder = fdin.readline().split()[1].strip()
         finally:
             fdin.close()
         # Get FLOAT file path
@@ -49,22 +47,26 @@ class FloatRasterVAT(object):
         # Get filesize in bytes
         filesize = os.path.getsize(fltpath)
         # Get number bytes per floating point value
-        bytesperfloat = filesize/self.ncols/self.nrows
+        bytesperfloat = filesize/ncols/nrows
         # Set array object type
         if bytesperfloat == 4:
             arraytype = 'f'
         else:
-            raise Exception ('Unknown floating raster type')
+            raise Exception('Unknown floating raster type')
             
         # Open FLOAT file and process rows
         try:
             fdin = open(fltpath, 'rb')
+            # Create dictionary as pseudo-VAT
             self.vat = {}
             vat = self.vat
-            for i in range(self.nrows):
+            for i in range(nrows):
                 # Get row of float raster file as a floating-point Python array
                 arry = array.array(arraytype)
-                arry.fromfile(fdin, self.ncols)
+                try:
+                    arry.fromfile(fdin, ncols)
+                except:
+                    arcpy.AddError("Array input error")
                 # Swap bytes, if necessary
                 if self.byteorder != 'LSBFIRST':
                     arry.byteswap()
@@ -79,6 +81,9 @@ class FloatRasterVAT(object):
                         vat[value] = 1
         finally:
             fdin.close()
+        
+        # Delete the created files
+
 
     def getNODATA(self):
         return self.NODATA_value
@@ -91,13 +96,13 @@ class FloatRasterVAT(object):
             self.value = float_
             self.count = count
         def getvalue(self, name):
+            # TODO: getvalue doesn't do what it should?
             return getattr(self, name)
         def __getattr__(self, name):
             """ Allow any capitalization of row's attributes """
-            return getattr(self,name.lower())
+            return getattr(self, name.lower())
         def __eq__(self, testValue):
             return abs(self.value - testValue) < 1.0e-6
-            
 
     def __len__(self):
         """ Return row count of VAT """
@@ -135,19 +140,12 @@ class FloatRasterVAT(object):
                 # vat key is float value
                 count = vat[value]
             except KeyError:
-                print ('error value: ', repr(value))
+                print('error value: ', repr(value))
                 count = -1
             yield self.row(oid, value, count)
 
-def FloatRasterSearchcursor(gp, float_raster, *args):
+
+def FloatRasterSearchcursor(float_raster, *args):
     """ Return a searchcursor from FloatRasterVAT instance """
-    float_raster = FloatRasterVAT(gp, float_raster, args)
+    float_raster = FloatRasterVAT(float_raster, args)
     return float_raster.FloatRasterSearchcursor()
-
-def rowgen(rows):
-    """ Convert a gp searchcursor to a generator function """
-    row = rows.next()        
-    while row:
-        yield row
-        row = rows.next()
-
