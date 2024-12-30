@@ -25,16 +25,16 @@ class FloatRasterVAT(object):
         """ Generator yields VAT-like rows for floating-point rasters """
         # Process: RasterToFLOAT_conversion: FLOAT raster to FLOAT file
         # Get a output scratch file name
-        OutAsciiFile = gp.createuniquename("tmp_rasfloat.flt", arcpy.env.scratchFolder)
+        OutAsciiFile = arcpy.CreateUniqueName("tmp_rasfloat.flt", arcpy.env.scratchFolder)
         # Convert float raster to FLOAT file and ASCII header
-        gp.RasterToFLOAT_conversion(float_raster, OutAsciiFile)
+        arcpy.conversion.RasterToFloat(float_raster, OutAsciiFile)
         # Create dictionary as pseudo-VAT
         # Open ASCII header file and get raster parameters
-        print (OutAsciiFile)
+        print(OutAsciiFile)
         hdrpath = os.path.splitext(OutAsciiFile)[0] + ".hdr"
-        print (hdrpath)
+        print(hdrpath)
         try:
-            fdin = open(hdrpath,'r')
+            fdin = open(hdrpath, 'r')
             self.ncols = int(fdin.readline().split()[1].strip())
             self.nrows = int(fdin.readline().split()[1].strip())
             self.xllcorner =  float(fdin.readline().split()[1].strip().replace(",","."))
@@ -44,46 +44,46 @@ class FloatRasterVAT(object):
             self.byteorder = fdin.readline().split()[1].strip()
         finally:
             fdin.close()
-        #Get FLOAT file path
+        # Get FLOAT file path
         fltpath = OutAsciiFile
-        #Get filesize in bytes
+        # Get filesize in bytes
         filesize = os.path.getsize(fltpath)
-        #Get number bytes per floating point value
+        # Get number bytes per floating point value
         bytesperfloat = filesize/self.ncols/self.nrows
-        #Set array object type
-        if bytesperfloat == 4: arraytype = 'f'
+        # Set array object type
+        if bytesperfloat == 4:
+            arraytype = 'f'
         else:
             raise Exception ('Unknown floating raster type')
             
-        #Open FLOAT file and process rows
+        # Open FLOAT file and process rows
         try:
             fdin = open(fltpath, 'rb')
             self.vat = {}
             vat = self.vat
             for i in range(self.nrows):
-                #Get row of float raster file as a floating-point Python array
+                # Get row of float raster file as a floating-point Python array
                 arry = array.array(arraytype)
                 arry.fromfile(fdin, self.ncols)
-                #Swap bytes, if necessary
-                if self.byteorder != 'LSBFIRST': arry.byteswap()
-                #Process raster values to get occurence frequencies of unique values
+                # Swap bytes, if necessary
+                if self.byteorder != 'LSBFIRST':
+                    arry.byteswap()
+                # Process raster values to get occurence frequencies of unique values
                 for j in range(self.ncols):
                     value = arry[j]
-                    if value == self.NODATA_value: continue
+                    if value == self.NODATA_value:
+                        continue
                     if value in vat:
                         vat[value] += 1
                     else:
                         vat[value] = 1
         finally:
             fdin.close()
-        #print 'Unique values count in floating raster = %s'%len(vat)
-        #print len(vat),min(vat.keys()),max(vat.keys())
-        #print vat
 
     def getNODATA(self):
         return self.NODATA_value
 
-    #Row definition
+    # Row definition
     class row(object):
         """ row definition """
         def __init__(self, oid, float_, count):
@@ -115,8 +115,9 @@ class FloatRasterVAT(object):
         try:
             if testValue in self:
                 return self._index
-            else: raise ValueError
-        except ValueError (msg):
+            else:
+                raise ValueError
+        except ValueError:
             raise
         
     def __getitem__(self, testValue):
@@ -125,18 +126,18 @@ class FloatRasterVAT(object):
         
     def FloatRasterSearchcursor(self):
         """ Return a generator function that produces searchcursor rows from VAT """
-        #Generator to yield rows via Python "for" statement
-        #Row returns OID, VALUE, COUNT as if pseudoVAT.
-        #Raster VALUEs increasing as OID increases
+        # Generator to yield rows via Python "for" statement
+        # Row returns OID, VALUE, COUNT as if pseudoVAT.
+        # Raster VALUEs increasing as OID increases
         vat = self.vat
         for oid, value in enumerate(sorted(vat.keys())):
             try:
-                #vat key is float value
+                # vat key is float value
                 count = vat[value]
             except KeyError:
-                print ('error value: ',repr(value))
+                print ('error value: ', repr(value))
                 count = -1
-            yield self.row(oid,value,count)
+            yield self.row(oid, value, count)
 
 def FloatRasterSearchcursor(gp, float_raster, *args):
     """ Return a searchcursor from FloatRasterVAT instance """
