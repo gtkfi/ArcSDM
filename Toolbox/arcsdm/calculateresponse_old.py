@@ -33,7 +33,7 @@ import sys
 import traceback
 
 from arcsdm.common import log_arcsdm_details
-from arcsdm.missingdatavar_func import MissingDataVariance
+from arcsdm.missingdatavar_func import create_missing_data_variance_raster
 from arcsdm.wofe_common import check_wofe_inputs, get_study_area_parameters
 
 
@@ -312,7 +312,7 @@ def Execute(self, parameters, messages):
                     if arcpy.Exists(output_mdvar_raster):
                         arcpy.management.Delete(output_mdvar_raster)
 
-                    MissingDataVariance(gp, rasters_with_missing_data, output_pprb_raster, output_mdvar_raster)
+                    create_missing_data_variance_raster(gp, rasters_with_missing_data, output_pprb_raster, output_mdvar_raster)
 
                     InExpression = 'SQRT(SUM(SQR(%s),%s))' % (output_std_raster, output_mdvar_raster)
 

@@ -28,7 +28,15 @@ def get_study_area_size_sq_km():
     if not arcpy.env.mask:
         raise WofeInputError("Mask doesn't exist! Set Mask under Analysis/Environments.")
 
-    desc = arcpy.Describe(arcpy.env.mask)
+    masked_area_sq_km = get_area_size_sq_km(arcpy.env.mask)
+
+    arcpy.AddMessage(f"Mask area (km^2): {masked_area_sq_km}")
+
+    return masked_area_sq_km
+
+
+def get_area_size_sq_km(layer):
+    desc = arcpy.Describe(layer)
     coord_sys = desc.spatialReference
     spatial_unit = coord_sys.linearUnitName if coord_sys.linearUnitName is not None else ""
 
@@ -36,7 +44,7 @@ def get_study_area_size_sq_km():
     if not spatial_unit.lower().strip() == "meter":
         raise WofeInputError(f"Output spatial unit should be meter, but was {spatial_unit}. Check output coordinate system in Environments!")
 
-    masked_area_sq_m = 0.0
+    area_sq_m = 0.0
 
     if desc.dataType in ["RasterLayer", "RasterDataset", "RasterBand"]:
         raster_info = arcpy.Raster(desc.catalogPath)
@@ -48,21 +56,20 @@ def get_study_area_size_sq_km():
         element_count = (raster_array != nodata_value).sum()
         
         cell_size_sq_m = desc.MeanCellWidth * desc.MeanCellHeight
-        masked_area_sq_m = element_count * cell_size_sq_m
+        area_sq_m = element_count * cell_size_sq_m
 
     elif desc.dataType in ["FeatureLayer", "FeatureClass", "ShapeFile"]:
         with arcpy.da.SearchCursor(desc.catalogPath, ["SHAPE@AREA"]) as cursor:
             for row in cursor:
-                masked_area_sq_m += row[0]
+                area_sq_m += row[0]
     else:
         raise WofeInputError(f"Incorrect mask data type: {desc.dataType}")
     
     conversion_factor = 0.000001
-    masked_area_sq_km = masked_area_sq_m * conversion_factor
+    area_sq_km = area_sq_m * conversion_factor
 
-    arcpy.AddMessage(f"Mask area (km^2): {masked_area_sq_km}")
+    return area_sq_km
 
-    return masked_area_sq_km
 
 
 def get_study_area_unit_cell_count(unit_cell_size_sq_km):
@@ -244,3 +251,60 @@ def extract_layer_from_raster_band(evidence_layer, evidence_descr):
             raise WofeInputError("ERROR: Data Type of Evidence Layer cannot be RasterBand, use Raster Dataset.")
     else:
         return evidence_layer, evidence_descr
+
+
+# Replaces the function MissingDataVariance from missingdatavar_func.py
+def create_missing_data_variance_layer(nodata_value, study_area_size_sq_km, weights_rasters_list, post_probability_raster, md_variance_output_name):
+    # TODO: Note! Input rasters should be masked already? - possibly add check?
+    # TODO: decide whether the weights rasters need to already be masked in a way that missing data has been combined to nodata?
+    
+    for raster in weights_rasters_list:
+        arcpy.AddMessage(f"Missing data Variance for: {raster}")
+        weights_raster = arcpy.Describe(raster).catalogPath
+
+        # Start MD Variance raster
+        # Get posterior probability at MD cells
+        R1 = os.path.join(arcpy.env.scratchWorkspace, "R1")
+        if arcpy.Exists(R1):
+            arcpy.management.Delete(R1)
+
+        temp_nodata_mask = arcpy.sa.IsNull(weights_raster)
+        pprb_at_nodata_cells = arcpy.sa.Con(temp_nodata_mask, post_probability_raster, 0.0, "VALUE = 1")
+
+        pprb_at_nodata_cells.save(R1)
+        
+        # Get PostODDs at MD cells
+        R2 = os.path.join(arcpy.env.scratchWorkspace, "R2")
+        if arcpy.Exists(R2):
+            arcpy.management.Delete(R2)
+
+        # Exp = "%s / (1.0 - %s)" % (R1, R1)
+
+        variable_names = ['"r1"']
+        post_odds_expression = "%s / (1.0 - %s)" % ('"r1"', '"r1"')
+        arcpy.AddMessage(f"R2 = {post_odds_expression}")
+        post_odds = arcpy.sa.RasterCalculator([R1], variable_names, post_odds_expression, extent_type="UnionOf", cellsize_type="MinOf")
+        post_odds.save(R2)
+        arcpy.AddMessage(f"R2 exists: {arcpy.Exists(R2)}")
+
+        # Get Total Variance of MD cells
+        # Create total class variances list
+        ClsVars = []
+
+        # TODO: for each class, calculate the variance of the posterior probability due to missing data
+
+        # TODO: 1: calculate for present pattern as if missing pattern is known:
+        # (p(D|Ej)-p(D))^2 * p(Ej)
+        # TODO: 2: calculate for absent pattern as if missing pattern is known:
+        # (p(D|nEj)-p(D))^2 * p(nEj)
+        # (ie. use the full mask area as the total area!)
+
+        # Need:
+        # p(Ej): area of predictor pattern j / total area
+        # p(nEj): area of missing data for pattern j / total area
+        # p(D): posterior probability calculated for the redion where Ej is missing -> pprb_at_nodata_cells
+        # p(D|Ej): posterior probability in the presence of pattern Ej
+        # p(D|nEj): posterior probability in the absence of pattern Ej
+        # 
+
+    return None
