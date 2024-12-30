@@ -49,20 +49,20 @@ def MissingDataVariance(gp, Wts_Rasters, PostProb, OutputName):
         # Loop throught Wts Rasters
         for Wts_Raster0 in Wts_Rasters:
             arcpy.AddMessage(f"Missing data Variance for: {Wts_Raster0}")
-            Wts_Raster = gp.describe(Wts_Raster0).catalogPath
+            Wts_Raster = arcpy.Describe(Wts_Raster0).catalogPath
             TotDataArea = TotalAreaFromCounts(gp, Wts_Raster, CellSize)
             arcpy.AddMessage('TotDataArea = %.0f' % TotDataArea)
             
             # Start MD Variance raster
             # Get PostProb raster of MD cells
-            R1 = os.path.join(gp.ScratchWorkspace, "R1")
-            if gp.Exists(R1):
-                gp.Delete(R1)
+            R1 = os.path.join(arcpy.env.scratchWorkspace, "R1")
+            if arcpy.Exists(R1):
+                arcpy.management.Delete(R1)
             Exp0 = "CON(%s == 0.0,%s,0.0)" % (Wts_Raster, PostProb)
             arcpy.AddMessage(f"R1={Exp0}")
             gp.SingleOutputMapAlgebra_sa(Exp0, R1)
             # Get PostODDs raster of MD cells
-            R2 = os.path.join(gp.ScratchWorkspace, "R2")
+            R2 = os.path.join(arcpy.env.scratchWorkspace, "R2")
             if arcpy.Exists(R2):
                 arcpy.management.Delete(R2)
             Exp = "%s / (1.0 - %s)" % (R1, R1)
@@ -80,7 +80,7 @@ def MissingDataVariance(gp, Wts_Rasters, PostProb, OutputName):
             for Wts_RasterRow in Wts_RasterRows:
                 if Wts_RasterRow.Value == 0.0:
                     continue
-                ClsVar = str(os.path.join(gp.ScratchWorkspace, "ClsVar%s%s" % (i, j)))
+                ClsVar = str(os.path.join(arcpy.env.scratchWorkspace, "ClsVar%s%s" % (i, j)))
                 j += 1
                 if arcpy.Exists(ClsVar):
                     arcpy.management.Delete(ClsVar)
@@ -93,7 +93,7 @@ def MissingDataVariance(gp, Wts_Rasters, PostProb, OutputName):
 
             del Wts_RasterRows
             # Sum the class variances
-            TotClsVar = os.path.join(gp.ScratchWorkspace, "TotClsVar%s" % i)
+            TotClsVar = os.path.join(arcpy.env.scratchWorkspace, "TotClsVar%s" % i)
             i += 1
             if arcpy.Exists(TotClsVar):
                 arcpy.Delete(TotClsVar)
@@ -121,7 +121,7 @@ def MissingDataVariance(gp, Wts_Rasters, PostProb, OutputName):
     except Exception:
         tb = sys.exc_info()[2]
         tbinfo = traceback.format_tb(tb)[0]
-        
+
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
             str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
         msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"
