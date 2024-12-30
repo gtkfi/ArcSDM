@@ -6,63 +6,66 @@ import os
 import sys
 import traceback
 
-import arcsdm.wofe_common
-
-from arcsdm.wofe_common import check_wofe_inputs, get_study_area_parameters
+from arcsdm.common import log_arcsdm_details
+from arcsdm.wofe_common import check_wofe_inputs, get_study_area_parameters, WofeInputError
 
 
 def Execute(self, parameters, messages):
-    # TODO: Remove this after testing is done!
-    # Make sure imported modules are refreshed if the toolbox is refreshed.
-    importlib.reload(arcsdm.wofe_common)
     try:
+        arcpy.CheckOutExtension("Spatial")
+
         arcpy.env.overwriteOutput = True
         arcpy.AddMessage("Setting overwriteOutput to True")
 
         arcpy.SetLogHistory(True)
         arcpy.AddMessage("Setting LogHistory to True")
 
-        evidence_rasters = parameters[0].valueAsText
-        weights_tables = parameters[1].valueAsText
-        training_point_feature = parameters[2].valueAsText
+        input_evidence_rasters = parameters[0].valueAsText
+        input_weights_tables = parameters[1].valueAsText
+        training_points_feature = parameters[2].valueAsText
         is_ignore_missing_data_selected = parameters[3].value
         missing_data_value = parameters[4].value
         unit_cell_area_sq_km = parameters[5].value
         output_pprb_raster = parameters[6].valueAsText
         output_std_raster = parameters[7].valueAsText
-        output_md_variance = parameters[8].valueAsText
-        output_total_stddev = parameters[9].valueAsText
+        output_mdvar_raster = parameters[8].valueAsText
+        output_total_std_raster = parameters[9].valueAsText
         output_confidence_raster = parameters[10].valueAsText
 
         nodata_value = missing_data_value
         if is_ignore_missing_data_selected:
             nodata_value = "#"
 
-        evidence_rasters = evidence_rasters.split(";")
-        weights_tables = weights_tables.split(";")
+        input_rasters = input_evidence_rasters.split(";")
+        weights_tables = input_weights_tables.split(";")
 
-        if len(evidence_rasters) != len(weights_tables):
-            raise ValueError("The number of evidence rasters should equal the number of weights tables!")
+        if len(input_rasters) != len(weights_tables):
+            raise WofeInputError("The number of evidence rasters should equal the number of weights tables!")
 
         # TODO: Add check for weights table columns depending on weights type (unique weights shouldn't have generalized columns)
 
-        check_wofe_inputs(evidence_rasters, training_point_feature)
+        check_wofe_inputs(input_rasters, training_points_feature)
+
+        for weights_table in weights_tables:
+            fields = arcpy.ListFields(weights_table)
+            if ("WEIGHT" not in fields) or ("W_STD" not in fields):
+                raise WofeInputError(f"The weights table {weights_table} has not been generalized! Make sure each table has the columns 'WEIGHT' and 'W_STD'.")
 
         # TODO: check that all evidence rasters have the same cell size?
         # TODO: use the env Cell Size instead. not all of the evidence rasters necessarily have the same cell size
         # TODO: evidence rasters should be resampled to env Cell Size?
-        evidence_cellsize = arcpy.Describe(evidence_rasters[0]).MeanCellWidth
+        evidence_cellsize = arcpy.Describe(input_rasters[0]).MeanCellWidth
 
-        total_area_sq_km_from_mask, training_point_count = get_study_area_parameters(unit_cell_area_sq_km, training_point_feature)
+        log_arcsdm_details()
+        total_area_sq_km_from_mask, training_point_count = get_study_area_parameters(unit_cell_area_sq_km, training_points_feature)
         area_cell_count = total_area_sq_km_from_mask / unit_cell_area_sq_km
         prior_probability = training_point_count / area_cell_count
 
         arcpy.AddMessage("\n" + "=" * 21 + " Starting calculate response " + "=" * 21)
         arcpy.AddMessage("%-20s %s"% ("Prior probability:" , str(prior_probability)))
-        arcpy.AddMessage(f"Input evidence rasters: {evidence_rasters}")
+        arcpy.AddMessage(f"Input evidence rasters: {input_rasters}")
 
         workspace_type = arcpy.Describe(arcpy.env.workspace).workspaceType
-        arcpy.AddMessage(f"Workspace type: {workspace_type}")
 
         # TODO: check that the order of the evidence rasters and the associated weights tables matches, e.g. by checking the number of classes
 
@@ -73,8 +76,8 @@ def Execute(self, parameters, messages):
         i = 0
 
         # Create Weight and Standard Deviation rasters
-        while i < len(evidence_rasters):
-            input_raster = evidence_rasters[i]
+        while i < len(input_rasters):
+            input_raster = input_rasters[i]
             weights_table = weights_tables[i]
 
             arcpy.AddMessage(f"Processing evidence layer {input_raster} and weights table {weights_table}")

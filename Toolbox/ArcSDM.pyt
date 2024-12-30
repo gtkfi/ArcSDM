@@ -1019,7 +1019,7 @@ class CalculateResponse(object):
         importlib.reload(arcsdm.calculateresponse)
         arcsdm.calculateresponse.Execute(self, parameters, messages)
         # execute_tool(arcsdm.calculateresponse.Execute, self, parameters, messages)
-        return 
+        return
 
 
 class CalculateResponseOld(object):

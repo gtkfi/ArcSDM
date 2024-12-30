@@ -34,7 +34,7 @@ import traceback
 
 from arcsdm.common import log_arcsdm_details
 from arcsdm.missingdatavar_func import MissingDataVariance
-from arcsdm.wofe_common import get_study_area_parameters
+from arcsdm.wofe_common import check_wofe_inputs, get_study_area_parameters
 
 
 debuglevel = 0
@@ -63,46 +63,52 @@ def Execute(self, parameters, messages):
         # TODO: Refactor to arcpy.
         gp = arcgisscripting.create()
 
-        gp.CheckOutExtension("spatial")
-
-        Evidence = parameters[0].valueAsText # gp.GetParameterAsText(0)
-        Wts_Tables = parameters[1].valueAsText # gp.GetParameterAsText(1)
-        Training_Points = parameters[2].valueAsText # gp.GetParameterAsText(2)
-        trainingDescr = arcpy.Describe(Training_Points)
-        trainingCoord = trainingDescr.spatialReference.name
-        IgnoreMsgData = parameters[3].value # gp.GetParameter(3)
-        MissingDataValue = parameters[4].value # gp.GetParameter(4)
-        
-        if IgnoreMsgData: # for nodata argument to CopyRaster tool
-            NoDataArg = MissingDataValue
-        else:
-            NoDataArg = '#'
-        UnitArea = parameters[5].value # gp.GetParameter(5)
-
-        log_arcsdm_details()
-        total_area_sq_km_from_mask, numTPs = get_study_area_parameters(UnitArea, Training_Points)
-        
-        area_cell_count = total_area_sq_km_from_mask / UnitArea
-        arcpy.AddMessage(("%-20s %s" % ("Study Area:", str(area_cell_count))))
-        arcpy.AddMessage("%-20s %s" % ("# training points:", str(numTPs)))
-        
-        # Prior probability
-        prior_probability = numTPs / area_cell_count
-        arcpy.AddMessage("%-20s %s"% ("Prior probability:" , str(prior_probability)))
-
-        # Get input evidence rasters
-        Input_Rasters = Evidence.split(";")
-
-        arcpy.AddMessage(f"Input rasters: {Input_Rasters}")
-        
-        # Get input weight tables
-        Wts_Tables = Wts_Tables.split(";")
+        arcpy.CheckOutExtension("Spatial")
 
         arcpy.env.overwriteOutput = True
         arcpy.AddMessage("Setting overwriteOutput to True")
 
         arcpy.SetLogHistory(True)
         arcpy.AddMessage("Setting LogHistory to True")
+
+        input_evidence_rasters = parameters[0].valueAsText
+        input_weights_tables = parameters[1].valueAsText
+        training_points_feature = parameters[2].valueAsText
+        is_ignore_missing_data_selected = parameters[3].value
+        missing_data_value = parameters[4].value
+        unit_cell_area_sq_km = parameters[5].value
+        output_pprb_raster = parameters[6].valueAsText
+        output_std_raster = parameters[7].valueAsText
+        output_mdvar_raster = parameters[8].valueAsText
+        output_total_std_raster = parameters[9].valueAsText
+        output_confidence_raster = parameters[10].valueAsText
+        
+        if is_ignore_missing_data_selected: # for nodata argument to CopyRaster tool
+            nodata_value = missing_data_value
+        else:
+            nodata_value = '#'
+
+        input_rasters = input_evidence_rasters.split(";")
+        weights_tables = input_weights_tables.split(";")
+
+        if len(input_rasters) != len(weights_tables):
+            raise ValueError("The number of evidence rasters should equal the number of weights tables!")
+
+        check_wofe_inputs(input_rasters, training_points_feature)
+
+        log_arcsdm_details()
+        total_area_sq_km_from_mask, training_point_count = get_study_area_parameters(unit_cell_area_sq_km, training_points_feature)
+        
+        area_cell_count = total_area_sq_km_from_mask / unit_cell_area_sq_km
+        arcpy.AddMessage(("%-20s %s" % ("Study Area:", str(area_cell_count))))
+        arcpy.AddMessage("%-20s %s" % ("# training points:", str(training_point_count)))
+
+        prior_probability = training_point_count / area_cell_count
+        arcpy.AddMessage("%-20s %s"% ("Prior probability:" , str(prior_probability)))
+
+
+
+        arcpy.AddMessage(f"Input rasters: {input_rasters}")
         
         # Create weight raster from raster's associated weights table
         tmp_weights_rasters = []
@@ -119,14 +125,18 @@ def Execute(self, parameters, messages):
         arcpy.AddMessage("=" * 41)
 
         i = 0
-        while i < len(Input_Rasters):
-            input_raster = Input_Rasters[i]
-            weights_table = Wts_Tables[i]
+        while i < len(input_rasters):
+            input_raster = input_rasters[i]
+            weights_table = weights_tables[i]
 
             # Check each Input Raster datatype and coordinate system
             inputDescr = arcpy.Describe(input_raster)
             inputCoord = inputDescr.spatialReference.name
-            arcpy.AddMessage(f"{input_raster}, Data type: {inputDescr.datatype}, Coordinate System: {inputCoord}")
+            arcpy.AddMessage(f"{input_raster}, Data type: {inputDescr.dataType}, Coordinate System: {inputCoord}")
+            
+            trainingDescr = arcpy.Describe(training_points_feature)
+            trainingCoord = trainingDescr.spatialReference.name
+
             if inputCoord != trainingCoord:
                 arcpy.AddError(f"ERROR: Coordinate System of Input Raster is {inputCoord} and Training points it is {trainingCoord}. These must be same.")
                 raise
@@ -168,10 +178,10 @@ def Execute(self, parameters, messages):
      
             # Need to create in-memory Raster Layer for Join
             # Check for unsigned integer raster; cannot have negative missing data
-            if NoDataArg != "#" and arcpy.Describe(input_raster).pixelType.upper().startswith("U"):
+            if nodata_value != "#" and arcpy.Describe(input_raster).pixelType.upper().startswith("U"):
                 NoDataArg2 = "#"
             else:
-                NoDataArg2 = NoDataArg
+                NoDataArg2 = nodata_value
 
             # Create new rasterlayer from input raster for both the weights and the std raster -> Result RasterLayer
             # These will be in-memory only
@@ -215,9 +225,9 @@ def Execute(self, parameters, messages):
             tmp_std_rasters.append(output_std_raster)
 
             # Check for Missing Data in raster's Wts table
-            if not IgnoreMsgData:
+            if not is_ignore_missing_data_selected:
                 # Update the list for Missing Data Variance Calculation
-                tblrows = gp.SearchCursor(weights_table, "Class = %s" % MissingDataValue)
+                tblrows = gp.SearchCursor(weights_table, "Class = %s" % missing_data_value)
                 tblrow = tblrows.Next()
                 if tblrow:
                     rasters_with_missing_data.append(arcpy.Describe(output_w_raster).catalogPath)
@@ -246,21 +256,13 @@ def Execute(self, parameters, messages):
         
         arcpy.AddMessage("\nCreating Post Probability Raster...\n" + "=" * 41)
         try:
-            PostProb = parameters[6].valueAsText #gp.GetParameterAsText(6)
-            
             InExpression = "Exp(%s) / (1.0 + Exp(%s))" % (InExpressionPLOG, InExpressionPLOG)
             arcpy.AddMessage(f"InExpression = {InExpression}")
-            # Fix: This is obsolete
-            #gp.MultiOutputMapAlgebra_sa(InExpression)
-            arcpy.AddMessage(f"Postprob: {PostProb}")
-            #output_raster = gp.RasterCalculator(InExpression, PostProb)
-            #output_raster.save(postprob)
-            gp.SingleOutputMapAlgebra_sa(InExpression, PostProb)
-            # Pro/10 this needs to be done differently....
-            #output_raster = arcpy.sa.RasterCalculator(InExpression, PostProb)
-            #output_raster.save(postprob)
+            arcpy.AddMessage(f"Postprob: {output_pprb_raster}")
+
+            gp.SingleOutputMapAlgebra_sa(InExpression, output_pprb_raster)
             
-            arcpy.SetParameterAsText(6, PostProb)
+            arcpy.SetParameterAsText(6, output_pprb_raster)
         except:
             arcpy.AddError(arcpy.GetMessages(2))
             raise
@@ -269,8 +271,6 @@ def Execute(self, parameters, messages):
             arcpy.AddMessage(arcpy.GetMessages(0))
 
         arcpy.AddMessage("\nCreating Post Probability STD Raster...\n" + "=" * 41)
-
-        PostProb_Std = parameters[7].valueAsText # gp.GetParameterAsText(7)
         
         #TODO: Figure out what this does!? TR
         #TODO: This is always false now
@@ -285,17 +285,17 @@ def Execute(self, parameters, messages):
 
             arcpy.AddMessage("Sum_args: " + SUM_args + "\n" + "=" * 41)
        
-            Constant = 1.0 / float(numTPs)
+            Constant = 1.0 / float(training_point_count)
 
-            InExpression = "SQRT(SQR(%s) * (%s + SUM(%s)))" % (PostProb, Constant, SUM_args)
+            InExpression = "SQRT(SQR(%s) * (%s + SUM(%s)))" % (output_pprb_raster, Constant, SUM_args)
             arcpy.AddMessage(f"InExpression = {InExpression}")
 
         try:
             arcpy.AddMessage(f"InExpression 2 ====> {InExpression}")
 
-            gp.SingleOutputMapAlgebra_sa(InExpression, PostProb_Std)
+            gp.SingleOutputMapAlgebra_sa(InExpression, output_std_raster)
 
-            arcpy.SetParameterAsText(7, PostProb_Std)
+            arcpy.SetParameterAsText(7, output_std_raster)
         except:
             arcpy.AddError(arcpy.GetMessages(2))
             raise
@@ -304,47 +304,44 @@ def Execute(self, parameters, messages):
             arcpy.AddMessage(arcpy.GetMessages(0))
         
         # Create Variance of missing data here and create totVar = VarMD + SQR(VarWts)
-        if not IgnoreMsgData:
+        if not is_ignore_missing_data_selected:
             # Calculate Missing Data Variance
             if len(rasters_with_missing_data) > 0:
                 arcpy.AddMessage("Calculating Missing Data Variance...")
                 try:
-                    MDVariance = parameters[8].valueAsText # gp.GetParameterAsText(8)
-                    if arcpy.Exists(MDVariance):
-                        arcpy.management.Delete(MDVariance)
+                    if arcpy.Exists(output_mdvar_raster):
+                        arcpy.management.Delete(output_mdvar_raster)
 
-                    MissingDataVariance(gp, rasters_with_missing_data, PostProb, MDVariance)
+                    MissingDataVariance(gp, rasters_with_missing_data, output_pprb_raster, output_mdvar_raster)
 
-                    Total_Std = parameters[9].valueAsText # gp.GetParameterAsText(9)
-                    InExpression = 'SQRT(SUM(SQR(%s),%s))' % (PostProb_Std, MDVariance)
+                    InExpression = 'SQRT(SUM(SQR(%s),%s))' % (output_std_raster, output_mdvar_raster)
 
                     arcpy.AddMessage("Calculating Total STD...")
                     arcpy.AddMessage(f"InExpression 3 ====> {InExpression}")
 
-                    gp.SingleOutputMapAlgebra_sa(InExpression, Total_Std)
+                    gp.SingleOutputMapAlgebra_sa(InExpression, output_total_std_raster)
 
-                    arcpy.SetParameterAsText(9, Total_Std)
+                    arcpy.SetParameterAsText(9, output_total_std_raster)
                 except:
                     arcpy.AddError(arcpy.GetMessages(2))
                     raise
             else:
                 arcpy.AddWarning("No evidence with missing data. Missing Data Variance not calculated.")
-                MDVariance = None
-                Total_Std = PostProb_Std
+                output_mdvar_raster = None
+                output_total_std_raster = output_std_raster
         else:
             arcpy.AddWarning("Missing Data Ignored. Missing Data Variance not calculated.")
-            MDVariance = None
-            Total_Std = PostProb_Std
+            output_mdvar_raster = None
+            output_total_std_raster = output_std_raster
         
         # Confidence is PP / sqrt(totVar)
         arcpy.AddMessage("\nCalculating Confidence...\n" + "=" * 41)
 
-        Confidence = parameters[10].valueAsText # gp.GetParameterAsText(10)
-        InExpression = "%s / %s" % (PostProb, PostProb_Std)
+        InExpression = "%s / %s" % (output_pprb_raster, output_std_raster)
         arcpy.AddMessage(f"InExpression 4====> {InExpression}")
         try: 
-            gp.SingleOutputMapAlgebra_sa(InExpression, Confidence)
-            arcpy.SetParameterAsText(10, Confidence)
+            gp.SingleOutputMapAlgebra_sa(InExpression, output_confidence_raster)
+            arcpy.SetParameterAsText(10, output_confidence_raster)
         except:
             arcpy.AddError(arcpy.GetMessages(2))
             raise
@@ -353,20 +350,20 @@ def Execute(self, parameters, messages):
             arcpy.AddMessage(arcpy.GetMessages(0))
         
         # Set derived output parameters
-        arcpy.SetParameterAsText(6, PostProb)
-        arcpy.SetParameterAsText(7, PostProb_Std)
+        arcpy.SetParameterAsText(6, output_pprb_raster)
+        arcpy.SetParameterAsText(7, output_std_raster)
 
-        if MDVariance and (not IgnoreMsgData):
-            arcpy.SetParameterAsText(8, MDVariance)
+        if output_mdvar_raster and (not is_ignore_missing_data_selected):
+            arcpy.SetParameterAsText(8, output_mdvar_raster)
         else:
             arcpy.AddWarning("No Missing Data Variance.")
 
-        if not (Total_Std == PostProb_Std):
-            arcpy.SetParameterAsText(9, Total_Std)
+        if not (output_total_std_raster == output_std_raster):
+            arcpy.SetParameterAsText(9, output_total_std_raster)
         else:
             arcpy.AddWarning("Total STD same as Post Probability STD.")
 
-        arcpy.SetParameterAsText(10, Confidence)
+        arcpy.SetParameterAsText(10, output_confidence_raster)
 
         arcpy.AddMessage("Deleting tmp rasters...")
         for raster in tmp_weights_rasters:
