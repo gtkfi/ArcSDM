@@ -48,7 +48,8 @@ def Execute(self, parameters, messages):
 
         for weights_table in weights_tables:
             fields = arcpy.ListFields(weights_table)
-            if ("WEIGHT" not in fields) or ("W_STD" not in fields):
+            fields = [str(f.baseName).lower() for f in fields]
+            if ("weight" not in fields) or ("w_std" not in fields):
                 raise WofeInputError(f"The weights table {weights_table} has not been generalized! Make sure each table has the columns 'WEIGHT' and 'W_STD'.")
 
         # TODO: check that all evidence rasters have the same cell size?

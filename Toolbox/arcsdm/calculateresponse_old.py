@@ -34,7 +34,7 @@ import traceback
 
 from arcsdm.common import log_arcsdm_details
 from arcsdm.missingdatavar_func import create_missing_data_variance_raster
-from arcsdm.wofe_common import check_wofe_inputs, get_study_area_parameters
+from arcsdm.wofe_common import check_wofe_inputs, get_study_area_parameters, WofeInputError
 
 
 debuglevel = 0
@@ -96,6 +96,12 @@ def Execute(self, parameters, messages):
 
         check_wofe_inputs(input_rasters, training_points_feature)
 
+        for weights_table in weights_tables:
+            fields = arcpy.ListFields(weights_table)
+            fields = [str(f.baseName).lower() for f in fields]
+            if ("weight" not in fields) or ("w_std" not in fields):
+                raise WofeInputError(f"The weights table {weights_table} has not been generalized! Make sure each table has the columns 'WEIGHT' and 'W_STD'.")
+
         log_arcsdm_details()
         total_area_sq_km_from_mask, training_point_count = get_study_area_parameters(unit_cell_area_sq_km, training_points_feature)
         
@@ -105,8 +111,6 @@ def Execute(self, parameters, messages):
 
         prior_probability = training_point_count / area_cell_count
         arcpy.AddMessage("%-20s %s"% ("Prior probability:" , str(prior_probability)))
-
-
 
         arcpy.AddMessage(f"Input rasters: {input_rasters}")
         
@@ -138,8 +142,7 @@ def Execute(self, parameters, messages):
             trainingCoord = trainingDescr.spatialReference.name
 
             if inputCoord != trainingCoord:
-                arcpy.AddError(f"ERROR: Coordinate System of Input Raster is {inputCoord} and Training points it is {trainingCoord}. These must be same.")
-                raise
+                raise WofeInputError(f"ERROR: Coordinate System of Input Raster is {inputCoord} and Training points it is {trainingCoord}. These must be same.")
 
             # When workspace type is File System, Input Weight Table also must end with .dbf
             # If using GDB database, remove numbers and underscore from the beginning of the name (else block)
@@ -212,16 +215,16 @@ def Execute(self, parameters, messages):
             weight_lookup.save(output_tmp_w_raster)
             
             if not arcpy.Exists(output_tmp_w_raster):
-                arcpy.AddError(f"{output_tmp_w_raster} does not exist.")
-                raise
+                raise WofeInputError(f"{output_tmp_w_raster} does not exist.")
+            
             tmp_weights_rasters.append(output_tmp_w_raster)
 
             std_lookup = arcpy.sa.Lookup(temp_raster, "W_STD")
             std_lookup.save(output_tmp_std_raster)
             
             if not arcpy.Exists(output_tmp_std_raster):
-                arcpy.AddError(f"{output_tmp_std_raster} does not exist.")
-                raise
+                raise WofeInputError(f"{output_tmp_std_raster} does not exist.")
+            
             tmp_std_rasters.append(output_tmp_std_raster)
 
             # Check for Missing Data in raster's Wts table
