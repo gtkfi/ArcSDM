@@ -114,30 +114,30 @@ def Execute(self, parameters, messages):
             arcpy.management.MakeRasterLayer(input_raster, tmp_raster_layer)
             arcpy.management.AddJoin(tmp_raster_layer, "VALUE", weights_table, "CLASS")
 
-            output_w_raster = arcpy.CreateScratchName(w_raster_name, "", "RasterDataset", arcpy.env.scratchWorkspace)
-            output_std_raster = arcpy.CreateScratchName(std_raster_name, "", "RasterDataset", arcpy.env.scratchWorkspace)
+            output_tmp_w_raster = arcpy.CreateScratchName(w_raster_name, "", "RasterDataset", arcpy.env.scratchWorkspace)
+            output_tmp_std_raster = arcpy.CreateScratchName(std_raster_name, "", "RasterDataset", arcpy.env.scratchWorkspace)
 
-            arcpy.management.CopyRaster(tmp_raster_layer, output_w_raster, "#", "#", nodata_value)
-            arcpy.management.CopyRaster(tmp_raster_layer, output_std_raster, "#", "#", nodata_value)
+            arcpy.management.CopyRaster(tmp_raster_layer, output_tmp_w_raster, "#", "#", nodata_value)
+            arcpy.management.CopyRaster(tmp_raster_layer, output_tmp_std_raster, "#", "#", nodata_value)
 
-            weight_lookup = arcpy.sa.Lookup(output_w_raster, "WEIGHT")
-            std_lookup = arcpy.sa.Lookup(output_std_raster, "W_STD")
+            weight_lookup = arcpy.sa.Lookup(output_tmp_w_raster, "WEIGHT")
+            std_lookup = arcpy.sa.Lookup(output_tmp_std_raster, "W_STD")
 
             # Note: the step in the old code where the mask gets used is the Lookup function
             # TODO: go properly through the old code to see if mask should be applied earlier
             # (it might affect the logic itself, and possibly the performance)
-            weight_lookup.save(output_w_raster)
-            std_lookup.save(output_std_raster)
+            weight_lookup.save(output_tmp_w_raster)
+            std_lookup.save(output_tmp_std_raster)
 
-            tmp_weights_rasters.append(output_w_raster)
-            tmp_std_rasters.append(output_std_raster)
+            tmp_weights_rasters.append(output_tmp_w_raster)
+            tmp_std_rasters.append(output_tmp_std_raster)
 
             if not is_ignore_missing_data_selected:
                 clause = "Class = %s" % missing_data_value
                 with arcpy.da.SearchCursor(weights_table, ["Class"], where_clause=clause) as cursor:
                     for row in cursor:
                         if row:
-                            tmp_rasters_with_missing_data.append(output_w_raster)
+                            tmp_rasters_with_missing_data.append(output_tmp_w_raster)
                             break
 
             i += 1

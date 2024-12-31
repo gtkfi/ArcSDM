@@ -68,10 +68,10 @@ class FloatRasterVAT(object):
                 except:
                     arcpy.AddError("Array input error")
                 # Swap bytes, if necessary
-                if self.byteorder != 'LSBFIRST':
+                if byteorder != 'LSBFIRST':
                     arry.byteswap()
                 # Process raster values to get occurence frequencies of unique values
-                for j in range(self.ncols):
+                for j in range(ncols):
                     value = arry[j]
                     if value == self.NODATA_value:
                         continue
@@ -82,8 +82,7 @@ class FloatRasterVAT(object):
         finally:
             fdin.close()
         
-        # Delete the created files
-
+        # TODO: Delete the created files
 
     def getNODATA(self):
         return self.NODATA_value

@@ -170,8 +170,8 @@ def Execute(self, parameters, messages):
                     std_raster_name = std_raster_name[1:]
 
             # Create the _W & _S rasters that will be used to calculate output rasters
-            output_w_raster = arcpy.CreateScratchName(w_raster_name, "", "rst", arcpy.env.scratchWorkspace)
-            output_std_raster = arcpy.CreateScratchName(std_raster_name, "", "rst", arcpy.env.scratchWorkspace)
+            output_tmp_w_raster = arcpy.CreateScratchName(w_raster_name, "", "rst", arcpy.env.scratchWorkspace)
+            output_tmp_std_raster = arcpy.CreateScratchName(std_raster_name, "", "rst", arcpy.env.scratchWorkspace)
             
             # Increase the count for next round
             i += 1
@@ -205,24 +205,24 @@ def Execute(self, parameters, messages):
             # Copy created and joined in-memory raster to temp_raster
             arcpy.CopyRaster_management(tmp_raster_layer, temp_raster, "#", "#", NoDataArg2)
 
-            arcpy.AddMessage(f"Output tmp weights raster: {output_w_raster}")
+            arcpy.AddMessage(f"Output tmp weights raster: {output_tmp_w_raster}")
             
             # Save weights raster
             weight_lookup = arcpy.sa.Lookup(temp_raster, "WEIGHT")
-            weight_lookup.save(output_w_raster)
+            weight_lookup.save(output_tmp_w_raster)
             
-            if not arcpy.Exists(output_w_raster):
-                arcpy.AddError(f"{output_w_raster} does not exist.")
+            if not arcpy.Exists(output_tmp_w_raster):
+                arcpy.AddError(f"{output_tmp_w_raster} does not exist.")
                 raise
-            tmp_weights_rasters.append(output_w_raster)
+            tmp_weights_rasters.append(output_tmp_w_raster)
 
             std_lookup = arcpy.sa.Lookup(temp_raster, "W_STD")
-            std_lookup.save(output_std_raster)
+            std_lookup.save(output_tmp_std_raster)
             
-            if not arcpy.Exists(output_std_raster):
-                arcpy.AddError(f"{output_std_raster} does not exist.")
+            if not arcpy.Exists(output_tmp_std_raster):
+                arcpy.AddError(f"{output_tmp_std_raster} does not exist.")
                 raise
-            tmp_std_rasters.append(output_std_raster)
+            tmp_std_rasters.append(output_tmp_std_raster)
 
             # Check for Missing Data in raster's Wts table
             if not is_ignore_missing_data_selected:
@@ -230,7 +230,7 @@ def Execute(self, parameters, messages):
                 tblrows = gp.SearchCursor(weights_table, "Class = %s" % missing_data_value)
                 tblrow = tblrows.Next()
                 if tblrow:
-                    rasters_with_missing_data.append(arcpy.Describe(output_w_raster).catalogPath)
+                    rasters_with_missing_data.append(arcpy.Describe(output_tmp_w_raster).catalogPath)
             
             arcpy.management.Delete(temp_raster)
 

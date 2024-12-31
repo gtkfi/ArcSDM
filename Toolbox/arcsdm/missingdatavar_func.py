@@ -157,9 +157,8 @@ def create_missing_data_variance_raster(gp, masked_weights_rasters, masked_post_
         tbinfo = traceback.format_tb(tb)[0]
 
         pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-            str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
-        msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"
+            str(sys.exc_info()[0])+ ": " + str(sys.exc_info()[1]) + "\n"
+        msgs = "GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
 
         arcpy.AddError(msgs)
         arcpy.AddError(pymsg)
-
