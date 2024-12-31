@@ -237,7 +237,6 @@ def Execute(self, parameters, messages):
             arcpy.AddMessage(" ") # Cycle done - add ONE linefeed
         
         # Get Post Logit Raster
-        
         arcpy.AddMessage("\nGetting Post Logit raster...\n" + "=" * 41)
 
         Input_Data_Str = ' + '.join('"{0}"'.format(w) for w in tmp_weights_rasters)
@@ -253,8 +252,8 @@ def Execute(self, parameters, messages):
         arcpy.AddMessage(f"InexpressionPlog: {InExpressionPLOG}")
 
         # Get Post Probability Raster
-        
         arcpy.AddMessage("\nCreating Post Probability Raster...\n" + "=" * 41)
+
         try:
             InExpression = "Exp(%s) / (1.0 + Exp(%s))" % (InExpressionPLOG, InExpressionPLOG)
             arcpy.AddMessage(f"InExpression = {InExpression}")

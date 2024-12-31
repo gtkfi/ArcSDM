@@ -27,16 +27,6 @@ from arcsdm.floatingrasterarray import FloatRasterSearchcursor
 from arcsdm.wofe_common import get_area_size_sq_km
 
 
-# def TotalAreaFromCounts(gp, Input_Raster, CellSize):
-#     IsNul_Wts = gp.createuniquename(("IsNul_" + os.path.basename(Input_Raster))[:11], gp.scratchworkspace)
-#     gp.IsNull_sa(Input_Raster, IsNul_Wts)
-#     rasrows = gp.SearchCursor(IsNul_Wts, 'Value = 0')
-#     rasrow = rasrows.Next()
-#     TotalCount = rasrow.Count
-#     arcpy.management.Delete(arcpy.Describe(IsNul_Wts).catalogPath)
-#     return float(TotalCount) * CellSize * CellSize / 1000000
-
-
 def create_missing_data_variance_raster(gp, masked_weights_rasters, masked_post_probability_raster, output_raster_name):
     """
     Calculate a raster of the variance of the posterior probability due to missing predictor patterns.
@@ -62,12 +52,11 @@ def create_missing_data_variance_raster(gp, masked_weights_rasters, masked_post_
         for Wts_Raster0 in masked_weights_rasters:
             arcpy.AddMessage(f"Missing data Variance for: {Wts_Raster0}")
             Wts_Raster = arcpy.Describe(Wts_Raster0).catalogPath
-
-            # TODO!: this should probably actually be the study area size,
-            # not just the area of the pattern where data is present
-            # (literature is unclear)
-            # pattern_area_sq_km = TotalAreaFromCounts(gp, Wts_Raster, CellSize)
             
+            # TODO! Need to confirm whether this should just be the study area size,
+            # not the area of the current pattern where data is present
+            # (literature is unclear)
+
             # Get pattern area where data is not missing
             pattern_area_sq_km = get_area_size_sq_km(Wts_Raster0)
             arcpy.AddMessage('TotDataArea = %.0f' % pattern_area_sq_km)
@@ -119,6 +108,7 @@ def create_missing_data_variance_raster(gp, masked_weights_rasters, masked_post_
                 Exp1 = 'CON(%s == 0.0,0.0,EXP(LN(%s) + %s))' % (post_odds_raster_r2, post_odds_raster_r2, weight.value)
                 # Updated posterior probability
                 Exp2 = "%s / (1 + %s)" % (Exp1, Exp1)
+                # NOTE: Assumes meters as the map unit
                 class_area_sq_km = float(weight.Count) * cell_size_sq_m * 0.000001
                 Exp3 = "SQR(%s - %s) * (%s / %s)" % (Exp2, pprb_where_pattern_is_missing_data, class_area_sq_km, pattern_area_sq_km)
                 gp.SingleOutputMapAlgebra_sa(Exp3, temp_variance_raster)

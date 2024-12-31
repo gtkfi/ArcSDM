@@ -82,7 +82,9 @@ class FloatRasterVAT(object):
         finally:
             fdin.close()
         
-        # TODO: Delete the created files
+        # Delete the created files
+        arcpy.management.Delete(OutAsciiFile)
+        arcpy.management.Delete(hdrpath)
 
     def getNODATA(self):
         return self.NODATA_value
