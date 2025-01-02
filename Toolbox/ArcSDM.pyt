@@ -1,5 +1,7 @@
 import arcpy
 import importlib
+import os
+
 from imp import reload
 
 import arcsdm.acterbergchengci
@@ -59,7 +61,6 @@ class Toolbox(object):
 
 
 class GrandWofe(object):
-    
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Grand WOFE"
@@ -73,7 +74,6 @@ class GrandWofe(object):
         param1 = arcpy.Parameter(
         displayName="Grand WOFE name",
         name="wofename",
-        #datatype="DEFeatureClass",
         datatype="String",
         parameterType="Required",
         direction="Input")
@@ -81,18 +81,15 @@ class GrandWofe(object):
         param2 = arcpy.Parameter(
         displayName="Input raster names",
         name="rasternames",
-        #datatype="DEFeatureClass",
         datatype="GPRasterLayer",
-        multiValue=1,        
+        multiValue=1,
         parameterType="Required",
         direction="Input")
         
         param3 = arcpy.Parameter(
         displayName="Input raster types (use a, d, or c and separate by semicolon ;)",
         name="rastertypes",
-        #datatype="DEFeatureClass",
         datatype="String",
-        #multiValue=1,        
         parameterType="Required",
         direction="Input")
         
@@ -109,7 +106,6 @@ class GrandWofe(object):
         datatype="Boolean",
         parameterType="Optional",
         direction="Input")
-        #paramIgnoreMissing.value= false;
         
         paramContrast = arcpy.Parameter(
         displayName="Contrast Confidence Level",
@@ -126,51 +122,37 @@ class GrandWofe(object):
         parameterType="Required",
         direction="Input")
         paramUnitArea.value = "1"
-        
-       
-        
-        
-        
+
         params = [param1, param2, param3, paramTrainingPoints, paramIgnoreMissing, paramContrast, paramUnitArea]
         return params
 
-    def isLicensed(self):    
+    def isLicensed(self):
         """Set whether tool is licensed to execute."""
         try:
             if arcpy.CheckExtension("Spatial") != "Available":
                 raise Exception
         except Exception:
-            return False  # tool cannot be executed
+            return False
         return True
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
+        validation is performed. This method is called whenever a parameter
         has been changed."""
         return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
-     
+        parameter. This method is called after internal validation."""
         return
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        #3.4
-        #try:
-        #    importlib.reload (arcsdm.grand_wofe_lr)
-        #except :
-        #    reload(arcsdm.grand_wofe_lr);
-        #arcsdm.grand_wofe_lr.execute(self, parameters, messages)
-        execute_tool(arcsdm.grand_wofe_lr.execute, self, parameters, messages) #AL 090620
+        execute_tool(arcsdm.grand_wofe_lr.execute, self, parameters, messages)
         return
-                
-        
-        
+
 
 class PartitionNNInputFiles(object):
-    
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Partition NNInput Files"
@@ -198,18 +180,18 @@ class PartitionNNInputFiles(object):
             if arcpy.CheckExtension("Spatial") != "Available":
                 raise Exception
         except Exception:
-            return False  # tool cannot be executed
+            return False
         return True
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
+        validation is performed. This method is called whenever a parameter
         has been changed."""
         return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
+        parameter. This method is called after internal validation."""
      
         return
 
@@ -219,15 +201,13 @@ class PartitionNNInputFiles(object):
         try:
             importlib.reload (arcsdm.partition_inputnnfiles)
         except :
-            reload(arcsdm.partition_inputnnfiles);
+            reload(arcsdm.partition_inputnnfiles)
         
         arcsdm.partition_inputnnfiles.execute(self, parameters, messages)
         return
-                
         
         
 class CombineNNOutputFiles(object):
-    
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Combine NNOutput Files "
@@ -246,7 +226,6 @@ class CombineNNOutputFiles(object):
         multiValue=1,
         parameterType="Required",
         direction="Input")
-        
 
         paramOutputFile = arcpy.Parameter(
         displayName="Output file",
@@ -263,18 +242,18 @@ class CombineNNOutputFiles(object):
             if arcpy.CheckExtension("Spatial") != "Available":
                 raise Exception
         except Exception:
-            return False  # tool cannot be executed
+            return False
         return True
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
+        validation is performed. This method is called whenever a parameter
         has been changed."""
         return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
+        parameter. This method is called after internal validation."""
      
         return
 
@@ -284,15 +263,12 @@ class CombineNNOutputFiles(object):
         try:
             importlib.reload (arcsdm.combine_outputnnfiles)
         except :
-            reload(arcsdm.combine_outputnnfiles);
+            reload(arcsdm.combine_outputnnfiles)
         arcsdm.combine_outputnnfiles.execute(self, parameters, messages)
         return
-        
-                
-        
-        
+
+
 class NeuralNetworkOutputFiles(object):
-    
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Neural network output files"
@@ -316,28 +292,28 @@ class NeuralNetworkOutputFiles(object):
         name="rbfnfile",
         datatype="File",
         parameterType="Optional",
-        direction="Input")     
+        direction="Input")
         
         paramPNNFile = arcpy.Parameter(
         displayName="PNN file name, .pnn file",
         name="pnnfile",
         datatype="File",
         parameterType="Optional",
-        direction="Input")     
+        direction="Input")
         
         paramFuzFile = arcpy.Parameter(
         displayName="Fuzzy Classification file name, .fuz file",
         name="fuzfile",
         datatype="File",
         parameterType="Optional",
-        direction="Input")     
+        direction="Input")
         
         paramOutputTable = arcpy.Parameter(
         displayName="Output result table",
         name="resulttable",
         datatype="DeTable",
         parameterType="Required",
-        direction="Output")     
+        direction="Output")
 
         param_outras = arcpy.Parameter(
         displayName="Output raster",
@@ -346,8 +322,8 @@ class NeuralNetworkOutputFiles(object):
         parameterType="Required",
         direction="Output")
         # Is this needed?
-        #param_pprb.value = "%Workspace%\neuralnetwork_outras"                      
-        # End                                       
+        #param_pprb.value = "%Workspace%\neuralnetwork_outras"
+        # End
         params = [paramInputRaster, paramRBFNFile, paramPNNFile, paramFuzFile, paramOutputTable, param_outras]
         return params
 
@@ -357,37 +333,31 @@ class NeuralNetworkOutputFiles(object):
             if arcpy.CheckExtension("Spatial") != "Available":
                 raise Exception
         except Exception:
-            return False  # tool cannot be executed
+            return False
         return True
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
+        validation is performed. This method is called whenever a parameter
         has been changed."""
         return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
-     
+        parameter. This method is called after internal validation."""
         return
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        #3.4
         try:
             importlib.reload (arcsdm.nnoutputfiles)
         except :
-            reload(arcsdm.nnoutputfiles);
+            reload(arcsdm.nnoutputfiles)
         arcsdm.nnoutputfiles.execute(self, parameters, messages)
         return
-        
-                
-        
-                
-         
+
+
 class NeuralNetworkInputFiles(object):
-    
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Neural network input files"
@@ -397,7 +367,6 @@ class NeuralNetworkInputFiles(object):
 
     def getParameterInfo(self):
         """Define parameter definitions"""
-        
         paramInputRaster = arcpy.Parameter(
         displayName="Input Unique Conditions raster",
         name="inputraster",
@@ -412,15 +381,14 @@ class NeuralNetworkInputFiles(object):
         datatype="GPFeatureLayer",
         parameterType="Required",
         direction="Input")
-
         
         paramFZMField = arcpy.Parameter(
         displayName="TP Fuzzy membership field",
         name="fzmfield",
         datatype="Field",
         parameterType="Optional",
-        direction="Input")               
-        paramFZMField.parameterDependencies = [paramTrainingSites.name]                
+        direction="Input")
+        paramFZMField.parameterDependencies = [paramTrainingSites.name]
         
         paramNDTrainingSites = arcpy.Parameter(
         displayName="ND Training sites",
@@ -434,48 +402,44 @@ class NeuralNetworkInputFiles(object):
         name="ndfzmfield",
         datatype="Field",
         parameterType="Optional",
-        direction="Input")               
-        paramNDFZMField.parameterDependencies = [paramNDTrainingSites.name]                
+        direction="Input")
+        paramNDFZMField.parameterDependencies = [paramNDTrainingSites.name]
         
         paramTrainingFilePrefix = arcpy.Parameter(
         displayName="Training file prefix",
         name="trainingfileprefix",
         datatype="String",
         parameterType="Required",
-        direction="Input")     
+        direction="Input")
         
         paramClassificationFile = arcpy.Parameter(
         displayName="Classification file",
         name="classificationfile",
         datatype="Boolean",
         parameterType="Optional",
-        direction="Input")     
+        direction="Input")
         
         paramBandStatisticsFile = arcpy.Parameter(
         displayName="Band statistics file",
         name="bandstatisticsfile",
         datatype="File",
         parameterType="Optional",
-        direction="Input")     
+        direction="Input")
         
         paramTrainFileOutput = arcpy.Parameter(
         displayName="Train file output",
         name="trainfileoutput",
         datatype="File",
         parameterType="Required",
-        direction="Output")     
+        direction="Output")
         
         paramClassFileOutput = arcpy.Parameter(
         displayName="Class file output",
         name="classfileoutput",
         datatype="File",
         parameterType="Required",
-        direction="Output")     
-        
-        
-        
-        
-        
+        direction="Output")
+
         paramUnitArea = arcpy.Parameter(
         displayName="Unit area (km2)",
         name="Unit_Area__sq_km_",
@@ -484,7 +448,6 @@ class NeuralNetworkInputFiles(object):
         direction="Input")
         paramUnitArea.value = "1"
         
-                                  
         params = [paramInputRaster, paramTrainingSites, paramFZMField, paramNDTrainingSites, paramNDFZMField, 
             paramTrainingFilePrefix, paramClassificationFile,
             paramBandStatisticsFile, paramTrainFileOutput, paramClassFileOutput]
@@ -496,30 +459,26 @@ class NeuralNetworkInputFiles(object):
             if arcpy.CheckExtension("Spatial") != "Available":
                 raise Exception
         except Exception:
-            return False  # tool cannot be executed
+            return False
         return True
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
+        validation is performed. This method is called whenever a parameter
         has been changed."""
         return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
-     
+        parameter. This method is called after internal validation."""
         return
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        #3.4
         try:
             importlib.reload (arcsdm.nninputfiles)
         except :
-            reload(arcsdm.nninputfiles);
-        #messages.AddMessage("Waiting for debugger")
-        #wait_for_debugger(15);
+            reload(arcsdm.nninputfiles)
         arcsdm.nninputfiles.execute(self, parameters, messages)
         return
 
@@ -548,7 +507,7 @@ class GetSDMValues(object):
             direction="Input"
         )
         param_unit_cell_area.value = "1"
-                                  
+        
         params = [param_training_sites_feature, param_unit_cell_area]
         return params
 
@@ -558,31 +517,29 @@ class GetSDMValues(object):
             if arcpy.CheckExtension("Spatial") != "Available":
                 raise Exception
         except Exception:
-            return False  # tool cannot be executed
+            return False
         return True
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
+        validation is performed. This method is called whenever a parameter
         has been changed."""
         return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
-     
+        parameter. This method is called after internal validation."""
         return
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        #3.4
         try:
             importlib.reload(arcsdm.wofe_common)
         except:
             pass
 
         arcsdm.wofe_common.execute(self, parameters, messages)
-        return                                                       
+        return
         
         
 class AreaFrequencyTable(object):
@@ -595,7 +552,6 @@ class AreaFrequencyTable(object):
 
     def getParameterInfo(self):
         """Define parameter definitions"""
-        
         paramTrainingSites = arcpy.Parameter(
         displayName="Training sites",
         name="training_sites",
@@ -603,7 +559,6 @@ class AreaFrequencyTable(object):
         datatype="GPFeatureLayer",
         parameterType="Required",
         direction="Input")
-                     
         
         paramRaster = arcpy.Parameter(
         displayName="Input Raster Layer",
@@ -612,7 +567,6 @@ class AreaFrequencyTable(object):
         parameterType="Required",
         direction="Input")
         
-        
         paramField = arcpy.Parameter(
         displayName="Value field",
         name="valuefield_name",
@@ -620,12 +574,12 @@ class AreaFrequencyTable(object):
         parameterType="Optional",
         direction="Input")
         #paramField.filter.list = [['Short', 'Long']]
-        #paramField.parameterDependencies = [paramRaster.name];
-        paramField.value = "VALUE";
+        #paramField.parameterDependencies = [paramRaster.name]
+        paramField.value = "VALUE"
         
-        #param1.filter.type = "ValueList";
-        #param1.filter.list = ["o", "c"];
-        #param1.value = "o";
+        #param1.filter.type = "ValueList"
+        #param1.filter.list = ["o", "c"]
+        #param1.value = "o"
         
         paramUnitArea = arcpy.Parameter(
         displayName="Unit area (km2)",
@@ -634,11 +588,6 @@ class AreaFrequencyTable(object):
         parameterType="Required",
         direction="Input")
         
-        
-        
-  
-        
-        
         paramOutputTable = arcpy.Parameter(
         displayName="Output table",
         name="Output_Table",
@@ -646,11 +595,7 @@ class AreaFrequencyTable(object):
         parameterType="Required",
         direction="Output")
         paramOutputTable.value = "%Workspace%\AreaFrequencyTable"
-                
-    
-        
-        
-                                  
+
         params = [paramTrainingSites, paramRaster, paramField, paramUnitArea, paramOutputTable]
         return params
 
@@ -660,34 +605,29 @@ class AreaFrequencyTable(object):
             if arcpy.CheckExtension("Spatial") != "Available":
                 raise Exception
         except Exception:
-            return False  # tool cannot be executed
+            return False
         return True
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
+        validation is performed. This method is called whenever a parameter
         has been changed."""
         return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
-     
+        parameter. This method is called after internal validation."""
         return
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        #3.4
         try:
             importlib.reload (arcsdm.areafrequency)
-        except :
-            reload(arcsdm.areafrequency);
+        except:
+            reload(arcsdm.areafrequency)
         arcsdm.areafrequency.Execute(self, parameters, messages)
         return
-        
-        
-        
-        
+
 
 class ROCTool(object):
     def __init__(self):
@@ -737,18 +677,19 @@ class ROCTool(object):
             if arcpy.CheckExtension("Spatial") != "Available":
                 raise Exception
         except Exception:
-            return False  # tool cannot be executed
+            return False
         return True
 
     def execute(self, parameters, messages):        
         #execute_tool(arcsdm.roctool.execute, self, parameters, messages)
         try:
-            importlib.reload (arcsdm.roctool)
+            importlib.reload(arcsdm.roctool)
         except :
-            reload(arcsdm.roctool);
-        arcsdm.roctool.execute (self, parameters, messages);
+            reload(arcsdm.roctool)
+        arcsdm.roctool.execute(self, parameters, messages)
         return
-        
+
+
 class Symbolize(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
@@ -780,7 +721,7 @@ class Symbolize(object):
         datatype="GPDouble",
         parameterType="Required",
         direction="Input")
-        param5.value = "1";
+        param5.value = "1"
                                   
         params = [param0, param2, param5]
         return params
@@ -791,19 +732,18 @@ class Symbolize(object):
             if arcpy.CheckExtension("Spatial") != "Available":
                 raise Exception
         except Exception:
-            return False  # tool cannot be executed
+            return False
         return True
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
+        validation is performed. This method is called whenever a parameter
         has been changed."""
         return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
-     
+        parameter. This method is called after internal validation."""
         return
 
     def execute(self, parameters, messages):
@@ -917,7 +857,7 @@ class CalculateResponseNew(object):
             direction="Output"
         )
         param_confidence_output.value = "%Workspace%\W_conf"
-                                  
+        
         params = [
             param_evidence_rasters, # 0
             param_weights_tables, # 1
@@ -943,13 +883,13 @@ class CalculateResponseNew(object):
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
+        validation is performed. This method is called whenever a parameter
         has been changed."""
         return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
+        parameter. This method is called after internal validation."""
         return
 
     def execute(self, parameters, messages):
@@ -1089,13 +1029,13 @@ class CalculateResponse(object):
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
+        validation is performed. This method is called whenever a parameter
         has been changed."""
         return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
+        parameter. This method is called after internal validation."""
         return
 
     def execute(self, parameters, messages):
@@ -1207,7 +1147,7 @@ class CalculateWeights(object):
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
+        validation is performed. This method is called whenever a parameter
         has been changed."""
         param_evidence_raster = parameters[0]
         param_weight_type = parameters[3]
@@ -1244,7 +1184,7 @@ class CalculateWeights(object):
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
+        parameter. This method is called after internal validation."""
      
         return
 
@@ -1291,9 +1231,9 @@ class CalculateWeightsToolOld(object):
         datatype="GPString",
         parameterType="Required",
         direction="Input")
-        param2.filter.type = "ValueList";
-        param2.filter.list = ["Descending", "Ascending", "Categorical", "Unique"];
-        param2.value = "";
+        param2.filter.type = "ValueList"
+        param2.filter.list = ["Descending", "Ascending", "Categorical", "Unique"]
+        param2.value = ""
         
         param3 = arcpy.Parameter(
         displayName="Output weights table",
@@ -1308,7 +1248,7 @@ class CalculateWeightsToolOld(object):
         datatype="GPDouble",
         parameterType="Required",
         direction="Input")
-        param4.value = "2";
+        param4.value = "2"
                            
         param5 = arcpy.Parameter(
         displayName="Unit area (km2)",
@@ -1316,7 +1256,7 @@ class CalculateWeightsToolOld(object):
         datatype="GPDouble",
         parameterType="Required",
         direction="Input")
-        param5.value = "1";
+        param5.value = "1"
         
         param6 = arcpy.Parameter(
         displayName="Missing data value",
@@ -1324,8 +1264,7 @@ class CalculateWeightsToolOld(object):
         datatype="GPLong",
         parameterType="Required",
         direction="Input")
-        param6.value = "-99";
-                          
+        param6.value = "-99"
 
         paramSuccess = arcpy.Parameter(
         displayName="Success",
@@ -1333,8 +1272,6 @@ class CalculateWeightsToolOld(object):
         datatype="Boolean",
         parameterType="Optional",
         direction="Output")
-
-
                           
         params = [param0, param1, paramTrainingPoints, param2, param3, param4, param5, param6, paramSuccess]
         return params
@@ -1345,31 +1282,31 @@ class CalculateWeightsToolOld(object):
             if arcpy.CheckExtension("Spatial") != "Available":
                 raise Exception
         except Exception:
-            return False  # tool cannot be executed        
+            return False
         return True
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
+        validation is performed. This method is called whenever a parameter
         has been changed."""
         if parameters[0].value and parameters[3].value:
-            if (parameters[0].altered or paramaters[3].altered) and not parameters[4].altered:
-                layer = parameters[0].valueAsText;
+            if (parameters[0].altered or parameters[3].altered) and not parameters[4].altered:
+                layer = parameters[0].valueAsText
                 desc = arcpy.Describe(layer)
-                name = desc.file;
-                type = parameters[3].valueAsText;
-                char = type[:1];
+                name = desc.file
+                type = parameters[3].valueAsText
+                char = type[:1]
                 if (char != 'U'):
                     if (char != 'C'):
-                        char = 'C' + char; #Output  _C + first letter of type unless it is U
+                        char = 'C' + char # Output  _C + first letter of type unless it is U
                     else:
-                        char = 'CT'; # Unless it is C, then it is CT... 
-                #Update name accordingly
-                resulttmp = "%WORKSPACE%\\" + name + "_" + char;
-                #parameters[4].value = resulttmp.replace(".","");  #Remove illegal characters
-                resulttmp = resulttmp.replace(".","");
-                #Add .dbf to Weights Table Name if Workspace is not File Geodatabase #AL 250820
-                #If using GDB database, remove numbers and underscore from the beginning of the name (else block) #AL 071020
+                        char = 'CT' # Unless it is C, then it is CT... 
+                # Update name accordingly
+                resulttmp = "%WORKSPACE%\\" + name + "_" + char
+                # parameters[4].value = resulttmp.replace(".", "") # Remove illegal characters
+                resulttmp = resulttmp.replace(".","")
+                # Add .dbf to Weights Table Name if Workspace is not File Geodatabase
+                # If using GDB database, remove numbers and underscore from the beginning of the name (else block)
                 if not ".gdb" in arcpy.env.workspace:
                     resulttmp = resulttmp + ".dbf"
                 else:
@@ -1382,8 +1319,7 @@ class CalculateWeightsToolOld(object):
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
-     
+        parameter. This method is called after internal validation."""
         return
 
     def execute(self, parameters, messages):
@@ -1446,7 +1382,7 @@ class SiteReductionTool(object):
         datatype="GPFeatureLayer",
         parameterType="Optional",
         direction="Derived")
-                                            
+        
         params = [param0, param1, param2, param3, param4, param5]
         return params
 
@@ -1461,7 +1397,7 @@ class SiteReductionTool(object):
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
+        validation is performed. This method is called whenever a parameter
         has been changed."""
 
         parameters[2].enabled = parameters[1].value
@@ -1497,7 +1433,8 @@ class SiteReductionTool(object):
             reload(arcsdm.sitereduction)
         arcsdm.sitereduction.ReduceSites(self, parameters, messages)
         return
-        
+
+
 class CategoricalMembershipTool(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
@@ -1545,18 +1482,18 @@ class CategoricalMembershipTool(object):
             if arcpy.CheckExtension("Spatial") != "Available":
                 raise Exception
         except Exception:
-            return False  # tool cannot be executed        
+            return False
         return True
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
+        validation is performed. This method is called whenever a parameter
         has been changed."""
         return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
+        parameter. This method is called after internal validation."""
         return
 
     def execute(self, parameters, messages):
@@ -1625,12 +1562,12 @@ class CategoricalAndReclassTool(object):
             if arcpy.CheckExtension("Spatial") != "Available":
                 raise Exception
         except Exception:
-            return False  # tool cannot be executed        
+            return False
         return True
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
+        validation is performed. This method is called whenever a parameter
         has been changed."""
         if parameters[0].value:
             parameters[1].enabled = True
@@ -1642,13 +1579,14 @@ class CategoricalAndReclassTool(object):
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
+        parameter. This method is called after internal validation."""
         return
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
         execute_tool(arcsdm.categoricalreclass.Calculate, self, parameters, messages)
         return
+
 
 class TOCFuzzificationTool(object):
     def __init__(self):
@@ -1710,12 +1648,12 @@ class TOCFuzzificationTool(object):
             if arcpy.CheckExtension("Spatial") != "Available":
                 raise Exception
         except Exception:
-            return False  # tool cannot be executed        
+            return False
         return True
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
+        validation is performed. This method is called whenever a parameter
         has been changed."""
         if parameters[0].value:
             parameters[1].enabled = True
@@ -1727,14 +1665,14 @@ class TOCFuzzificationTool(object):
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
+        parameter. This method is called after internal validation."""
         return
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
         execute_tool(arcsdm.tocfuzzification.Calculate, self, parameters, messages)
         return
-        
+
 
 class LogisticRegressionTool(object):
     def __init__(self):
@@ -1757,15 +1695,9 @@ class LogisticRegressionTool(object):
         param1 = arcpy.Parameter(
         displayName="Evidence types (use a, c, d, or o and separate by semicolon ;)",
         name="Evidence_Type",
-        #datatype="GPValueTable",
         datatype="String",
         parameterType="Required",
         direction="Input")
-        #param1.columns = [['GPString', 'Evidence type']]
-        #param1.parameterDependencies = ["0"];
-        #param1.filter.type = "ValueList";
-        #param1.filter.list = ["o", "c", "a", "d"];
-        #param1.value = "o";
 
         paramInputWeights = arcpy.Parameter(
         displayName="Input weights tables",
@@ -1778,7 +1710,6 @@ class LogisticRegressionTool(object):
         param2 = arcpy.Parameter(
         displayName="Training sites",
         name="training_sites",
-        #datatype="DEFeatureClass",
         datatype="GPFeatureLayer",
         parameterType="Required",
         direction="Input")
@@ -1789,7 +1720,7 @@ class LogisticRegressionTool(object):
         datatype="GPLong",
         parameterType="Required",
         direction="Input")
-        param3.value= -99;
+        param3.value= -99
 
         param4 = arcpy.Parameter(
         displayName="Unit area (km^2)",
@@ -1797,7 +1728,7 @@ class LogisticRegressionTool(object):
         datatype="GPDouble",
         parameterType="Required",
         direction="Input")
-        param4.value = "1";
+        param4.value = "1"
         
         param5 = arcpy.Parameter(
         displayName="Output polynomial table",
@@ -1848,18 +1779,18 @@ class LogisticRegressionTool(object):
             if arcpy.CheckExtension("Spatial") != "Available":
                 raise Exception
         except Exception:
-            return False  # tool cannot be executed        
+            return False
         return True
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
+        validation is performed. This method is called whenever a parameter
         has been changed."""
         return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
+        parameter. This method is called after internal validation."""
         return
 
     def execute(self, parameters, messages):
@@ -1867,11 +1798,12 @@ class LogisticRegressionTool(object):
         try:
             importlib.reload (arcsdm.logisticregression)
         except :
-            reload(arcsdm.logisticregression);
+            reload(arcsdm.logisticregression)
         arcsdm.logisticregression.Execute(self, parameters, messages)
         return
         
         #execute_tool(arcsdm.logisticregression.Execute, self, parameters, messages)
+
 
 class AgterbergChengCITest(object):
     def __init__(self):
@@ -1927,18 +1859,18 @@ class AgterbergChengCITest(object):
             if arcpy.CheckExtension("Spatial") != "Available":
                 raise Exception
         except Exception:
-            return False  # tool cannot be executed        
+            return False
         return True
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
+        validation is performed. This method is called whenever a parameter
         has been changed."""
         return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
+        parameter. This method is called after internal validation."""
      
         return
 
@@ -1946,6 +1878,7 @@ class AgterbergChengCITest(object):
         """The source code of the tool."""
         execute_tool(arcsdm.acterbergchengci.Calculate, self, parameters, messages)
         return
+
 
 class FuzzyROC(object):
     def __init__(self):
@@ -2012,18 +1945,18 @@ class FuzzyROC(object):
             if arcpy.CheckExtension("Spatial") != "Available":
                 raise Exception
         except Exception:
-            return False  # tool cannot be executed
+            return False
         return True
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
+        validation is performed. This method is called whenever a parameter
         has been changed."""
         return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
+        parameter. This method is called after internal validation."""
      
         return
 
@@ -2031,6 +1964,7 @@ class FuzzyROC(object):
         """The source code of the tool."""
         execute_tool(arcsdm.fuzzyroc.Execute, self, parameters, messages)
         return
+
 
 class FuzzyROC2(object):
     def __init__(self):
@@ -2060,7 +1994,7 @@ class FuzzyROC2(object):
         datatype="GPBoolean",
         parameterType="Optional",
         direction="Input")
-        param1.value = False;
+        param1.value = False
         
         param2 = arcpy.Parameter(
         displayName="\nTrue Positives Feature Class",
@@ -2099,9 +2033,9 @@ class FuzzyROC2(object):
         direction="Input",
         enabled=False,
         category='Plotting')
-        param5.filter.type = "ValueList";
+        param5.filter.type = "ValueList"
         param5.filter.list = ["To Window(s)", "To PDF file(s)", "To PNG file(s)"];
-        param5.value = "To Window(s)";
+        param5.value = "To Window(s)"
 
         params = [param0, param1, param2, param3, param4, param5]
         return params
@@ -2112,12 +2046,12 @@ class FuzzyROC2(object):
             if arcpy.CheckExtension("Spatial") != "Available":
                 raise Exception
         except Exception:
-            return False  # tool cannot be executed
+            return False
         return True
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
+        validation is performed. This method is called whenever a parameter
         has been changed."""
         if (parameters[1].value):
             parameters[4].enabled = False
@@ -2129,14 +2063,14 @@ class FuzzyROC2(object):
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
-     
+        parameter. This method is called after internal validation."""
         return
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
         execute_tool(arcsdm.fuzzyroc2.Execute, self, parameters, messages)
         return
+
 
 class TrainMLPClassifierTool(object):
     def __init__(self):
@@ -2351,6 +2285,7 @@ class TrainMLPClassifierTool(object):
         """Execute the tool."""
         execute_tool(arcsdm.mlp.Execute_MLP_classifier, self, parameters, messages)
 
+
 class TrainMLPRegressorTool(object):
     def __init__(self):
         """Train a Multi-Layer Perceptron (MLP) regressor with the given parameters."""
@@ -2554,7 +2489,7 @@ class TrainMLPRegressorTool(object):
             if arcpy.CheckExtension("Spatial") != "Available":
                 raise Exception
         except Exception:
-            return False  # tool cannot be executed
+            return False
         return True
 
     def updateParameters(self, parameters):
@@ -2568,7 +2503,8 @@ class TrainMLPRegressorTool(object):
     def execute(self, parameters, messages):
         """Execute the tool."""
         execute_tool(arcsdm.mlp.Execute_MLP_regressor, self, parameters, messages)
-    
+
+
 class PCA(object):
     def __init__(self):
         """Principal Component Analysis (Raster)"""
@@ -2645,24 +2581,24 @@ class PCA(object):
                 ]
         return params
 
-    def isLicensed(self):    
+    def isLicensed(self):
         """Set whether tool is licensed to execute."""
         try:
             if arcpy.CheckExtension("Spatial") != "Available":
                 raise Exception
         except Exception:
-            return False  # tool cannot be executed
+            return False
         return True
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
+        validation is performed. This method is called whenever a parameter
         has been changed."""
         return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
+        parameter. This method is called after internal validation."""
         return
 
     def execute(self, parameters, messages):
