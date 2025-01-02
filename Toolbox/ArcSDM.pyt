@@ -6,8 +6,8 @@ from imp import reload
 
 import arcsdm.acterbergchengci
 import arcsdm.areafrequency
+import arcsdm.calculateresponse_arcpy_wip
 import arcsdm.calculateresponse
-import arcsdm.calculateresponse_old
 import arcsdm.calculateweights
 import arcsdm.categoricalmembership
 import arcsdm.categoricalreclass
@@ -893,7 +893,7 @@ class CalculateResponseNew(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        execute_tool(arcsdm.calculateresponse.Execute, self, parameters, messages)
+        execute_tool(arcsdm.calculateresponse_arcpy_wip.Execute, self, parameters, messages)
         return
 
 
@@ -1039,7 +1039,7 @@ class CalculateResponse(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        execute_tool(arcsdm.calculateresponse_old.Execute, self, parameters, messages)
+        execute_tool(arcsdm.calculateresponse.Execute, self, parameters, messages)
         return
         
 
