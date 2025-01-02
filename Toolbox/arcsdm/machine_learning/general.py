@@ -17,6 +17,7 @@ from sklearn.model_selection import KFold, LeaveOneOut, StratifiedKFold, train_t
 from tensorflow import keras
 
 from arcsdm.evaluation.scoring import score_predictions
+from utils.rasterize import rasterize_vector
 
 SPLIT = "split"
 KFOLD_CV = "kfold_cv"
@@ -172,7 +173,8 @@ def _resample_raster(input_raster, reference_raster, output_path):
 def prepare_data_for_ml(
     feature_raster_files,
     label_file: Optional[Union[str, os.PathLike]] = None,
-    nodata_value: Optional[Number] = None,
+    X_nodata_value: Optional[Number] = None,
+    y_nodata_value: Optional[Number] = None,
 ) -> Tuple[np.ndarray, Optional[np.ndarray], Any]:
     """
     Prepare data ready for machine learning model training.
@@ -216,7 +218,6 @@ def prepare_data_for_ml(
         raise arcpy.ExecuteError
     
     rasters_to_check = feature_raster_files.copy()
-    rasters_to_check.append(label_file)
 
     grid_check = _check_grid_properties(rasters_to_check)
     
@@ -262,7 +263,7 @@ def prepare_data_for_ml(
         combined_mask = nan_mask if nodata_mask is None else nodata_mask | nan_mask
 
         # Create a mask for nodata values if nodata_value is provided
-        if nodata_value is not None:
+        if X_nodata_value is not None:
             raster_mask = (raster_reshaped == np.nan).any(axis=1)
             combined_mask = combined_mask | raster_mask
 
@@ -273,39 +274,25 @@ def prepare_data_for_ml(
 
     if label_file is not None:
         
-        label_resampled = _resample_raster(label_file, feature_raster_files[0], os.path.join(arcpy.env.scratchFolder, "label_RS"))
-        
         desc = arcpy.Describe(label_file)
-        
-        if desc.dataType == "FeatureClass" or desc.dataType == "Shapefile":
+        if desc.dataType == "FeatureClass" or desc.dataType == "FeatureLayer":
+
             # Rasterize vector file
-            with arcpy.EnvManager(outputCoordinateSystem=feature_raster_files[0]):
-                label_raster = arcpy.conversion.FeatureToRaster(
-                    in_features=label_file,
-                    field="FID",
-                    out_raster=os.path.join(arcpy.env.scratchFolder, "label_raster"),
-                    cell_size=arcpy.Raster(feature_raster_files[0]).meanCellWidth,
-                )
+            rasterized_vector = rasterize_vector(rasters_to_check[0], label_file)
 
-            with arcpy.Raster(label_resampled) as label_raster:
-                y = arcpy.ia.ExtractBand(label_raster, band_ids=1)
-                label_nodata = label_raster.noDataValue
-
-                label_nodata_mask = y == label_nodata
-
-                y_resampled = arcpy.RasterToNumPyArray(label_raster)
-                label_nodata_mask_resampled = y_resampled == label_nodata
-
-                # Combine masks and apply to feature data
-                nodata_mask = nodata_mask | label_nodata_mask_resampled.ravel()
+            # Convert raster to numpy array
+            y = arcpy.RasterToNumPyArray(rasterized_vector)
         else:
-
             label_resampled = _resample_raster(label_file, feature_raster_files[0], os.path.join(arcpy.env.scratchFolder, "y_resampled"))
             desc_label_resampled = arcpy.Describe(label_resampled)
             y = arcpy.RasterToNumPyArray(desc_label_resampled.catalogPath)
             
-            label_nodata_mask = y == nodata_value
-            
+            # Mask nodata label nodata values
+            if y_nodata_value is not None:
+                label_nodata_mask = y == y_nodata_value
+            else:
+                label_nodata_mask = np.zeros_like(y, dtype=bool)
+
             # Truncate the larger array to match the smaller one
             min_size = min(nodata_mask.size, label_nodata_mask.size)
             nodata_mask = nodata_mask[:min_size]
@@ -395,7 +382,7 @@ def read_data_for_evaluation(
     return masked_data, reference_profile, nodata_mask
 
 
-def _train_and_validate_sklearn_model(
+def train_and_validate_sklearn_model(
     X: Union[np.ndarray, pd.DataFrame],
     y: Union[np.ndarray, pd.Series],
     model: BaseEstimator,
