@@ -71,7 +71,6 @@ def get_area_size_sq_km(layer):
     return area_sq_km
 
 
-
 def get_study_area_unit_cell_count(unit_cell_size_sq_km):
     masked_area_sq_km = get_study_area_size_sq_km()
     return masked_area_sq_km / unit_cell_size_sq_km
@@ -89,7 +88,8 @@ def get_selected_point_count(point_feature):
     return point_count
 
 
-# Similar to old sdmvalues.appendSDMValues
+# Similar to old sdmvalues.appendSDMValues, but with return values,
+# and less risk of calculating the study area size wrong
 def get_study_area_parameters(unit_cell_area_sq_km, training_points):
     """
     Use the mask from the geoprocessing environment to calculate the total study area in km^2

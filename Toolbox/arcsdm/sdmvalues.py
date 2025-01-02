@@ -49,6 +49,7 @@ def testdebugfile():
         return 1
     return returnvalue
 
+
 def dwrite(message):
     """
     Write a debug message if debugging is enabled.
@@ -138,6 +139,9 @@ def getMaskSize(mapUnits):
         raise
 
 
+# NOTE: Outdated - doesn't calculate the area correctly if output cell size isn't set to match the mask cell size
+# Kept this one for now, since a lot of things call it
+# But references should be changed to use arcsdm.wofe_common.get_study_area_parameters instead
 def appendSDMValues(unitCell, TrainPts):
     """
     Append Spatial Data Modeller parameters to Geoprocessor History.
