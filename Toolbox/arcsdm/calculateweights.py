@@ -1,3 +1,49 @@
+"""
+    ArcSDM 6 ToolBox for ArcGIS Pro
+
+    Conversion and tool development for ArcGIS Pro by Geological Survey of Finland (GTK), 2025.
+
+    Calculate Weights - ArcSDM 5 for ArcGis pro 
+    Recode from the original by Tero Rönkkö / Geological survey of Finland
+    Update by Arianne Ford, Kenex Ltd. 2018
+   
+    History:
+    2025 Update to ArcGIS 3.x
+    6.10.2020 If using GDB database, remove numbers and underscore from the beginning of the Weights table name / Arto Laiho, GTK/GFS
+    21-23.7.2020 combined with Unicamp fixes (made 8.8.2018) / Arto Laiho, GTK/GFS
+    9.6.2020 If Evidence Layer has not attribute table, execution is stopped / Arto Laiho, GTK/GSF
+    3.6.2020 Evidence Raster cannot be RasterBand (ERROR 999999 at rows = gp.SearchCursor(EvidenceLayer)) / Arto Laiho, GTK/GSF
+    15.5.2020 Added Evidence Layer and Training points coordinate system checking / Arto Laiho, GTK/GSF
+    27.4.2020 Database table field name cannot be same as alias name when ArcGIS Pro with File System Workspace is used. / Arto Laiho, GTK/GSF
+    09/01/2018 Bug fixes for 10.x, fixed perfect correlation issues, introduced patch for b-db<=0 - Arianne Ford, Kenex Ltd.
+    3.11.2017 Updated categorical calculations when perfect correlation exists as described in issue 66
+    27.9.2016 Calculate weights output cleaned
+    23.9.2016 Goes through
+    12.8.2016 First running version for pyt. Shapefile training points and output?
+    1.8.2016 Python toolbox version started
+    12.12.2016 Fixes
+    
+    Spatial Data Modeller for ESRI* ArcGIS 9.3
+    Copyright 2009
+    Gary L Raines, Reno, NV, USA: production and certification
+    Don L Sawatzky, Spokane, WA, USA: Python software development
+    Ascending or Descending:  Calculates accumulative Wts for accumulative row areas and num points
+        for ascending or descending classes both with ascending counts.
+    
+    Categorical: Calculates Wts for each row, then reports those Wts for rows having >= Confidence.
+        For rows having < Confidence, Wts are produced from sum of row areas and num points of
+        classes < Confidence.
+    Required Input(0): Integer raster dataset
+    Optional Input(1): Attribute field name
+    Required Input(2): Points feature class
+    Required Input - Output type(3): Ascending, Descending, Categorical, Unique
+    Required Output (4): Weights table
+    Required Input(5): Confident_Contrast
+    Required Input(6):  Unitarea
+    Required Input(7): MissingDataValue
+    Derived Output(8) - Success of calculation, whether Valid table: True or False
+"""
+
 import arcpy
 import math
 import os
