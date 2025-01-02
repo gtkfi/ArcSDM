@@ -1,4 +1,28 @@
+"""
+    ArcSDM 6 ToolBox for ArcGIS Pro
 
+    Conversion and tool development for ArcGIS Pro by Geological Survey of Finland (GTK), 2024.
+
+    History:
+    4/2016 Conversion started - TR
+    9/2016 Conversion started to Python toolbox TR
+    01/2018 Bug fixes for 10.x - Arianne Ford
+    27.4.2020 added Input Weights table file type checking /Arto Laiho, GTK/GFS
+    18.5.2020 added Input Raster coordinate system checking /Arto Laiho
+    15.6.2020 added "arcsdm." to import missingdatavar_func /Arto Laiho
+    20-23.7.2020 combined with Unicamp fixes (made 19.7.2018) /Arto Laiho
+    6.10.2020 If using GDB database, remove numbers and underscore from the beginning of all output table names /Arto Laiho
+
+    Spatial Data Modeller for ESRI* ArcGIS 9.2
+    Copyright 2007
+    Gary L Raines, Reno, NV, USA: production and certification
+    Don L Sawatzky, Spokane, WA, USA: Python software development
+    
+# ---------------------------------------------------------------------------
+# NewCalcResp3.py
+#  Modifications for use of Lookup_sa by Ryan Bryn, ESRI
+# ---------------------------------------------------------------------------
+"""
 import arcpy
 import importlib
 import math
@@ -10,6 +34,65 @@ from arcsdm.common import log_arcsdm_details
 from arcsdm.wofe_common import check_wofe_inputs, get_study_area_parameters, WofeInputError
 
 
+# NOTE: WIP - trying to replace all references to gp with arcpy
+# Replaces the function MissingDataVariance from missingdatavar_func.py
+def create_missing_data_variance_layer(nodata_value, study_area_size_sq_km, weights_rasters_list, post_probability_raster, md_variance_output_name):
+    # TODO: Note! Input rasters should be masked already? - possibly add check?
+    # TODO: decide whether the weights rasters need to already be masked in a way that missing data has been combined to nodata?
+    
+    for raster in weights_rasters_list:
+        arcpy.AddMessage(f"Missing data Variance for: {raster}")
+        weights_raster = arcpy.Describe(raster).catalogPath
+
+        # Start MD Variance raster
+        # Get posterior probability at MD cells
+        R1 = os.path.join(arcpy.env.scratchWorkspace, "R1")
+        if arcpy.Exists(R1):
+            arcpy.management.Delete(R1)
+
+        temp_nodata_mask = arcpy.sa.IsNull(weights_raster)
+        pprb_at_nodata_cells = arcpy.sa.Con(temp_nodata_mask, post_probability_raster, 0.0, "VALUE = 1")
+
+        pprb_at_nodata_cells.save(R1)
+        
+        # Get PostODDs at MD cells
+        R2 = os.path.join(arcpy.env.scratchWorkspace, "R2")
+        if arcpy.Exists(R2):
+            arcpy.management.Delete(R2)
+
+        # Exp = "%s / (1.0 - %s)" % (R1, R1)
+
+        variable_names = ['"r1"']
+        post_odds_expression = "%s / (1.0 - %s)" % ('"r1"', '"r1"')
+        arcpy.AddMessage(f"R2 = {post_odds_expression}")
+        post_odds = arcpy.sa.RasterCalculator([R1], variable_names, post_odds_expression, extent_type="UnionOf", cellsize_type="MinOf")
+        post_odds.save(R2)
+        arcpy.AddMessage(f"R2 exists: {arcpy.Exists(R2)}")
+
+        # Get Total Variance of MD cells
+        # Create total class variances list
+        ClsVars = []
+
+        # TODO: for each class, calculate the variance of the posterior probability due to missing data
+
+        # TODO: 1: calculate for present pattern as if missing pattern is known:
+        # (p(D|Ej)-p(D))^2 * p(Ej)
+        # TODO: 2: calculate for absent pattern as if missing pattern is known:
+        # (p(D|nEj)-p(D))^2 * p(nEj)
+        # (ie. use the full mask area as the total area!)
+
+        # Need:
+        # p(Ej): area of predictor pattern j / total area
+        # p(nEj): area of missing data for pattern j / total area
+        # p(D): posterior probability calculated for the redion where Ej is missing -> pprb_at_nodata_cells
+        # p(D|Ej): posterior probability in the presence of pattern Ej
+        # p(D|nEj): posterior probability in the absence of pattern Ej
+        # 
+
+    return None
+
+
+# NOTE: WIP - trying to replace all references to gp with arcpy
 def Execute(self, parameters, messages):
     try:
         arcpy.CheckOutExtension("Spatial")
