@@ -223,7 +223,7 @@ def apply_mask_to_raster(evidence_raster, nodata_value=None):
             raise WofeInputError("Mask doesn't exist! Set Mask under Analysis/Environments.")
 
     mask_descr = arcpy.Describe(mask)
-    masked_evidence_raster = arcpy.sa.ExtractByMask(evidence_raster, mask_descr.catalogPath)
+    masked_evidence_raster = arcpy.sa.ExtractByMask(evidence_raster, mask_descr.catalogPath, analysis_extent=mask_descr.catalogPath)
 
     if nodata_value is not None:
         masked_evidence_descr = arcpy.Describe(masked_evidence_raster)

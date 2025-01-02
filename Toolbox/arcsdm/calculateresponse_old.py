@@ -34,7 +34,7 @@ import traceback
 
 from arcsdm.common import log_arcsdm_details
 from arcsdm.missingdatavar_func import create_missing_data_variance_raster
-from arcsdm.wofe_common import check_wofe_inputs, get_study_area_parameters, WofeInputError
+from arcsdm.wofe_common import apply_mask_to_raster, check_wofe_inputs, extract_layer_from_raster_band, get_study_area_parameters, WofeInputError
 
 
 debuglevel = 0
@@ -138,6 +138,8 @@ def Execute(self, parameters, messages):
             inputCoord = inputDescr.spatialReference.name
             arcpy.AddMessage(f"{input_raster}, Data type: {inputDescr.dataType}, Coordinate System: {inputCoord}")
             
+            input_raster, inputDescr = extract_layer_from_raster_band(input_raster, inputDescr)
+
             trainingDescr = arcpy.Describe(training_points_feature)
             trainingCoord = trainingDescr.spatialReference.name
 
@@ -147,7 +149,7 @@ def Execute(self, parameters, messages):
             # When workspace type is File System, Input Weight Table also must end with .dbf
             # If using GDB database, remove numbers and underscore from the beginning of the name (else block)
             if workspace_type == "FileSystem":
-                if not(weights_table.endswith(".dbf")):
+                if not weights_table.endswith(".dbf"):
                     weights_table += ".dbf"
             else:
                 wtsbase = os.path.basename(weights_table)
@@ -186,12 +188,14 @@ def Execute(self, parameters, messages):
             else:
                 NoDataArg2 = nodata_value
 
+            masked_evidence_raster = apply_mask_to_raster(inputDescr.catalogPath, missing_data_value)
+
             # Create new rasterlayer from input raster for both the weights and the std raster -> Result RasterLayer
             # These will be in-memory only
             # AddJoin requires an input layer or tableview not Input Raster Dataset.
             tmp_raster_layer = "OutRas_lyr"
 
-            arcpy.management.MakeRasterLayer(input_raster, tmp_raster_layer)
+            arcpy.management.MakeRasterLayer(masked_evidence_raster, tmp_raster_layer)
             
             # Join result layer with weights table
             arcpy.management.AddJoin(tmp_raster_layer, "VALUE", weights_table, "CLASS")
