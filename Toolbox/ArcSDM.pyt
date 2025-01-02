@@ -1,108 +1,61 @@
-import sys
 import arcpy
+import importlib
+from imp import reload
 
-import arcsdm.sitereduction
-import arcsdm.logisticregression
-import arcsdm.calculateweights
-import arcsdm.calculateweights_old
-import arcsdm.categoricalreclass
-import arcsdm.categoricalmembership
-import arcsdm.tocfuzzification
+import arcsdm.acterbergchengci
+import arcsdm.areafrequency
 import arcsdm.calculateresponse
 import arcsdm.calculateresponse_old
-import arcsdm.symbolize
-import arcsdm.roctool
-import arcsdm.acterbergchengci
-import arcsdm.rescale_raster
-from arcsdm.areafrequency import Execute
-import arcsdm.nninputfiles
-import arcsdm.grand_wofe_lr
+import arcsdm.calculateweights
+import arcsdm.calculateweights_old
+import arcsdm.categoricalmembership
+import arcsdm.categoricalreclass
 import arcsdm.fuzzyroc
 import arcsdm.fuzzyroc2
+import arcsdm.grand_wofe_lr
+import arcsdm.logisticregression
 import arcsdm.mlp
+import arcsdm.nninputfiles
 import arcsdm.pca
+import arcsdm.rescale_raster
+import arcsdm.roctool
+import arcsdm.sitereduction
+import arcsdm.symbolize
+import arcsdm.tocfuzzification
 import arcsdm.wofe_common
 
 from arcsdm.common import execute_tool
-
-import importlib
-from imp import reload
 
 
 class Toolbox(object):
     def __init__(self):
         """Define the toolbox (the name of the toolbox is the name of the .pyt file)."""
-        
         self.label = "ArcSDM Tools"
         self.alias = "ArcSDM" 
-
-        # List of tool classes associated with this toolbox
-        self.tools = [PartitionNNInputFiles, CombineNNOutputFiles, NeuralNetworkOutputFiles, NeuralNetworkInputFiles, 
-        CalculateWeights, SiteReductionTool, CategoricalMembershipTool,
-        CategoricalAndReclassTool, TOCFuzzificationTool, CalculateResponseNew, CalculateResponse, FuzzyROC, FuzzyROC2, LogisticRegressionTool, Symbolize, 
-        ROCTool, AgterbergChengCITest, AreaFrequencyTable, GetSDMValues, GrandWofe, TrainMLPClassifierTool, 
-        TrainMLPRegressorTool, PCA, TestTool]
-
-
-class TestTool(object):
-    def __init__(self):
-        self.label = "WofE testing"
-        self.description = "For temp testing"
-        self.canRunInBackground = False
-        self.category = "Weights of Evidence"
-
-    def getParameterInfo(self):
-        param_evidence_raster = arcpy.Parameter(
-            displayName="Evidence raster layer",
-            name="evidence_raster_layer",
-            datatype="GPRasterLayer",
-            parameterType="Optional",
-            direction="Input"
-        )
-
-        param_training_sites_feature = arcpy.Parameter(
-            displayName="Training points feature",
-            name="Training_points",
-            datatype="GPFeatureLayer",
-            parameterType="Optional",
-            direction="Input"
-        )
-
-        param_unit_cell_area = arcpy.Parameter(
-            displayName="Unit area (km2)",
-            name="Unit_Area_sq_km_",
-            datatype="GPDouble",
-            parameterType="Optional",
-            direction="Input"
-        )
-        param_unit_cell_area.value = "1"
-
-        params = [
-            param_evidence_raster,
-            param_training_sites_feature,
-            param_unit_cell_area
+        self.tools = [
+            AgterbergChengCITest,
+            AreaFrequencyTable,
+            CalculateResponse,
+            CalculateWeights,
+            CategoricalAndReclassTool,
+            CategoricalMembershipTool,
+            CombineNNOutputFiles,
+            FuzzyROC,
+            FuzzyROC2,
+            GetSDMValues,
+            GrandWofe,
+            LogisticRegressionTool,
+            NeuralNetworkInputFiles,
+            NeuralNetworkOutputFiles,
+            PartitionNNInputFiles,
+            PCA,
+            ROCTool,
+            SiteReductionTool,
+            Symbolize,
+            TOCFuzzificationTool,
+            TrainMLPClassifierTool,
+            TrainMLPRegressorTool
         ]
-        return params
-    
-    def isLicensed(self):
-        try:
-            if arcpy.CheckExtension("Spatial") != "Available":
-                raise Exception
-        except Exception:
-            return False
-        return True
-
-    def updateParameters(self, parameters):
-        return
-
-    def updateMessages(self, parameters):
-        return
-    
-    def execute(self, parameters, messages):
-        importlib.reload(arcsdm.wofe_common)
-        importlib.reload(arcsdm.common)
-        #arcsdm.wofe_common.log_wofe(self, parameters, messages)
-        return
 
 
 class GrandWofe(object):
