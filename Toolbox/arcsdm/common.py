@@ -108,3 +108,62 @@ def addToDisplay(layer, name, position):
         m.addDataFromPath(layer)
         layer0 = m.listLayers()[0]
         layer0.name = name
+
+
+def log_arcsdm_details():
+    """
+    Log ArcSDM version details and environment configurations to Geoprocessor History.
+    """
+    arcpy.AddMessage("\n" + "=" * 10 + " ArcSDM version & environment info " + "=" * 10)
+
+    with open(os.path.join(os.path.dirname(__file__), "arcsdm_version.txt"), "r") as myfile:
+        data = myfile.readlines()
+
+    arcpy.AddMessage("%-20s %s" % ("", data[0]))
+    installinfo = arcpy.GetInstallInfo()
+    arcpy.AddMessage("%-20s %s (%s)" % ("Arcgis environment: ", installinfo['ProductName'], installinfo['Version']))
+
+    desc = arcpy.Describe(arcpy.env.workspace)
+    arcpy.AddMessage("%-20s %s (%s)" % ("Workspace: ", arcpy.env.workspace, desc.workspaceType))
+
+    wdesc = arcpy.Describe(arcpy.env.scratchWorkspace)
+    arcpy.AddMessage("%-20s %s (%s)" % ("Scratch workspace:", arcpy.env.scratchWorkspace, wdesc.workspaceType))
+
+    # if wdesc.workspaceType != desc.workspaceType:
+    #     arcpy.AddError("Workspace and scratch workspace must be of the same type!")
+    #     raise arcpy.ExecuteError("Workspace type mismatch")
+
+
+def select_features_by_mask(input_feature):
+    mask = arcpy.env.mask
+    if mask:
+        if not arcpy.Exists(mask):
+            raise arcpy.ExecuteError("Mask doesn't exist! Set Mask under Analysis/Environments.")
+
+        mask_type = arcpy.Describe(mask).dataType
+
+        if mask_type in ["FeatureLayer", "FeatureClass", "ShapeFile"]:
+            arcpy.management.SelectLayerByLocation(input_feature, "COMPLETELY_WITHIN", mask)
+        elif mask_type in ["RasterLayer", "RasterDataset"]:
+            # We need to convert the raster to a feature, since SelectLayerByLocation requires features
+            tmp_mask = str(mask) + "_tmp_feature"
+
+            # If the conversion seems slow with more complicated rasters, set max_vertices_per_feature
+            arcpy.conversion.RasterToPolygon(mask, tmp_mask)
+            arcpy.management.SelectLayerByLocation(input_feature, "COMPLETELY_WITHIN", tmp_mask)
+            # Delete the temporary layer
+            arcpy.management.Delete(tmp_mask)
+        else:
+            raise arcpy.ExecuteError(f"Mask has forbidden data type: {mask_type}!")
+
+    else:
+        # Just select all features
+        arcpy.management.SelectLayerByAttribute(input_feature)
+
+def rowgen(searchcursor_rows):
+    """ Convert arcpy searchcursor to a generator function """
+    rows = searchcursor_rows
+    row = next(rows)
+    while row:
+        yield row
+        row = next(rows)

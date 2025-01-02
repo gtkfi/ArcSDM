@@ -1,14 +1,14 @@
-# -*- coding: utf-8 -*-
 """
     ArcSDM 6 ToolBox for ArcGIS Pro
 
-    Conversion and tool development for ArcGIS Pro by Geological Survey of Finland (GTK), 2024.
+    Conversion and tool development for ArcGIS Pro by Geological Survey of Finland (GTK), 2025.
 
     Calculate Weights - ArcSDM 5 for ArcGis pro 
     Recode from the original by Tero Rönkkö / Geological survey of Finland
     Update by Arianne Ford, Kenex Ltd. 2018
    
-    History: 
+    History:
+    2025 Update to ArcGIS 3.x
     6.10.2020 If using GDB database, remove numbers and underscore from the beginning of the Weights table name / Arto Laiho, GTK/GFS
     21-23.7.2020 combined with Unicamp fixes (made 8.8.2018) / Arto Laiho, GTK/GFS
     9.6.2020 If Evidence Layer has not attribute table, execution is stopped / Arto Laiho, GTK/GSF
@@ -22,8 +22,6 @@
     12.8.2016 First running version for pyt. Shapefile training points and output?
     1.8.2016 Python toolbox version started
     12.12.2016 Fixes
-    
-    
     
     Spatial Data Modeller for ESRI* ArcGIS 9.3
     Copyright 2009
@@ -45,674 +43,491 @@
     Required Input(7): MissingDataValue
     Derived Output(8) - Success of calculation, whether Valid table: True or False
 """
-# Import system modules
-import sys, os, traceback
+
+import arcpy
 import math
-import arcpy;
-# TODO: Make these imports soem other way?
-if __name__ == "__main__":
-    import sys, string, os, math, traceback
-    import sdmvalues, workarounds_93
-    import sdmvalues;
-    import arcgisscripting
+import os
+import sys
+import traceback
+
+from arcsdm.common import log_arcsdm_details
+from arcsdm.wofe_common import (
+    apply_mask_to_raster,
+    check_wofe_inputs,
+    extract_layer_from_raster_band,
+    get_study_area_parameters,
+    get_training_point_statistics
+)
+
+
+ASCENDING = "Ascending"
+DESCENDING = "Descending"
+CATEGORICAL = "Categorical"
+UNIQUE = "Unique"
+
+
+def calculate_weights_sq_km(pattern_tp_count, pattern_area_sq_km, unit_area_sq_km, tp_count, total_area_sq_km, class_category):
+    # Total area (unit cells)
+    total_cell_count = total_area_sq_km / unit_area_sq_km
+
+    # Total area of binary pattern (unit cells)
+    pattern_cell_count = pattern_area_sq_km / unit_area_sq_km
+
+    return calculate_weights(pattern_tp_count, pattern_cell_count, tp_count, total_cell_count, class_category)
+
+
+def calculate_weights(pattern_tp_count, pattern_cell_count, tp_count, total_cell_count, class_category):
+    if pattern_tp_count > tp_count:
+        arcpy.AddWarning(f"Unable to calculate weights for class {class_category}: more than one training point per unit cell in study area!")
+        return tuple([0.0] * 7)
     
+    if pattern_tp_count == tp_count:
+        # Fix the pattern deposit count so that the studentized contrast behaves better in the case of perfect correlation
+        # See Issue #66 for details
+        # Note: The old code had a comment about this not working when total_cell_count - pattern_cell_count < tp_count - pattern_tp_count
+        pattern_tp_count -= 0.99
     
+    if (pattern_tp_count == 0) or (tp_count == 0):
+        return tuple([0.0] * 7)
+    
+    if (pattern_tp_count < 0) or (tp_count < 0):
+        arcpy.AddWarning(f"Unable to calculate weights for class {class_category}: encountered non-positive training point count!")
+        return tuple([0.0] * 7)
+    
+    if (pattern_cell_count < 0) or (total_cell_count <= 0):
+        arcpy.AddWarning(f"Unable to calculate weights for class {class_category}: encountered non-positive area!")
+        return tuple([0.0] * 7)
+
+    if total_cell_count - tp_count <= 0.0:
+        # TODO: fix, will result in division by zero
+        pass
+
+    if pattern_cell_count - pattern_tp_count <= 0.0:
+        pattern_cell_count = pattern_tp_count + 1
+
+    if (total_cell_count - pattern_cell_count) <= (tp_count - pattern_tp_count):
+        pattern_cell_count = total_cell_count + pattern_tp_count - tp_count - 0.99
+
+    return calculate_weights_bonham_carter(pattern_tp_count, pattern_cell_count, tp_count, total_cell_count)
 
 
-
-# Create the Geoprocessor object
-import arcgisscripting
-gp = arcgisscripting.create()
-
-# Check out any necessary licenses
-gp.CheckOutExtension("spatial")
-
-class ErrorExit(Exception): pass
-
-def MakeWts(patternNTP, patternArea, unit, totalNTP, totalArea, Type):
+def calculate_weights_bonham_carter(pattern_tp_count, pattern_area_cells, tp_count, total_area_cells):
     """
-                    >>> Graeme's Fortran algorithm - Appendix II <<<
-                    class(s=totalArea, b=patternArea,unit=unit,db=patternNTP,ds=totalNTP)
-                    print *, � area of study region ?�
-                    read *, s
-                    print *, �area of binary map pattern?�
-                    read *, b
-                    print , � area of unit cell?�
-                    read *, unit
-                    print *, �no of deposits on pattern?�
-                    read *, db
-                    print , � total no of deposits?�
-                    read *, ds
+    Calculate weights for a binary pattern.
+
+    Based on 'Fortran Program for Calculating Weights of Evidence' in Appendix II of Bonham-Carter (1994).
+
+    Args:
+        pattern_tp_count: <int>
+            Number of training points in the pattern.
+        pattern_area_cells: <float>
+            Area of binary pattern in unit cells.
+        tp_count: <int>
+            Number of training points in the area of study.
+        total_area_cells: <float>
+            Size of the area of study in unit cells.
+
+    Returns:
+        A tuple of:
+            W+
+            Standard deviation of W+
+            W-
+            Standard deviation of W-
+            Contrast
+            Standard deviation of contrast
+            Studentized contrast
+
+    References:
+        Bonham-Carter, Graeme F. (1994). Geographic Information Systems for Geoscientists: Modelling with GIS. Pergamon. Oxford. 1st Edition.
     """
-    db = patternNTP
-    ds = totalNTP
-    s = totalArea/unit
-    b = patternArea/unit
-    #gp.addwarning("%s"%[db,ds,s,b])
+    # Area of study region
+    s = total_area_cells
 
-    try:
-       #>>>>>>>>>>>> Traps
-        #Traps and fixes for various acceptable data anomalies
-        if db > ds: #Graeme's trap
-            gp.addwarning( 'Input error: More than one TP per Unitcell in study area.')
-            return tuple([0.0]*7)
-        if Type == 'Categorical': # Categorical generalization
-            if db == 0:
-                #db = 0.01
-                return tuple([0.0]*7)
-            elif db == ds:
-                #As with issue #66 suggests - replaced with db -=.99:
-                #db -= 0.01 # Won't work when s-b < ds-db 
-                db -= 0.99
-                #return tuple([0.0]*7)
-            elif db == 0.001:
-                db = ds
-                db -= 0.99
-        else: # Ascending and Descending generalization
-            if db ==0: #no accumulation
-                #db = 0.01
-                return tuple([0.0]*7)
-            elif db == ds: #Maximum accumulation
-                #return tuple([0.0]*7)
-                db -= 0.99 # Won't work when s-b < ds-db
-        # Fix b so can compute W- when db = MaxTPs
-        if (s - b) <= (ds - db):  b = s + db - ds - 0.99
-        # Warning if cannot compute W+
-        if (b-db) <= 0.0:
-            #fix pattern area if area less than unit size
-            b = db + 1
-            #gp.addwarning( 'More than one TP per Unitcell in pattern.')
-            #return tuple([0.0]*7)
+    # Area of binary map pattern
+    b = pattern_area_cells
+
+    # No of deposits on pattern
+    db = pattern_tp_count
+
+    # Total no of deposits
+    ds = tp_count
+
+    # The probability of binary pattern B being present, given the presence of a deposit
+    pbd = db / ds
+
+    # The probability of B being present, given the absence of a deposit
+    pbdb = (b - db) / (s - ds)
+
+    # Odds ratio
+    # or_ = db * (s - b - ds + db) / (b - db) / (ds - db)
+
+    # Sufficiency ratio LS
+    ls = pbd / pbdb
+
+    # W+
+    wp = math.log(ls)
+
+    vp = 1.0 / db + 1.0 / (b - db)
+    # Standard deviation of W+
+    sp = math.sqrt(vp)
+
+    # The probability of B being absent, given the presence of a deposit
+    pbbd = (ds - db) / ds
+
+    # The probability of B being absent, given the absence of a deposit
+    pbbdb = (s - b - ds + db) / (s - ds)
+
+    # Necessity ratio LN
+    ln = pbbd / pbbdb
+
+    # W-
+    wm = math.log(ln)
+
+    vm = 1.0 / (ds - db) + 1.0 / (s - b - ds + db)
+    # Standard deviation of W-
+    sm = math.sqrt(vm)
+
+    # Contrast
+    c = wp - wm
+
+    # Standard deviation of contrast
+    sc = math.sqrt(vp + vm)
+
+    # Prior probability
+    priorp = ds / s
+
+    # vprip = priorp / s
+    # Standard deviation of prior probability
+    # sprip = math.sqrt(vprip)
+
+    # Standard deviation of prior log odds
+    # sprilo = sprip / priorp
+
+    prioro = priorp / (1.0 - priorp)
+    # Prior log odds
+    prilo = math.log(prioro)
+
+    # Conditional probability of deposit given pattern
+    cpp = math.exp(prilo + wp)
+    cpp = cpp / (1.0 + cpp)
+
+    # Conditional probability of deposit given no pattern
+    cpm = math.exp(prilo + wm)
+    cpm = cpm / (1.0 + cpm)
+
+    # Bonham-Carter's (1994) Fortran program additionally outputs the Studentized Contrast: c / sc
+    stud_c = c / sc
+
+    return (wp, sp, wm, sm, c, sc, stud_c)
 
 
-        #<<<<<<<<<<<<<<<<<<End of traps
-        
-        db = float(db)
-        ds = float(ds)
-
-        #gp.addwarning( "db, ds, b, s %s"%([db, ds, b, s]))
-        
-        #Calculate W+
-         # b-db can be negative or zero, but is trapped above
-        pbd = db/ds
-        pbdb = (b-db) / (s-ds)
-        ls = pbd/pbdb
-        wp = math.log(ls)
-        #gp.addwarning("%s"%(wp))
-
-        #Calculate vp and sp
-         # b-db can be negative, but is trapped above
-        vp = (1.0 / db) + (1.0 / (b-db))
-        sp = math.sqrt(vp)
-        #gp.addwarning("%s"%(sp))
-        
-        #Calculate W-
-        #(s - b) <= (ds - db) creates negative arg to log
-        #This inequality is trapped and fixed above
-        pbbd = (ds-db) / ds
-        pbbdb = (s-b-ds+db) / (s-ds)
-        ln = pbbd / pbbdb
-        wm = math.log(ln)
-        #gp.addwarning("%s"%(wm))
-
-        #Calculate vm and sm        
-        vm = (1.0 / (ds-db)) + (1.0 / (s-b-ds+db))
-        sm = math.sqrt(vm)
-        #gp.addwarning("%s"%(sm))
-        
-        #Calculate Contrast
-        c = wp - wm
-        #gp.addwarning("%s"%(c))
-        
-        #Calculate Contrast Std Dev
-        sc = math.sqrt(vp+vm)
-        #gp.addwarning("%s"%(sc))
-
-        #gp.addwarning("%s"%(c/sc))
-        return (wp,sp,wm,sm,c,sc,c/sc)
-    
-    except Exception as msg:
-        # get the traceback object
-        tb = sys.exc_info()[2]
-        # tbinfo contains the line number that the code failed on and the code from that line
-        tbinfo = traceback.format_tb(tb)[0]
-        # concatenate information together concerning the error into a message string
-        pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-            str(sys.exc_info()) + "\n"    #AL 050520
-        #    str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
-        # generate a message string for any geoprocessing tool errors
-        msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"
-        gp.AddError(msgs)
-
-        # return gp messages for use with a script tool
-        gp.AddError(pymsg)
-
-        # print messages for use in Python/PythonWin
-        print (pymsg)
-        print (msgs)
-
-        return None
-            
-# Load arguments...
 def Calculate(self, parameters, messages):
-    import importlib;
+    arcpy.AddMessage("Starting weight calculation")
+    arcpy.AddMessage("------------------------------")
     try:
-        import arcsdm.sdmvalues;
-        import arcsdm.workarounds_93;
-        try:
-            importlib.reload (arcsdm.sdmvalues)
-            importlib.reload (arcsdm.workarounds_93);
-        except :
-            reload(arcsdm.sdmvalues);
-            reload(arcsdm.workarounds_93);        
-        gp.OverwriteOutput = 1
-        gp.LogHistory = 1
-        EvidenceLayer = parameters[0].valueAsText
+        arcpy.env.overwriteOutput = True
+        arcpy.AddMessage("Setting overwriteOutput to True")
 
-        # Test if EvidenceLayer has attribute table or not #AL 090620
-        test_raster = arcpy.Raster(EvidenceLayer)
-        if not test_raster.hasRAT:
-            arcpy.AddError("ERROR: EvidenceLayer does not have an attribute table. Use 'Build Raster Attribute Table' tool to add it.")
-            raise
+        evidence_raster = parameters[0].valueAsText
+        code_name = parameters[1].valueAsText
+        training_sites_feature = parameters[2].valueAsText
+        selected_weight_type =  parameters[3].valueAsText
+        output_weights_table = parameters[4].valueAsText
+        studentized_contrast_threshold = parameters[5].value
+        unit_cell_area_sq_km = parameters[6].value
+        nodata_value = parameters[7].value
 
-        # Test data type of Evidence Layer #AL 150520,030620
-        evidenceDescr = arcpy.Describe(EvidenceLayer)
-        evidenceCoord = evidenceDescr.spatialReference.name
-        arcpy.AddMessage("Evidence Layer is " + EvidenceLayer + " and its data type is " + evidenceDescr.datatype + " and coordinate system is " + evidenceCoord)
-        if (evidenceDescr.datatype == "RasterBand"):
-        # Try to change RasterBand to RasterDataset #AL 210720
-            evidence1 = os.path.split(EvidenceLayer)
-            evidence2 = os.path.split(evidence1[0])
-            if (evidence1[1] == evidence2[1] or evidence1[1][:4] == "Band"):
-                EvidenceLayer = evidence1[0]
-                evidenceDescr = arcpy.Describe(EvidenceLayer)
-                arcpy.AddMessage("Evidence Layer is now " + EvidenceLayer + " and its data type is " + evidenceDescr.datatype)
-            else:
-                arcpy.AddError("ERROR: Data Type of Evidence Layer cannot be RasterBand, use Raster Dataset.")
-                raise
-        valuetype = gp.GetRasterProperties (EvidenceLayer, 'VALUETYPE')
-        valuetypes = {1:'Integer', 2:'Float'}
-        #if valuetype != 1:
-        # valuetype: 0 = 1-bit, 1 = 2-bit, 2 = 4-bit, 3 = 8-bit unsigned integer, 4 = 8-bit signed integer, 5 = 16-bit unsigned integer
-        # 6 = 16-bit signed integer, 7 = 32-bit unsigned integer, 8 = 32-bit signed integer, 9 = 32-bit floating point
-        # 10 = 64-bit double precision, 11 = 8-bit complex, 12 = 16-bit complex, 13 = 32-bit complex, 14 = 64-bit complex
-        if valuetype > 8:  # <==RDB  07/01/2010 - new  integer valuetype property value for arcgis version 10
-            gp.adderror('ERROR: ' + EvidenceLayer + ' is not an integer-type raster because VALUETYPE is ' + str(valuetype)) #AL 040520
-            raise ErrorExit
-        CodeName =  parameters[1].valueAsText #gp.GetParameterAsText(1)
-        TrainingSites =  parameters[2].valueAsText
-        # Test coordinate system of Training sites and confirm it is same than Evidence Layer #AL 150520 
-        trainingDescr = arcpy.Describe(TrainingSites)
-        trainingCoord = trainingDescr.spatialReference.name
-        if (evidenceCoord != trainingCoord):
-            arcpy.AddError("ERROR: Coordinate System of Evidence Layer is " + evidenceCoord + " and Training points it is " + trainingCoord + ". These must be same.")
-            raise
-        Type =  parameters[3].valueAsText
-        wtstable = parameters[4].valueAsText;
+        evidence_descr = arcpy.Describe(evidence_raster)
+        evidence_raster, evidence_descr = extract_layer_from_raster_band(evidence_raster, evidence_descr)
 
+        check_wofe_inputs([evidence_raster], training_sites_feature)
+        
         # If using non gdb database, lets add .dbf
-        # If using GDB database, remove numbers and underscore from the beginning of the Weights table name (else block) #AL 061020
-        wdesc = arcpy.Describe(gp.workspace)
-        if (wdesc.workspaceType == "FileSystem"):
-            if not(wtstable.endswith('.dbf')):
-                wtstable += ".dbf";
+        # If using GDB database, remove numbers and underscore from the beginning of the Weights table name (else block)
+        workspace_descr = arcpy.Describe(arcpy.env.workspace)
+        if workspace_descr.workspaceType == "FileSystem":
+            if not(output_weights_table.endswith(".dbf")):
+                output_weights_table += ".dbf"
         else:
-            wtsbase = os.path.basename(wtstable)
+            wtsbase = os.path.basename(output_weights_table)
             while len(wtsbase) > 0 and (wtsbase[:1] <= "9" or wtsbase[:1] == "_"):
                 wtsbase = wtsbase[1:]
-            wtstable = os.path.dirname(wtstable) + "\\" + wtsbase
-        Confident_Contrast = float( parameters[5].valueAsText)
-        #Unitarea = float( parameters[6].valueAsText)
-        Unitarea = float( parameters[6].value)
-        MissingDataValue = int( parameters[7].valueAsText) # Python 3 fix, long -> int
-        #gp.AddMessage("Debug step 12");
-        arcsdm.sdmvalues.appendSDMValues(gp,  Unitarea, TrainingSites)
-        arcpy.AddMessage("="*10 + " Calculate weights " + "="*10)
-    # Process: ExtractValuesToPoints
-        arcpy.AddMessage ("%-20s %s (%s)" %("Creating table:" , wtstable, Type ));
+            output_weights_table = os.path.dirname(output_weights_table) + "\\" + wtsbase
 
-        #tempTrainingPoints = gp.createscratchname("OutPoints", "FC", "shapefile", gp.scratchworkspace)
-        #gp.ExtractValuesToPoints_sa(TrainingSites, EvidenceLayer, tempTrainingPoints, "NONE", "VALUE_ONLY")
-        assert isinstance(EvidenceLayer, object)
-        tempTrainingPoints = arcsdm.workarounds_93.ExtractValuesToPoints(gp, EvidenceLayer, TrainingSites, "TPFID")
-    # Process: Summarize Frequency and manage fields
-    
-        #Statistics = gp.createuniquename("WtsStatistics.dbf")
+        masked_evidence_raster = apply_mask_to_raster(evidence_raster, nodata_value)
+        masked_evidence_descr = arcpy.Describe(masked_evidence_raster)
+        # Evidence raster preparation is now done
+
+        log_arcsdm_details()
+        total_area_sq_km_from_mask, training_point_count = get_study_area_parameters(unit_cell_area_sq_km, training_sites_feature)
+
+        arcpy.AddMessage("=" * 10 + " Calculate weights " + "=" * 10)
+        arcpy.AddMessage("%-20s %s (%s)" % ("Creating table: ", output_weights_table, selected_weight_type))
+
+        # Calculate number of training sites in each class
+        statistics_table, class_column_name, count_column_name = get_training_point_statistics(masked_evidence_raster, training_sites_feature)
         
-        Statistics = gp.createuniquename("WtsStatistics")
-        if gp.exists(Statistics): gp.Delete_management(Statistics)
-        gp.Statistics_analysis(tempTrainingPoints, Statistics, "rastervalu sum" ,"rastervalu")
-    # Process: Create the table
+        codename_field = [] if (code_name is None or code_name == "") else ["CODE", "text", "5", "#", "#", "Symbol"]
 
-        gp.CreateTable_management(os.path.dirname(wtstable), os.path.basename(wtstable), Statistics)
+        base_fields = [["Class", "LONG"]] + codename_field + [
+            ["Count", "LONG"], # Evidence count (temp)
+            ["Frequency", "LONG"], # Training point count (temp)
+        ]
+        base_fields = base_fields
+        base_field_names = [i[0] for i in base_fields]
 
-        gp.AddField_management (wtstable, "Count", "long") 
-        gp.AddField_management (wtstable, "Area", 'double')
-        gp.AddField_management (wtstable, "AreaUnits", 'double')
-        gp.AddField_management (wtstable, "CLASS", "long") 
-        if CodeName != None and len(CodeName) > 0:
-            gp.AddField_management(wtstable,"CODE","text","5","#","#","Symbol")
-        gp.AddField_management (wtstable, "AREA_SQ_KM", "double") 
-        gp.AddField_management (wtstable, "AREA_UNITS", "double")
-        gp.AddField_management (wtstable, "NO_POINTS", "long")
-        gp.AddField_management(wtstable,"WPLUS","double","10","4","#","W+")
-        gp.AddField_management(wtstable,"S_WPLUS","double","10","4","#","W+ Std")
-        gp.AddField_management(wtstable,"WMINUS","double","10","4","#","W-")
-        gp.AddField_management(wtstable,"S_WMINUS","double","10","4","#","W- Std")
-        # Database table field name cannot be same as alias name when ArcGIS Pro with File System Workspace is used. #AL
-        gp.AddField_management(wtstable,"CONTRAST","double","10","4","#","Contrast_")
-        gp.AddField_management(wtstable,"S_CONTRAST","double","10","4","#","Contrast_Std")
-        gp.AddField_management(wtstable,"STUD_CNT","double","10","4","#","Studentized_Contrast")
-        gp.AddField_management(wtstable,"GEN_CLASS","long","#","#","#","Generalized_Class")
-        gp.AddField_management(wtstable,"WEIGHT","double","10","6","#","Generalized_Weight")
-        gp.AddField_management(wtstable,"W_STD","double","10","6","#","Generalized_Weight_Std")
-        OIDName = gp.Describe(wtstable).OIDFieldName
+        weight_fields = [
+            ["WPLUS", "DOUBLE", "10", "4", "#", "W+"],
+            ["S_WPLUS", "DOUBLE", "10", "4", "#", "W+ Std"],
+            ["WMINUS", "DOUBLE", "10", "4", "#", "W-"],
+            ["S_WMINUS", "DOUBLE", "10", "4", "#", "W- Std"],
+            ["CONTRAST", "DOUBLE", "10", "4", "#", "Contrast_"],
+            ["S_CONTRAST", "DOUBLE", "10", "4", "#", "Contrast_Std"],
+            ["STUD_CNT","DOUBLE", "10", "4", "#", "Studentized_Contrast"]
+        ]
+        weight_field_names = [i[0] for i in weight_fields]
 
-        #Fill output table rows depending on Type    
-        desc = gp.describe(EvidenceLayer)
-        cellsize = desc.MeanCellWidth
-        if desc.datatype == 'RasterLayer': EvidenceLayer =desc.catalogpath
-        if Type == "Descending":
-            wtsrows = gp.InsertCursor(wtstable)
-            try:
-                rows = gp.SearchCursor(EvidenceLayer,'','','','Value D')
-            except:
-                # Test if EvidenceLayer has attribute table or not #AL 090620
-                test_raster = arcpy.Raster(EvidenceLayer)
-                if not test_raster.hasRAT:
-                    arcpy.AddError("ERROR: EvidenceLayer does not have an attribute table. Use 'Build Raster Attribute Table' tool to add it.")
-                    raise
-            row = rows.Next()
-            while row:
-                #gp.AddMessage("Inserting row.")
-                wtsrow = wtsrows.NewRow()
-                wtsrow.rastervalu = row.Value
-                wtsrow.SetValue('class',row.Value)
-                if CodeName != None and len(CodeName) > 0: 
-                    wtsrow.Code = row.GetValue(CodeName)
-                #This related to Access Personal geodatabase bug
-                #arcpy.AddMessage("DEBUG: Rowcount:%s"%(str(row.Count)));
-                wtsrow.Count = row.Count
-                statsrows = gp.SearchCursor(Statistics,'rastervalu = %i'%row.Value)
-                if statsrows:
-                    statsrow = statsrows.Next()
-                    if statsrow:
-                        rowFreq = statsrow.Frequency
+        generalized_weight_fields = [] if (selected_weight_type == UNIQUE) else [
+            ["GEN_CLASS", "LONG", "#", "#", "#", "Generalized_Class"],
+            ["WEIGHT", "DOUBLE", "10", "6", "#", "Generalized_Weight"],
+            ["W_STD", "DOUBLE", "10", "6", "#", "Generalized_Weight_Std"]
+        ]
+        generalized_weight_field_names = [i[0] for i in generalized_weight_fields]
+
+        all_fields = base_fields + [
+            ["Area", "DOUBLE"], # Area in km^2 (temp)
+            ["AreaUnits", "DOUBLE"], # Area in unit cells (temp)
+            ["AREA_SQ_KM", "DOUBLE"], # Area in km^2
+            ["AREA_UNITS", "DOUBLE"], # Area in unit cells
+            ["NO_POINTS", "LONG"], # Training point count
+        ] + weight_fields
+
+        # Generalized weights are for all but unique weights
+        if selected_weight_type != UNIQUE:
+            all_fields = all_fields + generalized_weight_fields
+
+        evidence_fields = ["VALUE", "COUNT"] + codename_field
+        stats_fields = [class_column_name, count_column_name]
+
+        arcpy.management.CreateTable(os.path.dirname(output_weights_table), os.path.basename(output_weights_table))
+        # arcpy.management.AddFields doesn't allow setting field precision or scale, so add the fields individually
+        for field_details in all_fields:
+            arcpy.management.AddField(output_weights_table, *field_details)
+        for field_name in weight_field_names:
+            arcpy.management.AssignDefaultToField(output_weights_table, field_name, 0.0)
+
+        arcpy.AddMessage("Created output weights table")
+
+        evidence_attribute_table = masked_evidence_descr.catalogPath
+
+        order = "DESC" if (selected_weight_type == DESCENDING) else "ASC"
+        order_clause = f"ORDER BY VALUE {order}"
+
+        with arcpy.da.InsertCursor(output_weights_table, base_field_names) as cursor_weights:
+            with arcpy.da.SearchCursor(evidence_attribute_table, evidence_fields, sql_clause=(None, order_clause)) as cursor_evidence:
+                for row_evidence in cursor_evidence:
+                    if (code_name is None or code_name == ""):
+                        evidence_class, evidence_count = row_evidence
                     else:
-                        rowFreq = 0
-                wtsrow.Frequency = rowFreq
-                #gp.addmessage('Desc: Class: %d, Count: %d,  Freq: %d'%(row.Value,row.Count, rowFreq))
-                wtsrows.InsertRow(wtsrow)            
-                row = rows.next()
-            del wtsrows, wtsrow
-           
-        else: # Ascending or Categorical or Unique
-            wtsrows = gp.InsertCursor(wtstable)
-            try:
-                rows = gp.SearchCursor(EvidenceLayer)
-            except:
-                # Test if EvidenceLayer has attribute table or not #AL 090620
-                test_raster = arcpy.Raster(EvidenceLayer)
-                if not test_raster.hasRAT:
-                    arcpy.AddMessage("ERROR: EvidenceLayer does not have an attribute table. Use 'Build Raster Attribute Table' tool to add it.")
-                    raise
-            row = rows.Next()
-            wtsrow = wtsrows.NewRow()    # Unicamp added 080818 (AL 210720)
-            while row:
-                wtsrow = wtsrows.NewRow()
-                wtsrow.rastervalu = row.Value
-                wtsrow.SetValue('class',row.Value)                
-                if CodeName != None and len(CodeName) > 0: 
-                    wtsrow.Code = row.GetValue(CodeName)
-                #arcpy.AddMessage("DEBUG: Rowcount:%s"%(str(row.Count)));
-                wtsrow.Count = row.Count
-                statsrows = gp.SearchCursor(Statistics,'rastervalu = %i'%row.Value)
-                if statsrows:
-                    statsrow = statsrows.Next()
-                    if statsrow:
-                        wtsrow.Frequency = statsrow.Frequency
-                    else:
-                        wtsrow.Frequency = 0                    
-                wtsrows.InsertRow(wtsrow)            
-                row = rows.Next()
-            del wtsrows, wtsrow
-        del row,rows
-     # Calculate fields
-        #gp.AddMessage('Calculating weights...')
-        #gp.AddMessage("[count] * %f * %f /1000000.0"%(cellsize,cellsize))
-        arcpy.CalculateField_management(wtstable, "area",  "!count! * %f / 1000000.0"%(cellsize**2), "PYTHON_9.3")
-        arcpy.CalculateField_management(wtstable, "areaunits",  "!area! / %f"% Unitarea, "PYTHON_9.3")
+                        evidence_class, evidence_count, code_name_field = row_evidence
+                    site_count = 0
 
-        #gp.CalculateField_management (wtstable, "area", "!count! * %f / 1000000.0"%(cellsize**2))
-        #gp.CalculateField_management (wtstable, "areaunits", "!area! / %f"% Unitarea)
-     # Calculate accumulative fields
-        if Type in ("Ascending", "Descending"):
-            wtsrows = gp.UpdateCursor(wtstable)
-            wtsrows.reset()
-            wtsrow = wtsrows.Next()
-            lastTotalArea = 0    # Unicamp added 080818 (AL 210720)
-            lastTotalTP = 0      # Unicamp added 080818 (AL 210720)
-            if wtsrow:
-                if wtsrow.GetValue('class') is not MissingDataValue:
-                    lastTotalTP = wtsrow.Frequency
-                    lastTotalArea = wtsrow.Area # sq km
-                    lastTotalAreaUnits = wtsrow.AreaUnits # unit cells
-                    wtsrow.NO_POINTS = lastTotalTP
-                    wtsrow.AREA_SQ_KM = lastTotalArea # sq km
-                    wtsrow.AREA_UNITS = lastTotalAreaUnits # unit cells
-                else:
-                    lastTotalTP = 0
-                    lastTotalArea = 0
-                    lastTotalAreaUnits = 0
-                    wtsrow.NO_POINTS = wtsrow.Frequency
-                    wtsrow.AREA_SQ_KM = wtsrow.Area # sq km
-                    wtsrow.AREA_UNITS = wtsrow.AreaUnits # unit cells
-                #gp.addmessage('%s: Freq: %d, Area: %f,  UnitAreas: %f'%(Type, wtsrow.Frequency,wtsrow.Area, wtsrow.AreaUnits))
-                wtsrows.UpdateRow(wtsrow)
-                wtsrow = wtsrows.Next()
-            while wtsrow:
-                if wtsrow.GetValue('class') is not MissingDataValue:
-                    lastTotalTP += wtsrow.Frequency
-                    lastTotalArea += wtsrow.Area
-                    lastTotalAreaUnits += wtsrow.AreaUnits
-                    wtsrow.NO_POINTS = lastTotalTP
-                    wtsrow.AREA_SQ_KM = lastTotalArea # sq km
-                    wtsrow.AREA_UNITS = lastTotalAreaUnits # unit cells
-                else:
-                    wtsrow.NO_POINTS = wtsrow.Frequency
-                    wtsrow.AREA_SQ_KM = wtsrow.Area #sq km
-                    wtsrow.AREA_UNITS = wtsrow.AreaUnits # unit cells
-                #gp.addmessage('%s: Freq: %d, Area: %f,  UnitAreas: %f'%(Type,wtsrow.Frequency,wtsrow.Area, wtsrow.AreaUnits))
-                wtsrows.UpdateRow(wtsrow)
-                wtsrow = wtsrows.Next()
-            totalArea = lastTotalArea # sq km
-            totalTPs = lastTotalTP
-            del wtsrow,wtsrows
-        #Calculate non-accumulative fields
-        elif Type in ("Categorical", "Unique"):
-            totalArea = 0
-            totalTPs = 0
-            wtsrows = gp.UpdateCursor(wtstable)
-            wtsrow = wtsrows.Next()
-            while wtsrow:
-                wtsrow.NO_POINTS = wtsrow.Frequency
-                wtsrow.AREA_SQ_KM = wtsrow.Area # sq km
-                wtsrow.AREA_UNITS = wtsrow.AreaUnits # unit cells
-                #gp.addMessage("Debug class: " + str(wtsrow.GetValue('class')));
-                
-                if wtsrow.getValue("class") != MissingDataValue:  
-                    totalTPs += wtsrow.Frequency
-                    totalArea += wtsrow.Area
-                wtsrows.UpdateRow(wtsrow)
-                wtsrow = wtsrows.Next()
-            del wtsrow,wtsrows
-        else:
-            gp.AddWarning('Type %s not implemented'%Type)
-            
-        #Calculate weights, etc from filled-in fields
-        wtsrows = gp.UpdateCursor(wtstable)
-        wtsrow = wtsrows.Next()
-        while wtsrow:
-            #gp.AddMessage('Got to here...%i'%wtsrow.Class)
-            #No calculations for missingdata class
-            if wtsrow.GetValue('class') == MissingDataValue:
-                wtsrow.wplus = 0.0
-                wtsrow.s_wplus = 0.0
-                wtsrow.wminus = 0.0
-                wtsrow.s_wminus = 0.0
-                wtsrow.contrast = 0.0
-                wtsrow.s_contrast = 0.0
-                wtsrow.stud_cnt = 0.0
-            else:
-                #gp.addMessage("Debug:" + str((wtsrow.NO_POINTS, wtsrow.AREA_SQ_KM, Unitarea, totalTPs, totalArea, Type)));
-                wts = MakeWts(wtsrow.NO_POINTS, wtsrow.AREA_SQ_KM, Unitarea, totalTPs, totalArea, Type)
-                if not wts:
-                    gp.AddError("Weights calculation aborted.")
-                    raise ErrorExit
-                (wp,sp,wm,sm,c,sc,c_sc) = wts
-                #gp.AddMessage( "Debug out: " +  str((wp,sp,wm,sm,c,sc,c_sc)))
-                wtsrow.wplus = wp
-                wtsrow.s_wplus = sp
-                wtsrow.wminus = wm
-                wtsrow.s_wminus = sm
-                wtsrow.contrast = c
-                wtsrow.s_contrast = sc
-                wtsrow.stud_cnt = c_sc
-            wtsrows.UpdateRow(wtsrow)
-            wtsrow = wtsrows.Next()
-        del wtsrow,wtsrows
-            
-    #Generalize table
-        #Get Study Area size in Evidence counts    
-        try:
-            evRows = gp.SearchCursor(EvidenceLayer)
-        except:
-            # Test if EvidenceLayer has attribute table or not #AL 090620
-            test_raster = arcpy.Raster(EvidenceLayer)
-            if not test_raster.hasRAT:
-                arcpy.AddMessage("ERROR: EvidenceLayer does not have an attribute table. Use 'Build Raster Attribute Table' tool to add it.")
-                raise
-        evRow = evRows.Next()
-        studyArea = 0
-        while evRow:
-            studyArea = studyArea + evRow.Count
-            evRow = evRows.Next()
-        del evRow, evRows
-        #gp.AddMessage("studyArea size(cells)=" + str(studyArea))
-        
-        #Get total number of training points    
-        ds = gp.GetCount_management(tempTrainingPoints) #TP selected
-        #gp.AddMessage("ds="+str(ds))
+                    expression = f"{class_column_name} = {evidence_class}"
 
-        Success = True #Assume Valid Table: Has confident classes
-        if Type in ("Ascending", "Descending", "Categorical"):
-            #gp.AddMessage("Generalizing " + Type + "...")
-            if Type != "Categorical": #i.e., Ascending or Descending
-                #Select confident rows
-                WgtsTblRows = gp.SearchCursor(wtstable,"STUD_CNT >= " + str(Confident_Contrast))
-                #Get confidence row OID with maximum contrast
-                WgtsTblRow = WgtsTblRows.Next()
-                maxContrast = -9999999.0
-                patNoTPs = 0; patArea = 0.0
-                maxOID = -1
-                while WgtsTblRow:
-                    if WgtsTblRow.Class is not MissingDataValue:
-                        if (WgtsTblRow.Contrast > maxContrast) and (WgtsTblRow.STUD_CNT >= Confident_Contrast):
-                            maxContrast = WgtsTblRow.Contrast
-                            maxOID = WgtsTblRow.GetValue(OIDName)
-                            maxWplus = WgtsTblRow.Wplus
-                            maxWplus_Std = WgtsTblRow.S_Wplus
-                            maxWminus = WgtsTblRow.Wminus
-                            maxWminus_Std = WgtsTblRow.S_Wminus
-                            maxStdContr = WgtsTblRow.STUD_CNT
-                            patNoTPs += WgtsTblRow.No_points
-                            patArea += WgtsTblRow.Area_units
-                    WgtsTblRow = WgtsTblRows.Next()
-                #Set state of calculation
-                #gp.AddMessage("Max OID: " + str(maxOID))
-                if maxOID >= 0:
-                    #Select rows with OID <= maxOID and Set new field values
-                    Where = OIDName + " <= " + str(maxOID)
-                    WgtsTblRows = gp.UpdateCursor(wtstable, Where)
-                    WgtsTblRow = WgtsTblRows.Next()
-                    while WgtsTblRow:
-                        """ Missing data row should be processed after Gen_Class=2 is complete.
-                            Then MD row should be found. If found, get area and num points of
-                            pattern=2 and compute MD std.
-                        """
-                        if WgtsTblRow.Class == MissingDataValue:
-                            WgtsTblRow.Gen_Class = MissingDataValue
-                            WgtsTblRow.Weight = 0.0
-                            WgtsTblRow.W_Std = 0.0
-                        else:
-                            WgtsTblRow.Gen_Class = 2
-                            WgtsTblRow.Weight = maxWplus
-                            WgtsTblRow.W_Std = maxWplus_Std
-                        WgtsTblRows.UpdateRow(WgtsTblRow)
-                        WgtsTblRow = WgtsTblRows.Next()
-                    #gp.AddMessage("Set IN rows.")
-
-                    #Select rows with OID > maxOID and Set new field values
-                    Where = OIDName + " > " + str(maxOID)
-                    WgtsTblRows = gp.UpdateCursor(wtstable, Where)
-                    WgtsTblRow = WgtsTblRows.Next()
-                    while WgtsTblRow:
-                        if WgtsTblRow.Class == MissingDataValue:
-                            #gp.AddMessage("Setting missing data gen_class...")
-                            WgtsTblRow.Gen_Class = MissingDataValue
-                            WgtsTblRow.Weight = 0.0
-                            WgtsTblRow.W_Std = 0.0
-                        else:
-                            WgtsTblRow.Gen_Class = 1
-                            WgtsTblRow.Weight = maxWminus
-                            WgtsTblRow.W_Std = maxWminus_Std
-                        WgtsTblRows.UpdateRow(WgtsTblRow)
-                        WgtsTblRow = WgtsTblRows.Next()        
-                    #gp.AddMessage("Set OUT rows.")
-                else:
-                    gp.AddWarning("No Contrast for type %s satisfied the user defined confidence level %s"%(Type,Confident_Contrast))
-                    gp.AddWarning("Table %s is incomplete."%wtstable)
-                    #gp.Delete(wtstable)
-                    Success = False # Invalid Table: No confidence
-        
-            else: #Categorical
-                #Get Wts and Wts_Std for class values outside confidence
-                Out_Area = 0
-                Out_NumTPs = 0.0
-                #Out_SumWStds = 0.0
-                Out_Num = 0
-
-                #>>>>>>>>>>>>>>>>Out Rows>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-                #Select rows having less than specified absolute confidence; they are assigned to Out_Gen_Class
-                WhereClause = "(STUD_CNT > -%f) and (STUD_CNT < %f)" %(Confident_Contrast, Confident_Contrast)
-                #gp.AddMessage(WhereClause)
-                WgtsTblRows = gp.SearchCursor(wtstable, WhereClause)
-                WgtsTblRow = WgtsTblRows.Next()
-                #Categorical might have a Class.Value = 0
-                Out_Gen_Class = int(99)
-                if WgtsTblRow:
-                    #gp.AddMessage("Processing no-confidence rows...")
-                    while WgtsTblRow:
-                        #gp.AddMessage("Class="+str(WgtsTblRow.Class))
-        ##            
-        ##                Missing data row should be processed after Outside classes are complete.
-        ##                Then MD row should be found. If found, get area and num points of
-        ##                Outside classes and compute MD std.
-        ##            
-                        if WgtsTblRow.Class != MissingDataValue:
-                        #Process Out Rows for total TPs=Out_NumTPs, total Area=Out_Area, number=Out_Num
-                        #Categorical might have a Class.Value = 0, therefore
-                        #Give Outside generalized class a value=10^n + 99, some n >= 0...
-                            if WgtsTblRow.Class >= Out_Gen_Class: Out_Gen_Class += 100
-                            Out_NumTPs += WgtsTblRow.no_points
-                            Out_Area += WgtsTblRow.Area
-                            Out_Num = Out_Num + 1
-                        WgtsTblRow = WgtsTblRows.Next()
-          
-                    #Calculate Wts from Out Area and Out TPs for combined Out Rows
-                    if Out_Num>0:
-                        if Out_NumTPs == 0: Out_NumTPs = 0.001
-                        Wts = MakeWts(float(Out_NumTPs), Out_Area, Unitarea, totalTPs, totalArea, Type)
-                        if not Wts:
-                            gp.AddError("Weights calculation aborted.")
-                        #raise ErrorExit
-                    #gp.AddMessage("Num Out TPs=%d, Area Out Rows=%f: %f, %f"%(Out_NumTPs,Out_Area,Wts[0],Wts[1]))
-                    #gp.AddMessage("Got wts stats." + str(Wts))
-                    #At,Aj,Adt,Adj = studyArea/Unit,float(ds),Out_Area/fac/Unit,float(Out_NumTPs)
-                #<<<<<<<<<<<<<<<<<Out Rows<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-                #Select all rows and Set new field values
-                WgtsTblRows = gp.UpdateCursor(wtstable)
-                WgtsTblRow = WgtsTblRows.Next()
-                In_Num = 0
-                while WgtsTblRow:
-                    if WgtsTblRow.Class == MissingDataValue:
-                        WgtsTblRow.Gen_Class = MissingDataValue
-                        WgtsTblRow.Weight = 0.0
-                        WgtsTblRow.W_Std = 0.0
-                        #gp.AddMessage('got md std....')
-                    elif abs(WgtsTblRow.STUD_CNT) >= Confident_Contrast: #In Rows
-                        WgtsTblRow.Gen_Class = WgtsTblRow.Class
-                        WgtsTblRow.Weight = WgtsTblRow.Wplus
-                        WgtsTblRow.W_Std = WgtsTblRow.S_Wplus
-                        In_Num += 1
-                    elif Out_Num > 0: #Out Rows
-                        if WgtsTblRow.Class == Out_Gen_Class:
-                            gp.AddError("Categorical: Class value of the outside generalized class is same as an inside class.")
-                            raise ErrorExit
-                        WgtsTblRow.Gen_Class = Out_Gen_Class
-                        WgtsTblRow.Weight = Wts[2]
-                        WgtsTblRow.W_Std = Wts[3]
-                    WgtsTblRows.UpdateRow(WgtsTblRow)
-                    #gp.AddMessage("Class=" + str(WgtsTblRow.Class))
-                    WgtsTblRow = WgtsTblRows.Next()
-                if In_Num == 0:
-                    gp.AddWarning("No row Contrast for type %s satisfied the user confidence contrast = %s"%(Type,Confident_Contrast))
-                    gp.AddWarning("Table %s is incomplete."%wtstable)
-                    Success = False  # Invalid Table: fails confidence test
-        #end of Categorical generalization
-        else: #Type is Unique
-            #gp.AddMessage("Setting Unique Generalization")
-            WgtsTblRows = gp.UpdateCursor(wtstable)
-            WgtsTblRow = WgtsTblRows.Next()
-            while WgtsTblRow:
-                WgtsTblRow.Gen_Class = WgtsTblRow.Class
-                WgtsTblRow.Weight = 0.0
-                WgtsTblRow.W_Std = 0.0
-                WgtsTblRows.UpdateRow(WgtsTblRow)
-                #gp.AddMessage("Class=" + str(WgtsTblRow.Class))
-                WgtsTblRow = WgtsTblRows.Next()
-        del WgtsTblRow, WgtsTblRows
-        gp.AddMessage("Done creating table.")
-        gp.AddMessage("Success: %s"%str(Success))
-     #Delete extraneous fields
-        gp.DeleteField_management(wtstable, "area;areaunits;count;rastervalu;frequency;sum_raster")
-     #Set Output Parameter
-        gp.SetParameterAsText(4, gp.Describe(wtstable).CatalogPath)
-        arcpy.AddMessage("Setting success parameter..")
-        arcpy.SetParameterAsText(8, Success)
-
-    except ErrorExit:
-        Success = False  # Invalid Table: Error
-        gp.SetParameterAsText(8, Success)
-        print ('Aborting wts calculation')
-    except arcpy.ExecuteError as e:
-        #TODO: Clean up all these execute errors in final version
-        arcpy.AddError("\n");
-        arcpy.AddMessage("Calculate weights caught arcpy.ExecuteError: ");
-        if (len(e.args) > 0):
-            args = e.args[0];
-            args.split('\n')
-            arcpy.AddError(args);
+                    with arcpy.da.SearchCursor(statistics_table, stats_fields, where_clause=expression) as cursor_stats:
+                        for row_stats in cursor_stats:
+                            # Find the first training point row to have matching class (there should be just one)
+                            if row_stats:
+                                _, site_count = row_stats
+                                break
                     
-        arcpy.AddMessage("-------------- END EXECUTION ---------------");        
-        raise arcpy.ExecuteError;   
-        
-    except Exception as msg:
-        # get the traceback object
-        import sys;
-        import traceback;
-        gp.AddMessage(msg);
-        errors = gp.GetMessages(2);
-        
-        # generate a message string for any geoprocessing tool errors
-        msgs = "\n\nCW - GP ERRORS:\n" + gp.GetMessages(2) + "\n"
-        gp.AddMessage("GPMEs: " + str(len(errors)) + " " + gp.GetMessages(2));
-        if (len(errors) > 0):
-            gp.AddError(msgs)
-        
-        tb = sys.exc_info()[2]
-        
-        # tbinfo contains the line number that the code failed on and the code from that line
-        tbinfo = traceback.format_tb(tb)[0]
-        # concatenate information together concerning the error into a message string
-        pymsg = "CW - PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-            str(traceback.format_exc)+ "\n" #+  : " + str(sys.exc_value) + "\n"
-        
-        # return gp messages for use with a script tool
-        if (len(errors) < 1):
-            gp.AddError(pymsg)
+                    if (code_name is None or code_name == ""):
+                        weights_row = (evidence_class, evidence_count, site_count)
+                    else:
+                        weights_row = (evidence_class, code_name_field, evidence_count, site_count)
+                    cursor_weights.insertRow(weights_row)
 
-        # print messages for use in Python/PythonWin
-        print (pymsg)
-        print (msgs)
-        raise
+        arcpy.management.Delete(statistics_table)
+
+        evidence_cellsize = masked_evidence_descr.MeanCellWidth
+        # TODO: Remember to update if we allow non-meter units in the future.
+        # Assumes linear units of evidence raster is in meters
+        # (The mask unit is checked in get_study_area_parameters, but this should be done for the evidence layer as well.)
+        arcpy.CalculateField_management(output_weights_table, "Area",  "!Count! * %f / 1000000.0" % (evidence_cellsize ** 2), "PYTHON_9.3")
+        arcpy.CalculateField_management(output_weights_table, "AreaUnits",  "!Area! / %f" % unit_cell_area_sq_km, "PYTHON_9.3")
+
+        temp_fields = ["Frequency", "Area", "AreaUnits"]
+        fields_to_update = ["NO_POINTS", "AREA_SQ_KM", "AREA_UNITS"]
+
+        area_field_names = ["Class"] + temp_fields + fields_to_update
+    
+        training_point_count = 0
+        total_area_sq_km = 0.0
+
+        with arcpy.da.UpdateCursor(output_weights_table, area_field_names) as cursor:
+            frequency_tot = 0
+            area_tot = 0.0
+            area_units_tot = 0.0
+
+            for row in cursor:
+                class_category, frequency, area, area_units_temp, no_points, area_sq_km, area_units = row
+
+                if (selected_weight_type in [ASCENDING, DESCENDING]) and (class_category != nodata_value):
+                    frequency_tot += frequency
+                    area_tot += area
+                    area_units_tot += area_units_temp
+                    no_points = frequency_tot
+                    area_sq_km = area_tot
+                    area_units = area_units_tot
+                else:
+                    if class_category != nodata_value:
+                        training_point_count += frequency
+                        total_area_sq_km += area
+
+                    no_points = frequency
+                    area_sq_km = area
+                    area_units = area_units_temp
+
+                updated_row = (class_category, frequency, area, area_units_temp, no_points, area_sq_km, area_units)
+                cursor.updateRow(updated_row)
+
+            if selected_weight_type in [ASCENDING, DESCENDING]:
+                training_point_count = frequency_tot
+                total_area_sq_km = area_tot
+
+        temp_fields_to_delete = ["Count", "Frequency", "Area", "AreaUnits"]
+        arcpy.management.DeleteField(output_weights_table, temp_fields_to_delete)
+
+        fields_to_update = ["Class", "NO_POINTS", "AREA_SQ_KM"] + weight_field_names
+        
+        with arcpy.da.UpdateCursor(output_weights_table, fields_to_update) as cursor:
+            for row in cursor:
+                class_category, no_points, area_sq_km, wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt = row
+
+                if class_category != nodata_value:
+                    wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt = calculate_weights_sq_km(no_points, area_sq_km, unit_cell_area_sq_km, training_point_count, total_area_sq_km, selected_weight_type)
+
+                    updated_row = (class_category, no_points, area_sq_km, wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt)
+                    cursor.updateRow(updated_row)
+
+        # Required fields for generalization
+        fields_to_read = ["OBJECTID", "CLASS", "AREA_UNITS", "NO_POINTS"] + weight_field_names
+        fields_to_update = ["OBJECTID", "CLASS"] + generalized_weight_field_names
+
+        # Generalize weights for non-unique weight selections
+        if selected_weight_type in [ASCENDING, DESCENDING]:
+            # Find the row with the maximum contrast value that has a studentized contrast that satisfies the threshold condition
+            max_contrast_OID = -1
+            max_contrast = -9999999.0
+            tp_count = 0
+            area_cell_count = 0.0
+            max_wplus = -9999.0
+            max_s_wplus = -9999.0
+            max_wminus = -9999.0
+            max_s_wminus = -9999.0
+            max_std_contrast = -9999.0
+
+            threshold_clause = f"STUD_CNT >= {studentized_contrast_threshold}"
+            with arcpy.da.SearchCursor(output_weights_table, fields_to_read, where_clause=threshold_clause) as cursor_weights:
+                for row in cursor_weights:
+                    oid, class_category, area_units, no_points, wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt = row
+                    
+                    if class_category != nodata_value:
+                        if contrast > max_contrast:
+                            max_contrast_OID = oid
+                            max_contrast = contrast
+                            tp_count = no_points
+                            area_cell_count = area_units
+                            max_wplus = wplus
+                            max_s_wplus = s_wplus
+                            max_wminus = wminus
+                            max_s_wminus = s_wminus
+
+            if max_contrast_OID >= 0:
+                update_clause = f"OBJECTID <= {max_contrast_OID}"
+                
+                with arcpy.da.UpdateCursor(output_weights_table, fields_to_update) as cursor_generalized:
+                    for row in cursor_generalized:
+                        oid, class_category, gen_class, weight, w_std = row
+                        
+                        if class_category == nodata_value:
+                            gen_class = nodata_value
+                            weight = 0.0
+                            w_std = 0.0
+                        else:
+                            if oid <= max_contrast_OID:
+                                gen_class = 2
+                                weight = max_wplus
+                                w_std = max_s_wplus
+                            else:
+                                gen_class = 1
+                                weight = max_wminus
+                                w_std = max_s_wminus
+
+                        updated_row = (oid, class_category, gen_class, weight, w_std)
+                        cursor_generalized.updateRow(updated_row)
+            else:
+                arcpy.AddWarning(f"Unable to generalize weights! No contrast for type {selected_weight_type} satisties the user-defined confidence level {studentized_contrast_threshold}")
+                arcpy.AddWarning(f"Table {output_weights_table} is incomplete.")
+
+        elif selected_weight_type == CATEGORICAL:
+            # Reclassify
+            reclassified = False
+
+            tp_count_99 = 0
+            unit_cell_count_99 = 0.0
+            tp_count = 0
+            unit_cell_count = 0.0
+
+            with arcpy.da.UpdateCursor(output_weights_table, ["Class", "AREA_UNITS", "NO_POINTS"] + weight_field_names + generalized_weight_field_names) as cursor:
+                for row in cursor:
+                    class_category, area_units, no_points, wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt, gen_class, weight, w_std = row
+
+                    if (class_category != nodata_value) and (abs(stud_cnt) < studentized_contrast_threshold):
+                        gen_class = 99
+                        tp_count_99 += no_points
+                        unit_cell_count_99 += area_units
+                        reclassified = True
+                    else:
+                        gen_class = class_category
+
+                    tp_count += no_points
+                    unit_cell_count += area_units
+
+                    # Set generalized weights to defaults (will be updated for class 99)
+                    weight = wplus
+                    w_std = s_wplus
+                    
+                    updated_row = (class_category, area_units, no_points, wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt, gen_class, weight, w_std)
+                    cursor.updateRow(updated_row)
+
+            if not reclassified:
+                arcpy.AddWarning(f"Unable to generalize classes with the given studentized contrast threshold!")
+            else:
+                gen_weight_99, gen_w_std_99, _, _, _, _, _ = calculate_weights(tp_count_99, unit_cell_count_99, tp_count, unit_cell_count, 99)
+
+                arcpy.AddMessage(f"Generalized weight: {gen_weight_99}, STD of generalized weight: {gen_w_std_99}")
+
+                categorical_clause = f"GEN_CLASS = 99"
+
+                with arcpy.da.UpdateCursor(output_weights_table, generalized_weight_field_names, where_clause=categorical_clause) as cursor_generalized:
+                    for row in cursor_generalized:
+                        gen_class, weight, w_std = row
+
+                        weight = gen_weight_99
+                        w_std = gen_w_std_99
+
+                        updated_row = (gen_class, weight, w_std)
+                        cursor_generalized.updateRow(updated_row)
+
+    except arcpy.ExecuteError:
+        arcpy.AddError(arcpy.GetMessages(2))
+    except Exception:
+        tb = sys.exc_info()[2]
+        tbinfo = traceback.format_tb(tb)[0]
+        
+        pymsg = f"PYTHON ERRORS:\nTraceback Info:\n{tbinfo}\nError Info:\n{sys.exc_info()}\n"
+        msgs = f"GP ERRORS:\n{arcpy.GetMessages(2)}\n"
+
+        arcpy.AddError(msgs)
+        arcpy.AddError(pymsg)

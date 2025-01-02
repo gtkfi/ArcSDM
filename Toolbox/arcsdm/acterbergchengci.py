@@ -11,10 +11,9 @@ Don L Sawatzky, Spokane, WA, USA: Python software development
 
 Converted to ArcSDM toolbox to ArcMap by GTK 2016
 """
-import sys, string, os, math, traceback, math
+import sys, os, math, traceback, math
 import arcpy
 import arcpy.management
-from arcsdm.floatingrasterarray import FloatRasterSearchcursor
 
 arcpy.CheckOutExtension("spatial")
 arcpy.env.overwriteOutput = True

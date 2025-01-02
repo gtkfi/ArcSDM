@@ -18,7 +18,7 @@ import traceback, sys
 from arcsdm.exceptions import SDMError
 import arcpy
 import os
-import numpy
+
 
 # Conversion factors from various units to square kilometers
 ToMetric = {
@@ -49,6 +49,7 @@ def testdebugfile():
         return 1
     return returnvalue
 
+
 def dwrite(message):
     """
     Write a debug message if debugging is enabled.
@@ -57,16 +58,6 @@ def dwrite(message):
     if debuglevel > 0 or debug > 0:
         arcpy.AddMessage("Debug: " + message)
 
-def execute(self, parameters, messages):
-    """
-    Obsolete function to execute the tool. Needs refactoring.
-    """
-    dwrite("Starting sdmvalues")
-    TrainingSites = parameters[0].valueAsText
-    Unitarea = float(parameters[1].value)
-    appendSDMValues(Unitarea, TrainingSites)
-    arcpy.AddMessage("\n" + "=" * 40)
-    arcpy.AddMessage("\n")
 
 def getPriorProb(TrainPts, unitCell, mapUnits):
     """
@@ -82,6 +73,7 @@ def getPriorProb(TrainPts, unitCell, mapUnits):
     priorprob = num_tps / num_unit_cells
     return priorprob
 
+
 def getMaskSize(mapUnits):
     """
     Return the mask size in square kilometers.
@@ -92,7 +84,7 @@ def getMaskSize(mapUnits):
             return globalmasksize
         desc = arcpy.Describe(arcpy.env.mask)
 
-        if desc.dataType == "RasterLayer" or desc.dataType == "RasterBand":
+        if desc.dataType in ["RasterLayer", "RasterDataset", "RasterBand"]:
             if not str(arcpy.env.cellSize).replace('.', '', 1).replace(',', '', 1).isdigit():
                 arcpy.AddMessage("*" * 50)
                 arcpy.AddError("ERROR: Cell Size must be numeric when mask is raster. Check Environments!")
@@ -146,7 +138,11 @@ def getMaskSize(mapUnits):
             arcpy.AddError(msgs)
         raise
 
-def appendSDMValues(arcpy, unitCell, TrainPts):
+
+# NOTE: Outdated - doesn't calculate the area correctly if output cell size isn't set to match the mask cell size
+# Kept this one for now, since a lot of things call it
+# But references should be changed to use arcsdm.wofe_common.get_study_area_parameters instead
+def appendSDMValues(unitCell, TrainPts):
     """
     Append Spatial Data Modeller parameters to Geoprocessor History.
     """
@@ -183,6 +179,8 @@ def appendSDMValues(arcpy, unitCell, TrainPts):
         conversion = getMapConversion(mapUnits)
         arcpy.AddMessage("%-20s %s" % ('Map Units:', mapUnits))
 
+        total_area = getMaskSize(mapUnits)
+
         if not arcpy.env.mask:
             arcpy.AddError('Study Area mask not set')
             raise arcpy.ExecuteError("Mask not set. Check Environments!")
@@ -194,7 +192,7 @@ def appendSDMValues(arcpy, unitCell, TrainPts):
             arcpy.AddMessage("%-20s %s" % ("Mask:", "\"" + desc.name + "\" and it is " + desc.dataType))
             if desc.dataType in ["FeatureLayer", "FeatureClass"]:
                 arcpy.AddWarning('Warning: You should only use single value raster type masks!')
-            arcpy.AddMessage("%-20s %s" % ("Mask size:", str(getMaskSize(mapUnits))))
+            arcpy.AddMessage("%-20s %s" % ("Mask size:", str(total_area)))
 
         if not arcpy.env.cellSize:
             arcpy.AddError('Study Area cellsize not set')
@@ -203,10 +201,10 @@ def appendSDMValues(arcpy, unitCell, TrainPts):
 
         cellsize = arcpy.env.cellSize
         arcpy.AddMessage("%-20s %s" % ("Cell Size:", cellsize))
-        total_area = getMaskSize(mapUnits)
+        
         unitCell = float(unitCell)
         num_unit_cells = float(total_area) / unitCell
-        num_tps = arcpy.GetCount_management(TrainPts)
+        num_tps = arcpy.management.GetCount(TrainPts)
         arcpy.AddMessage("%-20s %s" % ('# Training Sites:', num_tps))
         arcpy.AddMessage("%-20s %s" % ("Unit Cell Area:", "{}km^2, Cells in area: {} ".format(unitCell, num_unit_cells)))
 
@@ -239,6 +237,7 @@ def appendSDMValues(arcpy, unitCell, TrainPts):
             arcpy.AddError(msgs)
         raise
 
+
 def getMapConversion(mapUnits):
     """
     Get the conversion factor from the map units to square kilometers.
@@ -246,6 +245,7 @@ def getMapConversion(mapUnits):
     pluralMapUnits = {'meter': 'meters', 'foot': 'feet', 'inch': 'inches', 'mile': 'miles'}
     conversion = ToMetric["square %s to square kilometers" % pluralMapUnits[mapUnits]]
     return conversion
+
 
 def getMapUnits(silent=False):
     """

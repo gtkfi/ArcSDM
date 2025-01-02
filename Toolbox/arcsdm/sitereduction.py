@@ -22,6 +22,8 @@ import arcpy
 import math
 import random
 
+from arcsdm.common import select_features_by_mask
+
 def ReduceSites(self, parameters, messages):
     arcpy.AddMessage("Starting sites reduction")
     arcpy.AddMessage("------------------------------")
@@ -39,29 +41,7 @@ def ReduceSites(self, parameters, messages):
         arcpy.AddMessage(f"Training points: {input_features}")
 
         # Select the features, applying mask if it is set
-        mask = arcpy.env.mask
-        if mask:
-            if not arcpy.Exists(mask):
-                raise arcpy.ExecuteError("Mask doesn't exist! Set Mask under Analysis/Environments.")
-
-            mask_type = arcpy.Describe(mask).dataType
-
-            if mask_type in ["FeatureLayer", "FeatureClass"]:
-                arcpy.management.SelectLayerByLocation(input_features, "COMPLETELY_WITHIN", mask)
-            elif mask_type in ["RasterLayer", "RasterDataset"]:
-                # We need to convert the raster to a feature, since SelectLayerByLocation requires features
-                tmp_mask = str(mask) + "_tmp_feature"
-
-                # If the conversion seems slow with more complicated rasters, set max_vertices_per_feature
-                arcpy.conversion.RasterToPolygon(mask, tmp_mask)
-                arcpy.management.SelectLayerByLocation(input_features, "COMPLETELY_WITHIN", tmp_mask)
-                # Delete the temporary layer
-                arcpy.management.Delete(tmp_mask)
-            else:
-                raise arcpy.ExecuteError(f"Mask has forbidden data type: {mask_type}!")
-
-        else:
-            arcpy.management.SelectLayerByAttribute(input_features)
+        select_features_by_mask(input_features)
 
         identifier = get_identifier(input_features)
 

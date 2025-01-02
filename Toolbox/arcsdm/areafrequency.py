@@ -38,11 +38,12 @@ VAT.next() returns (ID, VALUE, COUNT)
 """
 
 # Import modules
-import sys, string, os, random, traceback, tempfile
 import arcpy
-import arcsdm.workarounds_93
-from arcsdm.floatingrasterclass import FloatRasterVAT, rowgen
 import importlib
+import os
+
+from arcsdm.common import rowgen
+from arcsdm.floatingrasterarray import FloatRasterVAT
 
 # Create the Geoprocessor object
 arcpy.CheckOutExtension("spatial")
@@ -68,7 +69,7 @@ def Execute(self, parameters, messages):
     Output_Table = parameters[4].valueAsText
     
     # Append SDM values to the input point features
-    arcsdm.sdmvalues.appendSDMValues(arcpy, UnitArea, Input_point_features)
+    arcsdm.sdmvalues.appendSDMValues(UnitArea, Input_point_features)
     arcpy.AddMessage("\n" + "="*10 + " Starting area frequency " + "="*10)
     
     # Initialize local variables
