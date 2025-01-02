@@ -69,7 +69,7 @@ def Execute(self, parameters, messages):
     Output_Table = parameters[4].valueAsText
     
     # Append SDM values to the input point features
-    arcsdm.sdmvalues.appendSDMValues(arcpy, UnitArea, Input_point_features)
+    arcsdm.sdmvalues.appendSDMValues(UnitArea, Input_point_features)
     arcpy.AddMessage("\n" + "="*10 + " Starting area frequency " + "="*10)
     
     # Initialize local variables

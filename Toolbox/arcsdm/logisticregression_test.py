@@ -81,7 +81,7 @@ def Execute(self, parameters, messages):
         thmUC = gp.createscratchname("tmp_UCras", '', 'raster',   gp.scratchworkspace)
 
         #Print out SDM environmental values
-        sdmvalues.appendSDMValues(gp, unitCell, TrainPts)
+        sdmvalues.appendSDMValues(unitCell, TrainPts)
 
         #Create Generalized Class tables
         Wts_Rasters = []
