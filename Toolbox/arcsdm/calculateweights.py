@@ -230,8 +230,6 @@ def Calculate(self, parameters, messages):
 
         evidence_raster = parameters[0].valueAsText
         code_name = parameters[1].valueAsText
-
-        # TODO: make sure the mask is applied to the features
         training_sites_feature = parameters[2].valueAsText
         selected_weight_type =  parameters[3].valueAsText
         output_weights_table = parameters[4].valueAsText
@@ -256,7 +254,6 @@ def Calculate(self, parameters, messages):
                 wtsbase = wtsbase[1:]
             output_weights_table = os.path.dirname(output_weights_table) + "\\" + wtsbase
 
-        # TODO: differentiate between original nodata value and missing data from applying study area mask?
         masked_evidence_raster = apply_mask_to_raster(evidence_raster, nodata_value)
         masked_evidence_descr = arcpy.Describe(masked_evidence_raster)
         # Evidence raster preparation is now done
@@ -353,7 +350,7 @@ def Calculate(self, parameters, messages):
         arcpy.management.Delete(statistics_table)
 
         evidence_cellsize = masked_evidence_descr.MeanCellWidth
-        # TODO: 
+        # TODO: Remember to update if we allow non-meter units in the future.
         # Assumes linear units of evidence raster is in meters
         # (The mask unit is checked in get_study_area_parameters, but this should be done for the evidence layer as well.)
         arcpy.CalculateField_management(output_weights_table, "Area",  "!Count! * %f / 1000000.0" % (evidence_cellsize ** 2), "PYTHON_9.3")
@@ -486,7 +483,6 @@ def Calculate(self, parameters, messages):
                 for row in cursor:
                     class_category, area_units, no_points, wplus, s_wplus, wminus, s_wminus, contrast, s_contrast, stud_cnt, gen_class, weight, w_std = row
 
-                    # TODO: Verify if the missing data class should be generalized to the outside class as well
                     if (class_category != nodata_value) and (abs(stud_cnt) < studentized_contrast_threshold):
                         gen_class = 99
                         tp_count_99 += no_points
@@ -530,9 +526,8 @@ def Calculate(self, parameters, messages):
         tb = sys.exc_info()[2]
         tbinfo = traceback.format_tb(tb)[0]
         
-        pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-            str(sys.exc_info()) + "\n"
-        msgs = "GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
+        pymsg = f"PYTHON ERRORS:\nTraceback Info:\n{tbinfo}\nError Info:\n{sys.exc_info()}\n"
+        msgs = f"GP ERRORS:\n{arcpy.GetMessages(2)}\n"
 
         arcpy.AddError(msgs)
         arcpy.AddError(pymsg)

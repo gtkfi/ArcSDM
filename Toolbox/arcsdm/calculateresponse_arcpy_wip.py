@@ -24,14 +24,19 @@
 # ---------------------------------------------------------------------------
 """
 import arcpy
-import importlib
 import math
 import os
 import sys
 import traceback
 
 from arcsdm.common import log_arcsdm_details
-from arcsdm.wofe_common import apply_mask_to_raster, check_wofe_inputs, extract_layer_from_raster_band, get_study_area_parameters, WofeInputError
+from arcsdm.wofe_common import (
+    apply_mask_to_raster,
+    check_wofe_inputs,
+    extract_layer_from_raster_band,
+    get_study_area_parameters,
+    WofeInputError
+)
 
 
 # NOTE: This file is a WIP updated version of the Calculate response tool.
@@ -297,9 +302,8 @@ def Execute(self, parameters, messages):
         tb = sys.exc_info()[2]
         tbinfo = traceback.format_tb(tb)[0]
 
-        pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-            str(sys.exc_info()) + "\n"
-        msgs = "GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
+        pymsg = f"PYTHON ERRORS:\nTraceback Info:\n{tbinfo}\nError Info:\n{sys.exc_info()}\n"
+        msgs = f"GP ERRORS:\n{arcpy.GetMessages(2)}\n"
 
         arcpy.AddError(msgs)
         arcpy.AddError(pymsg)

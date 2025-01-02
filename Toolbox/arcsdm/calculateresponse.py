@@ -1,7 +1,7 @@
 """
     ArcSDM 6 ToolBox for ArcGIS Pro
 
-    Conversion and tool development for ArcGIS Pro by Geological Survey of Finland (GTK), 2024.
+    Conversion and tool development for ArcGIS Pro by Geological Survey of Finland (GTK), 2025.
 
     History:
     4/2016 Conversion started - TR
@@ -34,7 +34,13 @@ import traceback
 
 from arcsdm.common import log_arcsdm_details
 from arcsdm.missingdatavar_func import create_missing_data_variance_raster
-from arcsdm.wofe_common import apply_mask_to_raster, check_wofe_inputs, extract_layer_from_raster_band, get_study_area_parameters, WofeInputError
+from arcsdm.wofe_common import (
+    apply_mask_to_raster,
+    check_wofe_inputs,
+    extract_layer_from_raster_band,
+    get_study_area_parameters,
+    WofeInputError
+)
 
 
 debuglevel = 0
@@ -60,8 +66,7 @@ def dwrite(message):
 
 def Execute(self, parameters, messages):
     try:
-        # TODO: Refactor to arcpy.
-        # Some references to arcgisscripting still remain due to difficulty updating raster calculations.
+        # TODO: Refactor to arcpy. Some references to arcgisscripting still remain due to difficulty updating raster calculations.
         gp = arcgisscripting.create()
 
         arcpy.CheckOutExtension("Spatial")
@@ -394,9 +399,8 @@ def Execute(self, parameters, messages):
         tb = sys.exc_info()[2]
         tbinfo = traceback.format_tb(tb)[0]
 
-        pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-            str(sys.exc_info()) + "\n"
-        msgs = "GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
+        pymsg = f"PYTHON ERRORS:\nTraceback Info:\n{tbinfo}\nError Info:\n{sys.exc_info()}\n"
+        msgs = f"GP ERRORS:\n{arcpy.GetMessages(2)}\n"
         
         arcpy.AddError(msgs)
         arcpy.AddError(pymsg)
