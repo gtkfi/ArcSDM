@@ -554,51 +554,49 @@ class AreaFrequencyTable(object):
 
     def getParameterInfo(self):
         """Define parameter definitions"""
-        paramTrainingSites = arcpy.Parameter(
-        displayName="Training sites",
-        name="training_sites",
-        #datatype="DEFeatureClass",
-        datatype="GPFeatureLayer",
-        parameterType="Required",
-        direction="Input")
+        param_training_sites = arcpy.Parameter(
+            displayName="Training sites",
+            name="training_sites",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Input"
+        )
         
-        paramRaster = arcpy.Parameter(
-        displayName="Input Raster Layer",
-        name="input_raster_layer",
-        datatype="GPRasterLayer",
-        parameterType="Required",
-        direction="Input")
+        param_evidence_raster = arcpy.Parameter(
+            displayName="Input Raster Layer",
+            name="input_raster_layer",
+            datatype="GPRasterLayer",
+            parameterType="Required",
+            direction="Input"
+        )
         
-        paramField = arcpy.Parameter(
-        displayName="Value field",
-        name="valuefield_name",
-        datatype="Field",
-        parameterType="Optional",
-        direction="Input")
-        #paramField.filter.list = [['Short', 'Long']]
-        #paramField.parameterDependencies = [paramRaster.name]
-        paramField.value = "VALUE"
+        param_value_field = arcpy.Parameter(
+            displayName="Value field",
+            name="valuefield_name",
+            datatype="Field",
+            parameterType="Optional",
+            direction="Input"
+        )
+        param_value_field.value = "VALUE"
         
-        #param1.filter.type = "ValueList"
-        #param1.filter.list = ["o", "c"]
-        #param1.value = "o"
+        param_unit_cell_area = arcpy.Parameter(
+            displayName="Unit area (km2)",
+            name="Unit_Area__sq_km_",
+            datatype="GPDouble",
+            parameterType="Required",
+            direction="Input"
+        )
         
-        paramUnitArea = arcpy.Parameter(
-        displayName="Unit area (km2)",
-        name="Unit_Area__sq_km_",
-        datatype="GPDouble",
-        parameterType="Required",
-        direction="Input")
-        
-        paramOutputTable = arcpy.Parameter(
-        displayName="Output table",
-        name="Output_Table",
-        datatype="DEDbaseTable",
-        parameterType="Required",
-        direction="Output")
-        paramOutputTable.value = "%Workspace%\AreaFrequencyTable"
+        param_output_table = arcpy.Parameter(
+            displayName="Output table",
+            name="Output_Table",
+            datatype="DEDbaseTable",
+            parameterType="Required",
+            direction="Output"
+        )
+        param_output_table.value = "%Workspace%\AreaFrequencyTable"
 
-        params = [paramTrainingSites, paramRaster, paramField, paramUnitArea, paramOutputTable]
+        params = [param_training_sites, param_evidence_raster, param_value_field, param_unit_cell_area, param_output_table]
         return params
 
     def isLicensed(self):
@@ -623,11 +621,7 @@ class AreaFrequencyTable(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        try:
-            importlib.reload (arcsdm.areafrequency)
-        except:
-            reload(arcsdm.areafrequency)
-        arcsdm.areafrequency.Execute(self, parameters, messages)
+        execute_tool(arcsdm.areafrequency.Execute, self, parameters, messages)
         return
 
 

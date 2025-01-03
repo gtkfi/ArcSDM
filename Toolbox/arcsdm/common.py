@@ -159,11 +159,3 @@ def select_features_by_mask(input_feature):
     else:
         # Just select all features
         arcpy.management.SelectLayerByAttribute(input_feature)
-
-def rowgen(searchcursor_rows):
-    """ Convert arcpy searchcursor to a generator function """
-    rows = searchcursor_rows
-    row = next(rows)
-    while row:
-        yield row
-        row = next(rows)

@@ -119,7 +119,7 @@ class FloatRasterVAT(object):
     def index(self, testValue):
         """ Return index in VAT keys of raster value nearest testValue  """
         try:
-            if testValue in self:
+            if testValue in self.vat.keys():
                 return self._index
             else:
                 raise ValueError
@@ -128,7 +128,8 @@ class FloatRasterVAT(object):
         
     def __getitem__(self, testValue):
         """ Return raster value nearest testValue  """
-        return self.vat.keys()[self.index(testValue)]
+        # return self.vat.keys()[self.index(testValue)]
+        return self.vat[self.index(testValue)]
         
     def FloatRasterSearchcursor(self):
         """ Return a generator function that produces searchcursor rows from VAT """

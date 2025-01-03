@@ -1,6 +1,6 @@
 """ ArcSDM 6 ToolBox for ArcGIS Pro
 
-Conversion and tool development for ArcGIS Pro by Geological Survey of Finland (GTK), 2024.
+Conversion and tool development for ArcGIS Pro by Geological Survey of Finland (GTK), 2025.
 
 Area frequency tool 
 
@@ -36,242 +36,168 @@ with VAT[Value] = COUNT, like a VAT of an integer raster.
 VAT.next() returns (ID, VALUE, COUNT)
 
 """
-
-# Import modules
 import arcpy
-import importlib
 import os
 
-from arcsdm.common import rowgen
 from arcsdm.floatingrasterarray import FloatRasterVAT
+from arcsdm.wofe_common import apply_mask_to_raster, get_study_area_parameters, get_training_point_statistics
 
-# Create the Geoprocessor object
-arcpy.CheckOutExtension("spatial")
-arcpy.env.overwriteOutput = True
 
-# Custom exception for user errors
 class UserException(Exception):
     pass
 
-# Main function to execute the tool
+
 def Execute(self, parameters, messages):
-    import arcsdm.sdmvalues
-    try:
-        importlib.reload(arcsdm.sdmvalues)
-    except:
-        importlib.reload(arcsdm.sdmvalues)
+    arcpy.CheckOutExtension("Spatial")
+    arcpy.env.overwriteOutput = True
+
+    training_point_feature = parameters[0].valueAsText
+    evidence_raster = parameters[1].valueAsText
+    value_field = parameters[2].valueAsText
+    unit_cell_area_sq_km = parameters[3].value
+    output_table = parameters[4].valueAsText
     
-    # Get input parameters
-    Input_point_features = parameters[0].valueAsText
-    Input_raster = parameters[1].valueAsText
-    Value_field = parameters[2].valueAsText
-    UnitArea = parameters[3].value
-    Output_Table = parameters[4].valueAsText
+    # Log WofE values
+    _, total_training_point_count = get_study_area_parameters(unit_cell_area_sq_km, training_point_feature)
+
+    arcpy.AddMessage("\n" + "=" * 10 + " Starting area frequency " + "=" * 10)
+
+    evidence_info = arcpy.Raster(evidence_raster)
+    if not evidence_info.hasRAT:
+        raise UserException(f"The evidence raster {evidence_raster} does not have an attribute table. Use 'Build Raster Attribute Table' tool to add it.")
+
+    if not value_field.strip().lower() in [n.baseName.strip().lower() for n in arcpy.ListFields(evidence_raster)]:
+        raise UserException(f"The evidence raster {evidence_raster} does not have a field {value_field}!")
     
-    # Append SDM values to the input point features
-    arcsdm.sdmvalues.appendSDMValues(UnitArea, Input_point_features)
-    arcpy.AddMessage("\n" + "="*10 + " Starting area frequency " + "="*10)
-    
-    # Initialize local variables
-    valuetypes = {1: 'Integer', 2: 'Float'}
-    joinRastername = None
-    Input_table = None
-    RasterValue_field = Value_field.title().endswith('Value')
-    
-    # Determine the value type of the input raster
-    valuetype = arcpy.GetRasterProperties_management(Input_raster, 'VALUETYPE').getOutput(0)
-    arcpy.AddMessage("Valuetype = " + str(valuetype))
-    
-    # Handle integer raster case
-    if int(valuetype) <= 8:
-        if not Input_table:
-            if not RasterValue_field:
-                float_type = ('Double', 'Single')
-                fld = arcpy.ListFields(Input_raster, Value_field)[0]
-                Value_field_type = fld.type
-                if Value_field_type.title() in float_type:
-                    Value_field = Value_field.split('.')
-                    if len(Value_field) > 1:
-                        arcpy.AddError("Integer Raster has joined table.")
-                        raise UserException
-                    InExpression = "FLOAT(%s.%s)" % (Input_raster, Value_field[0])
-                    TmpRaster = arcpy.CreateScratchName("tmp_AFT_ras", "", "raster", arcpy.env.scratchWorkspace)
-                    arcpy.sa.SingleOutputMapAlgebra(InExpression, TmpRaster)
-                    arcpy.AddMessage("Floating Raster from Raster Attribute: type %s" % arcpy.Describe(Input_raster).pixelType)
-                else:
-                    arcpy.AddError("Integer Raster Attribute field not floating type.")
-                    raise UserException
-            else:
-                arcpy.AddError("Integer Raster Value field not acceptable.")
-                raise UserException("Integer Raster Value field not acceptable")
-                
-        Input_raster = TmpRaster
-        valuetype = 2
-    else:
-        arcpy.AddMessage("Floating Raster from Floating Raster Value: type %s" % arcpy.Describe(Input_raster).pixelType)
-        
-    # Check if there are any training points selected
-    if int(arcpy.GetCount_management(Input_point_features).getOutput(0)) == 0:
-        arcpy.AddError("Training Points must be selected: %s" % Input_point_features)
-        raise UserException
-    
-    # Extract raster values to points
-    Output_point_features = arcsdm.workarounds_93.ExtractValuesToPoints(Input_raster, Input_point_features, "TPFID")
-    
+    # NoData value to use internally
+    nodata_value = -9999
+    masked_evidence_raster = apply_mask_to_raster(evidence_raster, nodata_value)
+
     # Create a summary statistics table
-    Output_summary_stats = arcpy.CreateScratchName("Ext_Trn_Stats", "", "Table", arcpy.env.scratchWorkspace)
-    
-    # Initialize a dictionary to store statistics
-    stats_dict = {}
-    flt_ras = FloatRasterVAT(Input_raster)
-    
-    # Get the raster values and their counts
-    rows = flt_ras.FloatRasterSearchcursor()
-    arcpy.Statistics_analysis(Output_point_features, Output_summary_stats, "RASTERVALU FIRST", "RASTERVALU")
-    
-    for row in rows:
-        stats_dict[row.value] = 0
-    num_training_sites = int(arcpy.GetCount_management(Output_point_features).getOutput(0))
-    
-    # Get the statistics from the summary table
-    statsrows = rowgen(arcpy.SearchCursor(Output_summary_stats))
-    
-    num_nodata = 0
-    for row in statsrows:
-        if row.RASTERVALU == flt_ras.getNODATA():
-            num_nodata = row.FREQUENCY
-        else:
-            rasval = flt_ras[row.RASTERVALU]
-            if rasval in stats_dict:
-                stats_dict[rasval] = row.FREQUENCY
+    statistics_table, class_column_name, count_column_name = get_training_point_statistics(masked_evidence_raster, training_point_feature)
+
+    # Calculate the number of sites on the pattern
+    missing_pattern_training_point_count = 0
+    pattern_training_point_count = 0
+
+    stats_fields = [class_column_name, count_column_name]
+    with arcpy.da.SearchCursor(statistics_table, stats_fields) as cursor:
+        for row in cursor:
+            class_category, count = row
+            if class_category == nodata_value:
+                missing_pattern_training_point_count += count
+            else: pattern_training_point_count += count
     
     # Check if the counts match the number of training sites
-    num_counts = sum(stats_dict.values())
-    if num_counts != num_training_sites - num_nodata:
-        arcpy.AddWarning("Stats count and number of training sites in data area do not compare.")
-    if num_nodata > 0:
-        arcpy.AddWarning("%d training points in NoData area." % num_nodata)
+    if pattern_training_point_count != (total_training_point_count - missing_pattern_training_point_count):
+        arcpy.AddWarning("Stats count and number of training sites in data area do not compare: training points exists outside of the evidence pattern")
+    if missing_pattern_training_point_count > 0:
+        arcpy.AddWarning(f"{missing_pattern_training_point_count} training points where evidence pattern is missing in the study area.")
+
+    arcpy.AddMessage(f"Training sites within the study area that fall on the evidence pattern: {pattern_training_point_count}")
     
     # Create the output table
-    arcpy.AddMessage('Creating table: %s' % Output_Table)
-    fullname = arcpy.ParseTableName(Output_Table)
-    database, owner, table = fullname.split(", ")
-    arcpy.AddMessage('Output workspace: %s' % os.path.dirname(Output_Table))
-    arcpy.AddMessage('Output table name: %s' % os.path.basename(Output_Table))
-    arcpy.CreateTable_management(os.path.dirname(Output_Table), os.path.basename(Output_Table))
-    arcpy.MakeTableView_management(Output_Table, 'output_table')
-    
-    # Add fields to the output table
-    arcpy.AddField_management('output_table', "Frequency", "LONG", "", "", "", "", "NULLABLE", "NON_REQUIRED", "")
-    arcpy.AddField_management('output_table', "RASTERVALU", "DOUBLE", "18", "8", "", "", "NULLABLE", "NON_REQUIRED", "")
-    arcpy.AddField_management('output_table', "Area_sqkm", "DOUBLE", "", "", "", "Area_Sq_Kilometers", "NULLABLE", "NON_REQUIRED", "")
-    arcpy.AddField_management('output_table', "CAPP_CumAr", "DOUBLE", "", "", "", "CAPP_Cumulative_Area", "NULLABLE", "NON_REQUIRED", "")
-    arcpy.AddField_management('output_table', "Eff_CumAre", "DOUBLE", "", "", "", "Efficiency_Cumulative_Area", "NULLABLE", "NON_REQUIRED", "")
-    arcpy.AddField_management('output_table', "Cum_Sites", "DOUBLE", "", "", "", "Cumulative_Sites", "NULLABLE", "NON_REQUIRED", "")
-    arcpy.AddField_management('output_table', "I_CumSites", "DOUBLE", "", "", "", "Cumulative_Sites", "NULLABLE", "NON_REQUIRED", "")
-    arcpy.AddField_management('output_table', "Eff_AUC", "DOUBLE", "", "", "", "A_U_C", "NULLABLE", "NON_REQUIRED", "")
-    
-    # Delete the default field
-    arcpy.DeleteField_management(Output_Table, "Field1")
+    arcpy.AddMessage(f"Creating table: {output_table}")
+    arcpy.management.CreateTable(os.path.dirname(output_table), os.path.basename(output_table))
+
+    arcpy.management.AddField(output_table, "Frequency", "LONG")
+    arcpy.management.AddField(output_table, "RASTERVALU", "DOUBLE", field_precision="18", field_scale="8")
+    arcpy.management.AddField(output_table, "Area_sqkm", "DOUBLE", field_alias="Area_Sq_Kilometers")
+    arcpy.management.AddField(output_table, "CAPP_CumAr", "DOUBLE", field_alias="CAPP_Cumulative_Area")
+    arcpy.management.AddField(output_table, "Eff_CumAre", "DOUBLE", field_alias="Efficiency_Cumulative_Area")
+    arcpy.management.AddField(output_table, "Cum_Sites", "DOUBLE", field_alias="Cumulative_Sites")
+    arcpy.management.AddField(output_table, "I_CumSites", "DOUBLE", field_alias="Cumulative_Sites")
+    arcpy.management.AddField(output_table, "Eff_AUC", "DOUBLE", field_alias="A_U_C")
     
     # Calculate the area factor
-    factor = (float(arcpy.env.cellSize) ** 2) / 1000000 / UnitArea
+    # NOTE: Assumes meters - this should be updated if we start supporting non-meter rasters in the future
+    evidence_descr = arcpy.Describe(masked_evidence_raster)
+    cell_size_sq_m = evidence_descr.MeanCellWidth * evidence_descr.MeanCellHeight
+    # NOTE: This was previously divided by the unit cell area, resulting in the Area_sqkm column having the area in unit cells, not sq. km!
+    factor = cell_size_sq_m / 1000000.0
+    arcpy.AddMessage(f"factor: {factor}")
     
-    # Insert rows into the output table
+    flt_ras = FloatRasterVAT(masked_evidence_raster)
     rasrows = flt_ras.FloatRasterSearchcursor()
-    arcpy.AddMessage('factor: %s' % factor)
-    with arcpy.da.InsertCursor(Output_Table, ["RASTERVALU", "Area_sqkm"]) as cursor:
-        for rasrow in rasrows:
-            cursor.insertRow([rasrow.Value, rasrow.Count * factor])
-    
-    # Calculate the total number of sites
-    totalsites = sum(stats_dict.values())
-    arcpy.AddMessage('totalsites: %s' % totalsites)
-    
+
     # Initialize variables for cumulative calculations
-    totalarea = 0.0
-    cumArea = 0
-    effarea = []
-    nSites = []
+    pattern_area = 0.0
+    cumulative_area = 0
+    effective_area_by_class = []
+    site_count_by_class = []
+
+    # Update the output table with area & training point frequency
+    with arcpy.da.InsertCursor(output_table, ["RASTERVALU", "Area_sqkm", "Frequency"]) as cursor:
+        for rasrow in rasrows:
+            class_category = int(rasrow.value)
+            area_sqkm = rasrow.count * factor
+            site_count = 0
+
+            expression = f"{class_column_name} = {class_category}"
+
+            with arcpy.da.SearchCursor(statistics_table, [class_column_name, count_column_name], where_clause=expression) as cursor_stats:
+                for row_stats in cursor_stats:
+                    if row_stats:
+                        _, site_count = row_stats
+                        break
+            
+            pattern_area += area_sqkm
+            effective_area_by_class.append(area_sqkm)
+            site_count_by_class.append(site_count)
+
+            cursor.insertRow((rasrow.value, area_sqkm, site_count))
     
-    # Update the output table with frequency values
-    stats_found = 0
-    with arcpy.da.UpdateCursor(Output_Table, ["RASTERVALU", "Area_sqkm", "Frequency"]) as cursor:
-        for row in cursor:
-            tblval = row[0]
-            area = row[1]
-            totalarea += area
-            rasval = flt_ras[tblval]
-            if rasval in stats_dict:
-                frequency = stats_dict[rasval]
-                row[2] = frequency
-                cursor.updateRow(row)
-                effarea.append(area)
-                nSites.append(frequency)
-                stats_found += 1
-    
-    arcpy.AddMessage('stats_found: %s' % stats_found)
-    if stats_found < len(stats_dict):
-        arcpy.AddError('Not enough Values with Frequency > 0 found!')
-        assert False
-    elif stats_found > len(stats_dict):
-        arcpy.AddError('Too many Values with Frequency > 0 found!')
-        assert False
+    arcpy.management.Delete(statistics_table)
     
     # Calculate cumulative areas and sites
-    effarea_rev = reversed(effarea)
-    nSites_rev = reversed(nSites)
-    effCumarea = 0
-    cumSites = 0
-    effCumareaList = []
-    cumSitesList = []
-    for i in range(len(nSites)):
-        effCumarea += 100.0 * next(effarea_rev) / totalarea
-        effCumareaList.append(effCumarea)
-        cumSites += 100.0 * next(nSites_rev) / totalsites
-        cumSitesList.append(cumSites)
+    effective_area_by_class_rev = reversed(effective_area_by_class)
+    site_count_by_class_rev = reversed(site_count_by_class)
+    effective_cumulative_area = 0
+    cumulative_site_count = 0
+    effective_cumulative_area_list = []
+    cumulative_site_count_list = []
+
+    for i in range(len(site_count_by_class)):
+        effective_cumulative_area += 100.0 * next(effective_area_by_class_rev) / pattern_area
+        effective_cumulative_area_list.append(effective_cumulative_area)
+        cumulative_site_count += 100.0 * next(site_count_by_class_rev) / pattern_training_point_count
+        cumulative_site_count_list.append(cumulative_site_count)
     
-    effCumareaList_rev = reversed(effCumareaList)
-    cumSitesList_rev = reversed(cumSitesList)
-    
+    effective_cumulative_area_list_rev = reversed(effective_cumulative_area_list)
+    cumulative_site_count_list_rev = reversed(cumulative_site_count_list)
+
     # Update the output table with cumulative values
-    with arcpy.da.UpdateCursor(Output_Table, ["Area_sqkm", "CAPP_CumAr", "Eff_CumAre", "Cum_Sites", "I_CumSites"]) as cursor:
+    with arcpy.da.UpdateCursor(output_table, ["Area_sqkm", "CAPP_CumAr", "Eff_CumAre", "Cum_Sites", "I_CumSites"]) as cursor:
         for row in cursor:
-            cumArea += 100.0 * row[0] / totalarea
-            row[1] = cumArea
-            row[2] = next(effCumareaList_rev)
-            Cum_Sites = next(cumSitesList_rev)
-            row[3] = Cum_Sites
-            row[4] = 100.0 - Cum_Sites
+            cumulative_area += 100.0 * row[0] / pattern_area
+            row[1] = cumulative_area
+            row[2] = next(effective_cumulative_area_list_rev)
+            cumulative_site_count_by_class = next(cumulative_site_count_list_rev)
+            row[3] = cumulative_site_count_by_class
+            row[4] = 100.0 - cumulative_site_count_by_class
             cursor.updateRow(row)
     
-    arcpy.AddMessage('reversed:')
-    
     # Calculate efficiency and AUC values
-    Eff_CumAre = []
-    Cum_Sites = []
-    with arcpy.da.SearchCursor(Output_Table, ["Eff_CumAre", "Cum_Sites"]) as cursor:
+    effective_cumulative_area_by_class = []
+    cumulative_site_count_by_class = []
+    with arcpy.da.SearchCursor(output_table, ["Eff_CumAre", "Cum_Sites"]) as cursor:
         next(cursor)  # Skip the first row
         for row in cursor:
-            Eff_CumAre.append(row[0])
-            Cum_Sites.append(row[1])
+            effective_cumulative_area_by_class.append(row[0])
+            cumulative_site_count_by_class.append(row[1])
     
-    sumEff_AUC = 0.0
-    with arcpy.da.UpdateCursor(Output_Table, ["Eff_CumAre", "Cum_Sites", "Eff_AUC"]) as cursor:
+    sum_efficiency_AUC = 0.0
+    with arcpy.da.UpdateCursor(output_table, ["Eff_CumAre", "Cum_Sites", "Eff_AUC"]) as cursor:
         for i, row in enumerate(cursor):
-            if i < len(Eff_CumAre):
-                val = 0.5 * (row[0] - Eff_CumAre[i]) * (row[1] + Cum_Sites[i]) / (100.0 * 100.0)
-                sumEff_AUC += val
+            if i < len(effective_cumulative_area_by_class):
+                val = 0.5 * (row[0] - effective_cumulative_area_by_class[i]) * (row[1] + cumulative_site_count_by_class[i]) / (100.0 * 100.0)
+                sum_efficiency_AUC += val
                 row[2] = val
                 cursor.updateRow(row)
             else:
                 val = 0.5 * (row[0]) * (row[1]) / (100.0 * 100.0)
-                sumEff_AUC += val
+                sum_efficiency_AUC += val
                 row[2] = val
                 cursor.updateRow(row)
     
-    arcpy.AddMessage('Efficiency: %.1f%%' % (sumEff_AUC * 100.0))
-    
-    # Remove join if necessary
-    if Input_table and joinRastername:
-        arcpy.RemoveJoin_management(joinRastername, Input_table)
+    arcpy.AddMessage("Efficiency: %.1f%%" % (sum_efficiency_AUC * 100.0))

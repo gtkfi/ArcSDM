@@ -94,7 +94,7 @@ def create_missing_data_variance_raster(gp, masked_weights_rasters, masked_post_
             # Basically this should just be 3 unique value classes: W+ & W- & 0.0 (for where weights could not be calculated)
             pattern_weights = FloatRasterSearchcursor(Wts_Raster)
             j = 0
-            """ Cannot be done by single raster; must generate a raster for each value """
+            # Cannot be done by single raster - must generate a raster for each value
             for weight in pattern_weights:
                 # NOTE: Assumes that previously, if weights could not be calculated for a class, its weights have been replaced with 0.0
                 if weight.value == 0.0:
@@ -146,9 +146,8 @@ def create_missing_data_variance_raster(gp, masked_weights_rasters, masked_post_
         tb = sys.exc_info()[2]
         tbinfo = traceback.format_tb(tb)[0]
 
-        pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-            str(sys.exc_info()[0])+ ": " + str(sys.exc_info()[1]) + "\n"
-        msgs = "GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
+        pymsg = f"PYTHON ERRORS:\nTraceback Info:\n{tbinfo}\nError Info:\n{sys.exc_info()}\n"
+        msgs = f"GP ERRORS:\n{arcpy.GetMessages(2)}\n"
 
         arcpy.AddError(msgs)
         arcpy.AddError(pymsg)
