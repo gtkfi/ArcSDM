@@ -63,7 +63,6 @@ def getPriorProb(TrainPts, unitCell, mapUnits):
     """
     Calculate the prior probability against mask/training points.
     """
-    size = getMaskSize
     num_tps = arcpy.GetCount_management(TrainPts)
     total_area = getMaskSize(mapUnits)  # Now the getMaskSize returns it correctly in sqkm
     unitCell = float(unitCell)
@@ -128,105 +127,6 @@ def getMaskSize(mapUnits):
         globalmasksize = count
         return count
     except arcpy.ExecuteError as e:
-        raise
-    except:
-        tb = sys.exc_info()[2]
-        tbinfo = traceback.format_tb(tb)[0]
-        arcpy.AddError(tbinfo)
-        if len(arcpy.GetMessages(2)) > 0:
-            msgs = "SDM GP ERRORS:\n" + arcpy.GetMessages(2) + "\n"
-            arcpy.AddError(msgs)
-        raise
-
-
-# NOTE: Outdated - doesn't calculate the area correctly if output cell size isn't set to match the mask cell size
-# Kept this one for now, since a lot of things call it
-# But references should be changed to use arcsdm.wofe_common.get_study_area_parameters instead
-def appendSDMValues(unitCell, TrainPts):
-    """
-    Append Spatial Data Modeller parameters to Geoprocessor History.
-    """
-    try:
-        arcpy.AddMessage("\n" + "=" * 10 + " arcsdm values  " + "=" * 10)
-        with open(os.path.join(os.path.dirname(__file__), "arcsdm_version.txt"), "r") as myfile:
-            data = myfile.readlines()
-        arcpy.AddMessage("%-20s %s" % ("", data[0]))
-        installinfo = arcpy.GetInstallInfo()
-        arcpy.AddMessage("%-20s %s (%s)" % ("Arcgis environment: ", installinfo['ProductName'], installinfo['Version']))
-
-        if not arcpy.env.workspace:
-            arcpy.AddError('Workspace not set')
-            raise arcpy.ExecuteError("Workspace not set!")
-        if not arcpy.Exists(arcpy.env.workspace):
-            arcpy.AddError('Workspace %s not found' % (arcpy.env.workspace))
-            raise arcpy.ExecuteError('Workspace %s not found' % (arcpy.env.workspace))
-        desc = arcpy.Describe(arcpy.env.workspace)
-        arcpy.AddMessage("%-20s %s (%s)" % ("Workspace: ", arcpy.env.workspace, desc.workspaceType))
-
-        if not arcpy.env.scratchWorkspace:
-            arcpy.AddError('Scratch workspace mask not set')
-        wdesc = arcpy.Describe(arcpy.env.scratchWorkspace)
-        arcpy.AddMessage("%-20s %s (%s)" % ("Scratch workspace:", arcpy.env.scratchWorkspace, wdesc.workspaceType))
-
-        if wdesc.workspaceType != desc.workspaceType:
-            arcpy.AddError("Workspace and scratch workspace must be of the same type!")
-            raise arcpy.ExecuteError("Workspace type mismatch")
-
-        mapUnits = getMapUnits()
-        mapUnits = mapUnits.lower().strip()
-        if not mapUnits.startswith('meter'):
-            arcpy.AddError('Incorrect output map units: Check units of study area.')
-        conversion = getMapConversion(mapUnits)
-        arcpy.AddMessage("%-20s %s" % ('Map Units:', mapUnits))
-
-        total_area = getMaskSize(mapUnits)
-
-        if not arcpy.env.mask:
-            arcpy.AddError('Study Area mask not set')
-            raise arcpy.ExecuteError("Mask not set. Check Environments!")
-        else:
-            if not arcpy.Exists(arcpy.env.mask):
-                arcpy.AddError("Mask " + arcpy.env.mask + " not found!")
-                raise arcpy.ExecuteError("Mask not found")
-            desc = arcpy.Describe(arcpy.env.mask)
-            arcpy.AddMessage("%-20s %s" % ("Mask:", "\"" + desc.name + "\" and it is " + desc.dataType))
-            if desc.dataType in ["FeatureLayer", "FeatureClass"]:
-                arcpy.AddWarning('Warning: You should only use single value raster type masks!')
-            arcpy.AddMessage("%-20s %s" % ("Mask size:", str(total_area)))
-
-        if not arcpy.env.cellSize:
-            arcpy.AddError('Study Area cellsize not set')
-        if arcpy.env.cellSize == "MAXOF":
-            arcpy.AddWarning("Cellsize should have definitive value?")
-
-        cellsize = arcpy.env.cellSize
-        arcpy.AddMessage("%-20s %s" % ("Cell Size:", cellsize))
-        
-        unitCell = float(unitCell)
-        num_unit_cells = float(total_area) / unitCell
-        num_tps = arcpy.management.GetCount(TrainPts)
-        arcpy.AddMessage("%-20s %s" % ('# Training Sites:', num_tps))
-        arcpy.AddMessage("%-20s %s" % ("Unit Cell Area:", "{}km^2, Cells in area: {} ".format(unitCell, num_unit_cells)))
-
-        if num_unit_cells == 0:
-            raise arcpy.ExecuteError("ERROR: 0 Cells in Area!")
-        priorprob = float(str(num_tps)) / float(num_unit_cells)
-        if not (0 < priorprob <= 1.0):
-            arcpy.AddError('Incorrect no. of training sites or unit cell area. TrainingPointsResult {}'.format(priorprob))
-            raise arcpy.ExecuteError
-        arcpy.AddMessage("%-20s %0.6f" % ('Prior Probability:', priorprob))
-
-        arcpy.AddMessage("%-20s %s" % ('Training Set:', arcpy.Describe(TrainPts).catalogPath))
-        arcpy.AddMessage("%-20s %s" % ('Study Area Raster:', arcpy.Describe(arcpy.env.mask).catalogPath))
-        arcpy.AddMessage("%-20s %s" % ('Study Area Area:', str(total_area) + "km^2"))
-        arcpy.AddMessage("")
-    except arcpy.ExecuteError as e:
-        if not all(e.args):
-            arcpy.AddMessage("Calculate weights caught arcpy.ExecuteError: ")
-            args = e.args[0]
-            args.split('\n')
-            arcpy.AddError(args)
-        arcpy.AddMessage("-------------- END EXECUTION ---------------")
         raise
     except:
         tb = sys.exc_info()[2]

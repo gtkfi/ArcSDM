@@ -41,6 +41,9 @@
 import sys, os, traceback, arcgisscripting, string, operator,arcsdm
 import arcpy
 
+from arcsdm.common import log_arcsdm_details
+from arcsdm.wofe_common import get_study_area_parameters
+
 
 
 #Set to one while debugging (Or add DEBUG file to arcsdm directory)
@@ -109,9 +112,9 @@ def execute(self, parameters, messages):
         Confidence_Level_of_Studentized_Contrast = parameters[5].value; #gp.GetParameter(5)
         Unit_Area__sq_km_ = parameters[6].value #gp.GetParameter(6)
         Missing_Data_Value = -99;
-        #gp.addmessage('got arguments')
-        #import SDMValues
-        arcsdm.sdmvalues.appendSDMValues(gp, Unit_Area__sq_km_, Input_Training_Sites_Feature_Class)
+
+        log_arcsdm_details()
+        _, _ = get_study_area_parameters(Unit_Area__sq_km_, Input_Training_Sites_Feature_Class)
 
         # Local variables...
         List_Wts_Tables = []
