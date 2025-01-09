@@ -8,6 +8,7 @@
     Don L Sawatzky, Spokane, WA, USA: Python software development
     
 """
+import importlib
 import sys, os, traceback
 import arcpy
 import arcgisscripting
@@ -192,11 +193,9 @@ def execute(self, parameters, messages):
         gp = arcgisscripting.create()
         import arcsdm.workarounds_93;
         try:
-            importlib.reload (arcsdm.sdmvalues)
-            importlib.reload (arcsdm.workarounds_93);
+            importlib.reload(arcsdm.workarounds_93)
         except :
-            reload(arcsdm.sdmvalues);
-            reload(arcsdm.workarounds_93);        
+            reload(arcsdm.workarounds_93)  
         #Arguments from tool dialog
         ucs = parameters[0].valueAsText #Unique Conditions raster
         #ucs_path = 'ucs_path'

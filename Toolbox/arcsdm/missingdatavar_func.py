@@ -18,148 +18,136 @@
     Cell A2: [R1] = CON([rclssb2_md_w] == 0.0, [crap_pprb], 0.0)
     Cell E2: [UPDPOSTODDS] = CON([R2] == 0.0, 0.0, Exp(Ln([R2]) + [rclssb2_md_w]))
 """
-# Import system modules
-import sys, os, traceback
-from arcsdm.floatingrasterarray import FloatRasterSearchcursor    #AL 150620 added arcsdm.
+import arcpy
+import os
+import sys
+import traceback
 
-def TotalAreaFromCounts(gp,Input_Raster,CellSize):
-    #Weights raster is a float-type raster, so convert it to get Counts
-    #gp.AddMessage('TotalAreaFromCounts....'+str((Input_Raster)))
-    #IsNul_Wts = os.path.join(gp.scratchworkspace,("IsNul_"+os.path.basename(Input_Raster))[:13])
-    #if gp.exists(IsNul_Wts): gp.Delete(IsNul_Wts) 
-    IsNul_Wts = gp.createuniquename(("IsNul_"+os.path.basename(Input_Raster))[:11], gp.scratchworkspace)
-    gp.IsNull_sa(Input_Raster, IsNul_Wts)
-    rasrows = gp.SearchCursor(IsNul_Wts, 'Value = 0')
-    rasrow = rasrows.Next()
-    TotalCount = rasrow.Count
-    return float(TotalCount) * CellSize * CellSize / 1000000
+from arcsdm.floatingrasterarray import FloatRasterSearchcursor
+from arcsdm.wofe_common import get_area_size_sq_km
 
-def MissingDataVariance(gp, Wts_Rasters, PostProb, OutputName):
-##    #gp.AddMessage("Args: %s"%sys.argv)
-##    PostProb = gp.GetParameterAsText(1)
-    CellSize = float(gp.CellSize)
-##    OutputName = gp.GetParameterAsText(2)
-##    #gp.AddMessage("Parameters: %s,%s,%s,%s" %(Wts_Rasters,OutputName,PostProb,CellSize))
 
-    # Local variables...
+def create_missing_data_variance_raster(gp, masked_weights_rasters, masked_post_probability_raster, output_raster_name):
+    """
+    Calculate a raster of the variance of the posterior probability due to missing predictor patterns.
 
+    Args:
+        gp:
+            Arcgisscripting geoprocessing object.
+        masked_weights_rasters:
+            A list containing a raster of weight values for each evidence pattern.
+            The study area mask should have already been applied to the rasters.
+        masked_post_probability_raster:
+            A post probability raster. The study area mask should have been applied to the raster.
+        output_raster_name:
+            A name for the missing data variance raster that will be created as output.
+    """
     try:
-        #gp.AddMessage("Args: %s"%sys.argv)
-        #Local Variables.....
         i = 0
         
-        #Create Total Missing Data Variance list
-        TotClsVars = []
+        # Create Total Missing Data Variance list
+        md_variance_for_all_patterns = []
 
-        #Loop throught Wts Rasters        
-        for Wts_Raster0 in Wts_Rasters:
-            gp.AddMessage("Missing data Variance for: " + Wts_Raster0)
-            Wts_Raster = gp.describe(Wts_Raster0).catalogpath
-            TotDataArea = TotalAreaFromCounts(gp,Wts_Raster,CellSize)
-            gp.AddMessage('TotDataArea = %.0f' % TotDataArea)
+        # Loop throught Wts Rasters
+        for Wts_Raster0 in masked_weights_rasters:
+            arcpy.AddMessage(f"Missing data Variance for: {Wts_Raster0}")
+            Wts_Raster = arcpy.Describe(Wts_Raster0).catalogPath
             
-            #Start MD Variance raster
-            #Get PostProb raster of MD cells
-            R1 = os.path.join(gp.ScratchWorkspace,"R1")
-            if gp.Exists(R1): gp.Delete(R1)
-            Exp0 = "CON(%s == 0.0,%s,0.0)" % (Wts_Raster,PostProb)
-            gp.AddMessage("R1="+Exp0)
-            gp.SingleOutputMapAlgebra_sa(Exp0,R1)
-            #Get PostODDs raster of MD cells
-            R2 = os.path.join(gp.ScratchWorkspace,"R2")
-            if gp.Exists(R2): gp.Delete(R2)
-            Exp = "%s / (1.0 - %s)" % (R1,R1)
-            gp.AddMessage("R2="+Exp)
-            gp.SingleOutputMapAlgebra_sa(Exp,R2)
-            gp.AddMessage("R2 exists: " + str(gp.Exists(R2)))
-            
-            #Get Total Variance of MD cells
-            #Create total class variances list
-            ClsVars = []
+            # TODO! Need to confirm whether this should just be the study area size,
+            # not the area of the current pattern where data is present
+            # (literature is unclear)
 
-            #gp.AddMessage(gp.describe(Wts_Raster).DataType)
-    ##        if gp.describe(Wts_Raster).DataType == 'RasterLayer':
-    ##            theRaster = Wts_Raster
-    ##        else:
-    ##            theRaster = 'theRaster'
-    ##            gp.MakeRasterLayer(Wts_Raster,theRaster)
-            Wts_RasterRows = FloatRasterSearchcursor(gp,Wts_Raster)
+            # Get pattern area where data is not missing
+            pattern_area_sq_km = get_area_size_sq_km(Wts_Raster0)
+            arcpy.AddMessage('TotDataArea = %.0f' % pattern_area_sq_km)
+
+            desc = arcpy.Describe(Wts_Raster0)
+            cell_size_sq_m = desc.MeanCellWidth * desc.MeanCellHeight
+            
+            # Start MD Variance raster
+            # Get PostProb raster of MD cells
+            pprb_where_pattern_is_missing_data = os.path.join(arcpy.env.scratchWorkspace, "R1")
+            if arcpy.Exists(pprb_where_pattern_is_missing_data):
+                arcpy.management.Delete(pprb_where_pattern_is_missing_data)
+
+            pprb_expression = "CON(%s == 0.0,%s,0.0)" % (Wts_Raster, masked_post_probability_raster)
+            arcpy.AddMessage(f"R1={pprb_expression}")
+            gp.SingleOutputMapAlgebra_sa(pprb_expression, pprb_where_pattern_is_missing_data)
+
+            # Get PostODDs raster of MD cells
+            post_odds_raster_r2 = os.path.join(arcpy.env.scratchWorkspace, "R2")
+            if arcpy.Exists(post_odds_raster_r2):
+                arcpy.management.Delete(post_odds_raster_r2)
+
+            post_odds_expression = "%s / (1.0 - %s)" % (pprb_where_pattern_is_missing_data, pprb_where_pattern_is_missing_data)
+            arcpy.AddMessage(f"R2={post_odds_expression}")
+            gp.SingleOutputMapAlgebra_sa(post_odds_expression, post_odds_raster_r2)
+            arcpy.AddMessage(f"R2 exists: {arcpy.Exists(post_odds_raster_r2)}")
+            
+            # Get Total Variance of MD cells
+            # Create total class variances list
+
+            # Calculate the variance raster of each class (W+ & W-)
+            class_md_variances_for_pattern = []
+
+            # FloatRasterSearchcursor will contain the frequencies of each unique value of the raster
+            # Basically this should just be 3 unique value classes: W+ & W- & 0.0 (for where weights could not be calculated)
+            pattern_weights = FloatRasterSearchcursor(Wts_Raster)
             j = 0
-            """ Cannot be done by single raster; must generate a raster for each value """
-            for Wts_RasterRow in Wts_RasterRows:
-                #???????????????????????????????????????????????
-                if Wts_RasterRow.Value == 0.0:
+            # Cannot be done by single raster - must generate a raster for each value
+            for weight in pattern_weights:
+                # NOTE: Assumes that previously, if weights could not be calculated for a class, its weights have been replaced with 0.0
+                if weight.value == 0.0:
                     continue
-                #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-                ClsVar = str(os.path.join(gp.ScratchWorkspace,"ClsVar%s%s"%(i,j)))
+                temp_variance_raster = str(os.path.join(arcpy.env.scratchWorkspace, "ClsVar%s%s" % (i, j)))
                 j += 1
-                if gp.Exists(ClsVar): gp.Delete(ClsVar)
-                #gp.AddMessage("Weight=%s" % Wts_RasterRow.Value)
-                Exp1 = 'CON(%s == 0.0,0.0,EXP(LN(%s) + %s))' % (R2,R2,Wts_RasterRow.Value)
-                Exp2 = "%s / (1 + %s)" % (Exp1,Exp1)
-                ClsArea = float(Wts_RasterRow.Count) * CellSize * CellSize / 1000000.0
-                #gp.AddMessage("Class Area=%s" % ClsArea)
-                Exp3 = "SQR(%s - %s) * (%s / %s)" % (Exp2,R1,ClsArea,TotDataArea)
-                #gp.AddMessage("ClsVar%s%s: "%(i,j) + Exp3)
-                gp.SingleOutputMapAlgebra_sa(Exp3,ClsVar)
-                #gp.AddMessage("Class Variance=%s" % ClsVar)
-                ClsVars.append(str(ClsVar)) # Save the class variance raster
-
-            del Wts_RasterRows
-            #Sum the class variances
-            TotClsVar = os.path.join(gp.ScratchWorkspace,"TotClsVar%s"%i)
-            i+=1
-            if gp.Exists(TotClsVar): gp.Delete(TotClsVar)
-            Exp = "SUM%s" % str(tuple(ClsVars))
-            #gp.AddMessage("TotClsVar%s: "%i+Exp)
-            gp.SingleOutputMapAlgebra_sa(Exp,TotClsVar)
-            TotClsVars.append(str(TotClsVar))
-               
-        #Create Total Missing Data Variance raster and list
-        else:
-            if len(Wts_Rasters) > 0:
-                TotVarMD = OutputName
-                Exp = "SUM%s" % str(tuple(TotClsVars))
-                #gp.AddMessage(OutputName + ": " + Exp)
-                gp.SingleOutputMapAlgebra_sa(Exp, TotVarMD)
+                if arcpy.Exists(temp_variance_raster):
+                    arcpy.management.Delete(temp_variance_raster)
                 
-    #except Exception,Msg:  # This is invalid syntax #AL 150620
-    except Exception:
-        # get the traceback object
-        tb = sys.exc_info()[2]
-        # tbinfo contains the line number that the code failed on and the code from that line
-        tbinfo = traceback.format_tb(tb)[0]
-        # concatenate information together concerning the error into a message string
-        pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-            str(sys.exc_type)+ ": " + str(sys.exc_value) + "\n"
-        # generate a message string for any geoprocessing tool errors
-        msgs = "GP ERRORS:\n" + gp.GetMessages(2) + "\n"
-        gp.AddError(msgs)
+                # Calculate posterior odds as if missing data in the pattern was known - compensate with weight value for the class
+                Exp1 = 'CON(%s == 0.0,0.0,EXP(LN(%s) + %s))' % (post_odds_raster_r2, post_odds_raster_r2, weight.value)
+                # Updated posterior probability
+                Exp2 = "%s / (1 + %s)" % (Exp1, Exp1)
+                # NOTE: Assumes meters as the map unit
+                class_area_sq_km = float(weight.Count) * cell_size_sq_m * 0.000001
+                Exp3 = "SQR(%s - %s) * (%s / %s)" % (Exp2, pprb_where_pattern_is_missing_data, class_area_sq_km, pattern_area_sq_km)
+                gp.SingleOutputMapAlgebra_sa(Exp3, temp_variance_raster)
+                class_md_variances_for_pattern.append(str(temp_variance_raster)) # Save the class variance raster
 
-        # return gp messages for use with a script tool
-        gp.AddError(pymsg)
+            del pattern_weights
 
-        # print messages for use in Python/PythonWin
-        print (pymsg) #AL 150620 added parenthesis to both lines
-        print (msgs)
+            # Sum the class variances to get the variance of the posterior probability due to the missing evidence pattern
+            temp_total_pattern_MD_variance = os.path.join(arcpy.env.scratchWorkspace, "TotClsVar%s" % i)
+            i += 1
+            if arcpy.Exists(temp_total_pattern_MD_variance):
+                arcpy.Delete(temp_total_pattern_MD_variance)
+            
+            post_odds_expression = "SUM%s" % str(tuple(class_md_variances_for_pattern))
+            gp.SingleOutputMapAlgebra_sa(post_odds_expression, temp_total_pattern_MD_variance)
+            md_variance_for_all_patterns.append(str(temp_total_pattern_MD_variance))
 
-if __name__ == "__main__":
-    # TEST SECTION
-    # Create the Geoprocessor object
-    import arcgisscripting
-    gp = arcgisscripting.create()
+            for tmp_raster in class_md_variances_for_pattern:
+                arcpy.management.Delete(arcpy.Describe(tmp_raster).catalogPath)
+               
+        # Create Total Missing Data Variance raster
+        else:
+            if len(masked_weights_rasters) > 0:
+                TotVarMD = output_raster_name
+                post_odds_expression = "SUM%s" % str(tuple(md_variance_for_all_patterns))
+                gp.SingleOutputMapAlgebra_sa(post_odds_expression, TotVarMD)
 
-    # Check out any necessary licenses
-    gp.CheckOutExtension("spatial")
-
-    # Load required toolboxes...
-
-    gp.OverwriteOutput = 1
-    
-    Wts_Rasters = gp.GetParameterAsText(0).split(';')
-    PostProb = gp.GetParameterAsText(1)
-    OutputName = gp.GetParameterAsText(2)
-    #gp.AddMessage("Parameters: %s,%s,%s,%s" %(Wts_Rasters,OutputName,PostProb))
-    MissingDataVariance(gp, Wts_Rasters, PostProb, OutputName)
-    gp.SetParameterAsText(2,OutputName)
+        arcpy.management.Delete(arcpy.Describe(pprb_where_pattern_is_missing_data).catalogPath)
+        arcpy.management.Delete(arcpy.Describe(post_odds_raster_r2).catalogPath)
         
+        for tmp_raster in md_variance_for_all_patterns:
+            arcpy.management.Delete(arcpy.Describe(tmp_raster).catalogPath)
+
+    except Exception:
+        tb = sys.exc_info()[2]
+        tbinfo = traceback.format_tb(tb)[0]
+
+        pymsg = f"PYTHON ERRORS:\nTraceback Info:\n{tbinfo}\nError Info:\n{sys.exc_info()}\n"
+        msgs = f"GP ERRORS:\n{arcpy.GetMessages(2)}\n"
+
+        arcpy.AddError(msgs)
+        arcpy.AddError(pymsg)

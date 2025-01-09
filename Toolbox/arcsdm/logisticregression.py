@@ -27,25 +27,20 @@
     Don L Sawatzky, Spokane, WA, USA: Python software development
 
 """
-import sys, string, os, math, tempfile, arcgisscripting, traceback, operator, importlib
-import arcpy
 import arcgisscripting
-from arcsdm import sdmvalues
-from arcsdm import workarounds_93
+import arcpy
+import math
+import os
+import sys
+import traceback
+
+from arcsdm.common import log_arcsdm_details
 from arcsdm.floatingrasterarray import FloatRasterSearchcursor
-import arcsdm.common
-from arcpy.sa import *
+from arcsdm.wofe_common import get_study_area_parameters
+from arcsdm.workarounds_93 import ExtractValuesToPoints, rowgen
 
-PY2 = sys.version_info[0] == 2
-PY34 = sys.version_info[0:2] >= (3, 4)
+# from arcpy.sa import *
 
-if PY2:
-    from imp import reload;
-if PY34:
-    import importlib
-
-
-    
 debuglevel = 0;
 
 def testdebugfile():
@@ -74,10 +69,6 @@ def CheckEnvironment():
 
 
 def Execute(self, parameters, messages):
-    if PY2:
-        reload(arcsdm.common)
-    if PY34:
-        importlib.reload(arcsdm.common)
     gp = arcgisscripting.create()
     # Check out any necessary licenses
     gp.CheckOutExtension("spatial")
@@ -115,8 +106,7 @@ def Execute(self, parameters, messages):
             Input_Rasters[i] = s.strip("'"); #arcpy.Describe( s.strip("'")).file;
             dwrite (arcpy.Describe( s.strip("'")).file);
             dwrite (Input_Rasters[i]);
-            #if arcsdm.common.testandwarn_filegeodatabase_source(s):    #AL removed 260520
-            #    return;
+        
         gp.AddMessage("Input rasters: " + str(Input_Rasters))    # Unicamp added 251018 (AL 210720)
 
         #Get evidence layer types
@@ -134,8 +124,7 @@ def Execute(self, parameters, messages):
         gp.AddMessage('Wts_Tables: %s'%(str(Wts_Tables)))
         for i, s in enumerate(Wts_Tables):                  
             arcpy.AddMessage(s);
-            #if arcsdm.common.testandwarn_filegeodatabase_source(s):  #AL removed 190520
-            #    return;
+        
         if len(Wts_Tables) != len(Wts_Tables):
             gp.AddError("Not enough weights tables!")
             raise Exception
@@ -150,7 +139,8 @@ def Execute(self, parameters, messages):
         thmUC = gp.createscratchname("tmp_UCras", '', 'raster',   gp.scratchworkspace)
 
         #Print out SDM environmental values
-        sdmvalues.appendSDMValues(gp, unitCell, TrainPts)
+        log_arcsdm_details()
+        _, _ = get_study_area_parameters(unitCell, TrainPts)
 
         #Create Generalized Class tables
         Wts_Rasters = []
@@ -253,7 +243,7 @@ def Execute(self, parameters, messages):
             thmUCRL = gp.describe(thmUC).catalogpath
         else:
             thmUCRL = thmUC
-        ucrows = workarounds_93.rowgen(gp.SearchCursor(thmUCRL))
+        ucrows = rowgen(gp.SearchCursor(thmUCRL))
         for ucrow in ucrows:
             for i, fld in enumerate(evflds):
                 lstsVals[i].append(ucrow.GetValue(fld))
@@ -273,10 +263,10 @@ def Execute(self, parameters, messages):
         #ExtrTrainPts = os.path.join(gp.ScratchWorkspace, "LRExtrPts.shp")
         #ExtrTrainPts = gp.CreateScratchName('LRExtrPts', 'shp', 'shapefile', gp.scratchworkspace)
         #gp.ExtractValuesToPoints_sa(TrainPts, thmUC, ExtrTrainPts, "NONE", "VALUE_ONLY")
-        ExtrTrainPts = workarounds_93.ExtractValuesToPoints(gp, thmUC, TrainPts, "TPFID")
+        ExtrTrainPts = ExtractValuesToPoints(gp, thmUC, TrainPts, "TPFID")
         #Make dictionary of Counts of Points per RasterValue
         CntsPerRasValu = {}
-        tpFeats = workarounds_93.rowgen(gp.SearchCursor(ExtrTrainPts))
+        tpFeats = rowgen(gp.SearchCursor(ExtrTrainPts))
         for tpFeat in tpFeats:
             if tpFeat.RasterValu in CntsPerRasValu.keys():
                 CntsPerRasValu[tpFeat.RasterValu] += 1
@@ -320,7 +310,7 @@ def Execute(self, parameters, messages):
                 wts_g = gp.createscratchname("Wts_G")
                 gp.MakeRasterLayer_management(Wts_Rasters[evidx], wts_g)
                 #evrows = gp.SearchCursor("Wts_G")
-                evrows = FloatRasterSearchcursor(gp, wts_g)
+                evrows = FloatRasterSearchcursor(wts_g)
                 #evrow = evrows.next()
                 for evrow in evrows:
                     #gp.AddMessage("Value: %s"%evrow.value)

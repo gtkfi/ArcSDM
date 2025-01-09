@@ -12,12 +12,18 @@
     Don L Sawatzky, Spokane, WA, USA: Python software development
 
 """
-import sys, string, os, math, tempfile, arcgisscripting, traceback, operator, importlib
-import arcpy
 import arcgisscripting
-from arcsdm import sdmvalues
-from arcsdm import workarounds_93
+import arcpy
+import math
+import os
+import sys
+import traceback
+
+from arcsdm.common import log_arcsdm_details
 from arcsdm.floatingrasterarray import FloatRasterSearchcursor
+from arcsdm.wofe_common import get_study_area_parameters
+from arcsdm.workarounds_93 import ExtractValuesToPoints, rowgen
+
 
 # TODO: This should be in external file - like all other common things TR 
 def CheckEnvironment():
@@ -81,7 +87,8 @@ def Execute(self, parameters, messages):
         thmUC = gp.createscratchname("tmp_UCras", '', 'raster',   gp.scratchworkspace)
 
         #Print out SDM environmental values
-        sdmvalues.appendSDMValues(gp, unitCell, TrainPts)
+        log_arcsdm_details()
+        _, _ = get_study_area_parameters(unitCell, TrainPts)
 
         #Create Generalized Class tables
         Wts_Rasters = []
@@ -140,7 +147,7 @@ def Execute(self, parameters, messages):
             thmUCRL = gp.describe(thmUC).catalogpath
         else:
             thmUCRL = thmUC
-        ucrows = workarounds_93.rowgen(gp.SearchCursor(thmUCRL))
+        ucrows = rowgen(gp.SearchCursor(thmUCRL))
         for ucrow in ucrows:
             for i, fld in enumerate(evflds):
                 lstsVals[i].append(ucrow.GetValue(fld))
@@ -160,10 +167,10 @@ def Execute(self, parameters, messages):
         #ExtrTrainPts = os.path.join(gp.ScratchWorkspace, "LRExtrPts.shp")
         #ExtrTrainPts = gp.CreateScratchName('LRExtrPts', 'shp', 'shapefile', gp.scratchworkspace)
         #gp.ExtractValuesToPoints_sa(TrainPts, thmUC, ExtrTrainPts, "NONE", "VALUE_ONLY")
-        ExtrTrainPts = workarounds_93.ExtractValuesToPoints(gp, thmUC, TrainPts, "TPFID")
+        ExtrTrainPts = ExtractValuesToPoints(gp, thmUC, TrainPts, "TPFID")
         #Make dictionary of Counts of Points per RasterValue
         CntsPerRasValu = {}
-        tpFeats = workarounds_93.rowgen(gp.SearchCursor(ExtrTrainPts))
+        tpFeats = rowgen(gp.SearchCursor(ExtrTrainPts))
         for tpFeat in tpFeats:
             if tpFeat.RasterValu in CntsPerRasValu.keys():
                 CntsPerRasValu[tpFeat.RasterValu] += 1
@@ -207,7 +214,7 @@ def Execute(self, parameters, messages):
                 wts_g = gp.createscratchname("Wts_G")
                 gp.MakeRasterLayer_management(Wts_Rasters[evidx], wts_g)
                 #evrows = gp.SearchCursor("Wts_G")
-                evrows = FloatRasterSearchcursor(gp, wts_g)
+                evrows = FloatRasterSearchcursor(wts_g)
                 #evrow = evrows.next()
                 for evrow in evrows:
                     #gp.AddMessage("Value: %s"%evrow.value)
@@ -413,7 +420,7 @@ def Execute(self, parameters, messages):
         gp.DeleteField_management(fnNew, "Field1")
         vTabLR = fnNew
         strLine = fLR.readline()
-        vTabUCrows = workarounds_93.rowgen(gp.SearchCursor(vTabUC))
+        vTabUCrows = rowgen(gp.SearchCursor(vTabUC))
         #vTabUCrow = vTabUCrows.Next()
         ttl = 0
         #while vTabUCrow:
