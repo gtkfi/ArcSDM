@@ -67,12 +67,12 @@ To use ArcSDM with ArcGIS Pro, follow these steps:
     - Close and reopen ArcGIS Pro to apply the changes.
     - Add Packages Scikit-learn (1.30 <= x <= 1.5), Tensorflow and Imbalanced-learn by searching those libraries:
     ![Add Packages to ArcSDM Python Environment](./img/add_packages_arcsdm_py3_env.PNG)
-    - Sometimes packages do not install due to Proxy settings. Please retry or contact your organizations IT Help to enable the installation.
+    - Sometimes packages do not install due to Proxy settings. Please retry, turn off your VPN or contact your organizations IT Help to enable the installation.
 
 4. **Install Required Packages**:
     - Open the cloned Python environment in ArcGIS Pro.
     - Use the Package Manager to search for and install the following packages:
-        - Scikit-learn (>=1.4)
+        - Scikit-learn (1.30 <= x <= 1.5)
         - TensorFlow
         - Imbalanced-learn
     - If you encounter issues due to proxy settings, retry the installation or contact your IT support for assistance.
