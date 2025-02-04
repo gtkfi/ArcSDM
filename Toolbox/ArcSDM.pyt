@@ -1244,9 +1244,7 @@ class SiteReductionTool(object):
         datatype="GPFeatureLayer",
         parameterType="Required",
         direction="Output")
-        param_output.value = 'reduced_sites'
-        
-        param_output.de
+        param_output.value = "reduced_sites"
         
         params = [param_input_layer, param_use_thinning_selection, param_unit_area, param_use_random_selection, random_selection_percentage, param_output]
         return params
