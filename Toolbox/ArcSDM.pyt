@@ -1246,7 +1246,13 @@ class SiteReductionTool(object):
         direction="Output")
         param_output.value = "reduced_sites"
         
-        params = [param_input_layer, param_use_thinning_selection, param_unit_area, param_use_random_selection, random_selection_percentage, param_output]
+        params = [param_input_layer,
+                  param_use_thinning_selection,
+                  param_unit_area,
+                  param_use_random_selection,
+                  param_random_selection_percentage,
+                  param_output]
+
         return params
 
     def isLicensed(self):
