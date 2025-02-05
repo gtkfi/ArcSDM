@@ -15,36 +15,43 @@ import sys, os, math, traceback, math
 import arcpy
 import arcpy.management
 
-arcpy.CheckOutExtension("spatial")
-arcpy.env.overwriteOutput = True
+from arcsdm.floatingrasterarray import FloatRasterSearchcursor
 
 def Calculate(self, parameters, messages):
     messages.addMessage("Starting Agterberg-Cheng CI Test")
     try:
+        arcpy.CheckOutExtension("spatial")
+        arcpy.env.overwriteOutput = True
+
         PostProb =  parameters[0].valueAsText
         PPStd =  parameters[1].valueAsText
         TrainSites =  parameters[2].valueAsText
         UnitArea =  parameters[3].value
         SaveFile =  parameters[4].valueAsText
 
+        postprob_raster_path = arcpy.Describe(PostProb).catalogPath
+        std_raster_path = arcpy.Describe(PPStd).catalogPath
+
         basename = os.path.basename(PostProb)
         sdmuc = basename.split("_")[0]
-        #CellSize
         CellSize = float(arcpy.env.cellSize)
         #ExpNumTP = arcpy.GetCount_management(TrainSites) #Num of Selected sites
         result = arcpy.management.GetCount(TrainSites)
         ExpNumTP = int(result.getOutput(0))
-        ConvFac = (CellSize**2)/1000000.0 / UnitArea
+        ConvFac = (CellSize ** 2) / 1000000.0 / UnitArea
         PredT = 0.0
-        with arcpy.da.SearchCursor(PostProb, ["Value", "Count"]) as cursor:
-            for row in cursor:
-                PredT += (row[0] * row[1])
+
+        postprob_raster = FloatRasterSearchcursor(postprob_raster_path)
+        std_raster = FloatRasterSearchcursor(std_raster_path)
+
+        for postprob_value in postprob_raster:
+            PredT += (postprob_value.Value * postprob_value.Count)
         PredT *= ConvFac
 
         TVar = 0.0
-        with arcpy.da.SearchCursor(PPStd, ["Value", "Count"]) as cursor:
-            for row in cursor:
-                TVar += (row[0] * row[1] * ConvFac) ** 2
+
+        for std_value in std_raster:
+            TVar += (std_value.Value * std_value.Count * ConvFac) ** 2
         TStd = math.sqrt(TVar)
         TS = (PredT - ExpNumTP) / TStd
         #PostProb
@@ -97,18 +104,18 @@ def Calculate(self, parameters, messages):
             file.write(Text)
             messages.addMessage("Text File saved: %s" % SaveFile)
 
-    except Exception as Msg:
-        # get the traceback object
+    except arcpy.ExecuteError:
+        arcpy.AddError(arcpy.GetMessages(2))
+    except Exception:
         tb = sys.exc_info()[2]
-        # tbinfo contains the line number that the code failed on and the code from that line
         tbinfo = traceback.format_tb(tb)[0]
-        # concatenate information together concerning the error into a message string
-        pymsg = "PYTHON ERRORS:\nTraceback Info:\n" + tbinfo + "\nError Info:\n    " + \
-            str(sys.exc_type) + ": " + str(sys.exc_value) + "\n"
-        messages.addErrorMessage(pymsg)
-        # print messages for use in Python/PythonWin
-        print(pymsg)
-        raise
+        
+        pymsg = f"PYTHON ERRORS:\nTraceback Info:\n{tbinfo}\nError Info:\n{sys.exc_info()}\n"
+        msgs = f"GP ERRORS:\n{arcpy.GetMessages(2)}\n"
+
+        arcpy.AddError(msgs)
+        arcpy.AddError(pymsg)
+
 
 def ZtoF(Z):
 ##Function ZToF(Z As Double) As Double
@@ -154,7 +161,8 @@ def ZtoF(Z):
 ##'      PZ = 1# - (PZ * XX)
     PZ = 1.0 - (PZ * XX)
 ##'      IF (Z.LT.0.0) PZ = 1.0 - PZ
-    if Z < 0 : PZ = 1.0 - PZ
+    if Z < 0:
+        PZ = 1.0 - PZ
     return PZ
 ##'      Return
 ##'      End
