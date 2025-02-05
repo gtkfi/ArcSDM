@@ -1239,7 +1239,7 @@ class SiteReductionTool(object):
         param_random_selection_percentage.filter.list = [1, 100]
         
         param_output = arcpy.Parameter(
-        displayName="Save selection as a new layer",
+        displayName="Output layer",
         name="layerSelection",
         datatype="GPFeatureLayer",
         parameterType="Required",
