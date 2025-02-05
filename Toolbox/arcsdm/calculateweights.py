@@ -266,7 +266,7 @@ def Calculate(self, parameters, messages):
 
         # Calculate number of training sites in each class
         statistics_table, class_column_name, count_column_name = get_training_point_statistics(masked_evidence_raster, training_sites_feature)
-        
+
         codename_field = [] if (code_name is None or code_name == "") else [["CODE", "TEXT", "#", "#", "5", "Symbol"]]
 
         base_fields = [["Class", "LONG"]] + codename_field + [
@@ -347,6 +347,7 @@ def Calculate(self, parameters, messages):
                     if (code_name is None or code_name == ""):
                         weights_row = (evidence_class, evidence_count, site_count)
                     else:
+                        codefield_value = None if codefield_value is None else codefield_value[:5]
                         weights_row = (evidence_class, codefield_value, evidence_count, site_count)
                     cursor_weights.insertRow(weights_row)
 
