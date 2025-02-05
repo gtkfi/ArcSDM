@@ -229,7 +229,7 @@ def Calculate(self, parameters, messages):
         arcpy.AddMessage("Setting overwriteOutput to True")
 
         evidence_raster = parameters[0].valueAsText
-        code_name = parameters[1].valueAsText
+        code_name = None if (type(parameters[1].value) is type(None) or parameters[1].value.IsEmpty) else parameters[1].value.value # Uses the field name even if the user has selected by alias
         training_sites_feature = parameters[2].valueAsText
         selected_weight_type =  parameters[3].valueAsText
         output_weights_table = parameters[4].valueAsText
@@ -254,12 +254,12 @@ def Calculate(self, parameters, messages):
                 wtsbase = wtsbase[1:]
             output_weights_table = os.path.dirname(output_weights_table) + "\\" + wtsbase
 
-        masked_evidence_raster = apply_mask_to_raster(evidence_raster, nodata_value)
+        masked_evidence_raster = apply_mask_to_raster(evidence_raster, nodata_value, code_name)
         masked_evidence_descr = arcpy.Describe(masked_evidence_raster)
         # Evidence raster preparation is now done
 
         log_arcsdm_details()
-        total_area_sq_km_from_mask, training_point_count = get_study_area_parameters(unit_cell_area_sq_km, training_sites_feature)
+        _, training_point_count = get_study_area_parameters(unit_cell_area_sq_km, training_sites_feature)
 
         arcpy.AddMessage("=" * 10 + " Calculate weights " + "=" * 10)
         arcpy.AddMessage("%-20s %s (%s)" % ("Creating table: ", output_weights_table, selected_weight_type))
@@ -267,7 +267,7 @@ def Calculate(self, parameters, messages):
         # Calculate number of training sites in each class
         statistics_table, class_column_name, count_column_name = get_training_point_statistics(masked_evidence_raster, training_sites_feature)
         
-        codename_field = [] if (code_name is None or code_name == "") else ["CODE", "text", "5", "#", "#", "Symbol"]
+        codename_field = [] if (code_name is None or code_name == "") else [["CODE", "TEXT", "#", "#", "5", "Symbol"]]
 
         base_fields = [["Class", "LONG"]] + codename_field + [
             ["Count", "LONG"], # Evidence count (temp)
@@ -306,10 +306,13 @@ def Calculate(self, parameters, messages):
         if selected_weight_type != UNIQUE:
             all_fields = all_fields + generalized_weight_fields
 
-        evidence_fields = ["VALUE", "COUNT"] + codename_field
+        codename_query = [] if (code_name is None or code_name == "") else [code_name]
+        evidence_fields = ["VALUE", "COUNT"] + codename_query
+
         stats_fields = [class_column_name, count_column_name]
 
         arcpy.management.CreateTable(os.path.dirname(output_weights_table), os.path.basename(output_weights_table))
+
         # arcpy.management.AddFields doesn't allow setting field precision or scale, so add the fields individually
         for field_details in all_fields:
             arcpy.management.AddField(output_weights_table, *field_details)
@@ -329,7 +332,7 @@ def Calculate(self, parameters, messages):
                     if (code_name is None or code_name == ""):
                         evidence_class, evidence_count = row_evidence
                     else:
-                        evidence_class, evidence_count, code_name_field = row_evidence
+                        evidence_class, evidence_count, codefield_value = row_evidence
                     site_count = 0
 
                     expression = f"{class_column_name} = {evidence_class}"
@@ -344,7 +347,7 @@ def Calculate(self, parameters, messages):
                     if (code_name is None or code_name == ""):
                         weights_row = (evidence_class, evidence_count, site_count)
                     else:
-                        weights_row = (evidence_class, code_name_field, evidence_count, site_count)
+                        weights_row = (evidence_class, codefield_value, evidence_count, site_count)
                     cursor_weights.insertRow(weights_row)
 
         arcpy.management.Delete(statistics_table)
