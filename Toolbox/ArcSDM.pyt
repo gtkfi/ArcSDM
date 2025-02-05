@@ -1065,6 +1065,8 @@ class CalculateWeights(object):
             parameterType="Optional",
             direction="Input"
         )
+        param_codefield.filter.list = ["Text"]
+        param_codefield.parameterDependencies = [param_evidence_raster.name]
 
         param_training_sites_feature = arcpy.Parameter(
             displayName="Training points feature",
@@ -1148,6 +1150,7 @@ class CalculateWeights(object):
         param_evidence_raster = parameters[0]
         param_weight_type = parameters[3]
         param_output_table = parameters[4]
+
         if param_evidence_raster.value and param_weight_type.value:
             if (param_evidence_raster.altered or param_weight_type.altered) and not param_output_table.altered:
                 # Name the output table based on input layer and selected weight type
