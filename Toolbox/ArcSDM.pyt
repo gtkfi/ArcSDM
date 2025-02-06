@@ -5,7 +5,7 @@ import os
 from imp import reload
 
 
-import arcsdm.acterbergchengci
+import arcsdm.agterbergchengci
 import arcsdm.areafrequency
 import arcsdm.calculateresponse_arcpy_wip
 import arcsdm.calculateresponse
@@ -1908,7 +1908,7 @@ class AgterbergChengCITest(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        execute_tool(arcsdm.acterbergchengci.Calculate, self, parameters, messages)
+        execute_tool(arcsdm.agterbergchengci.Calculate, self, parameters, messages)
         return
 
 
