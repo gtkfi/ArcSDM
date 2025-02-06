@@ -11,11 +11,17 @@ Don L Sawatzky, Spokane, WA, USA: Python software development
 
 Converted to ArcSDM toolbox to ArcMap by GTK 2016
 """
-import sys, os, math, traceback, math
 import arcpy
-import arcpy.management
+import math
+import os
+import sys
+import traceback
+
+# import arcpy.management
 
 from arcsdm.floatingrasterarray import FloatRasterSearchcursor
+from arcsdm.wofe_common import apply_mask_to_raster, get_study_area_parameters, get_area_size_sq_km, WofeInputError
+
 
 def Calculate(self, parameters, messages):
     messages.addMessage("Starting Agterberg-Cheng CI Test")
@@ -23,44 +29,51 @@ def Calculate(self, parameters, messages):
         arcpy.CheckOutExtension("spatial")
         arcpy.env.overwriteOutput = True
 
-        PostProb =  parameters[0].valueAsText
-        PPStd =  parameters[1].valueAsText
-        TrainSites =  parameters[2].valueAsText
-        UnitArea =  parameters[3].value
-        SaveFile =  parameters[4].valueAsText
+        PostProb = parameters[0].valueAsText
+        PPStd = parameters[1].valueAsText
+        training_points_feature = parameters[2].valueAsText
+        unit_cell_area_sq_km = parameters[3].value
+        SaveFile = parameters[4].valueAsText
 
-        postprob_raster_path = arcpy.Describe(PostProb).catalogPath
+        postprob_descr = arcpy.Describe(PostProb)
+        postprob_raster_path = postprob_descr.catalogPath
         std_raster_path = arcpy.Describe(PPStd).catalogPath
 
         basename = os.path.basename(PostProb)
         sdmuc = basename.split("_")[0]
-        CellSize = float(arcpy.env.cellSize)
-        #ExpNumTP = arcpy.GetCount_management(TrainSites) #Num of Selected sites
-        result = arcpy.management.GetCount(TrainSites)
-        ExpNumTP = int(result.getOutput(0))
-        ConvFac = (CellSize ** 2) / 1000000.0 / UnitArea
+
         PredT = 0.0
+
+        _, training_point_count = get_study_area_parameters(unit_cell_area_sq_km, training_points_feature)
 
         postprob_raster = FloatRasterSearchcursor(postprob_raster_path)
         std_raster = FloatRasterSearchcursor(std_raster_path)
 
+        cell_size_sq_m = postprob_descr.MeanCellWidth * postprob_descr.MeanCellHeight
+        km_in_m = 0.000001
+        conversion_factor = cell_size_sq_m * km_in_m / unit_cell_area_sq_km
+
         for postprob_value in postprob_raster:
             PredT += (postprob_value.Value * postprob_value.Count)
-        PredT *= ConvFac
+
+        PredT *= conversion_factor
 
         TVar = 0.0
 
         for std_value in std_raster:
-            TVar += (std_value.Value * std_value.Count * ConvFac) ** 2
+            TVar += (std_value.Value * std_value.Count * conversion_factor) ** 2
         TStd = math.sqrt(TVar)
-        TS = (PredT - ExpNumTP) / TStd
-        #PostProb
-        n = ExpNumTP
+        TS = (PredT - training_point_count) / TStd
+
+        # PostProb
+        n = training_point_count
         T = PredT
-        #STD = TStd
+        # STD = TStd
         P = ZtoF(TS) * 100.0
-        if P >= 50.0: overallCI = 100.0 * (100.0 - P) / 50.0
-        else: overallCI = 100.0 * (100.0 - (50 + (50 - P))) / 50.0
+        if P >= 50.0:
+            overallCI = 100.0 * (100.0 - P) / 50.0
+        else:
+            overallCI = 100.0 * (100.0 - (50 + (50 - P))) / 50.0
 
         Text = """
         Overall CI: %(0).1f%%\r
@@ -95,7 +108,7 @@ def Calculate(self, parameters, messages):
         Training Sites: %(11)s
         \r
         """ % {'0': overallCI, '1': sdmuc, '2': n, '3': T, '4': T-n, '5': TStd, '6': n/T, '7': TS, '8': ZtoF(TS)*100.0, '9': PostProb,
-               '10': PPStd, '11': TrainSites}
+               '10': PPStd, '11': training_points_feature}
 
         messages.addMessage(Text)
 
