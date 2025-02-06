@@ -20,60 +20,64 @@ import traceback
 # import arcpy.management
 
 from arcsdm.floatingrasterarray import FloatRasterSearchcursor
-from arcsdm.wofe_common import apply_mask_to_raster, get_study_area_parameters, get_area_size_sq_km, WofeInputError
+from arcsdm.wofe_common import get_study_area_parameters
 
 
 def Calculate(self, parameters, messages):
     messages.addMessage("Starting Agterberg-Cheng CI Test")
     try:
-        arcpy.CheckOutExtension("spatial")
+        arcpy.CheckOutExtension("Spatial")
         arcpy.env.overwriteOutput = True
 
-        PostProb = parameters[0].valueAsText
-        PPStd = parameters[1].valueAsText
+        postprob_raster = parameters[0].valueAsText
+        std_raster = parameters[1].valueAsText
         training_points_feature = parameters[2].valueAsText
         unit_cell_area_sq_km = parameters[3].value
-        SaveFile = parameters[4].valueAsText
+        output_txt_file = parameters[4].valueAsText
 
-        postprob_descr = arcpy.Describe(PostProb)
+        postprob_descr = arcpy.Describe(postprob_raster)
         postprob_raster_path = postprob_descr.catalogPath
-        std_raster_path = arcpy.Describe(PPStd).catalogPath
+        std_raster_path = arcpy.Describe(std_raster).catalogPath
 
-        basename = os.path.basename(PostProb)
+        basename = os.path.basename(postprob_raster)
         sdmuc = basename.split("_")[0]
-
-        PredT = 0.0
-
-        _, training_point_count = get_study_area_parameters(unit_cell_area_sq_km, training_points_feature)
-
-        postprob_raster = FloatRasterSearchcursor(postprob_raster_path)
-        std_raster = FloatRasterSearchcursor(std_raster_path)
 
         cell_size_sq_m = postprob_descr.MeanCellWidth * postprob_descr.MeanCellHeight
         km_in_m = 0.000001
         conversion_factor = cell_size_sq_m * km_in_m / unit_cell_area_sq_km
 
-        for postprob_value in postprob_raster:
-            PredT += (postprob_value.Value * postprob_value.Count)
+        postprob_raster_stats = FloatRasterSearchcursor(postprob_raster_path)
+        # Predicted frequency of deposits in the study area - sum of posterior probabilities
+        PredT = 0.0
+
+        for distinct_value in postprob_raster_stats:
+            PredT += (distinct_value.value * distinct_value.count)
 
         PredT *= conversion_factor
 
-        TVar = 0.0
+        _, training_point_count = get_study_area_parameters(unit_cell_area_sq_km, training_points_feature)
 
-        for std_value in std_raster:
-            TVar += (std_value.Value * std_value.Count * conversion_factor) ** 2
-        TStd = math.sqrt(TVar)
-        TS = (PredT - training_point_count) / TStd
+        std_raster_stats = FloatRasterSearchcursor(std_raster_path)
+        total_variance = 0.0
+
+        for distinct_std_value in std_raster_stats:
+            total_variance += (distinct_std_value.value * distinct_std_value.count * conversion_factor) ** 2
+
+        total_std = math.sqrt(total_variance)
+        TS = (PredT - training_point_count) / total_std
 
         # PostProb
+
+        # Total number of discrete events
         n = training_point_count
+        # Sum of posterior probabilities
         T = PredT
         # STD = TStd
         P = ZtoF(TS) * 100.0
         if P >= 50.0:
-            overallCI = 100.0 * (100.0 - P) / 50.0
+            overall_CI = 100.0 * (100.0 - P) / 50.0
         else:
-            overallCI = 100.0 * (100.0 - (50 + (50 - P))) / 50.0
+            overall_CI = 100.0 * (100.0 - (50 + (50 - P))) / 50.0
 
         Text = """
         Overall CI: %(0).1f%%\r
@@ -107,15 +111,15 @@ def Calculate(self, parameters, messages):
         Post Probability Std Deviation: %(10)s\r
         Training Sites: %(11)s
         \r
-        """ % {'0': overallCI, '1': sdmuc, '2': n, '3': T, '4': T-n, '5': TStd, '6': n/T, '7': TS, '8': ZtoF(TS)*100.0, '9': PostProb,
-               '10': PPStd, '11': training_points_feature}
+        """ % {'0': overall_CI, '1': sdmuc, '2': n, '3': T, '4': T-n, '5': total_std, '6': n/T, '7': TS, '8': ZtoF(TS)*100.0, '9': postprob_raster,
+               '10': std_raster, '11': training_points_feature}
 
         messages.addMessage(Text)
 
-        if SaveFile:
-            file = open(SaveFile, "w")
+        if output_txt_file:
+            file = open(output_txt_file, "w")
             file.write(Text)
-            messages.addMessage("Text File saved: %s" % SaveFile)
+            messages.addMessage("Text File saved: %s" % output_txt_file)
 
     except arcpy.ExecuteError:
         arcpy.AddError(arcpy.GetMessages(2))
