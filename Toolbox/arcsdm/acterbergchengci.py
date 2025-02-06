@@ -1,7 +1,7 @@
-# -*- coding: utf-8 -*-
-""" ArcSDM 6 ToolBox for ArcGIS Pro
+"""
+ArcSDM 6 ToolBox for ArcGIS Pro
 
-Conversion and tool development for ArcGIS Pro by Geological Survey of Finland (GTK), 2024.
+Conversion and tool development for ArcGIS Pro by Geological Survey of Finland (GTK), 2025.
 
 Spatial Data Modeller for ESRI* ArcGIS 9.2
 
@@ -39,8 +39,8 @@ def Calculate(self, parameters, messages):
         postprob_raster_path = postprob_descr.catalogPath
         std_raster_path = arcpy.Describe(std_raster).catalogPath
 
-        basename = os.path.basename(postprob_raster)
-        sdmuc = basename.split("_")[0]
+        basename = os.path.basename(postprob_raster).replace("_pprb", "")
+        # sdmuc = basename.split("_")[0]
 
         cell_size_sq_m = postprob_descr.MeanCellWidth * postprob_descr.MeanCellHeight
         km_in_m = 0.000001
@@ -48,12 +48,12 @@ def Calculate(self, parameters, messages):
 
         postprob_raster_stats = FloatRasterSearchcursor(postprob_raster_path)
         # Predicted frequency of deposits in the study area - sum of posterior probabilities
-        PredT = 0.0
+        predicted_tp_count = 0.0
 
         for distinct_value in postprob_raster_stats:
-            PredT += (distinct_value.value * distinct_value.count)
+            predicted_tp_count += (distinct_value.value * distinct_value.count)
 
-        PredT *= conversion_factor
+        predicted_tp_count *= conversion_factor
 
         _, training_point_count = get_study_area_parameters(unit_cell_area_sq_km, training_points_feature)
 
@@ -64,22 +64,22 @@ def Calculate(self, parameters, messages):
             total_variance += (distinct_std_value.value * distinct_std_value.count * conversion_factor) ** 2
 
         total_std = math.sqrt(total_variance)
-        TS = (PredT - training_point_count) / total_std
+        TS = (predicted_tp_count - training_point_count) / total_std
 
         # PostProb
 
         # Total number of discrete events
         n = training_point_count
         # Sum of posterior probabilities
-        T = PredT
-        # STD = TStd
+        T = predicted_tp_count
+
         P = ZtoF(TS) * 100.0
         if P >= 50.0:
             overall_CI = 100.0 * (100.0 - P) / 50.0
         else:
             overall_CI = 100.0 * (100.0 - (50 + (50 - P))) / 50.0
 
-        Text = """
+        result_text = """
         Overall CI: %(0).1f%%\r
         Conditional Independence Test: %(1)s\r
         Observed No. training pts, n = %(2)i\r
@@ -111,15 +111,26 @@ def Calculate(self, parameters, messages):
         Post Probability Std Deviation: %(10)s\r
         Training Sites: %(11)s
         \r
-        """ % {'0': overall_CI, '1': sdmuc, '2': n, '3': T, '4': T-n, '5': total_std, '6': n/T, '7': TS, '8': ZtoF(TS)*100.0, '9': postprob_raster,
-               '10': std_raster, '11': training_points_feature}
+        """ % {'0': overall_CI,
+               '1': basename,
+               '2': n,
+               '3': T,
+               '4': T - n,
+               '5': total_std,
+               '6': n/T,
+               '7': TS,
+               '8': ZtoF(TS) * 100.0,
+               '9': postprob_raster,
+               '10': std_raster,
+               '11': training_points_feature}
 
-        messages.addMessage(Text)
+        messages.addMessage(result_text)
 
         if output_txt_file:
-            file = open(output_txt_file, "w")
-            file.write(Text)
-            messages.addMessage("Text File saved: %s" % output_txt_file)
+            with open(output_txt_file, "w") as file:
+                file.write(result_text)
+            
+            messages.addMessage(f"Conditional independence test results saved to file {output_txt_file}.")
 
     except arcpy.ExecuteError:
         arcpy.AddError(arcpy.GetMessages(2))
