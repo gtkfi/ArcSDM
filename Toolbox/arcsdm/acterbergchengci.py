@@ -135,51 +135,40 @@ def Calculate(self, parameters, messages):
 
 
 def ZtoF(Z):
-##Function ZToF(Z As Double) As Double
-##'      SUBROUTINE ZTOF(Z, PZ)
-##'c
-##'C ... SUBROUTINE TO COMPUTE FREQUENCY FROM Z.   EQ. 26.2.17   IN
-##'c
-##'C      ABRAMOWITZ, M. AND STEGUN, I.A.     (EDITORS)
-##'c "HANDBOOK OF MATHEMATICAL FUNCTIONS"
-##'C         WITH FORMULAS, GRAPHS, AND MATHEMATICAL TABLES"
-##'C      PUB. BY NATIONAL BUREAU OF STANDARDS OF THE
-##'C         U.S. DEPARTMENT OF COMMERCE,   1964.
-##'c
-##'C  CALLED BY SUBROUTINES  COMP, REORD, & WDIST
-##'c
-##'      DATA  PI/3.141592654/, CONST6/0.2316419/, B1/0.319381530/,
-##'     +      B2/-0.356563782/, B3/1.781477937/, B4/-1.821255978/,
-##'     +      B5/1.330274429/
-    PI = 3.141592654
+    """
+    Conversion from a normal probability density function to a normal probability function.
+
+    Based on ZToF (source unknown), a 'subroutine to compute frequency from z'. 
+    The original code references eq. 26.2.17 in Handbook Of Mathematical Functions
+    (edited by Abramowitz & Stegun, 1964). This equation is part of the polynomial and rational
+    approximations for P(x) and Z(x), where P(x) is the normal probability function
+    and Z(x) is the normal probability density function.
+    """
     CONST6 = 0.2316419
     B1 = 0.31938153
     B2 = -0.356563782
     B3 = 1.781477937
     B4 = -1.821255978
     B5 = 1.330274429
-##'c
-##'      x = Z
+
     Z = float(Z)
     X = Z
-##'      IF (Z.LT.0.0) X = -Z
-    if X < 0.0 : X = -Z
-##'      t = 1# / (CONST6 * x + 1#)
+
+    if X < 0.0:
+        X = -Z
+
     t = 1.0 / (CONST6 * X + 1.0)
-##'      PID = 2# * PI
-    PID = 2.0 * PI
-##'      XX = -x * x / 2#
+
+    PID = 2.0 * math.pi
+
     XX = -X * X / 2.0
-##'      XX = Exp(XX) / SQRT(PID)
     XX = math.exp(XX) / math.sqrt(PID)
-##'      PZ = (B1 * T) + (B2 * T * T) + (B3 * T**3) + (B4 * T**4) +
-##'     +     (B5 * T**5)
+
     PZ = (B1 * t) + (B2 * t * t) + (B3 * (t ** 3)) + (B4 * (t ** 4)) + (B5 * (t ** 5))
-##'      PZ = 1# - (PZ * XX)
     PZ = 1.0 - (PZ * XX)
-##'      IF (Z.LT.0.0) PZ = 1.0 - PZ
+
     if Z < 0:
         PZ = 1.0 - PZ
+
     return PZ
-##'      Return
-##'      End
+
