@@ -5,7 +5,7 @@ import os
 from imp import reload
 
 
-import arcsdm.acterbergchengci
+import arcsdm.agterbergchengci
 import arcsdm.areafrequency
 import arcsdm.calculateresponse_arcpy_wip
 import arcsdm.calculateresponse
@@ -1065,6 +1065,8 @@ class CalculateWeights(object):
             parameterType="Optional",
             direction="Input"
         )
+        param_codefield.filter.list = ["Text"]
+        param_codefield.parameterDependencies = [param_evidence_raster.name]
 
         param_training_sites_feature = arcpy.Parameter(
             displayName="Training points feature",
@@ -1148,6 +1150,7 @@ class CalculateWeights(object):
         param_evidence_raster = parameters[0]
         param_weight_type = parameters[3]
         param_output_table = parameters[4]
+
         if param_evidence_raster.value and param_weight_type.value:
             if (param_evidence_raster.altered or param_weight_type.altered) and not param_output_table.altered:
                 # Name the output table based on input layer and selected weight type
@@ -1839,48 +1842,57 @@ class AgterbergChengCITest(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Agterberg-Cheng CI Test"
-        self.description = ""
+        self.description = "Perform the Agterberg-Cheng Conditional Independence test (Agterberg & Cheng 2002) on a mineral prospectivity map and save the results to a file."
         self.canRunInBackground = False
         self.category = "Weights of Evidence"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
-        param0 = arcpy.Parameter(
-        displayName="Post Probability raster",
-        name="pp_raster",
-        datatype="GPRasterLayer",
-        parameterType="Required",
-        direction="Input")
+        param_pprb_raster = arcpy.Parameter(
+            displayName="Post Probability raster",
+            name="pp_raster",
+            datatype="GPRasterLayer",
+            parameterType="Required",
+            direction="Input"
+        )
 
-        param1 = arcpy.Parameter(
-        displayName="Probability Std raster",
-        name="ps_raster",
-        datatype="GPRasterLayer",
-        parameterType="Required",
-        direction="Input")
+        param_pprb_std_raster = arcpy.Parameter(
+            displayName="Probability Std raster",
+            name="ps_raster",
+            datatype="GPRasterLayer",
+            parameterType="Required",
+            direction="Input"
+        )
 
-        param2 = arcpy.Parameter(
-        displayName="Training sites",
-        name="training_sites",
-        datatype="GPFeatureLayer",
-        parameterType="Required",
-        direction="Input")
+        param_training_sites_feature = arcpy.Parameter(
+            displayName="Training sites",
+            name="training_sites",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Input"
+        )
 
-        param3 = arcpy.Parameter(
+        param_unit_cell_area = arcpy.Parameter(
         displayName="Unit area (km2)",
         name="Unit_Area__sq_km",
         datatype="GPDouble",
         parameterType="Required",
         direction="Input")
 
-        param4 = arcpy.Parameter(
+        param_output_ci_test_file = arcpy.Parameter(
         displayName="Output CI Test File",
         name="ci_test_file",
         datatype="DEFile",
         parameterType="Optional",
         direction="Output")
                                   
-        params = [param0, param1, param2, param3, param4]
+        params = [
+            param_pprb_raster, # 0
+            param_pprb_std_raster, # 1
+            param_training_sites_feature, # 2
+            param_unit_cell_area, # 3
+            param_output_ci_test_file # 5
+        ]
         return params
 
     def isLicensed(self):
@@ -1906,7 +1918,7 @@ class AgterbergChengCITest(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        execute_tool(arcsdm.acterbergchengci.Calculate, self, parameters, messages)
+        execute_tool(arcsdm.agterbergchengci.Calculate, self, parameters, messages)
         return
 
 

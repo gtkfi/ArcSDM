@@ -12,48 +12,46 @@ from arcsdm.machine_learning.general import prepare_data_for_ml, train_and_valid
 
 def Execute(self, parameters, messages):
     """The source code of the tool."""
-    #try:
-    input_data = parameters[0].valueAsText.split(';')
-    target_labels = parameters[1].valueAsText
-    X_nodata_value = parameters[2].valueAsText
-    y_nodata_value = parameters[3].valueAsText
-    validation_method = parameters[4].valueAsText
-    metrics = parameters[5].valueAsText.split(';')
-    split_size = parameters[6].value
-    cv_folds = parameters[7].value
-    penalty = parameters[8].valueAsText if parameters[8].valueAsText != "none" else None
-    max_iter = parameters[9].value
-    solver = parameters[10].valueAsText
-    verbose = parameters[11].value
-    random_state = parameters[12].value
-    output_file = parameters[13].valueAsText
+    try:
+        input_data = parameters[0].valueAsText.split(';')
+        target_labels = parameters[1].valueAsText
+        X_nodata_value = parameters[2].valueAsText
+        y_nodata_value = parameters[3].valueAsText
+        validation_method = parameters[4].valueAsText
+        metrics = parameters[5].valueAsText.split(';')
+        split_size = parameters[6].value
+        cv_folds = parameters[7].value
+        penalty = parameters[8].valueAsText if parameters[8].valueAsText != "none" else None
+        max_iter = parameters[9].value
+        solver = parameters[10].valueAsText
+        verbose = parameters[11].value
+        random_state = parameters[12].value
+        output_file = parameters[13].valueAsText
 
-    X, y, _ = prepare_data_for_ml(input_data, target_labels, X_nodata_value, y_nodata_value)
+        X, y, _ = prepare_data_for_ml(input_data, target_labels, X_nodata_value, y_nodata_value)
 
-    # Perform Logistic Regression
-    model, metrics = logistic_regression_train(
-        X=X,
-        y=y,
-        validation_method=validation_method,
-        metrics=metrics,
-        split_size=split_size,
-        cv_folds=cv_folds,
-        penalty=penalty,
-        max_iter=max_iter,
-        solver=solver,
-        verbose=verbose,
-        random_state=random_state,
-    )
-    
-    arcpy.AddMessage("="*5 + "Model training completed." + "="*5)
-    arcpy.AddMessage(f"Saving model to {output_file}.joblib")
-    
-    save_model(model, output_file)
+        # Perform Logistic Regression
+        model, metrics = logistic_regression_train(
+            X=X,
+            y=y,
+            validation_method=validation_method,
+            metrics=metrics,
+            split_size=split_size,
+            cv_folds=cv_folds,
+            penalty=penalty,
+            max_iter=max_iter,
+            solver=solver,
+            verbose=verbose,
+            random_state=random_state,
+        )
+        
+        arcpy.AddMessage("="*5 + "Model training completed." + "="*5)
+        arcpy.AddMessage(f"Saving model to {output_file}.joblib")
+        
+        save_model(model, output_file)
 
-    for metric, value in metrics.items():
-        arcpy.AddMessage(f"{metric}: {value}")
-
-    '''
+        for metric, value in metrics.items():
+            arcpy.AddMessage(f"{metric}: {value}")
 
     # Return geoprocessing specific errors
     except arcpy.ExecuteError:    
@@ -64,7 +62,8 @@ def Execute(self, parameters, messages):
         # By default any other errors will be caught here
         e = sys.exc_info()[1]
         print(e.args[0])
-    '''
+
+
 def logistic_regression_train(
     X: Union[np.ndarray, pd.DataFrame],
     y: Union[np.ndarray, pd.Series],
