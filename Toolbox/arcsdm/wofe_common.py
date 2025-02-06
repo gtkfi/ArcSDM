@@ -216,7 +216,7 @@ def get_training_point_statistics(evidence_raster, training_point_feature):
     return output_tmp_table, "class_category", "frequency"
 
 
-def apply_mask_to_raster(evidence_raster, nodata_value=None):
+def apply_mask_to_raster(evidence_raster, nodata_value=None, codefield_column_name: str=None):
     mask = arcpy.env.mask
     if mask:
         if not arcpy.Exists(mask):
@@ -232,6 +232,9 @@ def apply_mask_to_raster(evidence_raster, nodata_value=None):
         # Set nodata value to nodata areas within the mask
         masked_evidence_raster = arcpy.sa.Con(temp_nodata_mask, nodata_value, evidence_raster, "VALUE = 1")
     
+        if (codefield_column_name is not None and codefield_column_name != ""):
+            arcpy.management.JoinField(in_data=masked_evidence_raster, in_field="VALUE", join_table=evidence_raster, join_field="VALUE", fields=[codefield_column_name])
+
         arcpy.management.Delete(masked_evidence_descr.catalogPath)
     
     return masked_evidence_raster
