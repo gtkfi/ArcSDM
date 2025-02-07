@@ -225,6 +225,7 @@ def Calculate(self, parameters, messages):
     arcpy.AddMessage("Starting weight calculation")
     arcpy.AddMessage("------------------------------")
     try:
+        arcpy.CheckOutExtension("Spatial")
         arcpy.env.overwriteOutput = True
         arcpy.AddMessage("Setting overwriteOutput to True")
 
