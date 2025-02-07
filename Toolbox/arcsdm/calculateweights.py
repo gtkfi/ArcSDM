@@ -225,6 +225,7 @@ def Calculate(self, parameters, messages):
     arcpy.AddMessage("Starting weight calculation")
     arcpy.AddMessage("------------------------------")
     try:
+        arcpy.CheckOutExtension("Spatial")
         arcpy.env.overwriteOutput = True
         arcpy.AddMessage("Setting overwriteOutput to True")
 
@@ -287,7 +288,7 @@ def Calculate(self, parameters, messages):
         ]
         weight_field_names = [i[0] for i in weight_fields]
 
-        generalized_weight_fields = [] if (selected_weight_type == UNIQUE) else [
+        generalized_weight_fields = [
             ["GEN_CLASS", "LONG", "#", "#", "#", "Generalized_Class"],
             ["WEIGHT", "DOUBLE", "10", "6", "#", "Generalized_Weight"],
             ["W_STD", "DOUBLE", "10", "6", "#", "Generalized_Weight_Std"]
@@ -303,8 +304,7 @@ def Calculate(self, parameters, messages):
         ] + weight_fields
 
         # Generalized weights are for all but unique weights
-        if selected_weight_type != UNIQUE:
-            all_fields = all_fields + generalized_weight_fields
+        all_fields = all_fields + generalized_weight_fields
 
         codename_query = [] if (code_name is None or code_name == "") else [code_name]
         evidence_fields = ["VALUE", "COUNT"] + codename_query
@@ -318,6 +318,9 @@ def Calculate(self, parameters, messages):
             arcpy.management.AddField(output_weights_table, *field_details)
         for field_name in weight_field_names:
             arcpy.management.AssignDefaultToField(output_weights_table, field_name, 0.0)
+        if selected_weight_type == UNIQUE:
+            for field_name in generalized_weight_field_names:
+                arcpy.management.AssignDefaultToField(output_weights_table, field_name, 0.0)
 
         arcpy.AddMessage("Created output weights table")
 
