@@ -1203,52 +1203,59 @@ class SiteReductionTool(object):
 
     def getParameterInfo(self):
         """Define parameter definitions"""
-        param0 = arcpy.Parameter(
+        param_input_layer = arcpy.Parameter(
         displayName="Training sites layer",
         name="Training_Sites_layer",
         datatype="GPFeatureLayer",
         parameterType="Required",
         direction="Input")
 
-        param1 = arcpy.Parameter(
+        param_use_thinning_selection = arcpy.Parameter(
         displayName="Thinning selection",
         name="Thinning_Selection",
         datatype="Boolean",
         parameterType="Optional",
         direction="Input")
 
-        param2 = arcpy.Parameter(
+        param_unit_area = arcpy.Parameter(
         displayName="Unit area (sq km)",
         name="Unit_Area__sq_km_",
-        datatype="GPDouble",
+        datatype= "GPDouble",
         parameterType="Optional",
         direction="Input")
 
-        param3 = arcpy.Parameter(
+        param_use_random_selection = arcpy.Parameter(
         displayName="Random selection",
         name="Random_selection",
         datatype="Boolean",
         parameterType="Optional",
         direction="Input")
 
-        param4 = arcpy.Parameter(
+        param_random_selection_percentage = arcpy.Parameter(
         displayName="Random percentage selection",
         name="Random_percentage_selection",
         datatype="GPLong",
         parameterType="Optional",
         direction="Input")
 
-        param4.filter.type = "Range"
-        param4.filter.list = [1, 100]
+        param_random_selection_percentage.filter.type = "Range"
+        param_random_selection_percentage.filter.list = [1, 100]
         
-        param5 = arcpy.Parameter(
-        displayName="Save selection as a new layer",
+        param_output = arcpy.Parameter(
+        displayName="Output layer",
         name="layerSelection",
         datatype="GPFeatureLayer",
-        parameterType="Optional",
-        direction="Derived")
+        parameterType="Required",
+        direction="Output")
+        param_output.value = "reduced_sites"
         
-        params = [param0, param1, param2, param3, param4, param5]
+        params = [param_input_layer,
+                  param_use_thinning_selection,
+                  param_unit_area,
+                  param_use_random_selection,
+                  param_random_selection_percentage,
+                  param_output]
+
         return params
 
     def isLicensed(self):
