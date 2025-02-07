@@ -1220,7 +1220,7 @@ class SiteReductionTool(object):
         param_unit_area = arcpy.Parameter(
         displayName="Unit area (sq km)",
         name="Unit_Area__sq_km_",
-        datatype= ["GPDouble", "GPLong"],
+        datatype= "GPDouble",
         parameterType="Optional",
         direction="Input")
 
