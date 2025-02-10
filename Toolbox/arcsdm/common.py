@@ -159,40 +159,57 @@ def select_features_by_mask(input_feature):
         arcpy.management.SelectLayerByAttribute(input_feature)
 
 
-def set_temporary_scratch_fgdb(scratch_gdb_name: str):
+def set_temporary_fgdb_workspace(gdb_name: str, is_scratch_workspace: bool=True):
     """
     Note! It is up to the caller to set the scratch workspace back to the original
     and handle deletion of temporary scratch dir and its contents.
     """
-    # TODO: make sure scratch name is unique
+    if not gdb_name.endswith(".gdb"):
+        gdb_name = f"{gdb_name}.gdb"
 
-    if not scratch_gdb_name.endswith(".gdb"):
-        scratch_gdb_name = f"{scratch_gdb_name}.gdb"
-
-    # TODO: Do the same for the current workspace if is not a FGDB
-    original_current_workspace = arcpy.env.workspace
-    original_scratch_workspace = arcpy.env.scratchWorkspace
+    if is_scratch_workspace:
+        original_workspace_path = arcpy.env.scratchWorkspace
+    else:
+        original_workspace_path = arcpy.env.workspace
 
     project = arcpy.mp.ArcGISProject('CURRENT')
     project_toolbox_path = Path(project.filePath)
     # It's necessary to have path string in posix format for CreateFileGDB to work
     project_dir = str(project_toolbox_path.parent.as_posix())
 
-    temp_scratch_gdb_result = arcpy.management.CreateFileGDB(project_dir, scratch_gdb_name)
-    temp_scratch_gdb_path = temp_scratch_gdb_result[0]
+    temp_fgdb_result = arcpy.management.CreateFileGDB(project_dir, gdb_name)
+    temp_workspace_path = temp_fgdb_result[0]
+
+    if is_scratch_workspace:
+        arcpy.env.scratchWorkspace = temp_workspace_path
+    else:
+        arcpy.env.workspace = temp_workspace_path
+
+    return temp_workspace_path, original_workspace_path
+
+
+def reset_workspace(temp_workspace_path: str, original_workspace_path: str, is_scratch_workspace: bool=True):
+    """
+    Reset the workspace environment setting back to its original value. Delete the temporary workspace and its contents.
+
+    Args:
+        temp_workspace_path: <str>
+            Path to the temporary workspace that will be unset and deleted.
+        original_workspace_path: <str>
+            Path that will be reset as the workspace.
+        is_scratch_workspace: <bool>
+            If True, resets arcpy.env.scratchWorkspace (default).
+            If False, resets arcpy.env.workspace.
+    """
+    if is_scratch_workspace:
+        arcpy.env.scratchWorkspace = original_workspace_path
+    else:
+        arcpy.env.workspace = original_workspace_path
     
-    arcpy.env.scratchWorkspace = temp_scratch_gdb_path
-    
-    return temp_scratch_gdb_path, original_scratch_workspace
-
-
-def reset_scratch_workspace_from_temporary_fgdb(temp_scratch_gdb_path, original_scratch_workspace):
-    arcpy.env.scratchWorkspace = original_scratch_workspace
-
-    for file in inventory_data(temp_scratch_gdb_path, None):
+    for file in inventory_data(temp_workspace_path, None):
         arcpy.management.Delete(file)
-
-    arcpy.management.Delete(temp_scratch_gdb_path)
+    
+    arcpy.management.Delete(temp_workspace_path)
 
 
 def inventory_data(workspace, datatypes):

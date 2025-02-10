@@ -50,7 +50,11 @@ import os
 import sys
 import traceback
 
-from arcsdm.common import log_arcsdm_details, reset_scratch_workspace_from_temporary_fgdb, set_temporary_scratch_fgdb
+from arcsdm.common import (
+    log_arcsdm_details,
+    reset_workspace,
+    set_temporary_fgdb_workspace
+)
 from arcsdm.wofe_common import (
     apply_mask_to_raster,
     check_wofe_inputs,
@@ -234,29 +238,33 @@ def Calculate(self, parameters, messages):
         training_sites_feature = parameters[2].valueAsText
         selected_weight_type =  parameters[3].valueAsText
         output_weights_table = parameters[4].valueAsText
+        original_output_weights_table = parameters[4].valueAsText
         studentized_contrast_threshold = parameters[5].value
         unit_cell_area_sq_km = parameters[6].value
         nodata_value = parameters[7].value
 
-        # TODO: make sure works when the original scratch workspace was not set
-        temp_scratch_gdb_path, original_scratch_workspace = set_temporary_scratch_fgdb("wofe_scratch.gdb")
+        # TODO: make sure name is unique
+        temp_scratch_gdb_path, original_scratch_workspace = set_temporary_fgdb_workspace("wofe_scratch.gdb")
 
         evidence_descr = arcpy.Describe(evidence_raster)
         evidence_raster, evidence_descr = extract_layer_from_raster_band(evidence_raster, evidence_descr)
 
         check_wofe_inputs([evidence_raster], training_sites_feature)
         
+        temp_workspace_path = None
+
         # If using non gdb database, lets add .dbf
         # If using GDB database, remove numbers and underscore from the beginning of the Weights table name (else block)
         workspace_descr = arcpy.Describe(arcpy.env.workspace)
         if workspace_descr.workspaceType == "FileSystem":
-            if not(output_weights_table.endswith(".dbf")):
-                output_weights_table += ".dbf"
-        else:
-            wtsbase = os.path.basename(output_weights_table)
-            while len(wtsbase) > 0 and (wtsbase[:1] <= "9" or wtsbase[:1] == "_"):
-                wtsbase = wtsbase[1:]
-            output_weights_table = os.path.dirname(output_weights_table) + "\\" + wtsbase
+            temp_workspace_path, original_current_workspace = set_temporary_fgdb_workspace("wofe_workspace.gdb", is_scratch_workspace=False)
+
+        output_weights_table = output_weights_table.replace(".dbf", "")
+
+        wtsbase = os.path.basename(output_weights_table)
+        while len(wtsbase) > 0 and (wtsbase[:1] <= "9" or wtsbase[:1] == "_"):
+            wtsbase = wtsbase[1:]
+        output_weights_table = os.path.dirname(output_weights_table) + "\\" + wtsbase
 
         masked_evidence_raster = apply_mask_to_raster(evidence_raster, nodata_value, code_name)
         masked_evidence_descr = arcpy.Describe(masked_evidence_raster)
@@ -266,7 +274,7 @@ def Calculate(self, parameters, messages):
         _, training_point_count = get_study_area_parameters(unit_cell_area_sq_km, training_sites_feature)
 
         arcpy.AddMessage("=" * 10 + " Calculate weights " + "=" * 10)
-        arcpy.AddMessage("%-20s %s (%s)" % ("Creating table: ", output_weights_table, selected_weight_type))
+        arcpy.AddMessage("%-20s %s (%s)" % ("Creating table: ", original_output_weights_table, selected_weight_type))
 
         # Calculate number of training sites in each class
         statistics_table, class_column_name, count_column_name = get_training_point_statistics(masked_evidence_raster, training_sites_feature)
@@ -287,7 +295,7 @@ def Calculate(self, parameters, messages):
             ["S_WMINUS", "DOUBLE", "10", "4", "#", "W- Std"],
             ["CONTRAST", "DOUBLE", "10", "4", "#", "Contrast_"],
             ["S_CONTRAST", "DOUBLE", "10", "4", "#", "Contrast_Std"],
-            ["STUD_CNT","DOUBLE", "10", "4", "#", "Studentized_Contrast"]
+            ["STUD_CNT", "DOUBLE", "10", "4", "#", "Studentized_Contrast"]
         ]
         weight_field_names = [i[0] for i in weight_fields]
 
@@ -314,6 +322,7 @@ def Calculate(self, parameters, messages):
 
         stats_fields = [class_column_name, count_column_name]
 
+        output_weights_table = os.path.join(arcpy.env.workspace, os.path.basename(output_weights_table))
         arcpy.management.CreateTable(os.path.dirname(output_weights_table), os.path.basename(output_weights_table))
 
         # arcpy.management.AddFields doesn't allow setting field precision or scale, so add the fields individually
@@ -530,7 +539,16 @@ def Calculate(self, parameters, messages):
                         updated_row = (gen_class, weight, w_std)
                         cursor_generalized.updateRow(updated_row)
         
-        reset_scratch_workspace_from_temporary_fgdb(temp_scratch_gdb_path, original_scratch_workspace)
+        if temp_workspace_path is not None:
+            if not(original_output_weights_table.endswith(".dbf")):
+                original_output_weights_table += ".dbf"
+            
+            arcpy.conversion.ExportTable(output_weights_table, original_output_weights_table)
+
+            # reset the current workspace back to the original
+            reset_workspace(temp_workspace_path, original_current_workspace, is_scratch_workspace=False)
+
+        reset_workspace(temp_scratch_gdb_path, original_scratch_workspace)
 
     except arcpy.ExecuteError:
         arcpy.AddError(arcpy.GetMessages(2))
