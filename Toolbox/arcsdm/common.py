@@ -13,6 +13,8 @@ import traceback
 
 import arcsdm.config as cfg
 
+from pathlib import Path
+
 PY2 = sys.version_info[0] == 2
 PY34 = sys.version_info[0:2] >= (3, 4)
 
@@ -155,3 +157,61 @@ def select_features_by_mask(input_feature):
     else:
         # Just select all features
         arcpy.management.SelectLayerByAttribute(input_feature)
+
+
+def set_temporary_scratch_fgdb(scratch_gdb_name: str):
+    """
+    Note! It is up to the caller to set the scratch workspace back to the original
+    and handle deletion of temporary scratch dir and its contents.
+    """
+    # TODO: make sure scratch name is unique
+
+    if not scratch_gdb_name.endswith(".gdb"):
+        scratch_gdb_name = f"{scratch_gdb_name}.gdb"
+
+    # TODO: Do the same for the current workspace if is not a FGDB
+    original_current_workspace = arcpy.env.workspace
+    original_scratch_workspace = arcpy.env.scratchWorkspace
+
+    project = arcpy.mp.ArcGISProject('CURRENT')
+    project_toolbox_path = Path(project.filePath)
+    # It's necessary to have path string in posix format for CreateFileGDB to work
+    project_dir = str(project_toolbox_path.parent.as_posix())
+
+    temp_scratch_gdb_result = arcpy.management.CreateFileGDB(project_dir, scratch_gdb_name)
+    temp_scratch_gdb_path = temp_scratch_gdb_result[0]
+    
+    arcpy.env.scratchWorkspace = temp_scratch_gdb_path
+    
+    return temp_scratch_gdb_path, original_scratch_workspace
+
+
+def reset_scratch_workspace_from_temporary_fgdb(temp_scratch_gdb_path, original_scratch_workspace):
+    arcpy.env.scratchWorkspace = original_scratch_workspace
+
+    for file in inventory_data(temp_scratch_gdb_path, None):
+        arcpy.management.Delete(file)
+
+    arcpy.management.Delete(temp_scratch_gdb_path)
+
+
+def inventory_data(workspace, datatypes):
+    """
+    Generates full path names under a catalog tree for all requested
+    datatype(s).
+
+    Source: https://arcpy.wordpress.com/2012/12/10/inventorying-data-a-new-approach/
+ 
+    Parameters:
+    workspace: string
+        The top-level workspace that will be used.
+    datatypes: string | list | tuple
+        Keyword(s) representing the desired datatypes. A single
+        datatype can be expressed as a string, otherwise use
+        a list or tuple. See arcpy.da.Walk documentation 
+        for a full list.
+    """
+    for path, _, data_names in arcpy.da.Walk(
+            workspace, datatype=datatypes):
+        for data_name in data_names:
+            yield os.path.join(path, data_name)

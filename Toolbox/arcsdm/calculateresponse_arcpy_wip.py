@@ -260,6 +260,8 @@ def Execute(self, parameters, messages):
         # (See: https://pro.arcgis.com/en/pro-app/latest/arcpy/spatial-analyst/raster-calculator.htm)
         posterior_probability_result = arcpy.sa.RasterCalculator(tmp_weights_rasters, variable_names, posterior_probability_expression, extent_type="UnionOf", cellsize_type="MinOf")
         posterior_probability_result.save(output_pprb_raster)
+        # arcpy.SetParameterAsText(6, output_pprb_raster)
+        arcpy.SetParameter(6, output_pprb_raster)
 
         # Due to bit depth issue, the resulting raster has pixel depth 64 Bit
         # See: https://community.esri.com/t5/arcgis-spatial-analyst-questions/controling-bit-depth-of-raster-in-fgdb-format/td-p/125850

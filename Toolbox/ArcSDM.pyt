@@ -39,6 +39,7 @@ class Toolbox(object):
             AgterbergChengCITest,
             AreaFrequencyTable,
             CalculateResponse,
+            CalculateResponseNew,
             CalculateWeights,
             CategoricalAndReclassTool,
             CategoricalMembershipTool,

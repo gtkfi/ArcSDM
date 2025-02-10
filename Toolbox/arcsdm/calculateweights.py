@@ -50,7 +50,7 @@ import os
 import sys
 import traceback
 
-from arcsdm.common import log_arcsdm_details
+from arcsdm.common import log_arcsdm_details, reset_scratch_workspace_from_temporary_fgdb, set_temporary_scratch_fgdb
 from arcsdm.wofe_common import (
     apply_mask_to_raster,
     check_wofe_inputs,
@@ -237,6 +237,9 @@ def Calculate(self, parameters, messages):
         studentized_contrast_threshold = parameters[5].value
         unit_cell_area_sq_km = parameters[6].value
         nodata_value = parameters[7].value
+
+        # TODO: make sure works when the original scratch workspace was not set
+        temp_scratch_gdb_path, original_scratch_workspace = set_temporary_scratch_fgdb("wofe_scratch.gdb")
 
         evidence_descr = arcpy.Describe(evidence_raster)
         evidence_raster, evidence_descr = extract_layer_from_raster_band(evidence_raster, evidence_descr)
@@ -526,6 +529,8 @@ def Calculate(self, parameters, messages):
 
                         updated_row = (gen_class, weight, w_std)
                         cursor_generalized.updateRow(updated_row)
+        
+        reset_scratch_workspace_from_temporary_fgdb(temp_scratch_gdb_path, original_scratch_workspace)
 
     except arcpy.ExecuteError:
         arcpy.AddError(arcpy.GetMessages(2))
