@@ -32,7 +32,11 @@ import os
 import sys
 import traceback
 
-from arcsdm.common import log_arcsdm_details
+from arcsdm.common import (
+    log_arcsdm_details,
+    reset_workspace,
+    set_temporary_fgdb_workspace
+)
 from arcsdm.missingdatavar_func import create_missing_data_variance_raster
 from arcsdm.wofe_common import (
     apply_mask_to_raster,
@@ -88,6 +92,9 @@ def Execute(self, parameters, messages):
         output_mdvar_raster = parameters[8].valueAsText
         output_total_std_raster = parameters[9].valueAsText
         output_confidence_raster = parameters[10].valueAsText
+
+        # TODO: make sure name is unique
+        temp_scratch_gdb_path, original_scratch_workspace = set_temporary_fgdb_workspace("wofe_scratch.gdb")
         
         if is_ignore_missing_data_selected: # for nodata argument to CopyRaster tool
             nodata_value = missing_data_value
@@ -129,8 +136,26 @@ def Execute(self, parameters, messages):
         # NoData cell values within study area.
         # For each input_raster create a weights raster from the raster and its weights table.
 
+        temp_workspace_path = None
         workspace_type = arcpy.Describe(arcpy.env.workspace).workspaceType
-        
+        if workspace_type == "FileSystem":
+            temp_workspace_path, original_current_workspace = set_temporary_fgdb_workspace("wofe_workspace.gdb", is_scratch_workspace=False)
+            original_output_pprb_raster = parameters[6].valueAsText
+            original_output_std_raster = parameters[7].valueAsText
+            original_output_mdvar_raster = parameters[8].valueAsText
+            original_output_total_std_raster = parameters[9].valueAsText
+            original_output_confidence_raster = parameters[10].valueAsText
+            # output_pprb_raster = f"{output_pprb_raster}.tif"
+            # output_std_raster = f"{output_std_raster}.tif"
+            # output_mdvar_raster = f"{output_mdvar_raster}.tif"
+            # output_total_std_raster = f"{output_total_std_raster}.tif"
+            # output_confidence_raster = f"{output_confidence_raster}.tif"
+            output_pprb_raster = os.path.basename(output_pprb_raster)
+            output_std_raster = os.path.basename(output_std_raster)
+            output_mdvar_raster = os.path.basename(output_mdvar_raster)
+            output_total_std_raster = os.path.basename(output_total_std_raster)
+            output_confidence_raster = os.path.basename(output_confidence_raster)
+
         arcpy.AddMessage("\nCreating tmp weight and STD rasters...")
         arcpy.AddMessage("=" * 41)
 
@@ -154,14 +179,31 @@ def Execute(self, parameters, messages):
 
             # When workspace type is File System, Input Weight Table also must end with .dbf
             # If using GDB database, remove numbers and underscore from the beginning of the name (else block)
+            # if workspace_type == "FileSystem":
+            #     if not weights_table.endswith(".dbf"):
+            #         weights_table += ".dbf"
+            # else:
+            # TODO: copy tables to the workspace gdb
+
+            wtsbase = os.path.basename(weights_table)
+            wtsbase = wtsbase.replace(".dbf", "")
+            while len(wtsbase) > 0 and (wtsbase[:1] <= "9" or wtsbase[:1] == "_"):
+                wtsbase = wtsbase[1:]
+            
+            # TODO: copy files regardless of whether the workspace was a filesystem or not if they exist outside the workspace?
             if workspace_type == "FileSystem":
-                if not weights_table.endswith(".dbf"):
-                    weights_table += ".dbf"
+                original_weights_table = os.path.join(os.path.dirname(weights_table), os.path.basename(weights_table))
+                
+                if not original_weights_table.endswith(".dbf"):
+                    original_weights_table += ".dbf"
+
+                copied_weights_table_path = os.path.join(arcpy.env.workspace, wtsbase)
+
+                arcpy.conversion.ExportTable(original_weights_table, copied_weights_table_path)
+
+                weights_table = copied_weights_table_path
             else:
-                wtsbase = os.path.basename(weights_table)
-                while len(wtsbase) > 0 and (wtsbase[:1] <= "9" or wtsbase[:1] == "_"):
-                    wtsbase = wtsbase[1:]
-                weights_table = os.path.dirname(weights_table) + "\\" + wtsbase
+                weights_table = os.path.join(os.path.dirname(weights_table), wtsbase)
 
             # Compare workspaces to make sure they match
             
@@ -383,6 +425,15 @@ def Execute(self, parameters, messages):
         
         for raster in tmp_std_rasters:
             arcpy.management.Delete(raster)
+        
+        if temp_workspace_path is not None:
+            # TODO: Copy outputs to appropriate location
+
+            # reset the current workspace back to the original
+            reset_workspace(temp_workspace_path, original_current_workspace, is_scratch_workspace=False)
+
+        reset_workspace(temp_scratch_gdb_path, original_scratch_workspace)
+
 
         arcpy.AddMessage("Done\n" + "=" * 41)
     except arcpy.ExecuteError as e:

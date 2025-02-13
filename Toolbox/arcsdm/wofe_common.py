@@ -170,9 +170,9 @@ def check_wofe_inputs(evidence_rasters, training_point_feature):
                 if not raster.hasRAT:
                     raise WofeInputError(f"The evidence raster {evidence_rasters[i]} does not have an attribute table. Use 'Build Raster Attribute Table' tool to add it.")
 
-                nodata_value = raster.noDataValue
-                if nodata_value != raster_nodata_value:
-                    raise WofeInputError(f"Not all evidence rasters share the same NoData value! Raster {evidence_rasters[i]} has {nodata_value}, when expected NoData value was {raster_nodata_value}.")
+                # nodata_value = raster.noDataValue
+                # if nodata_value != raster_nodata_value:
+                #     raise WofeInputError(f"Not all evidence rasters share the same NoData value! Raster {evidence_rasters[i]} has {nodata_value}, when expected NoData value was {raster_nodata_value}.")
 
                 i += 1
 
