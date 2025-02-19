@@ -132,17 +132,21 @@ def log_arcsdm_details():
 
 def select_features_by_mask(input_feature):
     mask = arcpy.env.mask
+    mask_descr = arcpy.Describe(mask)
     if mask:
         if not arcpy.Exists(mask):
-            raise arcpy.ExecuteError("Mask doesn't exist! Set Mask under Analysis/Environments.")
+            raise ValueError("Mask doesn't exist! Set Mask under Analysis/Environments.")
 
-        mask_type = arcpy.Describe(mask).dataType
+        mask_type = mask_descr.dataType
 
         if mask_type in ["FeatureLayer", "FeatureClass", "ShapeFile"]:
             arcpy.management.SelectLayerByLocation(input_feature, "COMPLETELY_WITHIN", mask)
         elif mask_type in ["RasterLayer", "RasterDataset"]:
             # We need to convert the raster to a feature, since SelectLayerByLocation requires features
-            tmp_mask = str(mask) + "_tmp_feature"
+
+            mask_name = os.path.basename(mask_descr.catalogPath)
+            mask_name = mask_name.split(".")[0]
+            tmp_mask = str(mask_name) + "_tmp_feature"
 
             # If the conversion seems slow with more complicated rasters, set max_vertices_per_feature
             arcpy.conversion.RasterToPolygon(mask, tmp_mask)
@@ -150,7 +154,7 @@ def select_features_by_mask(input_feature):
             # Delete the temporary layer
             arcpy.management.Delete(tmp_mask)
         else:
-            raise arcpy.ExecuteError(f"Mask has forbidden data type: {mask_type}!")
+            raise ValueError(f"Mask has forbidden data type: {mask_type}!")
 
     else:
         # Just select all features
