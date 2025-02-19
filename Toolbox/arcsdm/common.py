@@ -132,21 +132,17 @@ def log_arcsdm_details():
 
 def select_features_by_mask(input_feature):
     mask = arcpy.env.mask
-    mask_descr = arcpy.Describe(mask)
     if mask:
         if not arcpy.Exists(mask):
             raise ValueError("Mask doesn't exist! Set Mask under Analysis/Environments.")
 
-        mask_type = mask_descr.dataType
+        mask_type = arcpy.Describe(mask).dataType
 
         if mask_type in ["FeatureLayer", "FeatureClass", "ShapeFile"]:
             arcpy.management.SelectLayerByLocation(input_feature, "COMPLETELY_WITHIN", mask)
         elif mask_type in ["RasterLayer", "RasterDataset"]:
-            # We need to convert the raster to a feature, since SelectLayerByLocation requires features
-
-            mask_name = os.path.basename(mask_descr.catalogPath)
-            mask_name = mask_name.split(".")[0]
-            tmp_mask = str(mask_name) + "_tmp_feature"
+            # Convert the raster to a feature, since SelectLayerByLocation requires features
+            tmp_mask = arcpy.CreateScratchName("tmp_mask", data_type="Shapefile", workspace=arcpy.env.scratchFolder)
 
             # If the conversion seems slow with more complicated rasters, set max_vertices_per_feature
             arcpy.conversion.RasterToPolygon(mask, tmp_mask)
