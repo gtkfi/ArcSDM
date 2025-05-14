@@ -4,7 +4,7 @@ import arcpy
 from arcpy import sa
 from arcpy import conversion
 
-def rasterize_vector(raster_file_path: str, label_file: str):
+def rasterize_vector(raster_file_path: str, label_file: str, target_label_attr: str):
     """
     Rasterize a vector file to a raster file with the same extent and cell size as the reference raster.
     """
@@ -25,6 +25,7 @@ def rasterize_vector(raster_file_path: str, label_file: str):
     # Rasterize points to raster
     points_raster = conversion.PointToRaster(
         in_features=label_file,
+        value_field=target_label_attr,
         cellsize=desc_ref_raster.meanCellWidth,
     )
 

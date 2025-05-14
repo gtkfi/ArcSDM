@@ -2140,6 +2140,15 @@ class TrainMLPClassifierTool(object):
             parameterType="Required",
             direction="Input")
         
+        param_y_attribute = arcpy.Parameter(
+            displayName="Target Labels attribute",
+            name="y_attribute",
+            datatype="Field",
+            parameterType="Required",
+            direction="Input")
+        
+        param_y_attribute.parameterDependencies = [param_y.name]
+        
         param_X_nodata_value = arcpy.Parameter(
             displayName="Input Feature NoData Value",
             name="X_nodata_value",
@@ -2299,6 +2308,7 @@ class TrainMLPClassifierTool(object):
 
         params = [param_X,
                   param_y,
+                  param_y_attribute,
                   param_X_nodata_value,
                   param_y_nodata_value,
                   param_neurons,
@@ -2363,6 +2373,15 @@ class TrainMLPRegressorTool(object):
             datatype=["GPRasterLayer", "GPFeatureLayer"],
             parameterType="Required",
             direction="Input")
+        
+        param_y_attribute = arcpy.Parameter(
+            displayName="Target Labels attribute",
+            name="y_attribute",
+            datatype="Field",
+            parameterType="Required",
+            direction="Input")
+        
+        param_y_attribute.parameterDependencies = [param_y.name]
         
         param_X_nodata_value = arcpy.Parameter(
             displayName="Input Feature NoData Value",
@@ -2523,6 +2542,7 @@ class TrainMLPRegressorTool(object):
 
         params = [param_X,
                   param_y,
+                  param_y_attribute,
                   param_X_nodata_value,
                   param_y_nodata_value,
                   param_neurons,

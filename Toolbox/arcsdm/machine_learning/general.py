@@ -173,6 +173,7 @@ def _resample_raster(input_raster, reference_raster, output_path):
 def prepare_data_for_ml(
     feature_raster_files,
     label_file: Optional[Union[str, os.PathLike]] = None,
+    target_label_attr: Optional[str] = None,
     X_nodata_value: Optional[Number] = None,
     y_nodata_value: Optional[Number] = None,
 ) -> Tuple[np.ndarray, Optional[np.ndarray], Any]:
@@ -275,10 +276,10 @@ def prepare_data_for_ml(
     if label_file is not None:
         
         desc = arcpy.Describe(label_file)
-        if desc.dataType == "FeatureClass" or desc.dataType == "FeatureLayer":
 
+        if desc.dataType == "FeatureClass" or desc.dataType == "FeatureLayer" or desc.dataType == "ShapeFile":
             # Rasterize vector file
-            rasterized_vector = rasterize_vector(rasters_to_check[0], label_file)
+            rasterized_vector = rasterize_vector(rasters_to_check[0], label_file, target_label_attr)
 
             # Convert raster to numpy array
             y = arcpy.RasterToNumPyArray(rasterized_vector)
