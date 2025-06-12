@@ -95,6 +95,10 @@ def Execute(self, parameters, messages):
         if transformed_data.ndim is 2 or transformed_data.ndim is 3:
             desc_input = arcpy.Describe(input_data[0])
 
+            if hasattr(desc_input, "bandCount") and desc_input.bandCount > 1:
+                first_band = arcpy.ia.ExtractBand(input_data[0], band_ids=1)
+                desc_input = arcpy.Describe(first_band)
+
             transformed_data_raster = arcpy.NumPyArrayToRaster(transformed_data,
                                                             lower_left_corner=desc_input.extent.lowerLeft, 
                                                             x_cell_size=desc_input.meanCellWidth,
