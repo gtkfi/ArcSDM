@@ -2144,7 +2144,7 @@ class TrainMLPClassifierTool(object):
             displayName="Target Labels attribute",
             name="y_attribute",
             datatype="Field",
-            parameterType="Required",
+            parameterType="Optional",
             direction="Input")
         
         param_y_attribute.parameterDependencies = [param_y.name]
@@ -2378,7 +2378,7 @@ class TrainMLPRegressorTool(object):
             displayName="Target Labels attribute",
             name="y_attribute",
             datatype="Field",
-            parameterType="Required",
+            parameterType="Optional",
             direction="Input")
         
         param_y_attribute.parameterDependencies = [param_y.name]
@@ -2576,7 +2576,6 @@ class TrainMLPRegressorTool(object):
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal validation is performed. This method is called whenever a parameter has been changed."""
-        return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool parameter. This method is called after internal validation."""

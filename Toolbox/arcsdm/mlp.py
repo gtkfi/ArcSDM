@@ -342,6 +342,10 @@ def Execute_MLP_regressor(self, parameters, messages):
         
         arcpy.AddMessage("Starting MLP classifier training...")
         
+        if (target_labels_attr != None and (target_labels_attr.lower() == "shape" or target_labels_attr.lower() == "fid")):
+            arcpy.AddError("Invalid 'Target labels attribute' field name")
+            return
+
         X, y, _ = prepare_data_for_ml(input_rasters, target_labels, target_labels_attr, X_nodata_value, y_nodata_value)
 
         arcpy.AddMessage("Data preparation completed.")
