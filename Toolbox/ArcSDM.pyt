@@ -2072,6 +2072,15 @@ class TrainMLPClassifierTool(object):
             parameterType="Required",
             direction="Input")
         
+        param_y_attribute = arcpy.Parameter(
+            displayName="Target Labels attribute",
+            name="y_attribute",
+            datatype="Field",
+            parameterType="Optional",
+            direction="Input")
+        
+        param_y_attribute.parameterDependencies = [param_y.name]
+        
         param_X_nodata_value = arcpy.Parameter(
             displayName="Input Feature NoData Value",
             name="X_nodata_value",
@@ -2231,6 +2240,7 @@ class TrainMLPClassifierTool(object):
 
         params = [param_X,
                   param_y,
+                  param_y_attribute,
                   param_X_nodata_value,
                   param_y_nodata_value,
                   param_neurons,
@@ -2295,6 +2305,15 @@ class TrainMLPRegressorTool(object):
             datatype=["GPRasterLayer", "GPFeatureLayer"],
             parameterType="Required",
             direction="Input")
+        
+        param_y_attribute = arcpy.Parameter(
+            displayName="Target Labels attribute",
+            name="y_attribute",
+            datatype="Field",
+            parameterType="Optional",
+            direction="Input")
+        
+        param_y_attribute.parameterDependencies = [param_y.name]
         
         param_X_nodata_value = arcpy.Parameter(
             displayName="Input Feature NoData Value",
@@ -2455,6 +2474,7 @@ class TrainMLPRegressorTool(object):
 
         params = [param_X,
                   param_y,
+                  param_y_attribute,
                   param_X_nodata_value,
                   param_y_nodata_value,
                   param_neurons,
@@ -2488,7 +2508,6 @@ class TrainMLPRegressorTool(object):
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal validation is performed. This method is called whenever a parameter has been changed."""
-        return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool parameter. This method is called after internal validation."""
