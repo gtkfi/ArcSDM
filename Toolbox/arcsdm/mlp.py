@@ -248,29 +248,34 @@ def Execute_MLP_classifier(self, parameters, messages):
     try:
         input_rasters = parameters[0].valueAsText.split(';')
         target_labels = parameters[1].valueAsText
-        X_nodata_value = parameters[2].value
-        y_nodata_value = parameters[3].value
-        neurons = [int(n) for n in parameters[4].valueAsText.split(',')]
-        validation_split = float(parameters[5].value) if parameters[5].value else 0.2
-        validation_data = parameters[6].valueAsText if parameters[6].valueAsText else None
-        activation = parameters[7].valueAsText
-        output_neurons = parameters[8].value
-        last_activation = parameters[9].valueAsText
-        epochs = parameters[10].value
-        batch_size = int(parameters[11].value)
-        optimizer = parameters[12].valueAsText
-        learning_rate = float(parameters[13].value)
-        loss_function = parameters[14].valueAsText
-        dropout_rate = float(parameters[15].value) if parameters[15].value else None
-        early_stopping = parameters[16].value
-        es_patience = int(parameters[17].value)
-        metrics = parameters[18].valueAsText.split(',')
-        random_state = int(parameters[19].value) if parameters[19].value else None
-        output_file = parameters[20].valueAsText
+        target_labels_attr = parameters[2].valueAsText
+        X_nodata_value = parameters[3].value
+        y_nodata_value = parameters[4].value
+        neurons = [int(n) for n in parameters[5].valueAsText.split(',')]
+        validation_split = float(parameters[6].value) if parameters[5].value else 0.2
+        validation_data = parameters[7].valueAsText if parameters[6].valueAsText else None
+        activation = parameters[8].valueAsText
+        output_neurons = parameters[9].value
+        last_activation = parameters[10].valueAsText
+        epochs = parameters[11].value
+        batch_size = int(parameters[12].value)
+        optimizer = parameters[13].valueAsText
+        learning_rate = float(parameters[14].value)
+        loss_function = parameters[15].valueAsText
+        dropout_rate = float(parameters[16].value) if parameters[16].value else None
+        early_stopping = parameters[17].value
+        es_patience = int(parameters[18].value)
+        metrics = parameters[19].valueAsText.split(',')
+        random_state = int(parameters[20].value) if parameters[20].value else None
+        output_file = parameters[21].valueAsText
         
         arcpy.AddMessage("Starting MLP classifier training...")
         
-        X, y, _ = prepare_data_for_ml(input_rasters, target_labels, X_nodata_value, y_nodata_value)
+        if (target_labels_attr != None and (target_labels_attr.lower() == "shape" or target_labels_attr.lower() == "fid")):
+            arcpy.AddError("Invalid 'Target labels attribute' field name")
+            return
+
+        X, y, _ = prepare_data_for_ml(input_rasters, target_labels, target_labels_attr, X_nodata_value, y_nodata_value)
 
         arcpy.AddMessage("Data preparation completed.")
 
@@ -318,29 +323,34 @@ def Execute_MLP_regressor(self, parameters, messages):
     try:
         input_rasters = parameters[0].valueAsText.split(';')
         target_labels = parameters[1].valueAsText
-        X_nodata_value = parameters[2].value
-        y_nodata_value = parameters[3].value
-        neurons = [int(n) for n in parameters[4].valueAsText.split(',')]
-        validation_split = float(parameters[5].value) if parameters[5].value else 0.2
-        validation_data = parameters[6].valueAsText if parameters[6].valueAsText else None
-        activation = parameters[7].valueAsText
-        output_neurons = parameters[8].value
-        last_activation = parameters[9].valueAsText
-        epochs = parameters[10].value
-        batch_size = int(parameters[11].value)
-        optimizer = parameters[12].valueAsText
-        learning_rate = float(parameters[13].value)
-        loss_function = parameters[14].valueAsText
-        dropout_rate = float(parameters[15].value) if parameters[15].value else None
-        early_stopping = parameters[16].value
-        es_patience = int(parameters[17].value)
-        metrics = parameters[18].valueAsText.split(',')
-        random_state = int(parameters[19].value) if parameters[19].value else None
-        output_file = parameters[20].valueAsText
+        target_labels_attr = parameters[2].valueAsText
+        X_nodata_value = parameters[3].value
+        y_nodata_value = parameters[4].value
+        neurons = [int(n) for n in parameters[5].valueAsText.split(',')]
+        validation_split = float(parameters[6].value) if parameters[6].value else 0.2
+        validation_data = parameters[7].valueAsText if parameters[7].valueAsText else None
+        activation = parameters[8].valueAsText
+        output_neurons = parameters[9].value
+        last_activation = parameters[10].valueAsText
+        epochs = parameters[11].value
+        batch_size = int(parameters[12].value)
+        optimizer = parameters[13].valueAsText
+        learning_rate = float(parameters[14].value)
+        loss_function = parameters[15].valueAsText
+        dropout_rate = float(parameters[16].value) if parameters[16].value else None
+        early_stopping = parameters[17].value
+        es_patience = int(parameters[18].value)
+        metrics = parameters[19].valueAsText.split(',')
+        random_state = int(parameters[20].value) if parameters[20].value else None
+        output_file = parameters[21].valueAsText
         
         arcpy.AddMessage("Starting MLP classifier training...")
         
-        X, y, _ = prepare_data_for_ml(input_rasters, target_labels, X_nodata_value, y_nodata_value)
+        if (target_labels_attr != None and (target_labels_attr.lower() == "shape" or target_labels_attr.lower() == "fid")):
+            arcpy.AddError("Invalid 'Target labels attribute' field name")
+            return
+
+        X, y, _ = prepare_data_for_ml(input_rasters, target_labels, target_labels_attr, X_nodata_value, y_nodata_value)
 
         arcpy.AddMessage("Data preparation completed.")
 
