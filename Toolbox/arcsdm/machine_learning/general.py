@@ -275,7 +275,7 @@ def prepare_data_for_ml(
     if label_file is not None:
         
         desc = arcpy.Describe(label_file)
-        if desc.dataType == "FeatureClass" or desc.dataType == "FeatureLayer":
+        if desc.dataType == "FeatureClass" or desc.dataType == "FeatureLayer" or desc.dataType == "ShapeFile":
 
             # Rasterize vector file
             rasterized_vector = rasterize_vector(rasters_to_check[0], label_file)
