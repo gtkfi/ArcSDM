@@ -2581,7 +2581,7 @@ class PCA(object):
         
         # Input data parameter
         param_input_rasters = arcpy.Parameter(
-            displayName="Input Raster Layer(s)",
+            displayName="Input Raster Layer(s) (min. 2 bands)",
             name="input_rasters",
             datatype=["GPRasterLayer", "GPRasterDataLayer"],
             parameterType="Required",
@@ -2690,13 +2690,14 @@ class PCAVector(object):
         )
 
         param_input_fields = arcpy.Parameter(
-            displayName="Fields",
+            displayName="Select Fields (min. 2)",
             name="input_fields",
-            datatype="GPString",
+            datatype="Field",
             parameterType="Required",
             direction="Input",
-            multiValue=True,
+            multiValue=True
         )
+        param_input_fields.parameterDependencies = [param_input_vectors.name]
         
         param_nodata_value = arcpy.Parameter(
             displayName="NoData Value",
@@ -2772,6 +2773,10 @@ class PCAVector(object):
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
         parameter. This method is called after internal validation."""
+
+        if parameters[1].value and parameters[1].value.rowCount < 2:
+            parameters[1].setErrorMessage("Select Fields requires at least two fields.")
+        
         return
 
     def execute(self, parameters, messages):

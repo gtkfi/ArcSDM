@@ -30,7 +30,8 @@ def Execute(self, parameters, messages):
 
         if (is_vector):
             input_fields = parameters[1].valueAsText.split(';')
-            nodata_value = np.float(parameters[2].value) # Convert to float for numpy operations
+            nodata_param = parameters[2].value
+            nodata_value = np.float(nodata_param) if nodata_param is not None else np.nan  # Convert to float for numpy operations
             number_of_components = parameters[3].value
             scaler_type = parameters[4].valueAsText
             nodata_handling = parameters[5].valueAsText
@@ -73,7 +74,8 @@ def Execute(self, parameters, messages):
             input_data = rasterizedInputs
 
         else:
-            nodata_value = np.float(parameters[1].value) # Convert to float for numpy operations
+            nodata_param = parameters[1].value
+            nodata_value = np.float(nodata_param) if nodata_param is not None else np.nan  # Convert to float for numpy operations
             number_of_components = parameters[2].value
             scaler_type = parameters[3].valueAsText
             nodata_handling = parameters[4].valueAsText
