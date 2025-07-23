@@ -4,7 +4,6 @@ import os
 
 from imp import reload
 
-
 import arcsdm.agterbergchengci
 import arcsdm.areafrequency
 import arcsdm.calculateresponse_arcpy_wip
@@ -19,7 +18,6 @@ import arcsdm.logistic_regression_predict
 import arcsdm.mlp
 import arcsdm.nninputfiles
 import arcsdm.pca
-import arcsdm.rescale_raster
 import arcsdm.roctool
 import arcsdm.sitereduction
 import arcsdm.symbolize
@@ -27,6 +25,19 @@ import arcsdm.tocfuzzification
 import arcsdm.wofe_common
 
 from arcsdm.common import execute_tool
+
+
+# Toolsets and sub-toolsets within ArcSDM toolbox
+TS_EXPLORATORY_DATA_ANALYSIS = "Exploratory data analysis"
+TS_PREPROCESSING = "Preprocessing"
+TS_EVIDENCE_DATA_PROCESSING = "Evidence data processing"
+TS_FUZZY = "Fuzzy membership"
+TS_TRAINING_DATA_PROCESSING = "Training data processing"
+TS_PREDICTIVE_MODELING = "Predictive Modeling"
+TS_MACHINE_LEARNING = "Machine Learning"
+TS_MODELING = "Modeling"
+TS_WOFE = "Weights of Evidence"
+TS_VALIDATION = "Validation"
 
 
 class Toolbox(object):
@@ -67,7 +78,7 @@ class GrandWofe(object):
         self.label = "Grand WOFE"
         self.description = "From list of Evidence layers generate weights tables and output rasters from Calculate Respons and Logistic Regression."
         self.canRunInBackground = False
-        self.category = "Weights of Evidence"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_WOFE}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -159,7 +170,7 @@ class PartitionNNInputFiles(object):
         self.label = "Partition NNInput Files"
         self.description = "Partitions Neural Network class.dta of more than 200,000 records into files of 200,000 or less."
         self.canRunInBackground = False
-        self.category = "Neural network"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -214,7 +225,7 @@ class CombineNNOutputFiles(object):
         self.label = "Combine NNOutput Files "
         self.description = "Combines PNN, FUZ, and RBN files generated from partitions of the class.dta file."
         self.canRunInBackground = False
-        self.category = "Neural network"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -275,7 +286,7 @@ class NeuralNetworkOutputFiles(object):
         self.label = "Neural network output files"
         self.description = "Generate files from output files of GeoXplore"
         self.canRunInBackground = False
-        self.category = "Neural network"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -364,7 +375,7 @@ class NeuralNetworkInputFiles(object):
         self.label = "Neural network input files"
         self.description = "Use this tool to create the input ASCII files for the GeoXplore neural network. Before using this tool, the evidence must be combined into a unique conditions raster with the Combine tool and the band statistics must be obtained for all the evidence using the Band Collection Statistics tool. If desired fuzzy membership attribute can be added to each of the training sites. See the ArcMap Tools Options discussion in Usage Tips in the Help about adjusting default setting for this tool."
         self.canRunInBackground = False
-        self.category = "Neural network"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -489,7 +500,7 @@ class GetSDMValues(object):
         self.label = "Log WofE details"
         self.description = "This tool is used to view details related to the the training site and study area for Weights of Evidence."
         self.canRunInBackground = True
-        self.category = "Weights of Evidence"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_WOFE}"
 
     def getParameterInfo(self):
         param_training_sites_feature = arcpy.Parameter(
@@ -557,7 +568,7 @@ class AreaFrequencyTable(object):
         self.label = "Area Frequency Table"
         self.description = "Create a table for charting area of evidence classes vs number of training sites."
         self.canRunInBackground = False
-        self.category = "Weights of Evidence"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_WOFE}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -636,7 +647,7 @@ class ROCTool(object):
     def __init__(self):
         self.label = "Calculate ROC Curves and AUC Values"
         self.description = "Calculates Receiver Operator Characteristic curves and Areas Under the Curves"
-        self.category = "ROC Tool"
+        self.category = TS_VALIDATION
         self.canRunInBackground = False
 
     def getParameterInfo(self):
@@ -761,7 +772,7 @@ class CalculateResponseNew(object):
         self.label = "Calculate Response (Experimental)"
         self.description = "Use this tool to combine the evidence weighted by their associated generalization in the weights-of-evidence table. This tool calculates the posterior probability, standard deviation (uncertainty) due to weights, variance (uncertainty) due to missing data, and the total standard deviation (uncertainty) based on the evidence and how the evidence is generalized in the associated weights-of-evidence tables.The calculations use the Weight and W_Std in the weights table from Calculate Weights."
         self.canRunInBackground = False
-        self.category = "Weights of Evidence"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_WOFE}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -907,7 +918,7 @@ class CalculateResponse(object):
         self.label = "Calculate response"
         self.description = "Use this tool to combine the evidence weighted by their associated generalization in the weights-of-evidence table. This tool calculates the posterior probability, standard deviation (uncertainty) due to weights, variance (uncertainty) due to missing data, and the total standard deviation (uncertainty) based on the evidence and how the evidence is generalized in the associated weights-of-evidence tables.The calculations use the Weight and W_Std in the weights table from Calculate Weights."
         self.canRunInBackground = False
-        self.category = "Weights of Evidence"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_WOFE}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -1053,7 +1064,7 @@ class CalculateWeights(object):
         self.label = "Calculate weights"
         self.description = "Calculate weight rasters from the inputs"
         self.canRunInBackground = True
-        self.category = "Weights of Evidence"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_WOFE}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -1206,7 +1217,7 @@ class SiteReductionTool(object):
         self.label = "Training sites reduction"
         self.description = "Selects subset of the training points"
         self.canRunInBackground = False
-        self.category = "Weights of Evidence"
+        self.category = f"{TS_PREPROCESSING}\\{TS_TRAINING_DATA_PROCESSING}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -1321,7 +1332,7 @@ class CategoricalAndReclassTool(object):
         self.label = "Categorical & Reclass"
         self.description = "Create fuzzy memberships for categorical data by first reclassification to integers and then division by an appropriate value."
         self.canRunInBackground = False
-        self.category = "Fuzzy Logic\\Fuzzy Membership"
+        self.category = f"{TS_PREPROCESSING}\\{TS_EVIDENCE_DATA_PROCESSING}\\{TS_FUZZY}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -1407,7 +1418,7 @@ class TOCFuzzificationTool(object):
         self.label = "TOC Fuzzification"
         self.description = "This fuzzification method utilized the symbolization of the input raster that has been applied in the map document table of contects (TOC). The symbolization in the TOC defines the number of classes and this tool rescales those classes (1...N) to the range [0,1] by (C - 1)/(N-1) where C is the class value and N is the number of classes."
         self.canRunInBackground = False
-        self.category = "Fuzzy Logic\\Fuzzy Membership"
+        self.category = f"{TS_PREPROCESSING}\\{TS_EVIDENCE_DATA_PROCESSING}\\{TS_FUZZY}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -1493,7 +1504,7 @@ class LogisticRegressionTool(object):
         self.label = "Logistic regression"
         self.description = "This tool is a useful complement to Weights-of-Evidence Calculate Response tool as Logistic Regression does not make the assumption of conditional independence of the evidence with regards to the training sites. Using the evidence and assocaited weights tables, this tool creates the outputs the response and standard deviation rasters. The calculations are based on the Gen_Class attribute in the weights table and the type of evidence. Please note that the Logistic Regression tool accepts a maximum of 6,000 unique conditions or it fails. Also note that there is an upper limit of 100,000 unit cells per class in each evidence raster layer. If a class in an evidence raster goes above this, the script contains a function to increase the unit cell size to ensure an upper limit of 100,000. These issues are unable to be fixed due to a hard coded limitation in the Logistic Regression executable sdmlr.exe."
         self.canRunInBackground = False
-        self.category = "Weights of Evidence"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -1624,7 +1635,7 @@ class LogisticRegressionPredictTool(object):
         self.label = "Logistic Regression Prediction"
         self.description = "Train and optionally validate a Logistic Regression classifier model using Sklearn."
         self.canRunInBackground = False
-        self.category = "Prediction"
+        self.category = TS_PREDICTIVE_MODELING
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -1785,7 +1796,7 @@ class AgterbergChengCITest(object):
         self.label = "Agterberg-Cheng CI Test"
         self.description = "Perform the Agterberg-Cheng Conditional Independence test (Agterberg & Cheng 2002) on a mineral prospectivity map and save the results to a file."
         self.canRunInBackground = False
-        self.category = "Weights of Evidence"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_WOFE}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -1869,7 +1880,7 @@ class FuzzyROC(object):
         self.label = "Fuzzy ROC"
         self.description = "Fuzzy Membership + Fuzzy Overlay + ROC"
         self.canRunInBackground = False
-        self.category = "Fuzzy Logic\\Fuzzy Membership"
+        self.category = TS_PREDICTIVE_MODELING
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -1955,7 +1966,7 @@ class FuzzyROC2(object):
         self.label = "Fuzzy ROC 2"
         self.description = "Fuzzy Membership + Fuzzy Overlay + ROC (Receiver Operator Characteristic)"
         self.canRunInBackground = False
-        self.category = "Fuzzy Logic\\Fuzzy Membership"
+        self.category = TS_PREDICTIVE_MODELING
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -2061,7 +2072,7 @@ class TrainMLPClassifierTool(object):
         self.label = "Train MLP Classifier"
         self.description = "Train a Multi-Layer Perceptron (MLP) classifier with the given parameters."
         self.canRunInBackground = False
-        self.category = "Prediction"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -2295,7 +2306,7 @@ class TrainMLPRegressorTool(object):
         self.label = "Train MLP Regressor"
         self.description = "Train a Multi-Layer Perceptron (MLP) regressor with the given parameters."
         self.canRunInBackground = False
-        self.category = "Prediction"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -2533,7 +2544,7 @@ class PCA(object):
         self.label = "Principal Component Analysis (Raster)"
         self.description = "Perform Principal Component Analysis on input rasters"
         self.canRunInBackground = False
-        self.category = "Exploratory Analysis"
+        self.category = TS_EXPLORATORY_DATA_ANALYSIS
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -2628,13 +2639,14 @@ class PCA(object):
         execute_tool(arcsdm.pca.Execute, self, parameters, messages)
         return
 
+
 class PCAVector(object):
     def __init__(self):
         """Principal Component Analysis (Vector)"""
         self.label = "Principal Component Analysis (Vector)"
         self.description = "Perform Principal Component Analysis on input vectors"
         self.canRunInBackground = False
-        self.category = "Exploratory Analysis"
+        self.category = TS_EXPLORATORY_DATA_ANALYSIS
 
     def getParameterInfo(self):
         """Define parameter definitions"""
