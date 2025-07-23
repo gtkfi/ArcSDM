@@ -12,7 +12,6 @@ import arcsdm.calculateweights
 import arcsdm.categoricalreclass
 import arcsdm.fuzzyroc
 import arcsdm.fuzzyroc2
-import arcsdm.grand_wofe_lr
 import arcsdm.logisticregression
 import arcsdm.logistic_regression_predict
 import arcsdm.mlp
@@ -55,7 +54,6 @@ class Toolbox(object):
             FuzzyROC,
             FuzzyROC2,
             GetSDMValues,
-            GrandWofe,
             LogisticRegressionTool,
             LogisticRegressionPredictTool,
             NeuralNetworkInputFiles,
@@ -70,98 +68,6 @@ class Toolbox(object):
             TrainMLPRegressorTool,
             PCAVector,
         ]
-
-
-class GrandWofe(object):
-    def __init__(self):
-        """Define the tool (tool name is the name of the class)."""
-        self.label = "Grand WOFE"
-        self.description = "From list of Evidence layers generate weights tables and output rasters from Calculate Respons and Logistic Regression."
-        self.canRunInBackground = False
-        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_WOFE}"
-
-    def getParameterInfo(self):
-        """Define parameter definitions"""
-        
-        param1 = arcpy.Parameter(
-        displayName="Grand WOFE name",
-        name="wofename",
-        datatype="String",
-        parameterType="Required",
-        direction="Input")
-        
-        param2 = arcpy.Parameter(
-        displayName="Input raster names",
-        name="rasternames",
-        datatype="GPRasterLayer",
-        multiValue=1,
-        parameterType="Required",
-        direction="Input")
-        
-        param3 = arcpy.Parameter(
-        displayName="Input raster types (use a, d, or c and separate by semicolon ;)",
-        name="rastertypes",
-        datatype="String",
-        parameterType="Required",
-        direction="Input")
-        
-        paramTrainingPoints = arcpy.Parameter(
-        displayName="Training points",
-        name="Training_points",
-        datatype="GPFeatureLayer",
-        parameterType="Required",
-        direction="Input")
-        
-        paramIgnoreMissing = arcpy.Parameter(
-        displayName="Ignore missing data (must be set to -99)",
-        name="Ignore missing data (-99)",
-        datatype="Boolean",
-        parameterType="Optional",
-        direction="Input")
-        
-        paramContrast = arcpy.Parameter(
-        displayName="Contrast Confidence Level",
-        name="contrast",
-        datatype="GPDouble",
-        parameterType="Required",
-        direction="Input")
-        paramContrast.value = "2"
-        
-        paramUnitArea = arcpy.Parameter(
-        displayName="Unit area (km2)",
-        name="Unit_Area__sq_km_",
-        datatype="GPDouble",
-        parameterType="Required",
-        direction="Input")
-        paramUnitArea.value = "1"
-
-        params = [param1, param2, param3, paramTrainingPoints, paramIgnoreMissing, paramContrast, paramUnitArea]
-        return params
-
-    def isLicensed(self):
-        """Set whether tool is licensed to execute."""
-        try:
-            if arcpy.CheckExtension("Spatial") != "Available":
-                raise Exception
-        except Exception:
-            return False
-        return True
-
-    def updateParameters(self, parameters):
-        """Modify the values and properties of parameters before internal
-        validation is performed. This method is called whenever a parameter
-        has been changed."""
-        return
-
-    def updateMessages(self, parameters):
-        """Modify the messages created by internal validation for each tool
-        parameter. This method is called after internal validation."""
-        return
-
-    def execute(self, parameters, messages):
-        """The source code of the tool."""
-        execute_tool(arcsdm.grand_wofe_lr.execute, self, parameters, messages)
-        return
 
 
 class PartitionNNInputFiles(object):
