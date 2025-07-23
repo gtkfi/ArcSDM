@@ -10,11 +10,14 @@ import arcsdm.calculateresponse_arcpy_wip
 import arcsdm.calculateresponse
 import arcsdm.calculateweights
 import arcsdm.categoricalreclass
+# import arcsdm.combine_outputnnfiles
 import arcsdm.fuzzyroc2
 import arcsdm.logisticregression
 import arcsdm.logistic_regression_predict
 import arcsdm.mlp
 import arcsdm.nninputfiles
+import arcsdm.nnoutputfiles
+# import arcsdm.partition_inputnnfiles
 import arcsdm.pca
 import arcsdm.roctool
 import arcsdm.sitereduction
@@ -49,22 +52,22 @@ class Toolbox(object):
             CalculateResponse,
             CalculateWeights,
             CategoricalAndReclassTool,
-            CombineNNOutputFiles,
+            # CombineNNOutputFiles,
             FuzzyROC2,
             GetSDMValues,
             LogisticRegressionTool,
             LogisticRegressionPredictTool,
             NeuralNetworkInputFiles,
             NeuralNetworkOutputFiles,
-            PartitionNNInputFiles,
-            PCA,
+            # PartitionNNInputFiles,
+            PCARaster,
+            PCAVector,
             ROCTool,
             SiteReductionTool,
             Symbolize,
             TOCFuzzificationTool,
             TrainMLPClassifierTool,
             TrainMLPRegressorTool,
-            PCAVector,
         ]
 
 
@@ -115,8 +118,8 @@ class PartitionNNInputFiles(object):
         """The source code of the tool."""
         #3.4
         try:
-            importlib.reload (arcsdm.partition_inputnnfiles)
-        except :
+            importlib.reload(arcsdm.partition_inputnnfiles)
+        except:
             reload(arcsdm.partition_inputnnfiles)
         
         arcsdm.partition_inputnnfiles.execute(self, parameters, messages)
@@ -177,8 +180,8 @@ class CombineNNOutputFiles(object):
         """The source code of the tool."""
         #3.4
         try:
-            importlib.reload (arcsdm.combine_outputnnfiles)
-        except :
+            importlib.reload(arcsdm.combine_outputnnfiles)
+        except:
             reload(arcsdm.combine_outputnnfiles)
         arcsdm.combine_outputnnfiles.execute(self, parameters, messages)
         return
@@ -266,8 +269,8 @@ class NeuralNetworkOutputFiles(object):
     def execute(self, parameters, messages):
         """The source code of the tool."""
         try:
-            importlib.reload (arcsdm.nnoutputfiles)
-        except :
+            importlib.reload(arcsdm.nnoutputfiles)
+        except:
             reload(arcsdm.nnoutputfiles)
         arcsdm.nnoutputfiles.execute(self, parameters, messages)
         return
@@ -392,8 +395,8 @@ class NeuralNetworkInputFiles(object):
     def execute(self, parameters, messages):
         """The source code of the tool."""
         try:
-            importlib.reload (arcsdm.nninputfiles)
-        except :
+            importlib.reload(arcsdm.nninputfiles)
+        except:
             reload(arcsdm.nninputfiles)
         arcsdm.nninputfiles.execute(self, parameters, messages)
         return
@@ -602,7 +605,7 @@ class ROCTool(object):
         #execute_tool(arcsdm.roctool.execute, self, parameters, messages)
         try:
             importlib.reload(arcsdm.roctool)
-        except :
+        except:
             reload(arcsdm.roctool)
         arcsdm.roctool.execute(self, parameters, messages)
         return
@@ -1222,8 +1225,8 @@ class SiteReductionTool(object):
         #For full debugging this disabled:
         #execute_tool(arcsdm.sitereduction.ReduceSites, self, parameters, messages)
         try:
-            importlib.reload (arcsdm.sitereduction)
-        except :
+            importlib.reload(arcsdm.sitereduction)
+        except:
             reload(arcsdm.sitereduction)
         arcsdm.sitereduction.ReduceSites(self, parameters, messages)
         return
@@ -1524,8 +1527,8 @@ class LogisticRegressionTool(object):
     def execute(self, parameters, messages):
         """The source code of the tool."""
         try:
-            importlib.reload (arcsdm.logisticregression)
-        except :
+            importlib.reload(arcsdm.logisticregression)
+        except:
             reload(arcsdm.logisticregression)
         arcsdm.logisticregression.Execute(self, parameters, messages)
         return
@@ -2356,7 +2359,7 @@ class TrainMLPRegressorTool(object):
         execute_tool(arcsdm.mlp.Execute_MLP_regressor, self, parameters, messages)
 
 
-class PCA(object):
+class PCARaster(object):
     def __init__(self):
         """Principal Component Analysis (Raster)"""
         self.label = "Principal Component Analysis (Raster)"
