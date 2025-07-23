@@ -14,9 +14,9 @@ Original implementation is included in EIS Toolkit (https://github.com/GispoCodi
 import sys
 import arcpy
 import numpy as np
+from arcsdm.exceptions import SDMError
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
-
 from utils.input_to_numpy_array import read_and_stack_rasters
 
 SCALERS = {"standard": StandardScaler, "min_max": MinMaxScaler, "robust": RobustScaler}
@@ -25,11 +25,61 @@ def Execute(self, parameters, messages):
     """The source code of the tool."""
     try:
         input_data = parameters[0].valueAsText.split(';')
-        nodata_value = np.float(parameters[1].value) # Convert to float for numpy operations
-        number_of_components = parameters[2].value
-        scaler_type = parameters[3].valueAsText
-        nodata_handling = parameters[4].valueAsText
-        transformed_data_output = parameters[5].valueAsText
+        input_dataType = arcpy.Describe(input_data[0]).dataType
+        is_vector = input_dataType == "FeatureLayer"
+
+        if (is_vector):
+            input_fields = parameters[1].valueAsText.split(';')
+            nodata_param = parameters[2].value
+            nodata_value = np.float(nodata_param) if nodata_param is not None else np.nan  # Convert to float for numpy operations
+            number_of_components = parameters[3].value
+            scaler_type = parameters[4].valueAsText
+            nodata_handling = parameters[5].valueAsText
+            transformed_data_output = parameters[6].valueAsText
+
+            rasterizedInputs = []
+            input_vector = input_data[0]
+            desc_input = arcpy.Describe(input_vector)
+            input_shape = desc_input.shapeType
+
+            for field in input_fields:
+                output_raster = f"in_memory\\raster__{input_vector}__{field}"
+
+                if input_shape == "Point":
+                    inputRaster = arcpy.conversion.PointToRaster(
+                        in_features=input_vector,
+                        value_field=field,
+                        out_rasterdataset=output_raster,
+                        cellsize=500
+                    )
+                elif input_shape == "Polyline":
+                    inputRaster = arcpy.conversion.PolylineToRaster(
+                        in_features=input_vector,
+                        value_field=field,
+                        out_rasterdataset=output_raster,
+                        cellsize=500
+                    )
+                elif input_shape == "Polygon":
+                    inputRaster = arcpy.conversion.PolygonToRaster(
+                        in_features=input_vector,
+                        value_field=field,
+                        out_rasterdataset=output_raster,
+                        cellsize=500
+                    )
+                else:
+                    raise SDMError(f"Unsupported vector type: {input_shape} in {input_vector}")
+
+                rasterizedInputs.append(arcpy.Raster(inputRaster))
+                
+            input_data = rasterizedInputs
+
+        else:
+            nodata_param = parameters[1].value
+            nodata_value = np.float(nodata_param) if nodata_param is not None else np.nan  # Convert to float for numpy operations
+            number_of_components = parameters[2].value
+            scaler_type = parameters[3].valueAsText
+            nodata_handling = parameters[4].valueAsText
+            transformed_data_output = parameters[5].valueAsText
             
         stacked_arrays = read_and_stack_rasters(input_data, nodata_handling = "convert_to_nan")
         
@@ -46,6 +96,11 @@ def Execute(self, parameters, messages):
         # Save output data
         if transformed_data.ndim is 2 or transformed_data.ndim is 3:
             desc_input = arcpy.Describe(input_data[0])
+
+            if hasattr(desc_input, "bandCount") and desc_input.bandCount > 1:
+                first_band = arcpy.ia.ExtractBand(input_data[0], band_ids=1)
+                desc_input = arcpy.Describe(first_band)
+
             transformed_data_raster = arcpy.NumPyArrayToRaster(transformed_data,
                                                             lower_left_corner=desc_input.extent.lowerLeft, 
                                                             x_cell_size=desc_input.meanCellWidth,

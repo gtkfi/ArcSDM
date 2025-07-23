@@ -10,7 +10,6 @@ import arcsdm.areafrequency
 import arcsdm.calculateresponse_arcpy_wip
 import arcsdm.calculateresponse
 import arcsdm.calculateweights
-import arcsdm.categoricalmembership
 import arcsdm.categoricalreclass
 import arcsdm.fuzzyroc
 import arcsdm.fuzzyroc2
@@ -41,7 +40,6 @@ class Toolbox(object):
             CalculateResponse,
             CalculateWeights,
             CategoricalAndReclassTool,
-            CategoricalMembershipTool,
             CombineNNOutputFiles,
             FuzzyROC,
             FuzzyROC2,
@@ -58,7 +56,8 @@ class Toolbox(object):
             Symbolize,
             TOCFuzzificationTool,
             TrainMLPClassifierTool,
-            TrainMLPRegressorTool
+            TrainMLPRegressorTool,
+            PCAVector,
         ]
 
 
@@ -1315,72 +1314,6 @@ class SiteReductionTool(object):
         return
 
 
-class CategoricalMembershipTool(object):
-    def __init__(self):
-        """Define the tool (tool name is the name of the class)."""
-        self.label = "Categorical Membership"
-        self.description = "Create fuzzy memberships for categorical data by first reclassification to integers and then division by an appropriate value"
-        self.canRunInBackground = False
-        self.category = "Fuzzy Logic\\Fuzzy Membership"
-
-    def getParameterInfo(self):
-        """Define parameter definitions"""
-        param0 = arcpy.Parameter(
-        displayName="Categorical evidence raster",
-        name="categorical_evidence",
-        datatype="GPRasterLayer",
-        parameterType="Required",
-        direction="Input")
-
-        param1 = arcpy.Parameter(
-        displayName="Reclassification",
-        name="reclassification",
-        datatype="GPTableView",
-        parameterType="Required",
-        direction="Input")
-
-        param2 = arcpy.Parameter(
-        displayName="Rescale Constant",
-        name="rescale_constant",
-        datatype="GPLong",
-        parameterType="Required",
-        direction="Input")
-
-        param3 = arcpy.Parameter(
-        displayName="FMCat",
-        name="fmcat",
-        datatype="DERasterDataset",
-        parameterType="Required",
-        direction="Output")
-        
-        params = [param0, param1, param2, param3]
-        return params
-
-    def isLicensed(self):
-        """Set whether tool is licensed to execute."""
-        try:
-            if arcpy.CheckExtension("Spatial") != "Available":
-                raise Exception
-        except Exception:
-            return False
-        return True
-
-    def updateParameters(self, parameters):
-        """Modify the values and properties of parameters before internal
-        validation is performed. This method is called whenever a parameter
-        has been changed."""
-        return
-
-    def updateMessages(self, parameters):
-        """Modify the messages created by internal validation for each tool
-        parameter. This method is called after internal validation."""
-        return
-
-    def execute(self, parameters, messages):
-        """The source code of the tool."""
-        execute_tool(arcsdm.categoricalmembership.Calculate, self, parameters, messages)
-        return
-
 
 class CategoricalAndReclassTool(object):
     def __init__(self):
@@ -2148,6 +2081,15 @@ class TrainMLPClassifierTool(object):
             parameterType="Required",
             direction="Input")
         
+        param_y_attribute = arcpy.Parameter(
+            displayName="Target Labels attribute",
+            name="y_attribute",
+            datatype="Field",
+            parameterType="Optional",
+            direction="Input")
+        
+        param_y_attribute.parameterDependencies = [param_y.name]
+        
         param_X_nodata_value = arcpy.Parameter(
             displayName="Input Feature NoData Value",
             name="X_nodata_value",
@@ -2307,6 +2249,7 @@ class TrainMLPClassifierTool(object):
 
         params = [param_X,
                   param_y,
+                  param_y_attribute,
                   param_X_nodata_value,
                   param_y_nodata_value,
                   param_neurons,
@@ -2371,6 +2314,15 @@ class TrainMLPRegressorTool(object):
             datatype=["GPRasterLayer", "GPFeatureLayer"],
             parameterType="Required",
             direction="Input")
+        
+        param_y_attribute = arcpy.Parameter(
+            displayName="Target Labels attribute",
+            name="y_attribute",
+            datatype="Field",
+            parameterType="Optional",
+            direction="Input")
+        
+        param_y_attribute.parameterDependencies = [param_y.name]
         
         param_X_nodata_value = arcpy.Parameter(
             displayName="Input Feature NoData Value",
@@ -2531,6 +2483,7 @@ class TrainMLPRegressorTool(object):
 
         params = [param_X,
                   param_y,
+                  param_y_attribute,
                   param_X_nodata_value,
                   param_y_nodata_value,
                   param_neurons,
@@ -2564,7 +2517,6 @@ class TrainMLPRegressorTool(object):
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal validation is performed. This method is called whenever a parameter has been changed."""
-        return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool parameter. This method is called after internal validation."""
@@ -2588,7 +2540,7 @@ class PCA(object):
         
         # Input data parameter
         param_input_rasters = arcpy.Parameter(
-            displayName="Input Raster Layer(s)",
+            displayName="Input Raster Layer(s) (min. 2 bands)",
             name="input_rasters",
             datatype=["GPRasterLayer", "GPRasterDataLayer"],
             parameterType="Required",
@@ -2669,6 +2621,121 @@ class PCA(object):
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
         parameter. This method is called after internal validation."""
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        execute_tool(arcsdm.pca.Execute, self, parameters, messages)
+        return
+
+class PCAVector(object):
+    def __init__(self):
+        """Principal Component Analysis (Vector)"""
+        self.label = "Principal Component Analysis (Vector)"
+        self.description = "Perform Principal Component Analysis on input vectors"
+        self.canRunInBackground = False
+        self.category = "Exploratory Analysis"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        
+        # Input data parameter
+        param_input_vectors = arcpy.Parameter(
+            displayName="Input Vector",
+            name="input_vectors",
+            datatype=["GPFeatureLayer"],
+            parameterType="Required",
+            direction="Input",
+        )
+
+        param_input_fields = arcpy.Parameter(
+            displayName="Select Fields (min. 2)",
+            name="input_fields",
+            datatype="Field",
+            parameterType="Required",
+            direction="Input",
+            multiValue=True
+        )
+        param_input_fields.parameterDependencies = [param_input_vectors.name]
+        
+        param_nodata_value = arcpy.Parameter(
+            displayName="NoData Value",
+            name="nodata_value",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input"
+        )
+        param_nodata_value.value = -99
+
+        param_num_components = arcpy.Parameter(
+            displayName="Number of Components",
+            name="num_components",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input"
+        )
+
+        param_scaler_type = arcpy.Parameter(
+            displayName="Scaler Type",
+            name="scaler_type",
+            datatype="GPString",
+            parameterType="Optional",
+            direction="Input"
+        )
+        param_scaler_type.filter.list = ["standard", "min_max", "robust"]
+        param_scaler_type.value = "standard"
+
+        param_nodata_handling = arcpy.Parameter(
+            displayName="Nodata Handling",
+            name="nodata_handling",
+            datatype="GPString",
+            parameterType="Optional",
+            direction="Input"
+        )
+        param_nodata_handling.filter.list = ["remove", "replace"]
+        param_nodata_handling.value = "remove"
+
+        param_transformed_data = arcpy.Parameter(
+            displayName="Transformed Data",
+            name="transformed_data",
+            datatype="DETable",
+            parameterType="Required",
+            direction="Output"
+        )
+        param_transformed_data.value = 'transformed_raster'
+
+        params = [param_input_vectors,
+                  param_input_fields,
+                  param_nodata_value,
+                  param_num_components,
+                  param_scaler_type,
+                  param_nodata_handling,
+                  param_transformed_data,
+                ]
+        return params
+
+    def isLicensed(self):
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal
+        validation is performed. This method is called whenever a parameter
+        has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool
+        parameter. This method is called after internal validation."""
+
+        if parameters[1].value and parameters[1].value.rowCount < 2:
+            parameters[1].setErrorMessage("Select Fields requires at least two fields.")
+        
         return
 
     def execute(self, parameters, messages):
