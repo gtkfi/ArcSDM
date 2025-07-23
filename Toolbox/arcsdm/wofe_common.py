@@ -145,6 +145,7 @@ def get_study_area_parameters(unit_cell_area_sq_km, training_points, output_txt_
         with open(output_txt_file, 'w') as f:  
             for message in messages:
                 f.write(message + "\n")
+            arcpy.SetParameter(2, f)
 
     return total_area_sq_km, float(str(training_point_count))
 

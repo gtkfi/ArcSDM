@@ -515,7 +515,7 @@ class GetSDMValues(object):
             name="file_log",
             datatype="File",
             parameterType="Optional",
-            direction="Input"
+            direction="Output"
         )
         
         params = [param_training_sites_feature, param_unit_cell_area, param_output_txt_file]
