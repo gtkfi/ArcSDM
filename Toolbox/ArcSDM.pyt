@@ -508,8 +508,16 @@ class GetSDMValues(object):
             direction="Input"
         )
         param_unit_cell_area.value = "1"
+
+        param_output_txt_file = arcpy.Parameter(
+            displayName="Log results to a file",
+            name="file_log",
+            datatype="File",
+            parameterType="Optional",
+            direction="Output"
+        )
         
-        params = [param_training_sites_feature, param_unit_cell_area]
+        params = [param_training_sites_feature, param_unit_cell_area, param_output_txt_file]
         return params
 
     def isLicensed(self):    

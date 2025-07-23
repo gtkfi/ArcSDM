@@ -13,9 +13,10 @@ def execute(self, parameters, messages):
     try:
         training_site_feature = parameters[0].valueAsText
         unit_cell_area_sq_km = parameters[1].value
+        param_output_txt_file = parameters[2].valueAsText
         
         log_arcsdm_details()
-        get_study_area_parameters(unit_cell_area_sq_km, training_site_feature)
+        get_study_area_parameters(unit_cell_area_sq_km, training_site_feature, param_output_txt_file)
         arcpy.AddMessage("\n" + "=" * 40)
     except arcpy.ExecuteError:
         arcpy.AddError(arcpy.GetMessages(2))
@@ -90,7 +91,7 @@ def get_selected_point_count(point_feature):
 
 # Similar to old sdmvalues.appendSDMValues, but with return values,
 # and less risk of calculating the study area size wrong
-def get_study_area_parameters(unit_cell_area_sq_km, training_points):
+def get_study_area_parameters(unit_cell_area_sq_km, training_points, output_txt_file = None):
     """
     Use the mask from the geoprocessing environment to calculate the total study area in km^2
     and the total number of training points. Log WofE parameters to the geoprocessor history.
@@ -107,19 +108,21 @@ def get_study_area_parameters(unit_cell_area_sq_km, training_points):
             Number of training points within the study area.
 
     """
-    arcpy.AddMessage("\n" + "=" * 10 + " WofE parameters " + "=" * 10)
+    messages = []
+
+    messages.append("\n" + "=" * 10 + " WofE parameters " + "=" * 10)
 
     total_area_sq_km = get_study_area_size_sq_km()
-    arcpy.AddMessage("%-20s %s" % ("Mask size (km^2):", str(total_area_sq_km)))
-    arcpy.AddMessage("%-20s %s" % ("Unit Cell Size:", unit_cell_area_sq_km))
+    messages.append("%-20s %s" % ("Mask size (km^2):", str(total_area_sq_km)))
+    messages.append("%-20s %s" % ("Unit Cell Size:", unit_cell_area_sq_km))
     
     unit_cell_area_sq_km = float(unit_cell_area_sq_km)
     unit_cells_count = float(total_area_sq_km) / unit_cell_area_sq_km
 
     training_point_count = get_selected_point_count(training_points)
 
-    arcpy.AddMessage("%-20s %s" % ("# Training Sites:", training_point_count))
-    arcpy.AddMessage("%-20s %s" % ("Unit Cell Area:", "{} km^2, Cells in area: {} ".format(unit_cell_area_sq_km, unit_cells_count)))
+    messages.append("%-20s %s" % ("# Training Sites:", training_point_count))
+    messages.append("%-20s %s" % ("Unit Cell Area:", "{} km^2, Cells in area: {} ".format(unit_cell_area_sq_km, unit_cells_count)))
 
     if unit_cells_count == 0:
         raise WofeInputError("ERROR: 0 Cells in Area!")
@@ -129,11 +132,20 @@ def get_study_area_parameters(unit_cell_area_sq_km, training_points):
     if not (0 < priorprob <= 1.0):
         raise WofeInputError(f"Incorrect no. of training sites or unit cell area. TrainingPointsResult {priorprob}")
 
-    arcpy.AddMessage("%-20s %0.6f" % ("Prior Probability:", priorprob))
-    arcpy.AddMessage("%-20s %s" % ("Training Points:", arcpy.Describe(training_points).catalogPath))
-    arcpy.AddMessage("%-20s %s" % ("Study Area Raster:", arcpy.Describe(arcpy.env.mask).catalogPath))
-    arcpy.AddMessage("%-20s %s" % ("Study Area Area:", str(total_area_sq_km) + " km^2"))
+    messages.append("%-20s %0.6f" % ("Prior Probability:", priorprob))
+    messages.append("%-20s %s" % ("Training Points:", arcpy.Describe(training_points).catalogPath))
+    messages.append("%-20s %s" % ("Study Area Raster:", arcpy.Describe(arcpy.env.mask).catalogPath))
+    messages.append("%-20s %s" % ("Study Area Area:", str(total_area_sq_km) + " km^2"))
     arcpy.AddMessage("")
+
+    for message in messages:
+        arcpy.AddMessage(message)
+
+    if (output_txt_file != None):
+        with open(output_txt_file, 'w') as f:  
+            for message in messages:
+                f.write(message + "\n")
+            arcpy.SetParameter(2, f)
 
     return total_area_sq_km, float(str(training_point_count))
 
