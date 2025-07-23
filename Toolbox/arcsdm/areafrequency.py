@@ -63,10 +63,8 @@ def Execute(self, parameters, messages):
     arcpy.AddMessage("\n" + "=" * 10 + " Starting area frequency " + "=" * 10)
 
     evidence_info = arcpy.Raster(evidence_raster)
-    if not evidence_info.hasRAT:
-        raise UserException(f"The evidence raster {evidence_raster} does not have an attribute table. Use 'Build Raster Attribute Table' tool to add it.")
 
-    if not value_field.strip().lower() in [n.baseName.strip().lower() for n in arcpy.ListFields(evidence_raster)]:
+    if evidence_info.hasRAT and not value_field.strip().lower() in [n.baseName.strip().lower() for n in arcpy.ListFields(evidence_raster)]:
         raise UserException(f"The evidence raster {evidence_raster} does not have a field {value_field}!")
     
     # NoData value to use internally
