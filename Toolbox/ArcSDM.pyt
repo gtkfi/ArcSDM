@@ -29,14 +29,14 @@ from arcsdm.common import execute_tool
 
 
 # Toolsets and sub-toolsets within ArcSDM toolbox
-TS_EXPLORATORY_DATA_ANALYSIS = "Exploratory data analysis"
+TS_EXPLORATORY_DATA_ANALYSIS = "Exploratory Data Analysis"
 TS_PREPROCESSING = "Preprocessing"
-TS_EVIDENCE_DATA_PROCESSING = "Evidence data processing"
-TS_FUZZY = "Fuzzy membership"
-TS_TRAINING_DATA_PROCESSING = "Training data processing"
+TS_EVIDENCE_DATA_PROCESSING = "Evidence Data Processing"
+TS_FUZZY = "Fuzzy Membership"
+TS_TRAINING_DATA_PROCESSING = "Training Data Processing"
 TS_PREDICTIVE_MODELING = "Predictive Modeling"
 TS_MACHINE_LEARNING = "Machine Learning"
-TS_ML_LEGACY = "Legacy neural network tools"
+TS_ML_LEGACY = "Legacy Neural Network Tools"
 TS_MODELING = "Modeling"
 TS_WOFE = "Weights of Evidence"
 TS_VALIDATION = "Validation"
@@ -75,7 +75,7 @@ class Toolbox(object):
 class PartitionNNInputFiles(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
-        self.label = "Partition NNInput Files"
+        self.label = "Partition NN Input Files"
         self.description = "Partitions Neural Network class.dta of more than 200,000 records into files of 200,000 or less."
         self.canRunInBackground = False
         self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}\\{TS_ML_LEGACY}"
@@ -130,7 +130,7 @@ class PartitionNNInputFiles(object):
 class CombineNNOutputFiles(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
-        self.label = "Combine NNOutput Files "
+        self.label = "Combine NN Output Files "
         self.description = "Combines PNN, FUZ, and RBN files generated from partitions of the class.dta file."
         self.canRunInBackground = False
         self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}\\{TS_ML_LEGACY}"
@@ -191,7 +191,7 @@ class CombineNNOutputFiles(object):
 class NeuralNetworkOutputFiles(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
-        self.label = "Neural network output files"
+        self.label = "Neural Network Output Files"
         self.description = "Generate files from output files of GeoXplore"
         self.canRunInBackground = False
         self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}\\{TS_ML_LEGACY}"
@@ -280,7 +280,7 @@ class NeuralNetworkOutputFiles(object):
 class NeuralNetworkInputFiles(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
-        self.label = "Neural network input files"
+        self.label = "Neural Network Input Files"
         self.description = "Use this tool to create the input ASCII files for the GeoXplore neural network. Before using this tool, the evidence must be combined into a unique conditions raster with the Combine tool and the band statistics must be obtained for all the evidence using the Band Collection Statistics tool. If desired fuzzy membership attribute can be added to each of the training sites. See the ArcMap Tools Options discussion in Usage Tips in the Help about adjusting default setting for this tool."
         self.canRunInBackground = False
         self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}\\{TS_ML_LEGACY}"
@@ -405,7 +405,7 @@ class NeuralNetworkInputFiles(object):
 
 class GetSDMValues(object):
     def __init__(self):
-        self.label = "Log WofE details"
+        self.label = "Log WofE Details"
         self.description = "This tool is used to view details related to the the training site and study area for Weights of Evidence."
         self.canRunInBackground = True
         self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_WOFE}"
@@ -615,7 +615,7 @@ class ROCTool(object):
 class Symbolize(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
-        self.label = "Symbolize raster with priorprobability (classified values)"
+        self.label = "Symbolize Raster with Prior Probability (Classified Values)"
         self.description = "This tool allows symbolizing prior probablity raster with predefined colorscheme from local raster_classified.lyr file"
         self.canRunInBackground = False
         self.category = "Utilities"
@@ -823,7 +823,7 @@ class CalculateResponseNew(object):
 class CalculateResponse(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
-        self.label = "Calculate response"
+        self.label = "Calculate Response"
         self.description = "Use this tool to combine the evidence weighted by their associated generalization in the weights-of-evidence table. This tool calculates the posterior probability, standard deviation (uncertainty) due to weights, variance (uncertainty) due to missing data, and the total standard deviation (uncertainty) based on the evidence and how the evidence is generalized in the associated weights-of-evidence tables.The calculations use the Weight and W_Std in the weights table from Calculate Weights."
         self.canRunInBackground = False
         self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_WOFE}"
@@ -969,7 +969,7 @@ class CalculateResponse(object):
 class CalculateWeights(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
-        self.label = "Calculate weights"
+        self.label = "Calculate Weights"
         self.description = "Calculate weight rasters from the inputs"
         self.canRunInBackground = True
         self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_WOFE}"
@@ -1122,7 +1122,7 @@ class CalculateWeights(object):
 class SiteReductionTool(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
-        self.label = "Training sites reduction"
+        self.label = "Training Sites Reduction"
         self.description = "Selects subset of the training points"
         self.canRunInBackground = False
         self.category = f"{TS_PREPROCESSING}\\{TS_TRAINING_DATA_PROCESSING}"
@@ -1409,7 +1409,7 @@ class TOCFuzzificationTool(object):
 class LogisticRegressionTool(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
-        self.label = "Logistic regression"
+        self.label = "Logistic Regression"
         self.description = "This tool is a useful complement to Weights-of-Evidence Calculate Response tool as Logistic Regression does not make the assumption of conditional independence of the evidence with regards to the training sites. Using the evidence and assocaited weights tables, this tool creates the outputs the response and standard deviation rasters. The calculations are based on the Gen_Class attribute in the weights table and the type of evidence. Please note that the Logistic Regression tool accepts a maximum of 6,000 unique conditions or it fails. Also note that there is an upper limit of 100,000 unit cells per class in each evidence raster layer. If a class in an evidence raster goes above this, the script contains a function to increase the unit cell size to ensure an upper limit of 100,000. These issues are unable to be fixed due to a hard coded limitation in the Logistic Regression executable sdmlr.exe."
         self.canRunInBackground = False
         self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}"
