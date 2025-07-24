@@ -10,14 +10,14 @@ import arcsdm.calculateresponse_arcpy_wip
 import arcsdm.calculateresponse
 import arcsdm.calculateweights
 import arcsdm.categoricalreclass
-# import arcsdm.combine_outputnnfiles
+import arcsdm.combine_outputnnfiles
 import arcsdm.fuzzyroc2
 import arcsdm.logisticregression
 import arcsdm.logistic_regression_predict
 import arcsdm.mlp
 import arcsdm.nninputfiles
 import arcsdm.nnoutputfiles
-# import arcsdm.partition_inputnnfiles
+import arcsdm.partition_inputnnfiles
 import arcsdm.pca
 import arcsdm.roctool
 import arcsdm.sitereduction
@@ -36,6 +36,7 @@ TS_FUZZY = "Fuzzy membership"
 TS_TRAINING_DATA_PROCESSING = "Training data processing"
 TS_PREDICTIVE_MODELING = "Predictive Modeling"
 TS_MACHINE_LEARNING = "Machine Learning"
+TS_ML_LEGACY = "Legacy neural network tools"
 TS_MODELING = "Modeling"
 TS_WOFE = "Weights of Evidence"
 TS_VALIDATION = "Validation"
@@ -52,14 +53,14 @@ class Toolbox(object):
             CalculateResponse,
             CalculateWeights,
             CategoricalAndReclassTool,
-            # CombineNNOutputFiles,
+            CombineNNOutputFiles,
             FuzzyROC2,
             GetSDMValues,
             LogisticRegressionTool,
             LogisticRegressionPredictTool,
             NeuralNetworkInputFiles,
             NeuralNetworkOutputFiles,
-            # PartitionNNInputFiles,
+            PartitionNNInputFiles,
             PCARaster,
             PCAVector,
             ROCTool,
@@ -77,7 +78,7 @@ class PartitionNNInputFiles(object):
         self.label = "Partition NNInput Files"
         self.description = "Partitions Neural Network class.dta of more than 200,000 records into files of 200,000 or less."
         self.canRunInBackground = False
-        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}\\{TS_ML_LEGACY}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -132,7 +133,7 @@ class CombineNNOutputFiles(object):
         self.label = "Combine NNOutput Files "
         self.description = "Combines PNN, FUZ, and RBN files generated from partitions of the class.dta file."
         self.canRunInBackground = False
-        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}\\{TS_ML_LEGACY}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -193,7 +194,7 @@ class NeuralNetworkOutputFiles(object):
         self.label = "Neural network output files"
         self.description = "Generate files from output files of GeoXplore"
         self.canRunInBackground = False
-        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}\\{TS_ML_LEGACY}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -282,7 +283,7 @@ class NeuralNetworkInputFiles(object):
         self.label = "Neural network input files"
         self.description = "Use this tool to create the input ASCII files for the GeoXplore neural network. Before using this tool, the evidence must be combined into a unique conditions raster with the Combine tool and the band statistics must be obtained for all the evidence using the Band Collection Statistics tool. If desired fuzzy membership attribute can be added to each of the training sites. See the ArcMap Tools Options discussion in Usage Tips in the Help about adjusting default setting for this tool."
         self.canRunInBackground = False
-        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}\\{TS_ML_LEGACY}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
