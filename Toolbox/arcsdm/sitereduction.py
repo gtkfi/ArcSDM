@@ -119,7 +119,7 @@ def ReduceSites(self, parameters, messages):
         e = sys.exc_info()[1]
         arcpy.AddError(f"Training sites reduction caught arcpy.ExecuteError: {e.args[0]}")
 
-    except Exception:
+    except:
         e = sys.exc_info()
         tb = e[2]
         # tbinfo contains the line number that the code failed on and the code from that line

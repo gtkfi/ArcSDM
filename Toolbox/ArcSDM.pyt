@@ -883,15 +883,8 @@ class SiteReductionTool(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        #For full debugging this disabled:
-        #execute_tool(arcsdm.sitereduction.ReduceSites, self, parameters, messages)
-        try:
-            importlib.reload(arcsdm.sitereduction)
-        except:
-            reload(arcsdm.sitereduction)
-        arcsdm.sitereduction.ReduceSites(self, parameters, messages)
+        execute_tool(arcsdm.sitereduction.ReduceSites, self, parameters, messages)
         return
-
 
 
 class CategoricalAndReclassTool(object):
