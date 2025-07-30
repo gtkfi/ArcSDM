@@ -52,7 +52,7 @@ class Toolbox(object):
             PCAVector,
             ROCTool,
             SiteReductionTool,
-            Symbolize,
+            # Symbolize,
             TOCFuzzificationTool,
             TrainMLPClassifierTool,
             TrainMLPRegressorTool,
