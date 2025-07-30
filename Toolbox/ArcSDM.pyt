@@ -11,7 +11,6 @@ import arcsdm.calculateresponse
 import arcsdm.calculateweights
 import arcsdm.categoricalreclass
 import arcsdm.fuzzyroc2
-import arcsdm.logisticregression
 import arcsdm.logistic_regression_predict
 import arcsdm.mlp
 import arcsdm.pca
@@ -50,7 +49,6 @@ class Toolbox(object):
             CategoricalAndReclassTool,
             FuzzyROC2,
             GetSDMValues,
-            LogisticRegressionTool,
             LogisticRegressionPredictTool,
             PCARaster,
             PCAVector,
@@ -1064,137 +1062,6 @@ class TOCFuzzificationTool(object):
         """The source code of the tool."""
         execute_tool(arcsdm.tocfuzzification.Calculate, self, parameters, messages)
         return
-
-
-class LogisticRegressionTool(object):
-    def __init__(self):
-        """Define the tool (tool name is the name of the class)."""
-        self.label = "Logistic Regression"
-        self.description = "This tool is a useful complement to Weights-of-Evidence Calculate Response tool as Logistic Regression does not make the assumption of conditional independence of the evidence with regards to the training sites. Using the evidence and assocaited weights tables, this tool creates the outputs the response and standard deviation rasters. The calculations are based on the Gen_Class attribute in the weights table and the type of evidence. Please note that the Logistic Regression tool accepts a maximum of 6,000 unique conditions or it fails. Also note that there is an upper limit of 100,000 unit cells per class in each evidence raster layer. If a class in an evidence raster goes above this, the script contains a function to increase the unit cell size to ensure an upper limit of 100,000. These issues are unable to be fixed due to a hard coded limitation in the Logistic Regression executable sdmlr.exe."
-        self.canRunInBackground = False
-        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}"
-
-    def getParameterInfo(self):
-        """Define parameter definitions"""
-        param0 = arcpy.Parameter(
-        displayName="Input Raster Layer(s)",
-        name="Input_evidence_raster_layers",
-        datatype="GPValueTable",
-        parameterType="Required",
-        direction="Input")
-        param0.columns = [['GPRasterLayer', 'Evidence raster']]
-        
-        param1 = arcpy.Parameter(
-        displayName="Evidence types (use a, c, d, or o and separate by semicolon ;)",
-        name="Evidence_Type",
-        datatype="String",
-        parameterType="Required",
-        direction="Input")
-
-        paramInputWeights = arcpy.Parameter(
-        displayName="Input weights tables",
-        name="input_weights_tables",
-        datatype="GPValueTable",
-        parameterType="Required",
-        direction="Input")
-        paramInputWeights.columns = [['DETable', 'Weights table']]
-
-        param2 = arcpy.Parameter(
-        displayName="Training sites",
-        name="training_sites",
-        datatype="GPFeatureLayer",
-        parameterType="Required",
-        direction="Input")
-        
-        param3 = arcpy.Parameter(
-        displayName="Missing data value",
-        name="Missing_Data_Value",
-        datatype="GPLong",
-        parameterType="Required",
-        direction="Input")
-        param3.value= -99
-
-        param4 = arcpy.Parameter(
-        displayName="Unit area (km^2)",
-        name="Unit_Area_sq_km",
-        datatype="GPDouble",
-        parameterType="Required",
-        direction="Input")
-        param4.value = "1"
-        
-        param5 = arcpy.Parameter(
-        displayName="Output polynomial table",
-        name="Output_Polynomial_Table",
-        datatype="DEDbaseTable",
-        parameterType="Required",
-        direction="Output")
-        param5.value = "%Workspace%\LR_logpol"
-                
-        param52 = arcpy.Parameter(
-        displayName="Output coefficients table",
-        name="Output_Coefficients_Table",
-        datatype="DEDbaseTable",
-        parameterType="Required",
-        direction="Output")
-        param52.value = "%Workspace%\LR_coeff"
-        
-        param6 = arcpy.Parameter(
-        displayName="Output post probablity raster",
-        name="Output_Post_Probability_raster",
-        datatype="DERasterDataset",
-        parameterType="Required",
-        direction="Output")
-        param6.value = "%Workspace%\LR_pprb"
-        
-        param62 = arcpy.Parameter(
-        displayName="Output standard deviation raster",
-        name="Output_Standard_Deviation_raster",
-        datatype="DERasterDataset",
-        parameterType="Required",
-        direction="Output")
-        param62.value = "%Workspace%\LR_std"
-        
-        param63 = arcpy.Parameter(
-        displayName="Output confidence raster",
-        name="Output_Confidence_raster",
-        datatype="DERasterDataset",
-        parameterType="Required",
-        direction="Output")
-        param63.value = "%Workspace%\LR_conf"
-                                  
-        params = [param0, param1, paramInputWeights, param2, param3, param4, param5, param52, param6, param62, param63]
-        return params
-
-    def isLicensed(self):
-        """Set whether tool is licensed to execute."""
-        try:
-            if arcpy.CheckExtension("Spatial") != "Available":
-                raise Exception
-        except Exception:
-            return False
-        return True
-
-    def updateParameters(self, parameters):
-        """Modify the values and properties of parameters before internal
-        validation is performed. This method is called whenever a parameter
-        has been changed."""
-        return
-
-    def updateMessages(self, parameters):
-        """Modify the messages created by internal validation for each tool
-        parameter. This method is called after internal validation."""
-        return
-
-    def execute(self, parameters, messages):
-        """The source code of the tool."""
-        try:
-            importlib.reload(arcsdm.logisticregression)
-        except:
-            reload(arcsdm.logisticregression)
-        arcsdm.logisticregression.Execute(self, parameters, messages)
-        return
-        
-        #execute_tool(arcsdm.logisticregression.Execute, self, parameters, messages)
 
 
 class LogisticRegressionPredictTool(object):
