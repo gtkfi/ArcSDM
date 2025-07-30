@@ -1445,7 +1445,7 @@ class AgterbergChengCITest(object):
 class FuzzyROC2(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
-        self.label = "Fuzzy ROC 2"
+        self.label = "Fuzzy ROC"
         self.description = "Fuzzy Membership + Fuzzy Overlay + ROC (Receiver Operator Characteristic)"
         self.canRunInBackground = False
         self.category = TS_PREDICTIVE_MODELING
