@@ -132,7 +132,7 @@ class AreaFrequencyTable(object):
         self.label = "Area Frequency Table"
         self.description = "Create a table for charting area of evidence classes vs number of training sites."
         self.canRunInBackground = False
-        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_WOFE}"
+        self.category = TS_VALIDATION
 
     def getParameterInfo(self):
         """Define parameter definitions"""
