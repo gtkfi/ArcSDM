@@ -11,7 +11,6 @@ import arcsdm.calculateresponse
 import arcsdm.calculateweights
 import arcsdm.categoricalreclass
 import arcsdm.fuzzyroc2
-import arcsdm.logistic_regression_predict
 import arcsdm.mlp
 import arcsdm.pca
 import arcsdm.roctool
@@ -49,7 +48,6 @@ class Toolbox(object):
             CategoricalAndReclassTool,
             FuzzyROC2,
             GetSDMValues,
-            LogisticRegressionPredictTool,
             PCARaster,
             PCAVector,
             ROCTool,
@@ -1061,168 +1059,7 @@ class TOCFuzzificationTool(object):
     def execute(self, parameters, messages):
         """The source code of the tool."""
         execute_tool(arcsdm.tocfuzzification.Calculate, self, parameters, messages)
-        return
-
-
-class LogisticRegressionPredictTool(object):
-    def __init__(self):
-        """Define the tool (tool name is the name of the class)."""
-        self.label = "Logistic Regression Prediction"
-        self.description = "Train and optionally validate a Logistic Regression classifier model using Sklearn."
-        self.canRunInBackground = False
-        self.category = TS_PREDICTIVE_MODELING
-
-    def getParameterInfo(self):
-        """Define parameter definitions"""
-
-        param_X = arcpy.Parameter(
-            displayName="Input Features",
-            name="X",
-            datatype=["GPRasterLayer"],
-            parameterType="Required",
-            multiValue=True,
-            direction="Input")
-
-        param_y = arcpy.Parameter(
-            displayName="Target Labels",
-            name="y",
-            datatype=["GPRasterLayer", "GPFeatureLayer"],
-            parameterType="Required",
-            direction="Input")
-        
-        param_X_nodata_value = arcpy.Parameter(
-            displayName="Input Feature NoData Value",
-            name="X_nodata_value",
-            datatype="GPLong",
-            parameterType="Optional",
-            direction="Input")
-        param_X_nodata_value.value = -99
-        
-        param_y_nodata_value = arcpy.Parameter(
-            displayName="Label NoData Value",
-            name="y_nodata_value",
-            datatype="GPLong",
-            parameterType="Optional",
-            direction="Input")
-
-        param_validation_method = arcpy.Parameter(
-            displayName="Validation Method",
-            name="validation_method",
-            datatype="GPString",
-            parameterType="Optional",
-            direction="Input"
-        )
-        param_validation_method.filter.list = ["split", "kfold_cv", "skfold_cv", "loo_cv", "none"]
-        param_validation_method.value = "split"
-
-        param_metrics = arcpy.Parameter(
-            displayName="Metrics",
-            name="metrics",
-            datatype="GPString",
-            parameterType="Optional",
-            direction="Input",
-            multiValue=True
-        )
-        param_metrics.filter.list = ["accuracy", "precision", "recall", "f1", "auc"]
-        param_metrics.value = ["accuracy"]
-
-        param_split_size = arcpy.Parameter(
-            displayName="Split Size",
-            name="split_size",
-            datatype="GPDouble",
-            parameterType="Optional",
-            direction="Input"
-        )
-        param_split_size.value = 0.2
-
-        param_cv_folds = arcpy.Parameter(
-            displayName="Number of CV Folds",
-            name="cv_folds",
-            datatype="GPLong",
-            parameterType="Optional",
-            direction="Input"
-        )
-        param_cv_folds.value = 5
-
-        param_penalty = arcpy.Parameter(
-            displayName="Penalty",
-            name="penalty",
-            datatype="GPString",
-            parameterType="Optional",
-            direction="Input"
-        )
-        param_penalty.filter.list = ["l1", "l2", "elasticnet", "none"]
-        param_penalty.value = "l2"
-
-        param_max_iter = arcpy.Parameter(
-            displayName="Maximum Iterations",
-            name="max_iter",
-            datatype="GPLong",
-            parameterType="Optional",
-            direction="Input"
-        )
-        param_max_iter.value = 100
-
-        param_solver = arcpy.Parameter(
-            displayName="Solver",
-            name="solver",
-            datatype="GPString",
-            parameterType="Optional",
-            direction="Input"
-        )
-        param_solver.filter.list = ["lbfgs", "liblinear", "newton-cg", "newton-cholesky", "sag", "saga"]
-        param_solver.value = "lbfgs"
-
-        param_verbose = arcpy.Parameter(
-            displayName="Verbose",
-            name="verbose",
-            datatype="GPLong",
-            parameterType="Optional",
-            direction="Input"
-        )
-        param_verbose.value = 0
-
-        param_random_state = arcpy.Parameter(
-            displayName="Random State",
-            name="random_state",
-            datatype="GPLong",
-            parameterType="Optional",
-            direction="Input"
-        )
-        param_random_state.value = None
-        
-        param_output_model = arcpy.Parameter(
-            displayName="Output Model",
-            name="output_model",
-            datatype="DEFile",
-            parameterType="Required",
-            direction="Output"
-        )
-        param_output_model.value = "output_model_log_res"
-
-        params = [
-            param_X, param_y, param_X_nodata_value, param_y_nodata_value, param_validation_method, param_metrics, param_split_size,
-            param_cv_folds, param_penalty, param_max_iter, param_solver, param_verbose, param_random_state,
-            param_output_model
-        ]
-        return params
-
-    def isLicensed(self):
-        """Set whether tool is licensed to execute."""
-        return True
-
-    def updateParameters(self, parameters):
-        """Modify the values and properties of parameters before internal validation is performed."""
-        return
-
-    def updateMessages(self, parameters):
-        """Modify the messages created by internal validation for each tool parameter."""
-        return
-
-    def execute(self, parameters, messages):
-        """The source code of the tool."""
-        execute_tool(arcsdm.logistic_regression_predict.Execute, self, parameters, messages)
-        return  
+        return 
 
 
 class AgterbergChengCITest(object):
