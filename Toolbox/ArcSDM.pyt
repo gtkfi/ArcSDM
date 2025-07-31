@@ -4,22 +4,15 @@ import os
 
 from imp import reload
 
-
 import arcsdm.agterbergchengci
 import arcsdm.areafrequency
 import arcsdm.calculateresponse_arcpy_wip
 import arcsdm.calculateresponse
 import arcsdm.calculateweights
 import arcsdm.categoricalreclass
-import arcsdm.fuzzyroc
 import arcsdm.fuzzyroc2
-import arcsdm.grand_wofe_lr
-import arcsdm.logisticregression
-import arcsdm.logistic_regression_predict
 import arcsdm.mlp
-import arcsdm.nninputfiles
 import arcsdm.pca
-import arcsdm.rescale_raster
 import arcsdm.roctool
 import arcsdm.sitereduction
 import arcsdm.symbolize
@@ -27,6 +20,23 @@ import arcsdm.tocfuzzification
 import arcsdm.wofe_common
 
 from arcsdm.common import execute_tool
+
+
+# Toolsets and sub-toolsets within ArcSDM toolbox
+TS_EXPLORATORY_DATA_ANALYSIS = "Exploratory Data Analysis"
+TS_PREPROCESSING = "Preprocessing"
+TS_EVIDENCE_DATA_PROCESSING = "Evidence Data Processing"
+TS_FUZZY = "Fuzzy Membership"
+TS_TRAINING_DATA_PROCESSING = "Training Data Processing"
+TS_PREDICTIVE_MODELING = "Predictive Modeling"
+TS_MACHINE_LEARNING = "Machine Learning"
+TS_MODELING = "Modeling"
+TS_CLASSIFIER_TESTING = "Classifier Testing"
+TS_REGRESSOR_TESTING = "Regressor Testing"
+TS_CLASSIFIER_APPLICATION = "Classifier Application"
+TS_REGRESSOR_APPLICATION = "Regressor Application"
+TS_WOFE = "Weights of Evidence"
+TS_VALIDATION = "Validation"
 
 
 class Toolbox(object):
@@ -40,456 +50,25 @@ class Toolbox(object):
             CalculateResponse,
             CalculateWeights,
             CategoricalAndReclassTool,
-            CombineNNOutputFiles,
-            FuzzyROC,
             FuzzyROC2,
             GetSDMValues,
-            GrandWofe,
-            LogisticRegressionTool,
-            LogisticRegressionPredictTool,
-            NeuralNetworkInputFiles,
-            NeuralNetworkOutputFiles,
-            PartitionNNInputFiles,
-            PCA,
+            PCARaster,
+            PCAVector,
             ROCTool,
             SiteReductionTool,
-            Symbolize,
+            # Symbolize,
             TOCFuzzificationTool,
             TrainMLPClassifierTool,
             TrainMLPRegressorTool,
-            PCAVector,
         ]
-
-
-class GrandWofe(object):
-    def __init__(self):
-        """Define the tool (tool name is the name of the class)."""
-        self.label = "Grand WOFE"
-        self.description = "From list of Evidence layers generate weights tables and output rasters from Calculate Respons and Logistic Regression."
-        self.canRunInBackground = False
-        self.category = "Weights of Evidence"
-
-    def getParameterInfo(self):
-        """Define parameter definitions"""
-        
-        param1 = arcpy.Parameter(
-        displayName="Grand WOFE name",
-        name="wofename",
-        datatype="String",
-        parameterType="Required",
-        direction="Input")
-        
-        param2 = arcpy.Parameter(
-        displayName="Input raster names",
-        name="rasternames",
-        datatype="GPRasterLayer",
-        multiValue=1,
-        parameterType="Required",
-        direction="Input")
-        
-        param3 = arcpy.Parameter(
-        displayName="Input raster types (use a, d, or c and separate by semicolon ;)",
-        name="rastertypes",
-        datatype="String",
-        parameterType="Required",
-        direction="Input")
-        
-        paramTrainingPoints = arcpy.Parameter(
-        displayName="Training points",
-        name="Training_points",
-        datatype="GPFeatureLayer",
-        parameterType="Required",
-        direction="Input")
-        
-        paramIgnoreMissing = arcpy.Parameter(
-        displayName="Ignore missing data (must be set to -99)",
-        name="Ignore missing data (-99)",
-        datatype="Boolean",
-        parameterType="Optional",
-        direction="Input")
-        
-        paramContrast = arcpy.Parameter(
-        displayName="Contrast Confidence Level",
-        name="contrast",
-        datatype="GPDouble",
-        parameterType="Required",
-        direction="Input")
-        paramContrast.value = "2"
-        
-        paramUnitArea = arcpy.Parameter(
-        displayName="Unit area (km2)",
-        name="Unit_Area__sq_km_",
-        datatype="GPDouble",
-        parameterType="Required",
-        direction="Input")
-        paramUnitArea.value = "1"
-
-        params = [param1, param2, param3, paramTrainingPoints, paramIgnoreMissing, paramContrast, paramUnitArea]
-        return params
-
-    def isLicensed(self):
-        """Set whether tool is licensed to execute."""
-        try:
-            if arcpy.CheckExtension("Spatial") != "Available":
-                raise Exception
-        except Exception:
-            return False
-        return True
-
-    def updateParameters(self, parameters):
-        """Modify the values and properties of parameters before internal
-        validation is performed. This method is called whenever a parameter
-        has been changed."""
-        return
-
-    def updateMessages(self, parameters):
-        """Modify the messages created by internal validation for each tool
-        parameter. This method is called after internal validation."""
-        return
-
-    def execute(self, parameters, messages):
-        """The source code of the tool."""
-        execute_tool(arcsdm.grand_wofe_lr.execute, self, parameters, messages)
-        return
-
-
-class PartitionNNInputFiles(object):
-    def __init__(self):
-        """Define the tool (tool name is the name of the class)."""
-        self.label = "Partition NNInput Files"
-        self.description = "Partitions Neural Network class.dta of more than 200,000 records into files of 200,000 or less."
-        self.canRunInBackground = False
-        self.category = "Neural network"
-
-    def getParameterInfo(self):
-        """Define parameter definitions"""
-        
-        paramInputFiles = arcpy.Parameter(
-        displayName="Input class.dat file",
-        name="inputfiles",
-        #datatype="DEFeatureClass",
-        datatype="File",
-        parameterType="Required",
-        direction="Input")
-        
-        params = [paramInputFiles]
-        return params
-
-    def isLicensed(self):    
-        """Set whether tool is licensed to execute."""
-        try:
-            if arcpy.CheckExtension("Spatial") != "Available":
-                raise Exception
-        except Exception:
-            return False
-        return True
-
-    def updateParameters(self, parameters):
-        """Modify the values and properties of parameters before internal
-        validation is performed. This method is called whenever a parameter
-        has been changed."""
-        return
-
-    def updateMessages(self, parameters):
-        """Modify the messages created by internal validation for each tool
-        parameter. This method is called after internal validation."""
-     
-        return
-
-    def execute(self, parameters, messages):
-        """The source code of the tool."""
-        #3.4
-        try:
-            importlib.reload (arcsdm.partition_inputnnfiles)
-        except :
-            reload(arcsdm.partition_inputnnfiles)
-        
-        arcsdm.partition_inputnnfiles.execute(self, parameters, messages)
-        return
-        
-        
-class CombineNNOutputFiles(object):
-    def __init__(self):
-        """Define the tool (tool name is the name of the class)."""
-        self.label = "Combine NNOutput Files "
-        self.description = "Combines PNN, FUZ, and RBN files generated from partitions of the class.dta file."
-        self.canRunInBackground = False
-        self.category = "Neural network"
-
-    def getParameterInfo(self):
-        """Define parameter definitions"""
-        
-        paramInputFiles = arcpy.Parameter(
-        displayName="Input RBN, FUZ, PNN files",
-        name="inputfiles",
-        #datatype="DEFeatureClass",
-        datatype="File",
-        multiValue=1,
-        parameterType="Required",
-        direction="Input")
-
-        paramOutputFile = arcpy.Parameter(
-        displayName="Output file",
-        name="outputfile",
-        datatype="file",
-        parameterType="Required",
-        direction="Output")
-        params = [paramInputFiles, paramOutputFile]
-        return params
-
-    def isLicensed(self):    
-        """Set whether tool is licensed to execute."""
-        try:
-            if arcpy.CheckExtension("Spatial") != "Available":
-                raise Exception
-        except Exception:
-            return False
-        return True
-
-    def updateParameters(self, parameters):
-        """Modify the values and properties of parameters before internal
-        validation is performed. This method is called whenever a parameter
-        has been changed."""
-        return
-
-    def updateMessages(self, parameters):
-        """Modify the messages created by internal validation for each tool
-        parameter. This method is called after internal validation."""
-     
-        return
-
-    def execute(self, parameters, messages):
-        """The source code of the tool."""
-        #3.4
-        try:
-            importlib.reload (arcsdm.combine_outputnnfiles)
-        except :
-            reload(arcsdm.combine_outputnnfiles)
-        arcsdm.combine_outputnnfiles.execute(self, parameters, messages)
-        return
-
-
-class NeuralNetworkOutputFiles(object):
-    def __init__(self):
-        """Define the tool (tool name is the name of the class)."""
-        self.label = "Neural network output files"
-        self.description = "Generate files from output files of GeoXplore"
-        self.canRunInBackground = False
-        self.category = "Neural network"
-
-    def getParameterInfo(self):
-        """Define parameter definitions"""
-        
-        paramInputRaster = arcpy.Parameter(
-        displayName="Unique Conditions raster",
-        name="inputraster",
-        #datatype="DEFeatureClass",
-        datatype="GPRasterLayer",
-        parameterType="Required",
-        direction="Input")
-        
-        paramRBFNFile = arcpy.Parameter(
-        displayName="RBFN file name, .rbn file",
-        name="rbfnfile",
-        datatype="File",
-        parameterType="Optional",
-        direction="Input")
-        
-        paramPNNFile = arcpy.Parameter(
-        displayName="PNN file name, .pnn file",
-        name="pnnfile",
-        datatype="File",
-        parameterType="Optional",
-        direction="Input")
-        
-        paramFuzFile = arcpy.Parameter(
-        displayName="Fuzzy Classification file name, .fuz file",
-        name="fuzfile",
-        datatype="File",
-        parameterType="Optional",
-        direction="Input")
-        
-        paramOutputTable = arcpy.Parameter(
-        displayName="Output result table",
-        name="resulttable",
-        datatype="DeTable",
-        parameterType="Required",
-        direction="Output")
-
-        param_outras = arcpy.Parameter(
-        displayName="Output raster",
-        name="outputraster",
-        datatype="DERasterDataset",
-        parameterType="Required",
-        direction="Output")
-        # Is this needed?
-        #param_pprb.value = "%Workspace%\neuralnetwork_outras"
-        # End
-        params = [paramInputRaster, paramRBFNFile, paramPNNFile, paramFuzFile, paramOutputTable, param_outras]
-        return params
-
-    def isLicensed(self):    
-        """Set whether tool is licensed to execute."""
-        try:
-            if arcpy.CheckExtension("Spatial") != "Available":
-                raise Exception
-        except Exception:
-            return False
-        return True
-
-    def updateParameters(self, parameters):
-        """Modify the values and properties of parameters before internal
-        validation is performed. This method is called whenever a parameter
-        has been changed."""
-        return
-
-    def updateMessages(self, parameters):
-        """Modify the messages created by internal validation for each tool
-        parameter. This method is called after internal validation."""
-        return
-
-    def execute(self, parameters, messages):
-        """The source code of the tool."""
-        try:
-            importlib.reload (arcsdm.nnoutputfiles)
-        except :
-            reload(arcsdm.nnoutputfiles)
-        arcsdm.nnoutputfiles.execute(self, parameters, messages)
-        return
-
-
-class NeuralNetworkInputFiles(object):
-    def __init__(self):
-        """Define the tool (tool name is the name of the class)."""
-        self.label = "Neural network input files"
-        self.description = "Use this tool to create the input ASCII files for the GeoXplore neural network. Before using this tool, the evidence must be combined into a unique conditions raster with the Combine tool and the band statistics must be obtained for all the evidence using the Band Collection Statistics tool. If desired fuzzy membership attribute can be added to each of the training sites. See the ArcMap Tools Options discussion in Usage Tips in the Help about adjusting default setting for this tool."
-        self.canRunInBackground = False
-        self.category = "Neural network"
-
-    def getParameterInfo(self):
-        """Define parameter definitions"""
-        paramInputRaster = arcpy.Parameter(
-        displayName="Input Unique Conditions raster",
-        name="inputraster",
-        #datatype="DEFeatureClass",
-        datatype="GPRasterLayer",
-        parameterType="Required",
-        direction="Input")
-        
-        paramTrainingSites = arcpy.Parameter(
-        displayName="Training sites",
-        name="training_sites",
-        datatype="GPFeatureLayer",
-        parameterType="Required",
-        direction="Input")
-        
-        paramFZMField = arcpy.Parameter(
-        displayName="TP Fuzzy membership field",
-        name="fzmfield",
-        datatype="Field",
-        parameterType="Optional",
-        direction="Input")
-        paramFZMField.parameterDependencies = [paramTrainingSites.name]
-        
-        paramNDTrainingSites = arcpy.Parameter(
-        displayName="ND Training sites",
-        name="ndtraining_sites",
-        datatype="GPFeatureLayer",
-        parameterType="Required",
-        direction="Input")
-
-        paramNDFZMField = arcpy.Parameter(
-        displayName="ND TP Fuzzy membership field",
-        name="ndfzmfield",
-        datatype="Field",
-        parameterType="Optional",
-        direction="Input")
-        paramNDFZMField.parameterDependencies = [paramNDTrainingSites.name]
-        
-        paramTrainingFilePrefix = arcpy.Parameter(
-        displayName="Training file prefix",
-        name="trainingfileprefix",
-        datatype="String",
-        parameterType="Required",
-        direction="Input")
-        
-        paramClassificationFile = arcpy.Parameter(
-        displayName="Classification file",
-        name="classificationfile",
-        datatype="Boolean",
-        parameterType="Optional",
-        direction="Input")
-        
-        paramBandStatisticsFile = arcpy.Parameter(
-        displayName="Band statistics file",
-        name="bandstatisticsfile",
-        datatype="File",
-        parameterType="Optional",
-        direction="Input")
-        
-        paramTrainFileOutput = arcpy.Parameter(
-        displayName="Train file output",
-        name="trainfileoutput",
-        datatype="File",
-        parameterType="Required",
-        direction="Output")
-        
-        paramClassFileOutput = arcpy.Parameter(
-        displayName="Class file output",
-        name="classfileoutput",
-        datatype="File",
-        parameterType="Required",
-        direction="Output")
-
-        paramUnitArea = arcpy.Parameter(
-        displayName="Unit area (km2)",
-        name="Unit_Area__sq_km_",
-        datatype="GPDouble",
-        parameterType="Required",
-        direction="Input")
-        paramUnitArea.value = "1"
-        
-        params = [paramInputRaster, paramTrainingSites, paramFZMField, paramNDTrainingSites, paramNDFZMField, 
-            paramTrainingFilePrefix, paramClassificationFile,
-            paramBandStatisticsFile, paramTrainFileOutput, paramClassFileOutput]
-        return params
-
-    def isLicensed(self):    
-        """Set whether tool is licensed to execute."""
-        try:
-            if arcpy.CheckExtension("Spatial") != "Available":
-                raise Exception
-        except Exception:
-            return False
-        return True
-
-    def updateParameters(self, parameters):
-        """Modify the values and properties of parameters before internal
-        validation is performed. This method is called whenever a parameter
-        has been changed."""
-        return
-
-    def updateMessages(self, parameters):
-        """Modify the messages created by internal validation for each tool
-        parameter. This method is called after internal validation."""
-        return
-
-    def execute(self, parameters, messages):
-        """The source code of the tool."""
-        try:
-            importlib.reload (arcsdm.nninputfiles)
-        except :
-            reload(arcsdm.nninputfiles)
-        arcsdm.nninputfiles.execute(self, parameters, messages)
-        return
 
 
 class GetSDMValues(object):
     def __init__(self):
-        self.label = "Log WofE details"
+        self.label = "Log WofE Details"
         self.description = "This tool is used to view details related to the the training site and study area for Weights of Evidence."
         self.canRunInBackground = True
-        self.category = "Weights of Evidence"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_WOFE}"
 
     def getParameterInfo(self):
         param_training_sites_feature = arcpy.Parameter(
@@ -557,7 +136,7 @@ class AreaFrequencyTable(object):
         self.label = "Area Frequency Table"
         self.description = "Create a table for charting area of evidence classes vs number of training sites."
         self.canRunInBackground = False
-        self.category = "Weights of Evidence"
+        self.category = TS_VALIDATION
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -636,7 +215,7 @@ class ROCTool(object):
     def __init__(self):
         self.label = "Calculate ROC Curves and AUC Values"
         self.description = "Calculates Receiver Operator Characteristic curves and Areas Under the Curves"
-        self.category = "ROC Tool"
+        self.category = TS_VALIDATION
         self.canRunInBackground = False
 
     def getParameterInfo(self):
@@ -687,7 +266,7 @@ class ROCTool(object):
         #execute_tool(arcsdm.roctool.execute, self, parameters, messages)
         try:
             importlib.reload(arcsdm.roctool)
-        except :
+        except:
             reload(arcsdm.roctool)
         arcsdm.roctool.execute(self, parameters, messages)
         return
@@ -696,7 +275,7 @@ class ROCTool(object):
 class Symbolize(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
-        self.label = "Symbolize raster with priorprobability (classified values)"
+        self.label = "Symbolize Raster with Prior Probability (Classified Values)"
         self.description = "This tool allows symbolizing prior probablity raster with predefined colorscheme from local raster_classified.lyr file"
         self.canRunInBackground = False
         self.category = "Utilities"
@@ -761,7 +340,7 @@ class CalculateResponseNew(object):
         self.label = "Calculate Response (Experimental)"
         self.description = "Use this tool to combine the evidence weighted by their associated generalization in the weights-of-evidence table. This tool calculates the posterior probability, standard deviation (uncertainty) due to weights, variance (uncertainty) due to missing data, and the total standard deviation (uncertainty) based on the evidence and how the evidence is generalized in the associated weights-of-evidence tables.The calculations use the Weight and W_Std in the weights table from Calculate Weights."
         self.canRunInBackground = False
-        self.category = "Weights of Evidence"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_WOFE}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -904,10 +483,10 @@ class CalculateResponseNew(object):
 class CalculateResponse(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
-        self.label = "Calculate response"
+        self.label = "Calculate Response"
         self.description = "Use this tool to combine the evidence weighted by their associated generalization in the weights-of-evidence table. This tool calculates the posterior probability, standard deviation (uncertainty) due to weights, variance (uncertainty) due to missing data, and the total standard deviation (uncertainty) based on the evidence and how the evidence is generalized in the associated weights-of-evidence tables.The calculations use the Weight and W_Std in the weights table from Calculate Weights."
         self.canRunInBackground = False
-        self.category = "Weights of Evidence"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_WOFE}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -1050,10 +629,10 @@ class CalculateResponse(object):
 class CalculateWeights(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
-        self.label = "Calculate weights"
+        self.label = "Calculate Weights"
         self.description = "Calculate weight rasters from the inputs"
         self.canRunInBackground = True
-        self.category = "Weights of Evidence"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_WOFE}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -1203,10 +782,10 @@ class CalculateWeights(object):
 class SiteReductionTool(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
-        self.label = "Training sites reduction"
+        self.label = "Training Sites Reduction"
         self.description = "Selects subset of the training points"
         self.canRunInBackground = False
-        self.category = "Weights of Evidence"
+        self.category = f"{TS_PREPROCESSING}\\{TS_TRAINING_DATA_PROCESSING}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -1308,14 +887,13 @@ class SiteReductionTool(object):
         return
 
 
-
 class CategoricalAndReclassTool(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Categorical & Reclass"
         self.description = "Create fuzzy memberships for categorical data by first reclassification to integers and then division by an appropriate value."
         self.canRunInBackground = False
-        self.category = "Fuzzy Logic\\Fuzzy Membership"
+        self.category = f"{TS_PREPROCESSING}\\{TS_EVIDENCE_DATA_PROCESSING}\\{TS_FUZZY}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -1401,7 +979,7 @@ class TOCFuzzificationTool(object):
         self.label = "TOC Fuzzification"
         self.description = "This fuzzification method utilized the symbolization of the input raster that has been applied in the map document table of contects (TOC). The symbolization in the TOC defines the number of classes and this tool rescales those classes (1...N) to the range [0,1] by (C - 1)/(N-1) where C is the class value and N is the number of classes."
         self.canRunInBackground = False
-        self.category = "Fuzzy Logic\\Fuzzy Membership"
+        self.category = f"{TS_PREPROCESSING}\\{TS_EVIDENCE_DATA_PROCESSING}\\{TS_FUZZY}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -1478,299 +1056,7 @@ class TOCFuzzificationTool(object):
     def execute(self, parameters, messages):
         """The source code of the tool."""
         execute_tool(arcsdm.tocfuzzification.Calculate, self, parameters, messages)
-        return
-
-
-class LogisticRegressionTool(object):
-    def __init__(self):
-        """Define the tool (tool name is the name of the class)."""
-        self.label = "Logistic regression"
-        self.description = "This tool is a useful complement to Weights-of-Evidence Calculate Response tool as Logistic Regression does not make the assumption of conditional independence of the evidence with regards to the training sites. Using the evidence and assocaited weights tables, this tool creates the outputs the response and standard deviation rasters. The calculations are based on the Gen_Class attribute in the weights table and the type of evidence. Please note that the Logistic Regression tool accepts a maximum of 6,000 unique conditions or it fails. Also note that there is an upper limit of 100,000 unit cells per class in each evidence raster layer. If a class in an evidence raster goes above this, the script contains a function to increase the unit cell size to ensure an upper limit of 100,000. These issues are unable to be fixed due to a hard coded limitation in the Logistic Regression executable sdmlr.exe."
-        self.canRunInBackground = False
-        self.category = "Weights of Evidence"
-
-    def getParameterInfo(self):
-        """Define parameter definitions"""
-        param0 = arcpy.Parameter(
-        displayName="Input Raster Layer(s)",
-        name="Input_evidence_raster_layers",
-        datatype="GPValueTable",
-        parameterType="Required",
-        direction="Input")
-        param0.columns = [['GPRasterLayer', 'Evidence raster']]
-        
-        param1 = arcpy.Parameter(
-        displayName="Evidence types (use a, c, d, or o and separate by semicolon ;)",
-        name="Evidence_Type",
-        datatype="String",
-        parameterType="Required",
-        direction="Input")
-
-        paramInputWeights = arcpy.Parameter(
-        displayName="Input weights tables",
-        name="input_weights_tables",
-        datatype="GPValueTable",
-        parameterType="Required",
-        direction="Input")
-        paramInputWeights.columns = [['DETable', 'Weights table']]
-
-        param2 = arcpy.Parameter(
-        displayName="Training sites",
-        name="training_sites",
-        datatype="GPFeatureLayer",
-        parameterType="Required",
-        direction="Input")
-        
-        param3 = arcpy.Parameter(
-        displayName="Missing data value",
-        name="Missing_Data_Value",
-        datatype="GPLong",
-        parameterType="Required",
-        direction="Input")
-        param3.value= -99
-
-        param4 = arcpy.Parameter(
-        displayName="Unit area (km^2)",
-        name="Unit_Area_sq_km",
-        datatype="GPDouble",
-        parameterType="Required",
-        direction="Input")
-        param4.value = "1"
-        
-        param5 = arcpy.Parameter(
-        displayName="Output polynomial table",
-        name="Output_Polynomial_Table",
-        datatype="DEDbaseTable",
-        parameterType="Required",
-        direction="Output")
-        param5.value = "%Workspace%\LR_logpol"
-                
-        param52 = arcpy.Parameter(
-        displayName="Output coefficients table",
-        name="Output_Coefficients_Table",
-        datatype="DEDbaseTable",
-        parameterType="Required",
-        direction="Output")
-        param52.value = "%Workspace%\LR_coeff"
-        
-        param6 = arcpy.Parameter(
-        displayName="Output post probablity raster",
-        name="Output_Post_Probability_raster",
-        datatype="DERasterDataset",
-        parameterType="Required",
-        direction="Output")
-        param6.value = "%Workspace%\LR_pprb"
-        
-        param62 = arcpy.Parameter(
-        displayName="Output standard deviation raster",
-        name="Output_Standard_Deviation_raster",
-        datatype="DERasterDataset",
-        parameterType="Required",
-        direction="Output")
-        param62.value = "%Workspace%\LR_std"
-        
-        param63 = arcpy.Parameter(
-        displayName="Output confidence raster",
-        name="Output_Confidence_raster",
-        datatype="DERasterDataset",
-        parameterType="Required",
-        direction="Output")
-        param63.value = "%Workspace%\LR_conf"
-                                  
-        params = [param0, param1, paramInputWeights, param2, param3, param4, param5, param52, param6, param62, param63]
-        return params
-
-    def isLicensed(self):
-        """Set whether tool is licensed to execute."""
-        try:
-            if arcpy.CheckExtension("Spatial") != "Available":
-                raise Exception
-        except Exception:
-            return False
-        return True
-
-    def updateParameters(self, parameters):
-        """Modify the values and properties of parameters before internal
-        validation is performed. This method is called whenever a parameter
-        has been changed."""
-        return
-
-    def updateMessages(self, parameters):
-        """Modify the messages created by internal validation for each tool
-        parameter. This method is called after internal validation."""
-        return
-
-    def execute(self, parameters, messages):
-        """The source code of the tool."""
-        try:
-            importlib.reload (arcsdm.logisticregression)
-        except :
-            reload(arcsdm.logisticregression)
-        arcsdm.logisticregression.Execute(self, parameters, messages)
-        return
-        
-        #execute_tool(arcsdm.logisticregression.Execute, self, parameters, messages)
-
-
-class LogisticRegressionPredictTool(object):
-    def __init__(self):
-        """Define the tool (tool name is the name of the class)."""
-        self.label = "Logistic Regression Prediction"
-        self.description = "Train and optionally validate a Logistic Regression classifier model using Sklearn."
-        self.canRunInBackground = False
-        self.category = "Prediction"
-
-    def getParameterInfo(self):
-        """Define parameter definitions"""
-
-        param_X = arcpy.Parameter(
-            displayName="Input Features",
-            name="X",
-            datatype=["GPRasterLayer"],
-            parameterType="Required",
-            multiValue=True,
-            direction="Input")
-
-        param_y = arcpy.Parameter(
-            displayName="Target Labels",
-            name="y",
-            datatype=["GPRasterLayer", "GPFeatureLayer"],
-            parameterType="Required",
-            direction="Input")
-        
-        param_X_nodata_value = arcpy.Parameter(
-            displayName="Input Feature NoData Value",
-            name="X_nodata_value",
-            datatype="GPLong",
-            parameterType="Optional",
-            direction="Input")
-        param_X_nodata_value.value = -99
-        
-        param_y_nodata_value = arcpy.Parameter(
-            displayName="Label NoData Value",
-            name="y_nodata_value",
-            datatype="GPLong",
-            parameterType="Optional",
-            direction="Input")
-
-        param_validation_method = arcpy.Parameter(
-            displayName="Validation Method",
-            name="validation_method",
-            datatype="GPString",
-            parameterType="Optional",
-            direction="Input"
-        )
-        param_validation_method.filter.list = ["split", "kfold_cv", "skfold_cv", "loo_cv", "none"]
-        param_validation_method.value = "split"
-
-        param_metrics = arcpy.Parameter(
-            displayName="Metrics",
-            name="metrics",
-            datatype="GPString",
-            parameterType="Optional",
-            direction="Input",
-            multiValue=True
-        )
-        param_metrics.filter.list = ["accuracy", "precision", "recall", "f1", "auc"]
-        param_metrics.value = ["accuracy"]
-
-        param_split_size = arcpy.Parameter(
-            displayName="Split Size",
-            name="split_size",
-            datatype="GPDouble",
-            parameterType="Optional",
-            direction="Input"
-        )
-        param_split_size.value = 0.2
-
-        param_cv_folds = arcpy.Parameter(
-            displayName="Number of CV Folds",
-            name="cv_folds",
-            datatype="GPLong",
-            parameterType="Optional",
-            direction="Input"
-        )
-        param_cv_folds.value = 5
-
-        param_penalty = arcpy.Parameter(
-            displayName="Penalty",
-            name="penalty",
-            datatype="GPString",
-            parameterType="Optional",
-            direction="Input"
-        )
-        param_penalty.filter.list = ["l1", "l2", "elasticnet", "none"]
-        param_penalty.value = "l2"
-
-        param_max_iter = arcpy.Parameter(
-            displayName="Maximum Iterations",
-            name="max_iter",
-            datatype="GPLong",
-            parameterType="Optional",
-            direction="Input"
-        )
-        param_max_iter.value = 100
-
-        param_solver = arcpy.Parameter(
-            displayName="Solver",
-            name="solver",
-            datatype="GPString",
-            parameterType="Optional",
-            direction="Input"
-        )
-        param_solver.filter.list = ["lbfgs", "liblinear", "newton-cg", "newton-cholesky", "sag", "saga"]
-        param_solver.value = "lbfgs"
-
-        param_verbose = arcpy.Parameter(
-            displayName="Verbose",
-            name="verbose",
-            datatype="GPLong",
-            parameterType="Optional",
-            direction="Input"
-        )
-        param_verbose.value = 0
-
-        param_random_state = arcpy.Parameter(
-            displayName="Random State",
-            name="random_state",
-            datatype="GPLong",
-            parameterType="Optional",
-            direction="Input"
-        )
-        param_random_state.value = None
-        
-        param_output_model = arcpy.Parameter(
-            displayName="Output Model",
-            name="output_model",
-            datatype="DEFile",
-            parameterType="Required",
-            direction="Output"
-        )
-        param_output_model.value = "output_model_log_res"
-
-        params = [
-            param_X, param_y, param_X_nodata_value, param_y_nodata_value, param_validation_method, param_metrics, param_split_size,
-            param_cv_folds, param_penalty, param_max_iter, param_solver, param_verbose, param_random_state,
-            param_output_model
-        ]
-        return params
-
-    def isLicensed(self):
-        """Set whether tool is licensed to execute."""
-        return True
-
-    def updateParameters(self, parameters):
-        """Modify the values and properties of parameters before internal validation is performed."""
-        return
-
-    def updateMessages(self, parameters):
-        """Modify the messages created by internal validation for each tool parameter."""
-        return
-
-    def execute(self, parameters, messages):
-        """The source code of the tool."""
-        execute_tool(arcsdm.logistic_regression_predict.Execute, self, parameters, messages)
-        return  
+        return 
 
 
 class AgterbergChengCITest(object):
@@ -1779,7 +1065,7 @@ class AgterbergChengCITest(object):
         self.label = "Agterberg-Cheng CI Test"
         self.description = "Perform the Agterberg-Cheng Conditional Independence test (Agterberg & Cheng 2002) on a mineral prospectivity map and save the results to a file."
         self.canRunInBackground = False
-        self.category = "Weights of Evidence"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_WOFE}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -1857,99 +1143,13 @@ class AgterbergChengCITest(object):
         return
 
 
-class FuzzyROC(object):
-    def __init__(self):
-        """Define the tool (tool name is the name of the class)."""
-        self.label = "Fuzzy ROC"
-        self.description = "Fuzzy Membership + Fuzzy Overlay + ROC"
-        self.canRunInBackground = False
-        self.category = "Fuzzy Logic\\Fuzzy Membership"
-
-    def getParameterInfo(self):
-        """Define parameter definitions"""
-        
-        param0 = arcpy.Parameter(
-        displayName="Input raster names",
-        name="inputrasters",
-        datatype="GPRasterLayer",
-        multiValue=1,
-        parameterType="Required",
-        direction="Input")
-        
-        param1 = arcpy.Parameter(
-        displayName="Fuzzy Membership Parameters",
-        name="fmparams",
-        datatype="DETable",
-        parameterType="Required",
-        direction="Input")
-
-        param1.columns = [['String', 'Membership type'], ['String', 'Midpoint Min'], ['String', 'Midpoint Max'], ['String', 'Midpoint Count'], ['String', 'Spread Min'], ['String', 'Spread Max'], ['String', 'Spread Count']]
-        param1.filters[0].type = 'ValueList'
-        param1.filters[0].list = ['Small', 'Large']
-        
-        param2 = arcpy.Parameter(
-        displayName="Fuzzy Overlay Parameters",
-        name="foparams",
-        datatype="DETable",
-        parameterType="Required",
-        direction="Input")
-
-        param2.columns = [['String', 'Overlay type'], ['String', 'Parameter']]
-        param2.filters[0].type = 'ValueList'
-        param2.filters[0].list = ['And', 'Or', 'Product', 'Sum', 'Gamma']
-        
-        param3 = arcpy.Parameter(
-        displayName="ROC True Positives Feature Class",
-        name="truepositives",
-        datatype="DEFeatureClass",
-        parameterType="Required",
-        direction="Input")
-
-        param4 = arcpy.Parameter(
-        displayName="ROC Destination Folder",
-        name="dest_folder",
-        datatype="DEFolder",
-        parameterType="Required",
-        direction="Input")
-        param4.filter.list = ["File System"]
-
-        params = [param0, param1, param2, param3, param4]
-        return params
-
-    def isLicensed(self):    
-        """Set whether tool is licensed to execute."""
-        try:
-            if arcpy.CheckExtension("Spatial") != "Available":
-                raise Exception
-        except Exception:
-            return False
-        return True
-
-    def updateParameters(self, parameters):
-        """Modify the values and properties of parameters before internal
-        validation is performed. This method is called whenever a parameter
-        has been changed."""
-        return
-
-    def updateMessages(self, parameters):
-        """Modify the messages created by internal validation for each tool
-        parameter. This method is called after internal validation."""
-     
-        return
-
-    def execute(self, parameters, messages):
-        """The source code of the tool."""
-        execute_tool(arcsdm.fuzzyroc.Execute, self, parameters, messages)
-        return
-
-
 class FuzzyROC2(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
-        self.label = "Fuzzy ROC 2"
+        self.label = "Fuzzy ROC"
         self.description = "Fuzzy Membership + Fuzzy Overlay + ROC (Receiver Operator Characteristic)"
         self.canRunInBackground = False
-        self.category = "Fuzzy Logic\\Fuzzy Membership"
+        self.category = TS_PREDICTIVE_MODELING
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -2055,7 +1255,7 @@ class TrainMLPClassifierTool(object):
         self.label = "Train MLP Classifier"
         self.description = "Train a Multi-Layer Perceptron (MLP) classifier with the given parameters."
         self.canRunInBackground = False
-        self.category = "Prediction"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -2289,7 +1489,7 @@ class TrainMLPRegressorTool(object):
         self.label = "Train MLP Regressor"
         self.description = "Train a Multi-Layer Perceptron (MLP) regressor with the given parameters."
         self.canRunInBackground = False
-        self.category = "Prediction"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -2521,13 +1721,13 @@ class TrainMLPRegressorTool(object):
         execute_tool(arcsdm.mlp.Execute_MLP_regressor, self, parameters, messages)
 
 
-class PCA(object):
+class PCARaster(object):
     def __init__(self):
         """Principal Component Analysis (Raster)"""
         self.label = "Principal Component Analysis (Raster)"
         self.description = "Perform Principal Component Analysis on input rasters"
         self.canRunInBackground = False
-        self.category = "Exploratory Analysis"
+        self.category = TS_EXPLORATORY_DATA_ANALYSIS
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -2622,13 +1822,14 @@ class PCA(object):
         execute_tool(arcsdm.pca.Execute, self, parameters, messages)
         return
 
+
 class PCAVector(object):
     def __init__(self):
         """Principal Component Analysis (Vector)"""
         self.label = "Principal Component Analysis (Vector)"
         self.description = "Perform Principal Component Analysis on input vectors"
         self.canRunInBackground = False
-        self.category = "Exploratory Analysis"
+        self.category = TS_EXPLORATORY_DATA_ANALYSIS
 
     def getParameterInfo(self):
         """Define parameter definitions"""
