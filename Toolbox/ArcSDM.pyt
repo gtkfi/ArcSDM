@@ -670,7 +670,7 @@ class CalculateWeights(object):
             direction="Input"
         )
         param_weight_type.filter.type = "ValueList"
-        param_weight_type.filter.list = ["Descending", "Ascending", "Categorical", "Unique"]
+        param_weight_type.filter.list = ["Descending", "Ascending", "Categorical"]
         param_weight_type.value = ""
         
         param_output_table = arcpy.Parameter(
@@ -745,11 +745,10 @@ class CalculateWeights(object):
                 name = desc.file
                 weight_type = param_weight_type.valueAsText
                 char = weight_type[:1]
-                if (char != 'U'):
-                    if (char != 'C'):
-                        # Ascending or descending:  _C + first letter of type
-                        char = 'C' + char
-                    else:
+                if (char != 'C'):
+                    # Ascending or descending:  _C + first letter of type
+                    char = 'C' + char
+                else:
                         # Categorical
                         char = 'CT'
                 # Update name accordingly
