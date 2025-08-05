@@ -422,12 +422,10 @@ def Calculate(self, parameters, messages):
             max_contrast_OID = -1
             max_contrast = -9999999.0
             tp_count = 0
-            area_cell_count = 0.0
             max_wplus = -9999.0
             max_s_wplus = -9999.0
             max_wminus = -9999.0
             max_s_wminus = -9999.0
-            max_std_contrast = -9999.0
 
             threshold_clause = f"STUD_CNT >= {studentized_contrast_threshold}"
             with arcpy.da.SearchCursor(output_weights_table, fields_to_read, where_clause=threshold_clause) as cursor_weights:
@@ -439,15 +437,12 @@ def Calculate(self, parameters, messages):
                             max_contrast_OID = oid
                             max_contrast = contrast
                             tp_count = no_points
-                            area_cell_count = area_units
                             max_wplus = wplus
                             max_s_wplus = s_wplus
                             max_wminus = wminus
                             max_s_wminus = s_wminus
 
             if max_contrast_OID >= 0:
-                update_clause = f"OBJECTID <= {max_contrast_OID}"
-                
                 with arcpy.da.UpdateCursor(output_weights_table, fields_to_update) as cursor_generalized:
                     for row in cursor_generalized:
                         oid, class_category, gen_class, weight, w_std = row
