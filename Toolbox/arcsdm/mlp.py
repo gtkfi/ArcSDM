@@ -5,9 +5,9 @@ import arcpy
 import numpy as np
 from typing import Literal, Optional, Sequence, Tuple
 from tensorflow import keras
-from keras.metrics import CategoricalCrossentropy, MeanAbsoluteError, MeanSquaredError, Precision, Recall
-from keras.layers import Flatten
-from keras.optimizers import SGD, Adagrad, Adam, RMSprop
+from tensorflow.keras.metrics import CategoricalCrossentropy, MeanAbsoluteError, MeanSquaredError, Precision, Recall
+from tensorflow.keras.layers import Flatten
+from tensorflow.keras.optimizers import SGD, Adagrad, Adam, RMSprop
 
 from arcsdm.machine_learning.general import prepare_data_for_ml, save_model
 from utils.arcpy_callback import ArcPyLoggingCallback
