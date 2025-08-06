@@ -16,6 +16,7 @@ import arcsdm.pca
 import arcsdm.roctool
 import arcsdm.sitereduction
 import arcsdm.symbolize
+import arcsdm.splitting
 import arcsdm.tocfuzzification
 import arcsdm.wofe_common
 
@@ -56,6 +57,7 @@ class Toolbox(object):
             PCAVector,
             ROCTool,
             SiteReductionTool,
+            SplittingTool,
             # Symbolize,
             TOCFuzzificationTool,
             TrainMLPClassifierTool,
@@ -886,6 +888,70 @@ class SiteReductionTool(object):
         execute_tool(arcsdm.sitereduction.ReduceSites, self, parameters, messages)
         return
 
+
+class SplittingTool(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Splitting Tool"
+        self.description = "Split training sites into training and testing datasets based on a random percentage."
+        self.canRunInBackground = False
+        self.category = f"{TS_PREPROCESSING}\\{TS_TRAINING_DATA_PROCESSING}"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        param_input_layer = arcpy.Parameter(
+            displayName="Training sites layer",
+            name="training_sites_layer",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Input"
+        )
+
+        param_random_percentage = arcpy.Parameter(
+            displayName="Random percentage selection",
+            name="random_percentage",
+            datatype="GPLong",
+            parameterType="Required",
+            direction="Input"
+        )
+        param_random_percentage.filter.type = "Range"
+        param_random_percentage.filter.list = [1, 99]
+
+        param_output_layer = arcpy.Parameter(
+            displayName="Output training layer",
+            name="output_training_layer",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Output"
+        )
+        param_output_layer.value = "reduced_sites_train"
+
+        param_inverse_output_layer = arcpy.Parameter(
+            displayName="Output testing layer (optional)",
+            name="output_testing_layer",
+            datatype="GPFeatureLayer",
+            parameterType="Optional",
+            direction="Output"
+        )
+        param_inverse_output_layer.value = "reduced_sites_test"
+
+        params = [param_input_layer, param_random_percentage, param_output_layer, param_inverse_output_layer]
+        return params
+
+    def isLicensed(self):
+        """Set whether tool is licensed to execute."""
+        return True
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool parameter."""
+        if parameters[1].value and not (1 <= parameters[1].value <= 99):
+            parameters[1].setErrorMessage("Random percentage must be between 1 and 99.")
+        return
+
+    def execute(self, parameters, messages):
+        """The source code of the tool."""
+        execute_tool(arcsdm.splitting.SplitSites, self, parameters, messages)
+        return
 
 class CategoricalAndReclassTool(object):
     def __init__(self):

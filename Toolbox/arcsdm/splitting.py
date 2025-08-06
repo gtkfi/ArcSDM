@@ -10,7 +10,7 @@ import arcpy
 import random
 
 
-def Splitting(self, parameters, messages):
+def SplitSites(self, parameters, messages):
     arcpy.AddMessage("Starting Splitting Tool")
     arcpy.AddMessage("------------------------------")
 
