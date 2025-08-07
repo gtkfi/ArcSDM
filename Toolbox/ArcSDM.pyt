@@ -17,6 +17,7 @@ import arcsdm.roctool
 import arcsdm.sitereduction
 import arcsdm.symbolize
 import arcsdm.splitting
+import arcsdm.thinning
 import arcsdm.tocfuzzification
 import arcsdm.wofe_common
 
@@ -58,6 +59,7 @@ class Toolbox(object):
             ROCTool,
             SiteReductionTool,
             SplittingTool,
+            ThinningTool,
             # Symbolize,
             TOCFuzzificationTool,
             TrainMLPClassifierTool,
@@ -952,6 +954,86 @@ class SplittingTool(object):
         """The source code of the tool."""
         execute_tool(arcsdm.splitting.SplitSites, self, parameters, messages)
         return
+
+
+class ThinningTool(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "Thinning Tool"
+        self.description = "Selects subset of the training points based on a thinning value and minimum distance."
+        self.canRunInBackground = False
+        self.category = f"{TS_PREPROCESSING}\\{TS_TRAINING_DATA_PROCESSING}"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+        param_input_layer = arcpy.Parameter(
+            displayName="Training sites layer",
+            name="Training_Sites_layer",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Input")
+
+        param_unit_area = arcpy.Parameter(
+            displayName="Unit area",
+            name="Unit_Area",
+            datatype="GPDouble",
+            parameterType="Required",
+            direction="Input")
+        param_unit_area.value = 500
+
+        param_area_unit = arcpy.Parameter(
+            displayName="Area Unit",
+            name="Area_Unit",
+            datatype="GPString",
+            parameterType="Required",
+            direction="Input")
+        param_area_unit.filter.type = "ValueList"
+        param_area_unit.filter.list = [
+            "Square Kilometers",
+            "Square Meters",
+            "Square Miles",
+            "Square Yards",
+            "Square Feet",
+            "Acres",
+            "Hectares",
+        ]
+        param_area_unit.value = "Square Kilometers"
+
+        param_min_distance = arcpy.Parameter(
+            displayName="Minimum Distance",
+            name="Min_Distance",
+            datatype="GPDouble",
+            parameterType="Required",
+            direction="Input")
+
+        param_output = arcpy.Parameter(
+            displayName="Output layer",
+            name="layerSelection",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Output")
+        param_output.value = "thinned_sites"
+
+        params = [param_input_layer, param_unit_area, param_area_unit, param_min_distance, param_output]
+        return params
+
+    def isLicensed(self):
+        """Set whether tool is licensed to execute."""
+        return True
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool parameter."""
+        if parameters[1].value is not None and parameters[1].value <= 0:
+            parameters[1].setErrorMessage("Unit area must be greater than 0.")
+        if parameters[3].value is not None and parameters[3].value <= 0:
+            parameters[3].setErrorMessage("Minimum distance must be greater than 0.")
+        return
+
+    def execute(self, parameters, messages):
+        """Execute the thinning tool."""
+        execute_tool(arcsdm.thinning.ThinSites, self, parameters, messages)
+        return
+
 
 class CategoricalAndReclassTool(object):
     def __init__(self):
