@@ -23,6 +23,9 @@ def ThinSites(self, parameters, messages):
         area_unit = parameters[2].valueAsText
         min_distance = parameters[3].value
         output_layer = parameters[4].valueAsText
+        
+        arcpy.AddMessage("Starting Thinning Tool")
+        arcpy.AddMessage("------------------------------")
 
         # Validation
         if input_features is None or not arcpy.Exists(input_features):
