@@ -14,7 +14,6 @@ import arcsdm.fuzzyroc2
 import arcsdm.mlp
 import arcsdm.pca
 import arcsdm.roctool
-import arcsdm.sitereduction
 import arcsdm.symbolize
 import arcsdm.splitting
 import arcsdm.thinning
@@ -1000,7 +999,7 @@ class ThinningTool(object):
         param_area_unit.value = "Square Kilometers"
 
         param_min_distance = arcpy.Parameter(
-            displayName="Minimum Distance",
+            displayName="Minimum Distance (Meters)",
             name="Min_Distance",
             datatype="GPDouble",
             parameterType="Required",
