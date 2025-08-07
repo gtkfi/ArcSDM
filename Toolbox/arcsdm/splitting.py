@@ -8,7 +8,7 @@ import sys
 import traceback
 import arcpy
 import random
-
+from utils.sites_reduction_functions import create_output_layer, get_identifier
 
 def SplitSites(self, parameters, messages):
     arcpy.AddMessage("Starting Splitting Tool")
@@ -46,12 +46,12 @@ def SplitSites(self, parameters, messages):
         arcpy.AddMessage(f"Training features: {len(training_features)}")
         arcpy.AddMessage(f"Testing features: {len(testing_features)}")
 
-        # Create training layer
-        create_output_layer(training_features, input_features, output_layer, identifier)
-
         # Create inverse (testing) layer if specified
         if inverse_output_layer:
             create_output_layer(testing_features, input_features, inverse_output_layer, identifier)
+        else:
+            # Create training layer
+            create_output_layer(training_features, input_features, output_layer, identifier)
 
         arcpy.AddMessage("Splitting completed successfully.")
 
@@ -63,33 +63,3 @@ def SplitSites(self, parameters, messages):
         tb_info = traceback.format_tb(sys.exc_info()[2])[0]
         error_message = f"PYTHON ERRORS:\nTraceback Info:\n{tb_info}\nError Info:\n{type(e).__name__}: {e}\n"
         messages.AddError(error_message)
-
-
-def get_identifier(input_features):
-    """Get the identifier field (OBJECTID or FID) from the input features."""
-    field_names = [f.name for f in arcpy.ListFields(input_features)]
-    if "OBJECTID" in field_names:
-        return "OBJECTID"
-    if "FID" in field_names:
-        return "FID"
-    raise arcpy.ExecuteError("Check input feature attributes! The training points have no OBJECTID or FID.")
-
-
-def create_output_layer(features, input_features, output_layer, identifier):
-    """Create an output layer from the selected features."""
-    arcpy.AddMessage(f"Creating output layer: {output_layer}")
-    temp_layer = "temp_layer"
-    arcpy.management.MakeFeatureLayer(input_features, temp_layer)
-
-    # Build SQL clause for selection
-    clause = " OR ".join([f"{identifier} = {feature[0]}" for feature in features])
-    arcpy.management.SelectLayerByAttribute(temp_layer, "NEW_SELECTION", clause)
-
-    # Copy selected features to output layer
-    arcpy.management.CopyFeatures(temp_layer, output_layer)
-
-    # Clear selection
-    arcpy.management.SelectLayerByAttribute(temp_layer, "CLEAR_SELECTION")
-    arcpy.management.Delete(temp_layer)
-
-    arcpy.AddMessage(f"Output layer created: {output_layer}")
