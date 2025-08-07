@@ -8,7 +8,7 @@ import sys
 import traceback
 import arcpy
 import random
-from Toolbox.utils.site_reduction_functions import create_output_layer, get_identifier
+from utils.site_reduction_functions import create_output_layer, get_identifier
 
 def SplitSites(self, parameters, messages):
     arcpy.AddMessage("Starting Splitting Tool")
@@ -48,10 +48,10 @@ def SplitSites(self, parameters, messages):
 
         # Create inverse (testing) layer if specified
         if inverse_output_layer:
-            create_output_layer(testing_features, input_features, inverse_output_layer, identifier)
+            create_output_layer([f[0] for f in testing_features], input_features, inverse_output_layer, identifier)
         else:
-            # Create training layer
-            create_output_layer(training_features, input_features, output_layer, identifier)
+            create_output_layer([f[0] for f in training_features], input_features, output_layer, identifier)
+
 
         arcpy.AddMessage("Splitting completed successfully.")
 
