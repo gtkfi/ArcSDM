@@ -944,8 +944,8 @@ class SplittingTool(object):
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool parameter."""
-        if parameters[1].value and not (1 <= parameters[1].value <= 99):
-            parameters[1].setErrorMessage("Random percentage must be between 1 and 99.")
+        if parameters[1].value and not (0 < parameters[1].value <= 100):
+            parameters[1].setErrorMessage("Random percentage must be between 0 and 100.")
         return
 
     def execute(self, parameters, messages):
