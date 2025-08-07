@@ -2,7 +2,7 @@ import sys
 import traceback
 import arcpy
 import math
-from Toolbox.utils.site_reduction_functions import (
+from utils.site_reduction_functions import (
     create_output_layer,
     get_area_unit,
     get_identifier,
