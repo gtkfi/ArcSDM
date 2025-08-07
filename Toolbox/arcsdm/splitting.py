@@ -8,7 +8,7 @@ import sys
 import traceback
 import arcpy
 import random
-from utils.sites_reduction_functions import create_output_layer, get_identifier
+from Toolbox.utils.site_reduction_functions import create_output_layer, get_identifier
 
 def SplitSites(self, parameters, messages):
     arcpy.AddMessage("Starting Splitting Tool")
