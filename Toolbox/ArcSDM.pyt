@@ -56,7 +56,6 @@ class Toolbox(object):
             PCARaster,
             PCAVector,
             ROCTool,
-            SiteReductionTool,
             SplittingTool,
             ThinningTool,
             # Symbolize,
@@ -779,114 +778,6 @@ class CalculateWeights(object):
     def execute(self, parameters, messages):
         """The source code of the tool."""
         execute_tool(arcsdm.calculateweights.Calculate, self, parameters, messages)
-        return
-
-        
-class SiteReductionTool(object):
-    def __init__(self):
-        """Define the tool (tool name is the name of the class)."""
-        self.label = "Training Sites Reduction"
-        self.description = "Selects subset of the training points"
-        self.canRunInBackground = False
-        self.category = f"{TS_PREPROCESSING}\\{TS_TRAINING_DATA_PROCESSING}"
-
-    def getParameterInfo(self):
-        """Define parameter definitions"""
-        param_input_layer = arcpy.Parameter(
-        displayName="Training sites layer",
-        name="Training_Sites_layer",
-        datatype="GPFeatureLayer",
-        parameterType="Required",
-        direction="Input")
-
-        param_use_thinning_selection = arcpy.Parameter(
-        displayName="Thinning selection",
-        name="Thinning_Selection",
-        datatype="Boolean",
-        parameterType="Optional",
-        direction="Input")
-
-        param_unit_area = arcpy.Parameter(
-        displayName="Unit area (sq km)",
-        name="Unit_Area__sq_km_",
-        datatype= "GPDouble",
-        parameterType="Optional",
-        direction="Input")
-
-        param_use_random_selection = arcpy.Parameter(
-        displayName="Random selection",
-        name="Random_selection",
-        datatype="Boolean",
-        parameterType="Optional",
-        direction="Input")
-
-        param_random_selection_percentage = arcpy.Parameter(
-        displayName="Random percentage selection",
-        name="Random_percentage_selection",
-        datatype="GPLong",
-        parameterType="Optional",
-        direction="Input")
-
-        param_random_selection_percentage.filter.type = "Range"
-        param_random_selection_percentage.filter.list = [1, 100]
-        
-        param_output = arcpy.Parameter(
-        displayName="Output layer",
-        name="layerSelection",
-        datatype="GPFeatureLayer",
-        parameterType="Required",
-        direction="Output")
-        param_output.value = "reduced_sites"
-        
-        params = [param_input_layer,
-                  param_use_thinning_selection,
-                  param_unit_area,
-                  param_use_random_selection,
-                  param_random_selection_percentage,
-                  param_output]
-
-        return params
-
-    def isLicensed(self):
-        """Set whether tool is licensed to execute."""
-        try:
-            if arcpy.CheckExtension("Spatial") != "Available":
-                raise Exception
-        except Exception:
-            return False
-        return True
-
-    def updateParameters(self, parameters):
-        """Modify the values and properties of parameters before internal
-        validation is performed. This method is called whenever a parameter
-        has been changed."""
-
-        parameters[2].enabled = parameters[1].value
-        parameters[4].enabled = parameters[3].value
-
-        return
-
-    def updateMessages(self, parameters):
-        """Modify the messages created by internal validation for each tool
-        parameter. This method is called after internal validation."""
-
-        if not (parameters[1].value or parameters[3].value):
-            parameters[1].setErrorMessage("You have to select at least one!")
-            parameters[3].setErrorMessage("You have to select at least one!")
-        else:
-            if parameters[1].value:
-                if not parameters[2].valueAsText:
-                    parameters[2].setErrorMessage("Thinning value required!")
-            
-            if parameters[3].value:
-                if not parameters[4].valueAsText:
-                    parameters[4].SetErrorMessage("Percentage value required!")
-        
-        return
-
-    def execute(self, parameters, messages):
-        """The source code of the tool."""
-        execute_tool(arcsdm.sitereduction.ReduceSites, self, parameters, messages)
         return
 
 
