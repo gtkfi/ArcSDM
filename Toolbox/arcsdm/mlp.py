@@ -14,6 +14,10 @@ from arcsdm.machine_learning.general import load_model, reshape_predictions
 from arcsdm.machine_learning.predict import predict_classifier
 from arcsdm.machine_learning.general import prepare_data_for_ml, save_model
 from utils.arcpy_callback import ArcPyLoggingCallback
+from arcsdm.machine_learning.predict import predict_regressor
+from arcsdm.evaluation.scoring import score_predictions
+
+import json
 
 
 def _keras_optimizer(optimizer: str, **kwargs):
@@ -549,3 +553,105 @@ def train_MLP_regressor(
     )
 
     return model, history
+
+
+
+def Execute_MLP_regressor_test(self, parameters, messages):
+    try:
+        input_rasters = parameters[0].valueAsText.split(';')
+        target_labels = parameters[1].valueAsText
+        target_labels_attr = parameters[2].valueAsText
+
+        X_nodata_value = parameters[3].value
+        y_nodata_value = parameters[4].value
+        model_file = parameters[5].valueAsText
+
+        output_raster = parameters[6].valueAsText
+        test_metrics = parameters[7].valueAsText.split(';')
+        
+        
+        arcpy.AddMessage("Starting MLP regressor test...")
+        
+        X, y, reference_profile = prepare_data_for_ml(input_rasters, target_labels, target_labels_attr, X_nodata_value, y_nodata_value)
+
+        arcpy.AddMessage("22...")
+
+
+        # load trained model
+        model = load_model(model_file)
+
+        arcpy.AddMessage("33...")
+
+
+        raster = arcpy.Raster(input_rasters[0])
+
+        arcpy.AddMessage("44...")
+
+        desc = arcpy.Describe(raster)
+
+
+        predictions = predict_regressor(X, model)
+
+        arcpy.AddMessage("55...")
+
+
+        predictions_reshaped = reshape_predictions(
+            predictions, raster.height, raster.width
+        )
+        
+        arcpy.AddMessage("66...")
+
+
+
+        # Save rasters
+        lower_left_corner = arcpy.Point(raster.extent.XMin, raster.extent.YMin)
+        x_cell_size = raster.meanCellWidth
+        y_cell_size = raster.meanCellHeight
+
+        out_predictions_raster = arcpy.NumPyArrayToRaster(predictions_reshaped, lower_left_corner=lower_left_corner,
+                                               x_cell_size=x_cell_size, y_cell_size=y_cell_size, value_to_nodata=-9)
+
+        out_predictions_raster.save(output_raster)
+
+        arcpy.DefineProjection_management(out_predictions_raster, desc.spatialReference)
+
+        metrics_dict = score_predictions(y, predictions, test_metrics, decimals=3)
+
+        out_profile = reference_profile.copy()
+        out_profile.update({"count": 1, "dtype": np.float32})
+
+        out_predictions_raster.save()
+        
+        arcpy.management.CalculateStatistics(output_raster)
+
+        ResultSender.send_dict_as_json(metrics_dict)
+
+
+        #metrics_dict = score_predictions(y, predictions, get_enum_values(test_metrics), decimals=3)
+
+        #out_profile = reference_profile.copy()
+        #out_profile.update({"count": 1, "dtype": np.float32})
+
+        #with ProgressLog.saving_output_files(output_raster):
+        #    with rasterio.open(output_raster, "w", **out_profile) as dst:
+        #        dst.write(predictions_reshaped, 1)
+        #        dst.update_stats()
+
+        #ResultSender.send_dict_as_json(metrics_dict)
+        #ProgressLog.finish()
+
+
+    # Return geoprocessing specific errors
+    except arcpy.ExecuteError:    
+        arcpy.AddError(arcpy.GetMessages(2))    
+
+    # Return any other type of error
+    except:
+        # By default any other errors will be caught here
+        e = sys.exc_info()[1]
+        print(e.args[0])
+
+class ResultSender:
+    @staticmethod
+    def send_dict_as_json(dictionary: dict):
+        arcpy.AddMessage(f"Results: {json.dumps(dictionary)}")

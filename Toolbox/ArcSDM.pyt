@@ -62,6 +62,7 @@ class Toolbox(object):
             TOCFuzzificationTool,
             TrainMLPClassifierTool,
             TrainMLPRegressorTool,
+            MLPRegressorTestTool
         ]
 
 
@@ -1974,3 +1975,113 @@ class PCAVector(object):
         """The source code of the tool."""
         execute_tool(arcsdm.pca.Execute, self, parameters, messages)
         return
+    
+
+
+    
+class MLPRegressorTestTool(object):
+    def __init__(self):
+        """Test trained machine learning regressor model by predicting and scoring."""
+        self.label = "Test MLP Regressor"
+        self.description = "Test trained machine learning regressor model by predicting and scoring."
+        self.canRunInBackground = False
+        self.category = "Prediction"
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+
+        param_X = arcpy.Parameter(
+            displayName="Input Features",
+            name="X",
+            datatype=["GPRasterLayer"],
+            parameterType="Required",
+            multiValue=True,
+            direction="Input")
+
+        param_y = arcpy.Parameter(
+            displayName="Target Labels",
+            name="y",
+            datatype=["GPRasterLayer", "GPFeatureLayer"],
+            parameterType="Required",
+            direction="Input")
+        
+        param_y_attribute = arcpy.Parameter(
+            displayName="Target Labels attribute",
+            name="y_attribute",
+            datatype="Field",
+            parameterType="Optional",
+            direction="Input")
+        
+        param_y_attribute.parameterDependencies = [param_y.name]
+ 
+        param_X_nodata_value = arcpy.Parameter(
+            displayName="Input Feature NoData Value",
+            name="X_nodata_value",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
+        param_X_nodata_value.value = -99
+        
+        param_y_nodata_value = arcpy.Parameter(
+            displayName="Label NoData Value",
+            name="y_nodata_value",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
+
+        param_model_file = arcpy.Parameter(
+            displayName="Input Model File",
+            name="model_file",
+            datatype="DEFile",
+            parameterType="Required",
+            direction="input")
+        
+        param_output_raster = arcpy.Parameter(
+            displayName="Save output raster to a file",
+            name="raster_file",
+            datatype="DERasterDataset",
+            parameterType="Required",
+            direction="Output"
+        )
+
+        param_test_metrics = arcpy.Parameter(
+            displayName="Test metrics",
+            name="test_metrics",
+            datatype="String",
+            parameterType="Required",
+            direction="Input",
+            multiValue=True
+        )
+
+        params = [param_X,
+                  param_y,
+                  param_y_attribute,
+                  param_X_nodata_value,
+                  param_y_nodata_value,
+                  param_model_file,
+                  param_output_raster,
+                  param_test_metrics
+                ]
+        return params
+
+    def isLicensed(self):
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal validation is performed. This method is called whenever a parameter has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool parameter. This method is called after internal validation."""
+        return
+
+    def execute(self, parameters, messages):
+        """Execute the tool."""
+        execute_tool(arcsdm.mlp.Execute_MLP_regressor_test, self, parameters, messages)
+
