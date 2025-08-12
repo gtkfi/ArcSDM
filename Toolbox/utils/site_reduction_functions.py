@@ -43,10 +43,12 @@ def create_output_layer(features, input_features, output_layer, identifier):
 
 def get_identifier(input_features):
     """Get the identifier field (OBJECTID or FID) from the input features."""
-    for field in arcpy.ListFields(input_features):
-        if field.name.upper() in ["OBJECTID", "FID"]:
-            return field.name
-    raise arcpy.ExecuteError("Check input feature attributes! The training points have no OBJECTID or FID.")
+    try:
+        for field in arcpy.ListFields(input_features):
+            if field.name.upper() in ["OBJECTID", "FID"]:
+                return field.name
+    except Exception as e:
+        arcpy.AddError(f"Check input feature attributes! The training points have no OBJECTID or FID: {e}")
 
 
 def geodesic_distance(pt1, pt2, spatial_ref):
