@@ -1,5 +1,5 @@
 import arcpy
-import math
+
 
 def get_area_unit(user_selected):
     area_unit_mapping = {
