@@ -518,21 +518,18 @@ def Execute_MLP_classifier_test(self, parameters, messages):
         
         arcpy.AddMessage("Starting MLP classifier test...")
         
-        X, y, reference_profile = prepare_data_for_ml(input_rasters, target_labels, X_nodata_value, y_nodata_value)
+        X, y, nodata_mask = prepare_data_for_ml(input_rasters, target_labels)
 
         # load trained model
         model = load_model(model_file)
         raster = arcpy.Raster(input_rasters[0])
         desc = arcpy.Describe(raster)
-
         predictions, probabilities = predict_classifier(X, model, classification_threshold, True)
-
         probabilities_reshaped = reshape_predictions(
-            probabilities, raster.height, raster.width
+            probabilities, raster.height, raster.width, nodata_mask
         )
-
         predictions_reshaped = reshape_predictions(
-            predictions, raster.height, raster.width
+            predictions, raster.height, raster.width, nodata_mask
         )
 
         # Save rasters
@@ -552,22 +549,27 @@ def Execute_MLP_classifier_test(self, parameters, messages):
         arcpy.DefineProjection_management(out_probabilities_raster, desc.spatialReference)
         arcpy.DefineProjection_management(out_predictions_raster, desc.spatialReference)
 
-        metrics_dict = score_predictions(y, predictions, test_metrics, decimals=3)
+        metrics_dict = score_predictions(y, predictions, test_metrics, decimals=5)
 
-        out_profile = reference_profile.copy()
-        out_profile.update({"count": 1, "dtype": np.float32})
+        extent = raster.extent
+        cell_size_x = raster.meanCellWidth
+        cell_size_y = raster.meanCellHeight
+        lower_left = arcpy.Point(extent.XMin, extent.YMin)
+        spatial_ref = raster.spatialReference
 
-        out_probabilities_raster.save()
-        out_predictions_raster.save()
-        
+        prob_raster = arcpy.NumPyArrayToRaster(probabilities_reshaped, lower_left, cell_size_x, cell_size_y)
+        prob_raster.save(output_raster_probability_name)
+        arcpy.DefineProjection_management(output_raster_probability_name, spatial_ref)
         arcpy.management.CalculateStatistics(output_raster_probability_name)
-        arcpy.management.CalculateStatistics(output_raster_classified_name)
 
-        ResultSender.send_dict_as_json(metrics_dict)
+        class_raster = arcpy.NumPyArrayToRaster(predictions_reshaped, lower_left, cell_size_x, cell_size_y)
+        class_raster.save(output_raster_classified_name)
+        arcpy.DefineProjection_management(output_raster_classified_name, spatial_ref)
+        arcpy.management.CalculateStatistics(output_raster_classified_name)
 
         arcpy.AddMessage("Classifier test completed.")
         if target_labels:
-            arcpy.AddMessage("Metrics:", metrics_dict)
+            arcpy.AddMessage(f"Metrics: {metrics_dict}")
 
     # Return geoprocessing specific errors
     except arcpy.ExecuteError:    
@@ -576,13 +578,4 @@ def Execute_MLP_classifier_test(self, parameters, messages):
     except:
         # By default any other errors will be caught here
         e = sys.exc_info()[1]
-        print(e.args[0])
-
-class ResultSender:  # noqa: D101
-    @staticmethod
-    def send_dict_as_json(dictionary: dict):  # noqa: D102
-        arcpy.AddMessage(f"Results: {json.dumps(dictionary)}")
-
-    @staticmethod
-    def send_multiple_rasters_dict_as_json(rasters_dictionary: dict):  # noqa: D102
-        arcpy.AddMessage(f"Output rasters: {json.dumps(rasters_dictionary)}")
+        arcpy.AddError(e.args[0])

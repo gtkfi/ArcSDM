@@ -2754,7 +2754,7 @@ class MLPClassifierTestTool(object):
         )
 
         param_test_metrics.filter.type = "ValueList"
-        param_test_metrics.filter.list = ["accuracy", "precision", "recall", "f1", "auc"]
+        param_test_metrics.filter.list = ["accuracy", "precision", "recall", "f1"]
 
         params = [param_X,
                   param_y,
