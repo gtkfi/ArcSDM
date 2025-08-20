@@ -5,6 +5,8 @@ Original source code from https://github.com/GispoCoding/eis_toolkit
 import os
 import arcpy
 import arcpy.ia
+from arcpy import env
+from arcpy.sa import IsNull
 import joblib
 import pandas as pd
 from numbers import Number
@@ -17,7 +19,6 @@ from sklearn.model_selection import KFold, LeaveOneOut, StratifiedKFold, train_t
 from tensorflow import keras
 
 from arcsdm.evaluation.scoring import score_predictions
-from utils.rasterize import rasterize_vector
 
 SPLIT = "split"
 KFOLD_CV = "kfold_cv"
@@ -25,28 +26,41 @@ SKFOLD_CV = "skfold_cv"
 LOO_CV = "loo_cv"
 NO_VALIDATION = "none"
 
+def _is_keras_model(obj) -> bool:
+    try:
+        import tensorflow as tf
+        return isinstance(obj, tf.keras.Model)
+    except Exception:
+        return False
 
-def save_model(model: Union[BaseEstimator, keras.Model], path: Path) -> None:
+def save_model(model, path: str) -> str:
     """
-    Save a trained Sklearn model to a .joblib file.
-
-    Args:
-        model: Trained model.
-        path: Path where the model should be saved. Include the .joblib file extension.
+    Saves scikit-learn with joblib; saves Keras with model.save().
+    If a Keras model is given a .pkl/.joblib path, switch to .keras.
+    Returns the actual path written.
     """
-    joblib.dump(model, path + ".joblib")
+    ext = os.path.splitext(path)[1].lower()
 
+    if _is_keras_model(model):
+        # Prefer single-file .keras format
+        if ext in (".pkl", ".joblib", ""):
+            path = os.path.splitext(path)[0] + ".keras"
+        # Keras will create either a single .keras file or a SavedModel dir (if ext is missing)
+        model.save(path)
+        return path
+    else:
+        joblib.dump(model, path)
 
-def load_model(path: Path) -> Union[BaseEstimator, keras.Model]:
+def load_model(path: str):
     """
-    Load a Sklearn model from a .joblib file.
-
-    Args:
-        path: Path from where the model should be loaded. Include the .joblib file extension.
-
-    Returns:
-        Loaded model.
+    Loads models saved by save_model().
+    - .keras or SavedModel dir -> keras.models.load_model
+    - otherwise -> joblib.load
     """
+    ext = os.path.splitext(path)[1].lower()
+    if ext == ".keras" or (ext == "" and os.path.isdir(path)):
+        from tensorflow.keras import models
+        return models.load_model(path)
     return joblib.load(path)
 
 
@@ -112,208 +126,258 @@ def reshape_predictions(
     return predictions_reshaped
 
 
-def _check_grid_properties(raster_files):
-    """
-    Check that all input rasters have the same grid properties.
+def _describe_raster_grid(r_path: str) -> dict:
+    """Collect grid metadata for compatibility checks."""
+    r = arcpy.Raster(r_path)
+    d = arcpy.Describe(r)
 
-    Args:
-        raster_files: List of filepaths to raster files.
+    return {
+        "rows": r.height,
+        "cols": r.width,
+        "cellsize_x": r.meanCellWidth,
+        "cellsize_y": r.meanCellHeight,
+        "spatial_ref": d.spatialReference.exportToString() if d.spatialReference else None,
+        "extent": (d.extent.XMin, d.extent.YMin, d.extent.XMax, d.extent.YMax),
+        "nodata": d.noDataValue,
+        "path": r_path,
+    }
 
-    Returns:
-        bool: True if all rasters have the same grid properties, False otherwise.
-    """
-    if not raster_files:
-        raise ValueError("No raster files provided.")
-
-    # Get properties of the first raster as reference
-    ref_desc = arcpy.Describe(raster_files[0])
-    ref_rows = ref_desc.height
-    ref_cols = ref_desc.width
-    ref_cell_size_x = ref_desc.meanCellWidth
-    ref_cell_size_y = ref_desc.meanCellHeight
-    ref_extent = ref_desc.extent
-
-    for raster_file in raster_files[1:]:
-        desc = arcpy.Describe(raster_file)
-        rows = desc.height
-        cols = desc.width
-        cell_size_x = desc.meanCellWidth
-        cell_size_y = desc.meanCellHeight
-        extent = desc.extent
-
-        if (rows != ref_rows or cols != ref_cols or
-            cell_size_x != ref_cell_size_x or cell_size_y != ref_cell_size_y or
-            extent != ref_extent):
+def _check_raster_grids(grids: List[dict], same_extent: bool = True) -> bool:
+    """Verify all rasters share cell size, spatial ref, and (optionally) extent."""
+    if not grids:
+        return False
+    g0 = grids[0]
+    for g in grids[1:]:
+        if not np.isclose(g["cellsize_x"], g0["cellsize_x"]) or not np.isclose(g["cellsize_y"], g0["cellsize_y"]):
             return False
-
+        if g["spatial_ref"] != g0["spatial_ref"]:
+            return False
+        if same_extent and g["extent"] != g0["extent"]:
+            return False
+        if g["rows"] != g0["rows"] or g["cols"] != g0["cols"]:
+            return False
     return True
 
-def _resample_raster(input_raster, reference_raster, output_path):
+
+def _raster_to_band_arrays(r_path: str) -> list[np.ndarray]:
     """
-    Resample the input raster to match the grid properties of the reference raster.
-
-    Args:
-        input_raster: Path to the input raster to be resampled.
-        reference_raster: Path to the reference raster with the desired grid properties.
-        output_path: Path to save the resampled raster.
-
-    Returns:
-        Path to the resampled raster.
+    Read a raster into NumPy and return a list of 2D arrays (one per band).
+    Uses IsNull to get the NoData mask, then maps those cells to np.nan.
     """
+    # Read data (no nodata_to_value here!)
+    data = arcpy.RasterToNumPyArray(r_path)
 
-    ref_raster = arcpy.Raster(reference_raster)
-    resampled_raster = arcpy.management.Resample(
-        in_raster=input_raster,
-        out_raster=output_path,
-        cell_size=ref_raster.meanCellWidth,
-        resampling_type="NEAREST"
-    )
-    return resampled_raster
+    # Build NoData mask using Spatial Analyst
+    nodata_mask = arcpy.RasterToNumPyArray(IsNull(r_path)).astype(bool)
+
+    # Ensure float so we can store NaN
+    data = data.astype(float, copy=False)
+
+    # data/nodata_mask can be 2D or 3D (bands, rows, cols)
+    if data.ndim == 2:
+        data[nodata_mask] = np.nan
+        return [data]
+
+    if data.ndim == 3:
+        # Apply mask band-wise and split to 2D bands
+        bands = []
+        for i in range(data.shape[0]):
+            band = data[i, :, :]
+            band_mask = nodata_mask[i, :, :] if nodata_mask.ndim == 3 else nodata_mask
+            band[band_mask] = np.nan
+            bands.append(band)
+        return bands
+
+    raise RuntimeError(f"Unexpected array shape from {r_path}: {data.shape}")
+
+def _read_feature_bands(feature_raster_files: Sequence[str], rows: int, cols: int) -> list[np.ndarray]:
+    """
+    Read all bands from all feature rasters as a flat list of 2D arrays.
+    Validates shape against (rows, cols).
+    """
+    band_arrays: list[np.ndarray] = []
+    for rpath in feature_raster_files:
+        for band_arr in _raster_to_band_arrays(rpath):
+            if band_arr.shape != (rows, cols):
+                raise arcpy.AddError(f"Band grid mismatch: {rpath} -> {band_arr.shape} != {(rows, cols)}")
+            band_arrays.append(band_arr)
+    return band_arrays
+
+def _rasterize_vector_to_array(
+    vector_path: str,
+    reference_grid: dict,
+    value_field: str = None,
+) -> np.ndarray:
+    """
+    Rasterize a vector to the reference grid using FeatureToRaster.
+    If value_field is None, burn constant 1. Returns a 2D float array with NoData as np.nan.
+    """
+    ref_path = reference_grid["path"]
+    ref_r = arcpy.Raster(ref_path)
+
+    old_extent, old_cell, old_snap = env.extent, env.cellSize, env.snapRaster
+    must_drop = False
+    field_to_use = value_field
+
+    try:
+        # Match the reference raster grid
+        env.extent = arcpy.Describe(ref_path).extent
+        env.cellSize = ref_r.meanCellWidth
+        env.snapRaster = ref_path
+
+        # If no label field, add a temp constant
+        if field_to_use is None:
+            field_to_use = "_ML_CONST_"
+            if field_to_use not in [f.name for f in arcpy.ListFields(vector_path)]:
+                arcpy.management.AddField(vector_path, field_to_use, "SHORT")
+                arcpy.management.CalculateField(vector_path, field_to_use, 1, "PYTHON3")
+                must_drop = True
+
+        # Create output name in scratch gdb and run FeatureToRaster
+        out_name = arcpy.CreateUniqueName("lbl_ras_", arcpy.env.scratchGDB)
+        res = arcpy.conversion.FeatureToRaster(
+            in_features=vector_path,
+            field=field_to_use,
+            out_raster=out_name,
+            cell_size=ref_r.meanCellWidth,
+        )
+        out_path = res.getOutput(0)
+        out_ras = arcpy.Raster(out_path)
+
+        # Read data and mask NoData via IsNull
+        lbl_data = arcpy.RasterToNumPyArray(out_ras)
+        lbl_mask = arcpy.RasterToNumPyArray(IsNull(out_ras)).astype(bool)
+
+        lbl_data = lbl_data.astype(float, copy=False)
+        lbl_data[lbl_mask] = np.nan
+        return lbl_data
+
+    finally:
+        # Clean up temp field if we added it
+        if must_drop:
+            try:
+                arcpy.management.DeleteField(vector_path, field_to_use)
+            except Exception:
+                pass
+        # Restore env
+        arcpy.env.extent, arcpy.env.cellSize, arcpy.env.snapRaster = old_extent, old_cell, old_snap
+
+
+def _is_nan_like(v) -> bool:
+    return isinstance(v, float) and np.isnan(v)
+
+
+def _apply_explicit_nodata_inplace(arr: np.ndarray, nodata_value: Number):
+    """Mark explicit nodata_value in arr as NaN (casts to float if needed)."""
+    if _is_nan_like(nodata_value):
+        return  # nothing to do
+    if not np.issubdtype(arr.dtype, np.floating):
+        arr[...] = arr.astype(float, copy=False)
+    # equality is fine for ints; use isclose for floats
+    if isinstance(nodata_value, float):
+        mask_val = np.isclose(arr, nodata_value)
+    else:
+        mask_val = (arr == nodata_value)
+    arr[mask_val] = np.nan
+
 
 def prepare_data_for_ml(
-    feature_raster_files,
-    label_file: Optional[Union[str, os.PathLike]] = None,
-    target_label_attr: Optional[str] = None,
-    X_nodata_value: Optional[Number] = None,
-    y_nodata_value: Optional[Number] = None,
-) -> Tuple[np.ndarray, Optional[np.ndarray], Any]:
+    feature_raster_files: Sequence[str],
+    label_file: Optional[str] = None,
+    label_field: Optional[str] = None,
+    feature_raster_nodata_value: Number = np.nan,
+    label_nodata_value: Number = np.nan,
+) -> Tuple[np.ndarray, Optional[np.ndarray], dict]:
     """
-    Prepare data ready for machine learning model training.
-
-    Performs the following steps:
-    - Read all bands of all feature/evidence rasters into a stacked Numpy array
-    - Read label data (and rasterize if a vector file is given)
-    - Create a nodata mask using all feature rasters and labels, and mask nodata cells out
-
-    Args:
-        feature_raster_files: List of filepaths of feature/evidence rasters. Files should only include
-            raster that have the same grid properties and extent.
-        label_file: Filepath to label (deposits) data. File can be either a vector file or raster file.
-            If a vector file is provided, it will be rasterized into similar grid as feature rasters. If
-            a raster file is provided, it needs to have same grid properties and extent as feature rasters.
-            Optional parameter and can be omitted if preparing data for predicting. Defaults to None.
-
-    Returns:
-        Feature data (X) in prepared shape.
-        Target labels (y) in prepared shape (if `label_file` was given).
-        Refrence raster metadata .
-        Nodata mask applied to X and y.
-
-    Raises:
-    Error: Input feature rasters contains only one path.
-    Error: Input feature rasters, and optionally rasterized label file,
-            don't have same grid properties.
+    ArcPy version using explicit NoData values for features and labels.
+    Returns (X, y, reference_profile) with 'nodata_mask' inside reference_profile.
     """
-
-    def _read_and_stack_feature_raster(filepath: Union[str, os.PathLike]) -> Tuple[np.ndarray, dict]:
-        """Read all bands of raster file with feature/evidence data in a stack."""
-        desc = arcpy.Describe(filepath)
-        path_to_raster = desc.catalogPath
-        out_bands_raster = [arcpy.ia.ExtractBand(path_to_raster, band_ids=i) for i in range(1, desc.bandCount + 1)] 
-        dataset = [arcpy.RasterToNumPyArray(band) for band in out_bands_raster] 
-        raster_data = np.stack(dataset)
-        return raster_data
-
     if len(feature_raster_files) < 2:
-        arcpy.AddError(f"Expected more than one feature raster file: {len(feature_raster_files)}.")
-        raise arcpy.ExecuteError
-    
-    rasters_to_check = feature_raster_files.copy()
+        msg = f"Expected more than one feature raster file: {len(feature_raster_files)}."
+        arcpy.AddError(msg)
+        raise ValueError(msg)
 
-    grid_check = _check_grid_properties(rasters_to_check)
-    
-    if not grid_check:
-        arcpy.AddWarning("Resampling feature rasters to match grid properties of the first raster.")
-        reference_raster = feature_raster_files[0]
-        resampled_feature_raster_files = []
-        for i, raster_file in enumerate(feature_raster_files):
-            
-            resampled_raster = _resample_raster(raster_file,
-                                                reference_raster,
-                                                os.path.join(arcpy.env.scratchFolder,
-                                                f"resampled_feature_raster_{i}.tif"))
-            
-            resampled_feature_raster_files.append(resampled_raster)
-        
-        feature_raster_files = resampled_feature_raster_files
-        feature_data = [_read_and_stack_feature_raster(file) for file in resampled_feature_raster_files]
-    else:
-        # Read and stack feature rasters
-        feature_data = [_read_and_stack_feature_raster(file) for file in feature_raster_files]
+    # Grid checks
+    grids = [_describe_raster_grid(p) for p in feature_raster_files]
+    if not _check_raster_grids(grids, same_extent=True):
+        msg = "Input feature rasters should have same grid properties."
+        arcpy.AddError(msg)
+        raise ValueError(msg)
 
-    # Verify that all feature rasters have the same shape after resampling
-    shapes = [raster.shape for raster in feature_data]
-    if len(set(shapes)) > 1:
-        arcpy.AddWarning(f"Feature rasters do not have the same shape after resampling: {shapes}")
-        arcpy.AddWarning("Cropping feature rasters to the smallest common shape.")
-        min_shape = np.min([raster.shape for raster in feature_data], axis=0)
-        feature_data = [raster[:, :min_shape[1], :min_shape[2]] for raster in feature_data]
+    reference = grids[0]
+    rows, cols = reference["rows"], reference["cols"]
 
-    # Reshape feature rasters for ML and create mask
-    reshaped_data = []
-    nodata_mask = None
+    # --- Features ---
+    # band_arrays must be a list of 2D float arrays where native NoData is already np.nan
+    band_arrays = _read_feature_bands(feature_raster_files, rows, cols)
 
-    for raster in feature_data:
+    # Apply the user-provided feature NoData value (if not NaN)
+    if not _is_nan_like(feature_raster_nodata_value):
+        for _, band_array in enumerate(band_arrays):
+            _apply_explicit_nodata_inplace(band_array, feature_raster_nodata_value)
 
-        # Reshape each raster to 2D array where each row is a pixel and each column is a band
-        raster_reshaped = raster.reshape(raster.shape[0], -1).T
-        reshaped_data.append(raster_reshaped)
+    # Stack -> (n_pixels, n_features)
+    reshaped = [a.reshape(-1) for a in band_arrays]
+    X_full = np.stack(reshaped, axis=1)
 
-        # Create a mask for NaN values
-        nan_mask = (raster_reshaped == np.nan).any(axis=1)
-        combined_mask = nan_mask if nodata_mask is None else nodata_mask | nan_mask
+    # Mask where any feature band is NaN
+    nodata_mask = np.isnan(X_full).any(axis=1)
 
-        # Create a mask for nodata values if nodata_value is provided
-        if X_nodata_value is not None:
-            raster_mask = (raster_reshaped == np.nan).any(axis=1)
-            combined_mask = combined_mask | raster_mask
+    # --- Labels ---
+    y = None
+    if label_file is not None and arcpy.Exists(label_file):
+        _, ext = os.path.splitext(label_file)
+        ext = ext.lower()
 
-        # Combine NaN and nodata masks
-        nodata_mask = combined_mask
-
-    X = np.concatenate(reshaped_data, axis=1)
-
-    if label_file is not None:
-        
-        desc = arcpy.Describe(label_file)
-
-        if desc.dataType == "FeatureClass" or desc.dataType == "FeatureLayer" or desc.dataType == "ShapeFile":
-            # Rasterize vector file
-            rasterized_vector = rasterize_vector(rasters_to_check[0], label_file, target_label_attr)
-
-            # Convert raster to numpy array
-            y = arcpy.RasterToNumPyArray(rasterized_vector)
+        # Vector labels -> rasterize
+        if (ext in {".shp", ".geojson", ".json", ".gpkg", ".gdb"} or
+            arcpy.Describe(label_file).dataType in {"FeatureClass", "ShapeFile", "FeatureLayer"}):
+            y_arr = _rasterize_vector_to_array(label_file, reference, value_field=label_field)
         else:
-            label_resampled = _resample_raster(label_file, feature_raster_files[0], os.path.join(arcpy.env.scratchFolder, "y_resampled"))
-            desc_label_resampled = arcpy.Describe(label_resampled)
-            y = arcpy.RasterToNumPyArray(desc_label_resampled.catalogPath)
-            
-            # Mask nodata label nodata values
-            if y_nodata_value is not None:
-                label_nodata_mask = y == y_nodata_value
-            else:
-                label_nodata_mask = np.zeros_like(y, dtype=bool)
+            # Raster labels -> must match grid
+            lbl_grid = _describe_raster_grid(label_file)
+            if not _check_raster_grids([reference, lbl_grid], same_extent=True):
+                msg = "Label raster should have the same grid properties as features."
+                arcpy.AddError(msg)
+                raise ValueError(msg)
+            # Read label raster; map native NoData -> NaN via IsNull inside helper or here:
+            lbl_data = arcpy.RasterToNumPyArray(label_file).astype(float, copy=False)
+            lbl_mask = arcpy.RasterToNumPyArray(arcpy.sa.IsNull(label_file)).astype(bool)
+            lbl_data[lbl_mask] = np.nan
+            y_arr = lbl_data
 
-            # Truncate the larger array to match the smaller one
-            min_size = min(nodata_mask.size, label_nodata_mask.size)
-            nodata_mask = nodata_mask[:min_size]
-            label_nodata_mask = label_nodata_mask.ravel()[:min_size]
+        if y_arr.shape != (rows, cols):
+            msg = "Rasterized/label grid shape mismatch."
+            arcpy.AddError(msg)
+            raise ValueError(msg)
 
-            # Combine masks and apply to label data
-            nodata_mask = nodata_mask | label_nodata_mask
+        # Apply the user-provided label NoData value (if not NaN)
+        if not _is_nan_like(label_nodata_value):
+            _apply_explicit_nodata_inplace(y_arr, label_nodata_value)
 
-        # Flatten label data and make sure it has the same size as the mask
-        y = y.ravel()[:nodata_mask.size]
-        y = y[~nodata_mask]
-        
+        # Any NaN in labels is excluded from training/eval
+        label_mask = np.isnan(y_arr).reshape(-1)
+        nodata_mask = nodata_mask | label_mask
 
-    else:
-        y = None
+        # Flatten labels after masking
+        y = y_arr.reshape(-1)[~nodata_mask]
 
-    X = X[~nodata_mask]
+    # Apply final mask to features
+    X = X_full[~nodata_mask, :]
 
-    return X, y, nodata_mask
+    reference_profile = {
+        "height": rows,
+        "width": cols,
+        "transform": None,
+        "crs_wkt": reference["spatial_ref"],
+        "cellsize_x": reference["cellsize_x"],
+        "cellsize_y": reference["cellsize_y"],
+        "extent": reference["extent"],
+        "path": reference["path"],
+        "nodata_mask": nodata_mask,  # (n_pixels,) boolean
+    }
 
+    return X, y, reference_profile
 
 def read_data_for_evaluation(
     rasters: Sequence[Union[str, os.PathLike]]
