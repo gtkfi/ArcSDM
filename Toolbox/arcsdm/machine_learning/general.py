@@ -10,13 +10,11 @@ from arcpy.sa import IsNull
 import joblib
 import pandas as pd
 from numbers import Number
-from pathlib import Path
 import numpy as np
 from typing import Any, List, Literal, Optional, Sequence, Tuple, Union
 from scipy import sparse
 from sklearn.base import BaseEstimator
 from sklearn.model_selection import KFold, LeaveOneOut, StratifiedKFold, train_test_split
-from tensorflow import keras
 
 from arcsdm.evaluation.scoring import score_predictions
 
@@ -234,7 +232,7 @@ def _rasterize_vector_to_array(
                 must_drop = True
 
         # Create output name in scratch gdb and run FeatureToRaster
-        out_name = arcpy.CreateUniqueName("lbl_ras_", arcpy.env.scratchGDB)
+        out_name = arcpy.CreateUniqueName("lbl_ras_", arcpy.env.scratchWorkspace)
         res = arcpy.conversion.FeatureToRaster(
             in_features=vector_path,
             field=field_to_use,
