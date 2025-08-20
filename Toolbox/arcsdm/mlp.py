@@ -258,91 +258,102 @@ def train_MLP_classifier(
 
 
 def Execute_MLP_classifier(self, parameters, messages):
+
+    try:        
+        arcpy.AddMessage("Starting MLP classifier training...")
+
+        input_rasters = parameters[0].valueAsText.split(';') if parameters[0].valueAsText else []
+        target_labels = parameters[1].valueAsText
+        target_labels_attr = parameters[2].valueAsText
+
+        # Explicit NoData values for features & labels
+        X_nodata_value = parameters[3].value
+        y_nodata_value = parameters[4].value 
+
+        neurons = [int(n) for n in parameters[5].valueAsText.split(',')] if parameters[5].valueAsText else [64, 32]
+
+        validation_split = float(parameters[6].value) if parameters[6].value is not None else 0.2
+        validation_data = parameters[7].valueAsText if parameters[7].valueAsText else None
+        if validation_data:
+            validation_split = 0.0  # explicit validation overrides split
+
+        activation = parameters[8].valueAsText or "relu"
+        output_neurons = int(parameters[9].value) if parameters[9].value is not None else None
+        last_activation = parameters[10].valueAsText or "sigmoid"
+        epochs = int(parameters[11].value) if parameters[11].value is not None else 50
+        batch_size = int(parameters[12].value) if parameters[12].value is not None else 32
+        optimizer = parameters[13].valueAsText or "adam"
+        learning_rate = float(parameters[14].value) if parameters[14].value is not None else 1e-3
+        loss_function = parameters[15].valueAsText or "binary_crossentropy"
+        dropout_rate = float(parameters[16].value) if parameters[16].value is not None else None
+        early_stopping = bool(parameters[17].value)
+        es_patience = int(parameters[18].value) if parameters[18].value is not None else 5
+        metrics = parameters[19].valueAsText.split(',') if parameters[19].valueAsText else ["accuracy"]
+        random_state = int(parameters[20].value) if parameters[20].value is not None else None
+        output_file = parameters[21].valueAsText
+
+        # Guard invalid attribute names
+        if target_labels_attr and target_labels_attr.lower() in ("shape", "fid"):
+            arcpy.AddError("Invalid 'Target labels attribute' field name.")
+            return
+
+        # ---- Prepare TRAINING data ----
+        X, y, _ = prepare_data_for_ml(
+            input_rasters,
+            label_file=target_labels,
+            label_field=target_labels_attr,
+            feature_raster_nodata_value=X_nodata_value,
+            label_nodata_value=y_nodata_value,
+        )
+        if y is None or y.size == 0:
+            arcpy.AddError("No training labels were produced. Check the target labels and attribute.")
+            return
+
+        # Infer output_neurons for binary/multiclass if not provided
+        if output_neurons is None:
+            output_neurons = int(np.unique(y).size)
+
+        # ---- Train ----
+        model, history = train_MLP_classifier(
+            X=X,
+            y=y,
+            neurons=neurons,
+            validation_split=validation_split,
+            validation_data=validation_data,
+            activation=activation,
+            output_neurons=output_neurons,
+            last_activation=last_activation,
+            epochs=epochs,
+            batch_size=batch_size,
+            optimizer=optimizer,
+            learning_rate=learning_rate,
+            loss_function=loss_function,
+            dropout_rate=dropout_rate,
+            early_stopping=early_stopping,
+            es_patience=es_patience,
+            metrics=metrics,
+            random_state=random_state,
+        )
+        arcpy.AddMessage("===== Model training completed. =====")
+
+        # Save & reload (handles Keras vs sklearn)
+        path_to_model = save_model(model, output_file)
+        arcpy.AddMessage(f"Saved model to: {path_to_model}")
+        try:
+            hdict = getattr(history, "history", {})
+            arcpy.AddMessage(f"Training history: {hdict}")
+        except Exception:
+            return arcpy.ExecuteError("Failed to retrieve training history.")
     
-    arcpy.AddMessage("Starting MLP classifier training...")
+    # Return geoprocessing specific errors
+    except arcpy.ExecuteError:    
+        arcpy.AddError(arcpy.GetMessages(2))    
 
-    input_rasters = parameters[0].valueAsText.split(';') if parameters[0].valueAsText else []
-    target_labels = parameters[1].valueAsText
-    target_labels_attr = parameters[2].valueAsText
-
-    # Explicit NoData values for features & labels
-    X_nodata_value = parameters[3].value
-    y_nodata_value = parameters[4].value 
-
-    neurons = [int(n) for n in parameters[5].valueAsText.split(',')] if parameters[5].valueAsText else [64, 32]
-
-    validation_split = float(parameters[6].value) if parameters[6].value is not None else 0.2
-    validation_data = parameters[7].valueAsText if parameters[7].valueAsText else None
-    if validation_data:
-        validation_split = 0.0  # explicit validation overrides split
-
-    activation = parameters[8].valueAsText or "relu"
-    output_neurons = int(parameters[9].value) if parameters[9].value is not None else None
-    last_activation = parameters[10].valueAsText or "sigmoid"
-    epochs = int(parameters[11].value) if parameters[11].value is not None else 50
-    batch_size = int(parameters[12].value) if parameters[12].value is not None else 32
-    optimizer = parameters[13].valueAsText or "adam"
-    learning_rate = float(parameters[14].value) if parameters[14].value is not None else 1e-3
-    loss_function = parameters[15].valueAsText or "binary_crossentropy"
-    dropout_rate = float(parameters[16].value) if parameters[16].value is not None else None
-    early_stopping = bool(parameters[17].value)
-    es_patience = int(parameters[18].value) if parameters[18].value is not None else 5
-    metrics = parameters[19].valueAsText.split(',') if parameters[19].valueAsText else ["accuracy"]
-    random_state = int(parameters[20].value) if parameters[20].value is not None else None
-    output_file = parameters[21].valueAsText
-
-    # Guard invalid attribute names
-    if target_labels_attr and target_labels_attr.lower() in ("shape", "fid"):
-        arcpy.AddError("Invalid 'Target labels attribute' field name.")
-        return
-
-    # ---- Prepare TRAINING data ----
-    X, y, _ = prepare_data_for_ml(
-        input_rasters,
-        label_file=target_labels,
-        label_field=target_labels_attr,
-        feature_raster_nodata_value=X_nodata_value,
-        label_nodata_value=y_nodata_value,
-    )
-    if y is None or y.size == 0:
-        arcpy.AddError("No training labels were produced. Check the target labels and attribute.")
-        return
-
-    # Infer output_neurons for binary/multiclass if not provided
-    if output_neurons is None:
-        output_neurons = int(np.unique(y).size)
-
-    # ---- Train ----
-    model, history = train_MLP_classifier(
-        X=X,
-        y=y,
-        neurons=neurons,
-        validation_split=validation_split,
-        validation_data=validation_data,
-        activation=activation,
-        output_neurons=output_neurons,
-        last_activation=last_activation,
-        epochs=epochs,
-        batch_size=batch_size,
-        optimizer=optimizer,
-        learning_rate=learning_rate,
-        loss_function=loss_function,
-        dropout_rate=dropout_rate,
-        early_stopping=early_stopping,
-        es_patience=es_patience,
-        metrics=metrics,
-        random_state=random_state,
-    )
-    arcpy.AddMessage("===== Model training completed. =====")
-
-    # Save & reload (handles Keras vs sklearn)
-    path_to_model = save_model(model, output_file)
-    arcpy.AddMessage(f"Saved model to: {path_to_model}")
-    try:
-        hdict = getattr(history, "history", {})
-        arcpy.AddMessage(f"Training history: {hdict}")
-    except Exception:
-        return arcpy.ExecuteError("Failed to retrieve training history.")
+    # Return any other type of error
+    except:
+        # By default any other errors will be caught here
+        e = sys.exc_info()[1]
+        arcpy.AddError(e.args[0])
 
 
 def Execute_MLP_regressor(self, parameters, messages):
@@ -417,7 +428,7 @@ def Execute_MLP_regressor(self, parameters, messages):
     except:
         # By default any other errors will be caught here
         e = sys.exc_info()[1]
-        print(e.args[0])
+        arcpy.AddError(e.args[0])
 
 
 def train_MLP_regressor(
