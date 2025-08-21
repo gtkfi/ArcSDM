@@ -1020,48 +1020,49 @@ class TOCFuzzificationTool(object):
 
     def getParameterInfo(self):
         """Define parameter definitions"""
-        param0 = arcpy.Parameter(
+        param_input_raster = arcpy.Parameter(
         displayName="Input Raster",
         name="input_raster",
         datatype="GPRasterLayer",
         parameterType="Required",
         direction="Input")
         
-        param1 = arcpy.Parameter(
+        param_reclass_field = arcpy.Parameter(
         displayName="Reclass Field",
         name="reclass_field",
         datatype="Field",
         parameterType="Required",
         direction="Input")
 
-        param2 = arcpy.Parameter(
+        param_reclassification = arcpy.Parameter(
         displayName="Reclassification",
         name="reclassification",
         datatype="remap",
         parameterType="Required",
         direction="Input")
 
-        param3 = arcpy.Parameter(
+        param_num_classes = arcpy.Parameter(
         displayName="Number of Classes",
         name="classes",
         datatype="GPLong",
         parameterType="Required",
         direction="Input")
 
-        param4 = arcpy.Parameter(
-        displayName="Fuzzy Membership Raster",
+        param_output_raster = arcpy.Parameter(
+        displayName="Output Fuzzy Membership Raster",
         name="fmtoc",
         datatype="DERasterDataset",
         parameterType="Required",
         direction="Output")
+        param_output_raster.value = "%Workspace%\FuzzyMembership"
         
-        param1.value = "VALUE"
-        param1.enabled = False
-        param2.enabled = False
+        param_reclass_field.value = "VALUE"
+        param_reclass_field.enabled = False
+        param_reclassification.enabled = False
         
-        param1.parameterDependencies = [param0.name]  
-        param2.parameterDependencies = [param0.name,param1.name]
-        params = [param0,param1,param2,param3,param4]
+        param_reclass_field.parameterDependencies = [param_input_raster.name]  
+        param_reclassification.parameterDependencies = [param_input_raster.name,param_reclass_field.name]
+        params = [param_input_raster,param_reclass_field,param_reclassification,param_num_classes,param_output_raster]
         return params
 
     def isLicensed(self):
@@ -1088,6 +1089,9 @@ class TOCFuzzificationTool(object):
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
         parameter. This method is called after internal validation."""
+        
+        if parameters[3].value < 1:
+            parameters[3].setErrorMessage("'Classes' must be greater than 1.")
         return
 
     def execute(self, parameters, messages):

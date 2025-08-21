@@ -11,18 +11,22 @@ def Calculate(self, parameters, messages):
         reclass_field = parameters[1].valueAsText
         remap = parameters[2].valueAsText
         classes = parameters[3].value        
-        fmtoc = parameters[4].valueAsText
-        if fmtoc == '#' or not fmtoc:
-            fmtoc = "%Workspace%/FMTOC" # provide a default value if unspecified
-        rasterLayerName = os.path.split(fmtoc)[1]
+        fmtoc_path = parameters[4].valueAsText
+        
         min_class_number = 1
         reclassified = Reclassify(input_raster, reclass_field, remap, "DATA")
         float_reclass = Float(reclassified)
         minus_float1 = Minus(float_reclass, min_class_number) 
         denominator = Minus(classes, min_class_number)
         fmtoc = Divide(minus_float1, denominator)
-        addToDisplay(fmtoc, rasterLayerName, "BOTTOM")
+
+        fmtoc.save(fmtoc_path)
+
+    # Return geoprocessing specific errors
+    except arcpy.ExecuteError:    
+        arcpy.AddError(arcpy.GetMessages(2))    
     except:
-        tb = sys.exc_info()[2]
-        errors = traceback.format_exc()
-        arcpy.AddError(errors)         
+        # By default any other errors will be caught here
+        e = sys.exc_info()[1]
+        print(e.args[0])
+        arcpy.AddError(e.args[0])       
