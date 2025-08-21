@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-import sys, string, os, math, traceback, math
+import sys
 import arcpy
 from arcpy.sa import Float, Divide, Minus, Reclassify
-from arcsdm.common import addToDisplay
 
 def Calculate(self, parameters, messages):
     try:
-        messages.addMessage("Starting toc fuzzification calculation");
+        messages.addMessage("Starting toc fuzzification calculation")
         input_raster     = parameters[0].valueAsText
         reclass_field = parameters[1].valueAsText
         remap = parameters[2].valueAsText
@@ -28,5 +26,4 @@ def Calculate(self, parameters, messages):
     except:
         # By default any other errors will be caught here
         e = sys.exc_info()[1]
-        print(e.args[0])
         arcpy.AddError(e.args[0])       
