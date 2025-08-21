@@ -867,7 +867,7 @@ class ThinningTool(object):
             displayName="Unit area",
             name="Unit_Area",
             datatype="GPDouble",
-            parameterType="Required",
+            parameterType="Optional",
             direction="Input")
         param_unit_area.value = 500
 
@@ -893,7 +893,7 @@ class ThinningTool(object):
             displayName="Minimum Distance (Meters)",
             name="Min_Distance",
             datatype="GPDouble",
-            parameterType="Required",
+            parameterType="Optional",
             direction="Input")
 
         param_output = arcpy.Parameter(
@@ -924,18 +924,6 @@ class ThinningTool(object):
         execute_tool(arcsdm.thinning.ThinSites, self, parameters, messages)
         return
 
-    def updateMessages(self, parameters):
-        """Modify the messages created by internal validation for each tool parameter."""
-        if parameters[1].value is not None and parameters[1].value <= 0:
-            parameters[1].setErrorMessage("Unit area must be greater than 0.")
-        if parameters[3].value is not None and parameters[3].value <= 0:
-            parameters[3].setErrorMessage("Minimum distance must be greater than 0.")
-        return
-
-    def execute(self, parameters, messages):
-        """The source code of the tool."""
-        execute_tool(arcsdm.sitereduction.ReduceSites, self, parameters, messages)
-        return
 
 class CategoricalAndReclassTool(object):
     def __init__(self):
