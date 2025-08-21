@@ -1807,15 +1807,6 @@ class PCARaster(object):
             multiValue=True
         )
         
-        param_nodata_value = arcpy.Parameter(
-            displayName="NoData Value",
-            name="nodata_value",
-            datatype="GPLong",
-            parameterType="Optional",
-            direction="Input"
-        )
-        param_nodata_value.value = -99
-
         param_num_components = arcpy.Parameter(
             displayName="Number of Components",
             name="num_components",
@@ -1854,7 +1845,7 @@ class PCARaster(object):
         param_transformed_data.value = 'transformed_raster'
 
         params = [param_input_rasters,
-                  param_nodata_value,
+                #   param_nodata_value,
                   param_num_components,
                   param_scaler_type,
                   param_nodata_handling,

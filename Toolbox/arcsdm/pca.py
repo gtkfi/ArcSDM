@@ -74,13 +74,22 @@ def Execute(self, parameters, messages):
             input_data = rasterizedInputs
 
         else:
-            nodata_param = parameters[1].value
-            nodata_value = np.float(nodata_param) if nodata_param is not None else np.nan  # Convert to float for numpy operations
-            number_of_components = parameters[2].value
-            scaler_type = parameters[3].valueAsText
-            nodata_handling = parameters[4].valueAsText
-            transformed_data_output = parameters[5].valueAsText
+            number_of_components = parameters[1].value
+            scaler_type = parameters[2].valueAsText
+            nodata_handling = parameters[3].valueAsText
+            transformed_data_output = parameters[4].valueAsText
             
+        desc_input = arcpy.Describe(input_data[0])
+        is_multiband = hasattr(desc_input, "bandCount") and desc_input.bandCount > 1
+
+        if is_multiband:        
+            nodata_value = arcpy.Raster(input_data[0]).noDataValue
+        else:
+            nodata_value = desc_input.noDataValue
+
+        if (nodata_value is None):
+            nodata_value = np.nan
+
         stacked_arrays = read_and_stack_rasters(input_data, nodata_handling = "convert_to_nan")
         
         if len(stacked_arrays) == 1:
@@ -95,9 +104,7 @@ def Execute(self, parameters, messages):
         arcpy.AddMessage('='*5 + ' PCA results ' + '='*5)
         # Save output data
         if transformed_data.ndim is 2 or transformed_data.ndim is 3:
-            desc_input = arcpy.Describe(input_data[0])
-
-            if hasattr(desc_input, "bandCount") and desc_input.bandCount > 1:
+            if is_multiband:
                 first_band = arcpy.ia.ExtractBand(input_data[0], band_ids=1)
                 desc_input = arcpy.Describe(first_band)
 
