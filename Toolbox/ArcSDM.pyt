@@ -1014,7 +1014,7 @@ class TOCFuzzificationTool(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "TOC Fuzzification"
-        self.description = "This fuzzification method utilized the symbolization of the input raster that has been applied in the map document table of contects (TOC). The symbolization in the TOC defines the number of classes and this tool rescales those classes (1...N) to the range [0,1] by (C - 1)/(N-1) where C is the class value and N is the number of classes."
+        self.description = "This fuzzification method utilized the symbolization of the input raster that has been applied in the map document table of contents (TOC). The symbolization in the TOC defines the number of classes and this tool rescales those classes (1...N) to the range [0,1] by (C - 1)/(N-1) where C is the class value and N is the number of classes."
         self.canRunInBackground = False
         self.category = f"{TS_PREPROCESSING}\\{TS_EVIDENCE_DATA_PROCESSING}\\{TS_FUZZY}"
 
@@ -1054,7 +1054,7 @@ class TOCFuzzificationTool(object):
         datatype="DERasterDataset",
         parameterType="Required",
         direction="Output")
-        param_output_raster.value = "%Workspace%\FuzzyMembership"
+        param_output_raster.value = "%Workspace%\FMTOC"
         
         param_reclass_field.value = "VALUE"
         param_reclass_field.enabled = False
@@ -1084,6 +1084,13 @@ class TOCFuzzificationTool(object):
         else:
             parameters[1].enabled = False
             parameters[2].enabled = False
+
+        input_file_type = os.path.splitext(parameters[0].valueAsText.lower())[1]
+        output_path = parameters[4].valueAsText.lower()
+
+        if ".gdb" not in output_path:
+            parameters[4].value = os.path.join(os.path.dirname(output_path), "FMTOC" + input_file_type)
+
         return
 
     def updateMessages(self, parameters):
