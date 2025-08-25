@@ -9,6 +9,9 @@ from tensorflow.keras.metrics import CategoricalCrossentropy, MeanAbsoluteError,
 from tensorflow.keras.layers import Flatten
 from tensorflow.keras.optimizers import SGD, Adagrad, Adam, RMSprop
 
+from arcsdm.evaluation.scoring import score_predictions
+from arcsdm.machine_learning.general import load_model, reshape_predictions
+from arcsdm.machine_learning.predict import predict_classifier
 from arcsdm.machine_learning.general import prepare_data_for_ml, save_model
 from utils.arcpy_callback import ArcPyLoggingCallback
 
@@ -176,14 +179,14 @@ def train_MLP_classifier(
             program deterministic. Defaults to None (random state / seed).
 
     Returns:
-        Trained MLP model and training history.
+        Trained MLP (.joblib or .keras file) model and training history.
 
     Raises:
         Error: Some of the numeric parameters have invalid values.
         Error: Shape of X or y is invalid.
     """
-    # 1. Check input data
-    arcpy.AddMessage("Checking input data...")
+
+    # Validate inputs
     _check_ML_model_data_input(X=X, y=y)
     _check_MLP_inputs(
         neurons=neurons,
@@ -197,38 +200,49 @@ def train_MLP_classifier(
         loss_function=loss_function,
     )
 
+    # Seed for reproducibility
     if random_state is not None:
-        keras.utils.set_random_seed(random_state)
+        keras.utils.set_random_seed(int(random_state))
 
-    # 2. Create and compile a sequential model
-    arcpy.AddMessage("Creating and compiling a sequential model...")
+    # Ensure dtypes
+    X = X.astype("float32", copy=False)
+
+    # If using categorical_crossentropy and y is 1D integers, auto one-hot to match the loss
+    if loss_function == "categorical_crossentropy" and y.ndim == 1:
+        # infer classes from y unless output_neurons provided explicitly
+        num_classes = int(output_neurons)
+        if num_classes <= 1:
+            num_classes = int(np.max(y)) + 1
+        y = keras.utils.to_categorical(y.astype("int32", copy=False), num_classes=num_classes)
+    elif loss_function == "binary_crossentropy" and y.ndim == 1:
+        y = y.astype("float32", copy=False)
+
+    # Build model
     model = keras.Sequential()
 
     model.add(keras.layers.Input(shape=(X.shape[1],)))
 
     arcpy.AddMessage("Adding hidden layers...")
     for neuron in neurons:
-        model.add(keras.layers.Dense(units=neuron, activation=activation))
+        model.add(keras.layers.Dense(units=int(neuron), activation=activation))
+        if dropout_rate is not None and float(dropout_rate) > 0.0:
+            model.add(keras.layers.Dropout(float(dropout_rate)))
 
-        if dropout_rate is not None:
-            model.add(keras.layers.Dropout(dropout_rate))
+    model.add(keras.layers.Dense(units=int(output_neurons), activation=last_activation))
 
-    model.add(keras.layers.Dense(units=output_neurons, activation=last_activation))
-
-    model.add(Flatten())
-
-    arcpy.AddMessage("Compiling the model...")
+    #Compile
+    metrics = list(metrics) if metrics is not None else ["accuracy"]
     model.compile(
         optimizer=_keras_optimizer(optimizer, learning_rate=learning_rate),
         loss=loss_function,
-        metrics=[_keras_metric(metric) for metric in metrics],
+        metrics=[_keras_metric(m) for m in metrics],
     )
     
-    # 3. Train the model
     # Early stopping callback
     callbacks = [keras.callbacks.EarlyStopping(monitor="val_loss", patience=es_patience)] if early_stopping else []
     callbacks.append(ArcPyLoggingCallback(epochs))
     
+    # Train the model
     arcpy.AddMessage("Training the model...")
     history = model.fit(
         X,
@@ -244,41 +258,62 @@ def train_MLP_classifier(
 
 
 def Execute_MLP_classifier(self, parameters, messages):
-    
-    try:
-        input_rasters = parameters[0].valueAsText.split(';')
+
+    try:        
+        arcpy.AddMessage("Starting MLP classifier training...")
+
+        input_rasters = parameters[0].valueAsText.split(';') if parameters[0].valueAsText else []
         target_labels = parameters[1].valueAsText
         target_labels_attr = parameters[2].valueAsText
+
+        # Explicit NoData values for features & labels
         X_nodata_value = parameters[3].value
-        y_nodata_value = parameters[4].value
-        neurons = [int(n) for n in parameters[5].valueAsText.split(',')]
-        validation_split = float(parameters[6].value) if parameters[5].value else 0.2
-        validation_data = parameters[7].valueAsText if parameters[6].valueAsText else None
-        activation = parameters[8].valueAsText
-        output_neurons = parameters[9].value
-        last_activation = parameters[10].valueAsText
-        epochs = parameters[11].value
-        batch_size = int(parameters[12].value)
-        optimizer = parameters[13].valueAsText
-        learning_rate = float(parameters[14].value)
-        loss_function = parameters[15].valueAsText
-        dropout_rate = float(parameters[16].value) if parameters[16].value else None
-        early_stopping = parameters[17].value
-        es_patience = int(parameters[18].value)
-        metrics = parameters[19].valueAsText.split(',')
-        random_state = int(parameters[20].value) if parameters[20].value else None
+        y_nodata_value = parameters[4].value 
+
+        neurons = [int(n) for n in parameters[5].valueAsText.split(',')] if parameters[5].valueAsText else [64, 32]
+
+        validation_split = float(parameters[6].value) if parameters[6].value is not None else 0.2
+        validation_data = parameters[7].valueAsText if parameters[7].valueAsText else None
+        if validation_data:
+            validation_split = 0.0  # explicit validation overrides split
+
+        activation = parameters[8].valueAsText or "relu"
+        output_neurons = int(parameters[9].value) if parameters[9].value is not None else None
+        last_activation = parameters[10].valueAsText or "sigmoid"
+        epochs = int(parameters[11].value) if parameters[11].value is not None else 50
+        batch_size = int(parameters[12].value) if parameters[12].value is not None else 32
+        optimizer = parameters[13].valueAsText or "adam"
+        learning_rate = float(parameters[14].value) if parameters[14].value is not None else 1e-3
+        loss_function = parameters[15].valueAsText or "binary_crossentropy"
+        dropout_rate = float(parameters[16].value) if parameters[16].value is not None else None
+        early_stopping = bool(parameters[17].value)
+        es_patience = int(parameters[18].value) if parameters[18].value is not None else 5
+        metrics = parameters[19].valueAsText.split(',') if parameters[19].valueAsText else ["accuracy"]
+        random_state = int(parameters[20].value) if parameters[20].value is not None else None
         output_file = parameters[21].valueAsText
-        
-        arcpy.AddMessage("Starting MLP classifier training...")
-        
-        if (target_labels_attr != None and (target_labels_attr.lower() == "shape" or target_labels_attr.lower() == "fid")):
-            arcpy.AddError("Invalid 'Target labels attribute' field name")
+
+        # Guard invalid attribute names
+        if target_labels_attr and target_labels_attr.lower() in ("shape", "fid"):
+            arcpy.AddError("Invalid 'Target labels attribute' field name.")
             return
 
-        X, y, _ = prepare_data_for_ml(input_rasters, target_labels, target_labels_attr, X_nodata_value, y_nodata_value)
+        # ---- Prepare TRAINING data ----
+        X, y, _ = prepare_data_for_ml(
+            input_rasters,
+            label_file=target_labels,
+            label_field=target_labels_attr,
+            feature_raster_nodata_value=X_nodata_value,
+            label_nodata_value=y_nodata_value,
+        )
+        if y is None or y.size == 0:
+            arcpy.AddError("No training labels were produced. Check the target labels and attribute.")
+            return
 
-        arcpy.AddMessage("Data preparation completed.")
+        # Infer output_neurons for binary/multiclass if not provided
+        if output_neurons is None:
+            output_neurons = int(np.unique(y).size)
 
+        # ---- Train ----
         model, history = train_MLP_classifier(
             X=X,
             y=y,
@@ -299,14 +334,17 @@ def Execute_MLP_classifier(self, parameters, messages):
             metrics=metrics,
             random_state=random_state,
         )
-        
-        arcpy.AddMessage("="*5 + "Model training completed." + "="*5)
-        arcpy.AddMessage(f"Saving model to {output_file}.joblib")
-        arcpy.AddMessage(f"Model training history:")
-        arcpy.AddMessage(f"{history.history}")
-        
-        save_model(model, output_file)
+        arcpy.AddMessage("===== Model training completed. =====")
 
+        # Save & reload (handles Keras vs sklearn)
+        path_to_model = save_model(model, output_file)
+        arcpy.AddMessage(f"Saved model to: {path_to_model}")
+        try:
+            hdict = getattr(history, "history", {})
+            arcpy.AddMessage(f"Training history: {hdict}")
+        except Exception:
+            return arcpy.ExecuteError("Failed to retrieve training history.")
+    
     # Return geoprocessing specific errors
     except arcpy.ExecuteError:    
         arcpy.AddError(arcpy.GetMessages(2))    
@@ -315,7 +353,7 @@ def Execute_MLP_classifier(self, parameters, messages):
     except:
         # By default any other errors will be caught here
         e = sys.exc_info()[1]
-        print(e.args[0])
+        arcpy.AddError(e.args[0])
 
 
 def Execute_MLP_regressor(self, parameters, messages):
@@ -390,7 +428,7 @@ def Execute_MLP_regressor(self, parameters, messages):
     except:
         # By default any other errors will be caught here
         e = sys.exc_info()[1]
-        print(e.args[0])
+        arcpy.AddError(e.args[0])
 
 
 def train_MLP_regressor(
