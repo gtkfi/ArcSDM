@@ -362,7 +362,7 @@ def Execute_MLP_classifier(self, parameters, messages):
 
 def Execute_MLP_regressor(self, parameters, messages):
     
-    try:
+    #try:
         input_rasters = parameters[0].valueAsText.split(';')
         target_labels = parameters[1].valueAsText
         target_labels_attr = parameters[2].valueAsText
@@ -386,14 +386,13 @@ def Execute_MLP_regressor(self, parameters, messages):
         random_state = int(parameters[20].value) if parameters[20].value else None
         output_file = parameters[21].valueAsText
         
-        arcpy.AddMessage("Starting MLP classifier training...")
+        arcpy.AddMessage("Starting MLP regressor training...")
         
         if (target_labels_attr != None and (target_labels_attr.lower() == "shape" or target_labels_attr.lower() == "fid")):
             arcpy.AddError("Invalid 'Target labels attribute' field name")
             return
 
-        X, y, _ = prepare_data_for_ml(input_rasters, target_labels, target_labels_attr, X_nodata_value, y_nodata_value)
-
+        X, y, nodata_mask = prepare_data_for_ml(input_rasters, target_labels, target_labels_attr, X_nodata_value, y_nodata_value)
         arcpy.AddMessage("Data preparation completed.")
 
         model, history = train_MLP_regressor(
@@ -423,6 +422,52 @@ def Execute_MLP_regressor(self, parameters, messages):
         arcpy.AddMessage(f"{history.history}")
         
         save_model(model, output_file)
+
+
+
+        # TEST OSUUS ....
+
+        arcpy.AddMessage(f"Testerin suoritus alkaa...")
+
+        #model2 = load_model(output_file + ".joblib")
+
+        #arcpy.AddMessage(model2)
+        predictions = predict_regressor(X, model)
+
+        arcpy.AddMessage("predictions:")
+        # Set print options to avoid truncation
+        #np.set_printoptions(threshold=np.inf)
+        #arcpy.AddMessage(predictions)
+
+        raster = arcpy.Raster(input_rasters[0])
+        desc = arcpy.Describe(raster)
+
+        arcpy.AddMessage(raster.width)
+        arcpy.AddMessage(raster.height)
+
+        predictions_reshaped = reshape_predictions(  # nodata mask täytyy olla olemassa
+            predictions, raster.height, raster.width, nodata_mask
+        )
+
+        arcpy.AddMessage("predictions_reshaped:") # tämä on pelkkää tyhjää???? 
+        arcpy.AddMessage(predictions_reshaped)
+
+        lower_left_corner = arcpy.Point(raster.extent.XMin, raster.extent.YMin)
+        x_cell_size = raster.meanCellWidth
+        y_cell_size = raster.meanCellHeight
+
+        out_predictions_raster = arcpy.NumPyArrayToRaster(predictions_reshaped, lower_left_corner=lower_left_corner,
+                                               x_cell_size=x_cell_size, y_cell_size=y_cell_size, value_to_nodata=-9)
+
+        out_predictions_raster.save("TESTIRASTERI")
+        arcpy.DefineProjection_management(out_predictions_raster, desc.spatialReference)
+        out_predictions_raster.save()
+
+        metrics_dict = score_predictions(y, predictions, "mse", decimals=3)
+
+        arcpy.AddMessage(metrics_dict)
+
+        arcpy.AddMessage(f"LOPPU")
 
     # Return geoprocessing specific errors
     except arcpy.ExecuteError:    
@@ -557,7 +602,7 @@ def train_MLP_regressor(
 
 
 def Execute_MLP_regressor_test(self, parameters, messages):
-    try:
+    #try:
         input_rasters = parameters[0].valueAsText.split(';')
         target_labels = parameters[1].valueAsText
         target_labels_attr = parameters[2].valueAsText
@@ -572,36 +617,32 @@ def Execute_MLP_regressor_test(self, parameters, messages):
         
         arcpy.AddMessage("Starting MLP regressor test...")
         
-        X, y, reference_profile = prepare_data_for_ml(input_rasters, target_labels, target_labels_attr, X_nodata_value, y_nodata_value)
+        X, y, reference_profile, nodata_mask = prepare_data_for_ml(input_rasters, target_labels, target_labels_attr, X_nodata_value, y_nodata_value)
+        model = load_model(model_file)
 
         arcpy.AddMessage("22...")
 
-
-        # load trained model
-        model = load_model(model_file)
-
-        arcpy.AddMessage("33...")
-
-
         raster = arcpy.Raster(input_rasters[0])
-
-        arcpy.AddMessage("44...")
-
         desc = arcpy.Describe(raster)
-
 
         predictions = predict_regressor(X, model)
 
-        arcpy.AddMessage("55...")
-
+        arcpy.AddMessage("X:")
+        arcpy.AddMessage(X)
+        
+        arcpy.AddMessage("Predictions:")
+        arcpy.AddMessage(predictions)
+        arcpy.AddMessage(raster.height)
+        arcpy.AddMessage(raster.width)
 
         predictions_reshaped = reshape_predictions(
             predictions, raster.height, raster.width
         )
         
-        arcpy.AddMessage("66...")
+        arcpy.AddMessage("predictions_reshaped:")
+        arcpy.AddMessage(predictions_reshaped)
 
-
+        arcpy.AddMessage("55...")
 
         # Save rasters
         lower_left_corner = arcpy.Point(raster.extent.XMin, raster.extent.YMin)
@@ -612,20 +653,24 @@ def Execute_MLP_regressor_test(self, parameters, messages):
                                                x_cell_size=x_cell_size, y_cell_size=y_cell_size, value_to_nodata=-9)
 
         out_predictions_raster.save(output_raster)
-
         arcpy.DefineProjection_management(out_predictions_raster, desc.spatialReference)
-
-        metrics_dict = score_predictions(y, predictions, test_metrics, decimals=3)
-
-        out_profile = reference_profile.copy()
-        out_profile.update({"count": 1, "dtype": np.float32})
-
         out_predictions_raster.save()
+
+        arcpy.AddMessage("66...  score_predictions")
+        metrics_dict = score_predictions(y, predictions, "mae", decimals=3)
+
+        arcpy.AddMessage(metrics_dict)
+        #arcpy.AddMessage(out_profile)
+        #out_profile = reference_profile.copy()
+        #out_profile.update({"count": 1, "dtype": np.float32})
+
+
         
         arcpy.management.CalculateStatistics(output_raster)
 
         ResultSender.send_dict_as_json(metrics_dict)
 
+        arcpy.AddMessage("FINNISH...")
 
         #metrics_dict = score_predictions(y, predictions, get_enum_values(test_metrics), decimals=3)
 
@@ -642,14 +687,14 @@ def Execute_MLP_regressor_test(self, parameters, messages):
 
 
     # Return geoprocessing specific errors
-    except arcpy.ExecuteError:    
-        arcpy.AddError(arcpy.GetMessages(2))    
-
-    # Return any other type of error
-    except:
-        # By default any other errors will be caught here
-        e = sys.exc_info()[1]
-        print(e.args[0])
+    #except arcpy.ExecuteError:    
+    #    arcpy.AddError(arcpy.GetMessages(2))    
+#
+    ## Return any other type of error
+    #except:
+    #    # By default any other errors will be caught here
+    #    e = sys.exc_info()[1]
+    #    print(e.args[0])
 
 class ResultSender:
     @staticmethod
