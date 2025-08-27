@@ -10,6 +10,7 @@ import arcsdm.calculateresponse_arcpy_wip
 import arcsdm.calculateresponse
 import arcsdm.calculateweights
 import arcsdm.categoricalreclass
+import arcsdm.cosine_similarity_index
 import arcsdm.fuzzyroc2
 import arcsdm.mlp
 import arcsdm.pca
@@ -62,6 +63,7 @@ class Toolbox(object):
             TOCFuzzificationTool,
             TrainMLPClassifierTool,
             TrainMLPRegressorTool,
+            CosineSimilarityIndex,
         ]
 
 
@@ -779,6 +781,148 @@ class CalculateWeights(object):
         execute_tool(arcsdm.calculateweights.Calculate, self, parameters, messages)
         return
 
+
+class CosineSimilarityIndex(object):
+    def __init__(self):
+        self.label = "Cosine Similarity Index (CSI)"
+        self.description = (
+            "Compute Cosine Similarity Index for labelled data and evidence data. "
+            "Outputs: (1) pairwise CSI matrix for labelled samples (CSV), "
+            "(2) CSI matrix between class centroids (CSV), "
+            "(3) CSI for evidence vectors (CSV) or a raster per class label."
+        )
+        self.category = f"{TS_EXPLORATORY_DATA_ANALYSIS}"
+        self.canRunInBackground = True
+
+    def getParameterInfo(self):
+
+        # --- Labelled data ---
+        param_labelled_data_path = arcpy.Parameter(
+            displayName="Labelled data path (CSV/TXT or Feature Class)",
+            name="labelled_path",
+            datatype= ["DEFile", "DEFeatureClass"],
+            parameterType="Required",
+            direction="Input",
+        )
+        
+        param_label_field_names = arcpy.Parameter(
+            displayName="Label field names",
+            name="label_field_names",
+            datatype="Field",
+            parameterType="Required",
+            direction="Input",
+            multiValue=True,
+        )
+        param_label_field_names.parameterDependencies = [param_labelled_data_path.name]
+
+        param_feature_field_names = arcpy.Parameter(
+            displayName="Field names",
+            name="feature_field_names",
+            datatype="Field",
+            parameterType="Optional",
+            direction="Input",
+            multiValue=True,
+        )
+        param_feature_field_names.parameterDependencies = [param_labelled_data_path.name]
+
+        param_evidence_source_type = arcpy.Parameter(
+            displayName="Evidence source type",
+            name="evidence_type",
+            datatype="GPString",
+            parameterType="Required",
+            direction="Input",
+        )
+        param_evidence_source_type.filter.list = ["Raster layers", "CSV/TXT vectors"]
+        param_evidence_source_type.value = "Raster layers"
+
+        param_evidence_rasters = arcpy.Parameter(
+            displayName="Evidence rasters (same size/extent/projection)",
+            name="evidence_rasters",
+            datatype="GPRasterLayer",
+            parameterType="Optional",
+            direction="Input",
+            multiValue=True,
+        )
+
+        param_evidence_vectors = arcpy.Parameter(
+            displayName="Evidence vectors (CSV/TXT path)",
+            name="evidence_vectors_file",
+            datatype="DEFile",
+            parameterType="Optional",
+            direction="Input",
+        )
+
+        param_output_labelled_pairwise_csi = arcpy.Parameter(
+            displayName="CSV: Pairwise CSI matrix for labelled **samples**",
+            name="out_labelled_pairwise",
+            datatype="DEFile",
+            parameterType="Required",
+            direction="Output",
+        )
+
+        param_output_centroid_csi_matrix = arcpy.Parameter(
+            displayName="CSV: CSI matrix for **class centroids**",
+            name="out_centroid_matrix",
+            datatype="DEFile",
+            parameterType="Required",
+            direction="Output",
+        )
+
+        param_evidence_csi_table = arcpy.Parameter(
+            displayName="CSV: CSI table for evidence vectors (when evidence is CSV/TXT)",
+            name="out_evidence_table",
+            datatype="DEFile",
+            parameterType="Optional",
+            direction="Output",
+        )
+
+        param_output_raster_directory = arcpy.Parameter(
+            displayName="Folder: Output CSI rasters (one per class; when evidence is rasters)",
+            name="out_raster_folder",
+            datatype="DEFolder",
+            parameterType="Optional",
+            direction="Output",
+        )
+
+        param_csv_no_data_sentinel = arcpy.Parameter(
+            displayName="CSV/TXT NoData sentinel (numeric, optional)",
+            name="csv_nodata",
+            datatype="GPDouble",
+            parameterType="Optional",
+            direction="Input",
+        )
+
+        return [
+            param_labelled_data_path,
+            param_label_field_names,
+            param_feature_field_names,
+            param_evidence_source_type,
+            param_evidence_rasters,
+            param_evidence_vectors,
+            param_output_labelled_pairwise_csi,
+            param_output_centroid_csi_matrix,
+            param_evidence_csi_table,
+            param_output_raster_directory,
+            param_csv_no_data_sentinel
+        ]
+
+    def updateParameters(self, parameters):
+        # Toggle visibility based on evidence type
+        ev_type = parameters[4].valueAsText
+        if ev_type == "Raster layers":
+            parameters[5].enabled = True
+            parameters[10].enabled = True
+            parameters[6].enabled = False
+            parameters[9].enabled = False
+        elif ev_type == "CSV/TXT vectors":
+            parameters[5].enabled = False
+            parameters[10].enabled = False
+            parameters[6].enabled = True
+            parameters[9].enabled = True
+        return
+
+    def execute(self, parameters, messages):
+        execute_tool(arcsdm.cosine_similarity_index.execute, self, parameters, messages)
 
 class SplittingTool(object):
     def __init__(self):
