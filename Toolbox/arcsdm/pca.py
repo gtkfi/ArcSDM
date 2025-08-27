@@ -86,11 +86,11 @@ def Execute(self, parameters, messages):
             nodata_value = arcpy.Raster(input_data[0]).noDataValue
         else:
             nodata_value = desc_input.noDataValue
+        
+        stacked_arrays = read_and_stack_rasters(input_data, nodata_value, nodata_handling = "convert_to_nan")
 
         if (nodata_value is None):
             nodata_value = np.nan
-
-        stacked_arrays = read_and_stack_rasters(input_data, nodata_handling = "convert_to_nan")
         
         if len(stacked_arrays) == 1:
             arcpy.AddError("Only one band found in input data. PCA requires at least two bands.")
