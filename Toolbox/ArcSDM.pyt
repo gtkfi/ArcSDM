@@ -1097,7 +1097,7 @@ class TOCFuzzificationTool(object):
         """Modify the messages created by internal validation for each tool
         parameter. This method is called after internal validation."""
         
-        if parameters[3].value < 1:
+        if parameters[3].value and parameters[3].value < 1:
             parameters[3].setErrorMessage("'Classes' must be greater than 1.")
         return
 
