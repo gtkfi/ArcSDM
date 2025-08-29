@@ -206,7 +206,17 @@ def _stack_rasters(raster_paths):
     for i, rp in enumerate([p for p in raster_paths if p]):
         ras = arcpy.Raster(rp)
         dsc = arcpy.Describe(ras)
-        arr = arcpy.RasterToNumPyArray(ras, nodata_to_value=np.nan).astype("float64")
+        
+        # Get the raster's nodata value
+        nodata_value = ras.noDataValue
+        
+        # Read array without converting nodata yet
+        arr = arcpy.RasterToNumPyArray(ras).astype("float32")
+        
+        # Convert the original nodata value to NaN after reading
+        if nodata_value is not None:
+            arr[arr == nodata_value] = np.nan
+        
         arrays.append(arr)
         if i == 0:
             ref_desc = dsc
