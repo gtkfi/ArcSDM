@@ -277,7 +277,7 @@ def execute(self, parameters: Any, messages: Any) -> None:
     # Convert comma-separated string to list (or None)
     feature_field_names = parameters[2].valueAsText.split(';') if parameters[2].valueAsText else None
 
-    evidence_type = parameters[3].valueAsText
+    evidence_type = parameters[3].valueAsText if parameters[3].value else None
     rasters_list = parameters[4].valueAsText.split(';') if parameters[4].valueAsText else []
     evidence_vectors_file = parameters[5].valueAsText if parameters[5].value else None
 
@@ -291,11 +291,17 @@ def execute(self, parameters: Any, messages: Any) -> None:
     arcpy.AddMessage(f"Labelled data: {labelled_path}")
     arcpy.AddMessage(f"Label fields: {label_field_names if label_field_names else '[none]'}")
     arcpy.AddMessage(f"Feature fields: {feature_field_names if feature_field_names else 'Auto-detect'}")
-    arcpy.AddMessage(f"Evidence type: {evidence_type}")
-    if evidence_type == "Raster layers":
-        arcpy.AddMessage(f"Evidence rasters ({len(rasters_list)}): {rasters_list}")
+    
+    # Only log evidence information if provided
+    if evidence_type:
+        arcpy.AddMessage(f"Evidence type: {evidence_type}")
+        if evidence_type == "Raster layers":
+            arcpy.AddMessage(f"Evidence rasters ({len(rasters_list)}): {rasters_list}")
+        else:
+            arcpy.AddMessage(f"Evidence vectors file: {evidence_vectors_file}")
     else:
-        arcpy.AddMessage(f"Evidence vectors file: {evidence_vectors_file}")
+        arcpy.AddMessage("Evidence processing: Skipped (no evidence data provided)")
+    
     if csv_nodata is not None:
         arcpy.AddMessage(f"CSV NoData sentinel: {csv_nodata}")
 
@@ -347,77 +353,87 @@ def execute(self, parameters: Any, messages: Any) -> None:
     _write_csv_matrix(out_centroid_matrix_csv, class_names, class_names, centroid_sim)
     arcpy.AddMessage(f"Wrote centroid CSI matrix: {out_centroid_matrix_csv}")
 
-    # -------- Evidence processing --------
+    # -------- Evidence processing (optional) --------
     if evidence_type == "CSV/TXT vectors":
-        if not evidence_vectors_file or not out_evidence_table_csv:
-            raise ValueError("Provide an evidence vectors file and an output CSV path.")
-        arcpy.AddMessage("Reading evidence vectors from CSV/TXT...")
-        # Unlabeled evidence rows; enforce same feature order as labelled data
-        _ev_labels, EV, _ = _read_csv_vectors(
-            evidence_vectors_file,
-            label_fields=[],                    # no labels expected for evidence
-            feature_fields_list=feat_names,     # enforce same order
-            csv_nodata=csv_nodata
-        )
-
-        arcpy.AddMessage("Computing CSI of evidence vectors vs class centroids...")
-        sim_ev = _cosine_similarity(EV, C)  # (N_evidence x N_classes)
-
-        os.makedirs(os.path.dirname(out_evidence_table_csv) or ".", exist_ok=True)
-        with open(out_evidence_table_csv, "w", newline="", encoding="utf-8", buffering=1024*1024) as f:
-            w = csv.writer(f, lineterminator="\n")
-            w.writerow(["row_index"] + [str(cn) for cn in class_names])
-            # Vectorized formatting per row
-            mask = np.isfinite(sim_ev)
-            out = np.full(sim_ev.shape, "", dtype=object)
-            out[mask] = np.char.mod("%.6f", sim_ev[mask])
-            for i, row in enumerate(out.tolist()):
-                w.writerow([i] + row)
-        arcpy.AddMessage(f"Wrote evidence CSI table: {out_evidence_table_csv}")
-
-    elif evidence_type == "Raster layers":
-        if (not rasters_list) or (not out_raster_folder):
-            raise ValueError("Provide evidence rasters and an output folder for CSI rasters.")
-        arcpy.AddMessage(f"Stacking evidence rasters ({len(rasters_list)} bands)...")
-        stack, ref_raster, ref_desc = _stack_rasters(rasters_list)  # (H,W,B)
-
-        H, W, B = stack.shape
-        if B != len(feat_names):
-            arcpy.AddWarning(
-                f"Number of rasters ({B}) != number of feature columns in labelled data ({len(feat_names)}). "
-                "Assuming the same order/name correspondence."
+        if not evidence_vectors_file:
+            arcpy.AddWarning("Evidence type specified as CSV/TXT vectors but no evidence file provided. Skipping evidence processing.")
+        elif not out_evidence_table_csv:
+            arcpy.AddWarning("Evidence vectors file provided but no output CSV path specified. Skipping evidence processing.")
+        else:
+            arcpy.AddMessage("Reading evidence vectors from CSV/TXT...")
+            # Unlabeled evidence rows; enforce same feature order as labelled data
+            _ev_labels, EV, _ = _read_csv_vectors(
+                evidence_vectors_file,
+                label_fields=[],                    # no labels expected for evidence
+                feature_fields_list=feat_names,     # enforce same order
+                csv_nodata=csv_nodata
             )
 
-        # Mask & normalize per-pixel vectors
-        mask = np.any(np.isnan(stack), axis=2)
-        norms = np.linalg.norm(stack, axis=2, keepdims=True)
-        norms[norms == 0] = np.nan
-        Rnorm = stack / norms  # (H,W,B), NaNs where invalid
+            arcpy.AddMessage("Computing CSI of evidence vectors vs class centroids...")
+            sim_ev = _cosine_similarity(EV, C)  # (N_evidence x N_classes)
 
-        # Normalize class centroids
-        Cn = _normalize_rows(C)  # (K,B)
+            os.makedirs(os.path.dirname(out_evidence_table_csv) or ".", exist_ok=True)
+            with open(out_evidence_table_csv, "w", newline="", encoding="utf-8", buffering=1024*1024) as f:
+                w = csv.writer(f, lineterminator="\n")
+                w.writerow(["row_index"] + [str(cn) for cn in class_names])
+                # Vectorized formatting per row
+                mask = np.isfinite(sim_ev)
+                out = np.full(sim_ev.shape, "", dtype=object)
+                out[mask] = np.char.mod("%.6f", sim_ev[mask])
+                for i, row in enumerate(out.tolist()):
+                    w.writerow([i] + row)
+            arcpy.AddMessage(f"Wrote evidence CSI table: {out_evidence_table_csv}")
 
-        # Compute similarity per class and save
-        workspace_desc = arcpy.Describe(arcpy.env.workspace)
-        if workspace_desc.workspaceType == "FileSystem":
-            os.makedirs(arcpy.env.workspace, exist_ok=True)
-            for ci, cname in enumerate(class_names):
-                vec = Cn[ci, :]  # (B,)
-                sim = np.nansum(Rnorm * vec.reshape(1, 1, -1), axis=2)  # (H,W)
-                sim[mask] = np.nan
-                out_name = f"CSI_similarity_raster_{ci}.tif"
-                out_path = os.path.join(out_raster_folder, out_name)
-                _save_similarity_raster(sim, ref_desc, out_path)
-                arcpy.AddMessage(f"Wrote CSI raster for class '{cname}': {out_path}")
+    elif evidence_type == "Raster layers":
+        if not rasters_list:
+            arcpy.AddWarning("Evidence type specified as Raster layers but no raster list provided. Skipping evidence processing.")
+        elif not out_raster_folder:
+            arcpy.AddWarning("Evidence rasters provided but no output folder specified. Skipping evidence processing.")
         else:
-            for ci, cname in enumerate(class_names):
-                vec = Cn[ci, :]  # (B,)
-                sim = np.nansum(Rnorm * vec.reshape(1, 1, -1), axis=2)  # (H,W)
-                sim[mask] = np.nan
-                out_name = f"CSI_similarity_raster_{ci}"
-                _save_similarity_raster(sim, ref_desc, out_name)
-                arcpy.AddMessage(f"Wrote CSI raster for class '{cname}': {out_name}")
-    else:
-        raise ValueError(f"Unknown evidence type: {evidence_type}")
+            arcpy.AddMessage(f"Stacking evidence rasters ({len(rasters_list)} bands)...")
+            stack, ref_raster, ref_desc = _stack_rasters(rasters_list)  # (H,W,B)
+
+            H, W, B = stack.shape
+            if B != len(feat_names):
+                arcpy.AddWarning(
+                    f"Number of rasters ({B}) != number of feature columns in labelled data ({len(feat_names)}). "
+                    "Assuming the same order/name correspondence."
+                )
+
+            # Mask & normalize per-pixel vectors
+            mask = np.any(np.isnan(stack), axis=2)
+            norms = np.linalg.norm(stack, axis=2, keepdims=True)
+            norms[norms == 0] = np.nan
+            Rnorm = stack / norms  # (H,W,B), NaNs where invalid
+
+            # Normalize class centroids
+            Cn = _normalize_rows(C)  # (K,B)
+
+            # Compute similarity per class and save
+            workspace_desc = arcpy.Describe(arcpy.env.workspace)
+            if workspace_desc.workspaceType == "FileSystem":
+                os.makedirs(out_raster_folder, exist_ok=True)
+                for ci, cname in enumerate(class_names):
+                    vec = Cn[ci, :]  # (B,)
+                    sim = np.nansum(Rnorm * vec.reshape(1, 1, -1), axis=2)  # (H,W)
+                    sim[mask] = np.nan
+                    out_name = f"CSI_similarity_raster_{ci}.tif"
+                    out_path = os.path.join(out_raster_folder, out_name)
+                    _save_similarity_raster(sim, ref_desc, out_path)
+                    arcpy.AddMessage(f"Wrote CSI raster for class '{cname}': {out_path}")
+            else:
+                for ci, cname in enumerate(class_names):
+                    vec = Cn[ci, :]  # (B,)
+                    sim = np.nansum(Rnorm * vec.reshape(1, 1, -1), axis=2)  # (H,W)
+                    sim[mask] = np.nan
+                    out_name = f"CSI_similarity_raster_{ci}"
+                    _save_similarity_raster(sim, ref_desc, out_name)
+                    arcpy.AddMessage(f"Wrote CSI raster for class '{cname}': {out_name}")
+    
+    elif evidence_type:
+        # If evidence_type is provided but not recognized
+        arcpy.AddWarning(f"Unknown evidence type: {evidence_type}. Skipping evidence processing.")
+    
+    # If evidence_type is None or empty, we simply skip evidence processing entirely
 
     arcpy.AddMessage("CSI computation finished.")
