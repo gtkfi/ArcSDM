@@ -373,164 +373,25 @@ def execute(self, parameters, messages):
         Cn = _normalize_rows(C)  # (K,B)
 
         # Compute similarity per class and save
-        os.makedirs(out_raster_folder, exist_ok=True)
-        for ci, cname in enumerate(class_names):
-            vec = Cn[ci, :]  # (B,)
-            sim = np.nansum(Rnorm * vec.reshape(1, 1, -1), axis=2)  # (H,W)
-            sim[mask] = np.nan
-            out_name = f"CSI_{_sanitize_name(cname)}"
-            out_path = os.path.join(out_raster_folder, out_name)
-            _save_similarity_raster(sim, ref_desc, out_path)
-            arcpy.AddMessage(f"Wrote CSI raster for class '{cname}': {out_path}")
-    else:
-        raise ValueError(f"Unknown evidence type: {evidence_type}")
-
-    arcpy.AddMessage("CSI computation finished.")
-
-
-def execute_prototype(self, parameters, messages):
-    arcpy.AddMessage("Starting Cosine Similarity Index (CSI) computation...")
-
-    labelled_path = parameters[0].valueAsText
-    label_field_names = parameters[1].valueAsText.split(';') if parameters[1].valueAsText else []
-    feature_field_names = parameters[2].valueAsText.split(';') if parameters[2].valueAsText else None
-
-    evidence_type = parameters[3].valueAsText
-    rasters_list = parameters[4].valueAsText.split(';') if parameters[4].valueAsText else []
-    evidence_vectors_file = parameters[5].valueAsText if parameters[5].valueAsText else None
-
-    out_labelled_pairwise_csv = parameters[6].valueAsText
-    out_centroid_matrix_csv = parameters[7].valueAsText
-    out_evidence_table_csv = parameters[8].valueAsText if parameters[8].value else None
-    out_raster_folder = parameters[9].valueAsText if parameters[9].value else None
-    csv_nodata = float(parameters[10].value) if parameters[10].value else None
-
-
-    # --- Detect input type (CSV/TXT vs Feature Class/Shapefile) ---
-    ext = os.path.splitext(labelled_path)[1].lower()
-    if ext in [".csv", ".txt"]:
-        labelled_is_fc = False
-    elif arcpy.Exists(labelled_path):
-        desc = arcpy.Describe(labelled_path)
-        if hasattr(desc, "datasetType") and desc.datasetType == "FeatureClass":
-            labelled_is_fc = True
-        elif ext == ".shp":
-            labelled_is_fc = True
+        workspace_desc = arcpy.Describe(arcpy.env.workspace)
+        if workspace_desc.workspaceType == "FileSystem":
+            os.makedirs(arcpy.env.workspace, exist_ok=True)
+            for ci, cname in enumerate(class_names):
+                vec = Cn[ci, :]  # (B,)
+                sim = np.nansum(Rnorm * vec.reshape(1, 1, -1), axis=2)  # (H,W)
+                sim[mask] = np.nan
+                out_name = f"CSI_similarity_raster_{ci}.tif"
+                out_path = os.path.join(out_raster_folder, out_name)
+                _save_similarity_raster(sim, ref_desc, out_path)
+                arcpy.AddMessage(f"Wrote CSI raster for class '{cname}': {out_path}")
         else:
-            raise ValueError("Input is not recognized as CSV/TXT or a feature class/shapefile.")
-    else:
-        raise ValueError(f"Input not found: {labelled_path}")
-
-    # -------- Read labelled data --------
-    if labelled_is_fc:
-        labels, X, feat_names = _read_feature_class_vectors(labelled_path, label_field_names, feature_field_names)
-    else:
-        labels, X, feat_names = _read_csv_vectors(labelled_path, label_field_names, feature_field_names, csv_nodata)
-
-    if X.size == 0 or X.shape[1] == 0:
-        raise ValueError("No feature columns found for labelled data.")
-
-    arcpy.AddMessage(f"Labelled samples: {len(labels)} | features: {len(feat_names)}")
-
-    # -------- Pairwise CSI for labelled samples --------
-    arcpy.AddMessage("Computing pairwise CSI for labelled samples...")
-    pairwise = _cosine_similarity(X)
-    _write_csv_matrix(out_labelled_pairwise_csv,
-                            [f"row{i}" for i in range(len(labels))],
-                            [f"row{i}" for i in range(len(labels))],
-                            pairwise)
-    arcpy.AddMessage(f"Wrote pairwise CSI matrix: {out_labelled_pairwise_csv}")
-
-    # -------- Class centroids & their CSI matrix --------
-    arcpy.AddMessage("Computing class centroids and centroid CSI matrix...")
-    class_names, C = _centroids_by_label(labels, X)
-    centroid_sim = _cosine_similarity(C)
-    _write_csv_matrix(out_centroid_matrix_csv, class_names, class_names, centroid_sim)
-    arcpy.AddMessage(f"Wrote centroid CSI matrix: {out_centroid_matrix_csv}")
-
-    # -------- Evidence processing --------
-    if evidence_type == "CSV/TXT vectors":
-        if not evidence_vectors_file or not out_evidence_table_csv:
-            raise ValueError("Provide an evidence vectors file and an output CSV path.")
-        arcpy.AddMessage("Reading evidence vectors from CSV/TXT...")
-        # Reuse feature column names; if header differs, we still consume all numeric columns except label_field (if present)
-        # For evidence CSV we ignore any label column; treat every row as an unlabeled vector
-        ev_labels, EV, ev_cols = _read_csv_vectors(
-            evidence_vectors_file,
-            label_field=label_field_names[0] if label_field_names else None,
-            feature_fields=",".join(feat_names),  # enforce same feature order as labelled data
-            csv_nodata=csv_nodata,
-        )
-        # Note: _read_csv_vectors requires a label column name; to avoid coupling, we do a lightweight CSV read here:
-        # But to keep things consistent and robust, implement a simple reader inline:
-        EV = []
-        used_cols = None
-        with open(evidence_vectors_file, "r", newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            hdrs = reader.fieldnames or []
-            for h in feat_names:
-                if h not in hdrs:
-                    raise ValueError(f"Evidence CSV missing feature '{h}' expected from labelled data.")
-            used_cols = feat_names
-            for row in reader:
-                vec = []
-                for h in used_cols:
-                    v = row.get(h, "")
-                    try:
-                        x = float(v)
-                    except:
-                        x = np.nan
-                    if csv_nodata is not None and not math.isnan(csv_nodata) and x == csv_nodata:
-                        x = np.nan
-                    vec.append(x)
-                EV.append(vec)
-        EV = np.array(EV, dtype="float64")
-
-        arcpy.AddMessage("Computing CSI of evidence vectors vs class centroids...")
-        sim_ev = _cosine_similarity(EV, C)  # (N_evidence x N_classes)
-        os.makedirs(os.path.dirname(out_evidence_table_csv) or ".", exist_ok=True)
-        with open(out_evidence_table_csv, "w", newline="", encoding="utf-8") as f:
-            w = csv.writer(f)
-            w.writerow(["row_index"] + [str(cn) for cn in class_names])
-            for i, row in enumerate(sim_ev):
-                w.writerow([i] + ["{:.6f}".format(float(x)) if np.isfinite(x) else "" for x in row])
-        arcpy.AddMessage(f"Wrote evidence CSI table: {out_evidence_table_csv}")
-
-    elif evidence_type == "Raster layers":
-        if (not rasters_list) or (not out_raster_folder):
-            raise ValueError("Provide evidence rasters and an output folder for CSI rasters.")
-        raster_paths = [raster_path for raster_path in rasters_list]
-        arcpy.AddMessage(f"Stacking evidence rasters ({len(raster_paths)} bands)...")
-        stack, ref_raster, ref_desc = _stack_rasters(rasters_list)  # (H,W,B)
-
-        H, W, B = stack.shape
-        if B != len(feat_names):
-            arcpy.AddWarning(f"Number of rasters ({B}) != number of feature columns in labelled data ({len(feat_names)}). "
-                              "Assuming the same order/name correspondence.")
-
-        # Build a mask where any band is NaN
-        mask = np.any(np.isnan(stack), axis=2)
-
-        # Normalize per-pixel vectors
-        norms = np.linalg.norm(stack, axis=2, keepdims=True)
-        norms[norms == 0] = np.nan
-        Rnorm = stack / norms  # (H,W,B), NaNs where invalid
-
-        # Normalize class centroids
-        Cn = _normalize_rows(C)  # (K,B)
-
-        # Compute similarity per class: sum over bands of Rnorm * centroid_b
-        os.makedirs(out_raster_folder, exist_ok=True)
-        for ci, cname in enumerate(class_names):
-            vec = Cn[ci, :]  # (B,)
-            # Broadcast and compute dot product across band axis
-            sim = np.nansum(Rnorm * vec.reshape(1, 1, -1), axis=2)
-            # Set masked pixels to NoData
-            sim[mask] = np.nan
-            out_name = "CSI_{}".format(_sanitize_name(cname))
-            out_path = os.path.join(out_raster_folder, out_name)
-            _save_similarity_raster(sim, ref_desc, out_path)
-            arcpy.AddMessage(f"Wrote CSI raster for class '{cname}': {out_path}")
+            for ci, cname in enumerate(class_names):
+                vec = Cn[ci, :]  # (B,)
+                sim = np.nansum(Rnorm * vec.reshape(1, 1, -1), axis=2)  # (H,W)
+                sim[mask] = np.nan
+                out_name = f"CSI_similarity_raster_{ci}"
+                _save_similarity_raster(sim, ref_desc, out_name)
+                arcpy.AddMessage(f"Wrote CSI raster for class '{cname}': {out_name}")
     else:
         raise ValueError(f"Unknown evidence type: {evidence_type}")
 
