@@ -1,13 +1,13 @@
 import os
-import math
 import csv
 import arcpy
 import numpy as np
 from collections import defaultdict
+from typing import List, Optional, Tuple, Any, Sequence, Union
 
 
 
-def _normalize_rows(X):
+def _normalize_rows(X: np.ndarray) -> np.ndarray:
     # L2-normalize rows; protect against zero vectors
     norms = np.linalg.norm(X, axis=1, keepdims=True)
     norms[norms == 0] = np.nan  # zero vectors -> NaN rows
@@ -15,7 +15,7 @@ def _normalize_rows(X):
     return Xn
 
 
-def _cosine_similarity(A, B=None):
+def _cosine_similarity(A: np.ndarray, B: Optional[np.ndarray] = None) -> np.ndarray:
     """
     Row-wise cosine similarity between rows of A and rows of B.
     If B is None: pairwise within A (NxN).
@@ -33,12 +33,17 @@ def _cosine_similarity(A, B=None):
         return sim
 
 
-def _read_csv_vectors(path, label_fields, feature_fields_list=None, csv_nodata=None):
+def _read_csv_vectors(
+    path: str,
+    label_fields: List[str],
+    feature_fields_list: Optional[List[str]] = None,
+    csv_nodata: Optional[float] = None
+) -> Tuple[np.ndarray, np.ndarray, List[str]]:
     """
     Read labelled vectors from CSV/TXT.
-    label_fields: list[str]
-    feature_fields_list: list[str] or None (auto-detect features = all non-label columns)
-    Returns: (labels: np.ndarray[object], X: np.ndarray[float64], feat_names: list[str])
+    label_fields: List[str]
+    feature_fields_: List[str] or None (auto-detect features = all non-label columns)
+    Returns: (labels: np.ndarray[object], X: np.ndarray[float64], feat_names: List[str])
     """
     import csv, math
     with open(path, "r", newline="", encoding="utf-8") as f:
@@ -84,12 +89,16 @@ def _read_csv_vectors(path, label_fields, feature_fields_list=None, csv_nodata=N
     return np.array(labels, dtype=object), X, feature_fields
 
 
-def _read_feature_class_vectors(fc_path, label_fields, feature_fields_list=None):
+def _read_feature_class_vectors(
+    fc_path: str,
+    label_fields: List[str],
+    feature_fields_list: Optional[List[str]] = None
+) -> Tuple[np.ndarray, np.ndarray, List[str]]:
     """
     Read labelled vectors from a Feature Class/Shapefile.
-    label_fields: list[str]
-    feature_fields_list: list[str] or None (auto-detect numeric fields except labels)
-    Returns: (labels: np.ndarray[object], X: np.ndarray[float64], feat_names: list[str])
+    label_fields: List[str]
+    feature_fields_list: List[str] or None (auto-detect numeric fields except labels)
+    Returns: (labels: np.ndarray[object], X: np.ndarray[float64], feat_names: List[str])
     """
     fields = arcpy.ListFields(fc_path)
     field_names = [f.name for f in fields]
@@ -133,7 +142,7 @@ def _read_feature_class_vectors(fc_path, label_fields, feature_fields_list=None)
     return np.array(labels, dtype=object), X, feature_fields
 
 
-def _centroids_by_label(labels, X):
+def _centroids_by_label(labels: np.ndarray, X: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     # compute mean vector per unique label (ignoring NaNs)
     label_to_rows = defaultdict(list)
     for i, lab in enumerate(labels):
@@ -151,9 +160,14 @@ def _centroids_by_label(labels, X):
     return np.array(uniq, dtype=object), C
 
 
-def _write_csv_matrix(path, row_labels, col_labels, matrix):
+def _write_csv_matrix(
+    path: str,
+    row_labels: Sequence[Any],
+    col_labels: Sequence[Any],
+    matrix: np.ndarray
+) -> None:
     """
-    Write a similarity matrix to CSV quickly using vectorized NumPy string ops.
+    Write a similarity matrix to CSV with optimized performance.
     Handles NaN/inf as blanks.
     """
     arcpy.AddMessage(f"Writing CSV matrix to: {path}")
@@ -202,12 +216,12 @@ def _write_csv_matrix(path, row_labels, col_labels, matrix):
             # Force garbage collection of chunk data
             del chunk, finite_mask, chunk_rows
 
-    arcpy.AddMessage(f"Finished writing CSV matrix with shape {m.shape}.")
+    arcpy.AddMessage(f"Finished writing CSV matrix with shape {matrix.shape}.")
 
 
-def _stack_rasters(raster_paths):
+def _stack_rasters(raster_paths: List[str]) -> Tuple[np.ndarray, Any, Any]:
     """
-    raster_paths: list[str]
+    raster_paths: List[str]
     Returns: stack(H,W,B), ref_raster, ref_desc
     """
     arrays = []
@@ -229,6 +243,7 @@ def _stack_rasters(raster_paths):
             arr[arr == nodata_value] = np.nan
         
         arrays.append(arr)
+        
         if i == 0:
             ref_desc = dsc
             ref_raster = ras
@@ -238,33 +253,23 @@ def _stack_rasters(raster_paths):
 
     if not arrays:
         raise ValueError("No valid rasters provided.")
+    
     stack = np.stack(arrays, axis=2)  # (H,W,B)
     return stack, ref_raster, ref_desc
 
 
 
-def _save_similarity_raster(sim_arr, ref_desc, out_path):
+def _save_similarity_raster(sim_arr: np.ndarray, ref_desc: Any, out_path: str) -> None:
     # sim_arr orientation matches RasterToNumPyArray (upper-left origin).
-    # NumPyArrayToRaster expects lower-left origin, so flipud before writing.
     ll = arcpy.Point(ref_desc.Extent.XMin, ref_desc.Extent.YMin)
     cellsize = ref_desc.meanCellWidth
     arr_out = np.flipud(sim_arr.astype("float32"))
-    out_ras = arcpy.NumPyArrayToRaster(arr_out, ll, cellsize, cellsize, -9999)
-    arcpy.management.CopyRaster(out_ras, out_path, pixel_type="32_BIT_FLOAT", nodata_value=-9999)
-    return out_path
-
-def _sanitize_name(name):
-    # Allow tuple labels: join with underscore
-    if isinstance(name, (list, tuple)):
-        s = "_".join(str(x) for x in name)
-    else:
-        s = str(name)
-    safe = "".join(ch if ch.isalnum() or ch in ("_", "-") else "_" for ch in s)
-    return safe.strip("_") or "class"
+    out_ras = arcpy.NumPyArrayToRaster(arr_out, ll, cellsize, cellsize, ref_desc.noDataValue)
+    out_ras.save(out_path)
 
 
     # ---------------- Execute ----------------
-def execute(self, parameters, messages):
+def execute(self, parameters: Any, messages: Any) -> None:
     arcpy.AddMessage("Starting Cosine Similarity Index (CSI) computation...")
 
     labelled_path = parameters[0].valueAsText
@@ -282,7 +287,7 @@ def execute(self, parameters, messages):
     out_raster_folder = parameters[9].valueAsText if parameters[9].value else None
     csv_nodata = float(parameters[10].value) if parameters[10].value else None
 
-    # --- Echo inputs ---
+    # --- Print inputs ---
     arcpy.AddMessage(f"Labelled data: {labelled_path}")
     arcpy.AddMessage(f"Label fields: {label_field_names if label_field_names else '[none]'}")
     arcpy.AddMessage(f"Feature fields: {feature_field_names if feature_field_names else 'Auto-detect'}")
@@ -318,7 +323,6 @@ def execute(self, parameters, messages):
         labels, X, feat_names = _read_feature_class_vectors(labelled_path, label_field_names, feature_field_names)
     else:
         labels, X, feat_names = _read_csv_vectors(labelled_path, label_field_names, feature_field_names, csv_nodata)
-
 
     if X.size == 0 or X.shape[1] == 0:
         raise ValueError("No feature columns found for labelled data.")
