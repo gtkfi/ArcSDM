@@ -159,37 +159,48 @@ def _write_csv_matrix(path, row_labels, col_labels, matrix):
     arcpy.AddMessage(f"Writing CSV matrix to: {path}")
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
 
-    m = np.asarray(matrix, dtype="float64")
-    mask = np.isfinite(m)
-
-    # Preallocate string array
-    out = np.full(m.shape, "", dtype=object)
-
-    # Vectorized formatting of finite entries
-    out[mask] = np.char.mod("%.6f", m[mask])
-
-    # Convert to Python list-of-lists for writerows
-    out_rows = out.tolist()
-
-    # Prepend row labels to each row
-    final_rows = []
-    for rlab, row in zip(row_labels, out_rows):
-        final_rows.append([rlab] + row)
-
-    # Use big buffer to reduce syscalls
-    total_rows = len(final_rows)
-    with open(path, "w", newline="", encoding="utf-8", buffering=1024*1024) as f:
+    # Work with original matrix without copying
+    rows, cols = matrix.shape
+    
+    # Determine optimal chunk size based on available memory
+    # Process roughly 100MB of float64 data at a time
+    chunk_size = max(1, min(1000, (100 * 1024 * 1024) // (cols * 8)))
+    
+    with open(path, "w", newline="", encoding="utf-8", buffering=16*1024*1024) as f:
         writer = csv.writer(f, lineterminator="\n")
-        writer.writerow([""] + list(col_labels))
-        for i, row in enumerate(final_rows):
-            writer.writerow(row)
-            if i == total_rows // 4:
-                arcpy.AddMessage("25% of rows written...")
-            elif i == total_rows // 2:
-                arcpy.AddMessage("50% of rows written...")
-            elif i == 3 * total_rows // 4:
-                arcpy.AddMessage("75% of rows written...")
-            arcpy.SetProgressorPosition(i + 1)
+        
+        # Write header
+        writer.writerow([""] + [str(label) for label in col_labels])
+        
+        # Process in chunks
+        for chunk_start in range(0, rows, chunk_size):
+            chunk_end = min(chunk_start + chunk_size, rows)
+            
+            # Extract chunk and work on it
+            chunk = np.asarray(matrix[chunk_start:chunk_end], dtype="float32")
+            finite_mask = np.isfinite(chunk)
+            
+            # Format chunk rows
+            chunk_rows = []
+            for local_i, global_i in enumerate(range(chunk_start, chunk_end)):
+                row_data = [str(row_labels[global_i])]
+                row_data.extend(
+                    f"{val:.6f}" if is_finite else ""
+                    for val, is_finite in zip(chunk[local_i], finite_mask[local_i])
+                )
+                chunk_rows.append(row_data)
+                
+                # Progress reporting
+                progress_interval = max(1, rows // 20)
+                if global_i % progress_interval == 0:  # Report every 5%
+                    percent = int((global_i / rows) * 100)
+                    arcpy.AddMessage(f"{percent}% of rows processed...")
+            
+            # Write chunk
+            writer.writerows(chunk_rows)
+            
+            # Force garbage collection of chunk data
+            del chunk, finite_mask, chunk_rows
 
     arcpy.AddMessage(f"Finished writing CSV matrix with shape {m.shape}.")
 
