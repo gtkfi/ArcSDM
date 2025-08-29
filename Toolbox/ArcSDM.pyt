@@ -906,6 +906,10 @@ class CosineSimilarityIndex(object):
             param_csv_no_data_sentinel
         ]
 
+    def isLicensed(self):
+        """Set whether tool is licensed to execute."""
+        return arcpy.CheckExtension("Spatial") == "Available"
+
     def updateParameters(self, parameters):
         # Toggle visibility based on evidence type
         ev_type = parameters[4].valueAsText
