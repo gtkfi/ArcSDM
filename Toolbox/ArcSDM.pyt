@@ -1014,54 +1014,55 @@ class TOCFuzzificationTool(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "TOC Fuzzification"
-        self.description = "This fuzzification method utilized the symbolization of the input raster that has been applied in the map document table of contects (TOC). The symbolization in the TOC defines the number of classes and this tool rescales those classes (1...N) to the range [0,1] by (C - 1)/(N-1) where C is the class value and N is the number of classes."
+        self.description = "This fuzzification method utilized the symbolization of the input raster that has been applied in the map document table of contents (TOC). The symbolization in the TOC defines the number of classes and this tool rescales those classes (1...N) to the range [0,1] by (C - 1)/(N-1) where C is the class value and N is the number of classes."
         self.canRunInBackground = False
         self.category = f"{TS_PREPROCESSING}\\{TS_EVIDENCE_DATA_PROCESSING}\\{TS_FUZZY}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
-        param0 = arcpy.Parameter(
+        param_input_raster = arcpy.Parameter(
         displayName="Input Raster",
         name="input_raster",
         datatype="GPRasterLayer",
         parameterType="Required",
         direction="Input")
         
-        param1 = arcpy.Parameter(
+        param_reclass_field = arcpy.Parameter(
         displayName="Reclass Field",
         name="reclass_field",
         datatype="Field",
         parameterType="Required",
         direction="Input")
 
-        param2 = arcpy.Parameter(
+        param_reclassification = arcpy.Parameter(
         displayName="Reclassification",
         name="reclassification",
         datatype="remap",
         parameterType="Required",
         direction="Input")
 
-        param3 = arcpy.Parameter(
+        param_num_classes = arcpy.Parameter(
         displayName="Number of Classes",
         name="classes",
         datatype="GPLong",
         parameterType="Required",
         direction="Input")
 
-        param4 = arcpy.Parameter(
-        displayName="Fuzzy Membership Raster",
+        param_output_raster = arcpy.Parameter(
+        displayName="Output Fuzzy Membership Raster",
         name="fmtoc",
         datatype="DERasterDataset",
         parameterType="Required",
         direction="Output")
+        param_output_raster.value = "%Workspace%\FMTOC"
         
-        param1.value = "VALUE"
-        param1.enabled = False
-        param2.enabled = False
+        param_reclass_field.value = "VALUE"
+        param_reclass_field.enabled = False
+        param_reclassification.enabled = False
         
-        param1.parameterDependencies = [param0.name]  
-        param2.parameterDependencies = [param0.name,param1.name]
-        params = [param0,param1,param2,param3,param4]
+        param_reclass_field.parameterDependencies = [param_input_raster.name]  
+        param_reclassification.parameterDependencies = [param_input_raster.name,param_reclass_field.name]
+        params = [param_input_raster,param_reclass_field,param_reclassification,param_num_classes,param_output_raster]
         return params
 
     def isLicensed(self):
@@ -1083,11 +1084,21 @@ class TOCFuzzificationTool(object):
         else:
             parameters[1].enabled = False
             parameters[2].enabled = False
+
+        input_file_type = os.path.splitext(parameters[0].valueAsText.lower())[1]
+        output_path = parameters[4].valueAsText.lower()
+
+        if ".gdb" not in output_path:
+            parameters[4].value = os.path.join(os.path.dirname(output_path), "FMTOC" + input_file_type)
+
         return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
         parameter. This method is called after internal validation."""
+        
+        if parameters[3].value and parameters[3].value < 1:
+            parameters[3].setErrorMessage("'Classes' must be greater than 1.")
         return
 
     def execute(self, parameters, messages):
@@ -1794,15 +1805,6 @@ class PCARaster(object):
             multiValue=True
         )
         
-        param_nodata_value = arcpy.Parameter(
-            displayName="NoData Value",
-            name="nodata_value",
-            datatype="GPLong",
-            parameterType="Optional",
-            direction="Input"
-        )
-        param_nodata_value.value = -99
-
         param_num_components = arcpy.Parameter(
             displayName="Number of Components",
             name="num_components",
@@ -1841,7 +1843,7 @@ class PCARaster(object):
         param_transformed_data.value = 'transformed_raster'
 
         params = [param_input_rasters,
-                  param_nodata_value,
+                #   param_nodata_value,
                   param_num_components,
                   param_scaler_type,
                   param_nodata_handling,
