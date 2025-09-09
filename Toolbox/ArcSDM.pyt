@@ -923,6 +923,12 @@ class CosineSimilarityIndex(object):
             parameters[10].enabled = False
             parameters[6].enabled = True
             parameters[9].enabled = True
+        elif ev_type == "None":
+            parameters[5].enabled = False
+            parameters[10].enabled = False
+            parameters[6].enabled = False
+            parameters[9].enabled = False
+            
 
     def execute(self, parameters, messages):
         execute_tool(arcsdm.cosine_similarity_index.execute, self, parameters, messages)
