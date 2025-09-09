@@ -141,7 +141,7 @@ def load_raster_data(rasters_list):
 
 def calculate_pairwise_csi(labeled_df, feature_fields, csv_nodata, block_size=None):
     """
-    Fast pairwise CSI between all labeled points.
+    Pairwise CSI between all labeled points.
     - Ignores NaN and csv_nodata (treated as missing).
     - Sets CSI=csv_nodata where vectors have no overlapping valid dimensions
       or where denominators are zero.
@@ -344,7 +344,7 @@ def extract_raster_values(raster_path: str, points_df: pd.DataFrame, has_geometr
 
 def calculate_evidence_csi(labeled_df, feature_fields, rasters_list,
                            evidence_vectors_file, has_geometry, csv_nodata):
-    """CSI between labeled points and evidence, ignoring NaN/csv_nodata consistently."""
+    """CSI between labeled points and evidence, ignoring NaN/csv_nodata."""
     evidence_results = {}
 
     # features_clean must be numeric with NaNs where missing
@@ -585,26 +585,6 @@ def save_csv_results(pairwise_matrix, centroid_csi, evidence_results,
         arcpy.AddError(f"Error saving CSV results: {e}")
 
 
-def debug_raster_info(raster_path):
-    """Debug function to check raster properties"""
-    try:
-        ras = arcpy.Raster(raster_path)
-        desc = arcpy.Describe(raster_path)
-        
-        arcpy.AddMessage(f"Raster: {raster_path}")
-        arcpy.AddMessage(f"  Format: {desc.format}")
-        arcpy.AddMessage(f"  Extent: {ras.extent}")
-        arcpy.AddMessage(f"  Cell size: {ras.meanCellWidth} x {ras.meanCellHeight}")
-        arcpy.AddMessage(f"  Spatial reference: {desc.spatialReference.name}")
-        arcpy.AddMessage(f"  NoData value: {ras.noDataValue}")
-        arcpy.AddMessage(f"  Data type: {ras.pixelType}")
-        
-        return True
-    except Exception as e:
-        arcpy.AddError(f"Error reading raster {raster_path}: {e}")
-        return False
-
-
 def execute(self, parameters, messages):
     """Execute the CSI calculation"""
     try:
@@ -620,10 +600,6 @@ def execute(self, parameters, messages):
         out_centroid_matrix_csv = parameters[8].valueAsText
         out_evidence_table_csv = parameters[9].valueAsText if parameters[9].value else None
         out_raster_folder = parameters[10].valueAsText if parameters[10].value else None
-        
-        arcpy.AddMessage("RASTER DEBUG")
-        for rasteri in rasters_list:
-            debug_raster_info(raster_path=rasteri)
         
         arcpy.AddMessage("Starting CSI Analysis...")
         arcpy.AddMessage("=" * 50)
