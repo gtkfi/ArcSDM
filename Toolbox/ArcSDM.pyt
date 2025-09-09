@@ -805,6 +805,14 @@ class CosineSimilarityIndex(object):
             direction="Input",
         )
         
+        param_csv_no_data_sentinel = arcpy.Parameter(
+            displayName="CSV/TXT NoData sentinel (numeric, optional)",
+            name="csv_nodata",
+            datatype="GPDouble",
+            parameterType="Optional",
+            direction="Input",
+        )
+        
         param_label_field_names = arcpy.Parameter(
             displayName="Label field names",
             name="label_field_names",
@@ -816,7 +824,7 @@ class CosineSimilarityIndex(object):
         param_label_field_names.parameterDependencies = [param_labelled_data_path.name]
 
         param_feature_field_names = arcpy.Parameter(
-            displayName="Field names",
+            displayName="Field names (include coordinates)",
             name="feature_field_names",
             datatype="Field",
             parameterType="Optional",
@@ -832,8 +840,8 @@ class CosineSimilarityIndex(object):
             parameterType="Required",
             direction="Input",
         )
-        param_evidence_source_type.filter.list = ["Raster layers", "CSV/TXT vectors"]
-        param_evidence_source_type.value = "Raster layers"
+        param_evidence_source_type.filter.list = ["Raster", "Vector", "None"]
+        param_evidence_source_type.value = "Raster"
 
         param_evidence_rasters = arcpy.Parameter(
             displayName="Evidence rasters (same size/extent/projection)",
@@ -884,16 +892,9 @@ class CosineSimilarityIndex(object):
             direction="Output",
         )
 
-        param_csv_no_data_sentinel = arcpy.Parameter(
-            displayName="CSV/TXT NoData sentinel (numeric, optional)",
-            name="csv_nodata",
-            datatype="GPDouble",
-            parameterType="Optional",
-            direction="Input",
-        )
-
         return [
             param_labelled_data_path,
+            param_csv_no_data_sentinel,
             param_label_field_names,
             param_feature_field_names,
             param_evidence_source_type,
@@ -902,8 +903,7 @@ class CosineSimilarityIndex(object):
             param_output_labelled_pairwise_csi,
             param_output_centroid_csi_matrix,
             param_evidence_csi_table,
-            param_output_raster_directory,
-            param_csv_no_data_sentinel
+            param_output_raster_directory
         ]
 
     def isLicensed(self):
@@ -913,17 +913,16 @@ class CosineSimilarityIndex(object):
     def updateParameters(self, parameters):
         # Toggle visibility based on evidence type
         ev_type = parameters[4].valueAsText
-        if ev_type == "Raster layers":
+        if ev_type == "Raster":
             parameters[5].enabled = True
             parameters[10].enabled = True
             parameters[6].enabled = False
             parameters[9].enabled = False
-        elif ev_type == "CSV/TXT vectors":
+        elif ev_type == "Vector":
             parameters[5].enabled = False
             parameters[10].enabled = False
             parameters[6].enabled = True
             parameters[9].enabled = True
-        return
 
     def execute(self, parameters, messages):
         execute_tool(arcsdm.cosine_similarity_index.execute, self, parameters, messages)
