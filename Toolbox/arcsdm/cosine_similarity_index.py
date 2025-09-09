@@ -82,7 +82,26 @@ def load_labeled_data(labelled_path, label_field_names, feature_field_names):
 
         desc = arcpy.Describe(labelled_path)
         has_geometry = hasattr(desc, 'shapeType')
-        if has_geometry:
+        
+        # For non-geometry tables, try to detect coordinate fields
+        if not has_geometry:
+            # Load a sample to detect coordinate columns
+            sample_fields = [f.name for f in arcpy.ListFields(labelled_path)]
+            temp_data = []
+            with arcpy.da.SearchCursor(labelled_path, sample_fields[:10]) as cursor:  # Sample first 10 fields
+                for i, row in enumerate(cursor):
+                    if i >= 5:  # Just get a few sample rows
+                        break
+                    temp_data.append(row)
+            
+            if temp_data:
+                temp_df = pd.DataFrame(temp_data, columns=sample_fields[:10])
+                xcol, ycol = _detect_xy_columns(temp_df)
+                if xcol and ycol and xcol not in fields:
+                    fields.append(xcol)
+                if xcol and ycol and ycol not in fields:
+                    fields.append(ycol)
+        else:
             fields.append('SHAPE@XY')
 
         data = []
@@ -119,32 +138,6 @@ def load_raster_data(rasters_list):
         arcpy.AddError(f"Error loading raster data: {e}")
         return []
 
-def extract_raster_valuessss(raster_path, points_df, has_geometry):
-    """Extract raster values at point locations"""
-    try:
-        if has_geometry:
-            # Use SHAPE@XY coordinates
-            coord_field = 'SHAPE@XY'
-            point_values = []
-            
-            for idx, row in points_df.iterrows():
-                x, y = row[coord_field]
-                try:
-                    # Extract value at point
-                    result = arcpy.GetCellValue_management(raster_path, f"{x} {y}")
-                    value = float(result.getOutput(0))
-                    point_values.append(value)
-                except:
-                    point_values.append(np.nan)
-            
-            return np.array(point_values)
-        else:
-            points_values = arcpy.RasterToNumPyArray(raster_path)
-            return np.array(points_values)
-            
-    except Exception as e:
-        arcpy.AddError(f"Error extracting raster values: {e}")
-        return np.array([])
 
 def calculate_pairwise_csi(labeled_df, feature_fields, csv_nodata, block_size=None):
     """
@@ -173,7 +166,7 @@ def calculate_pairwise_csi(labeled_df, feature_fields, csv_nodata, block_size=No
     M = ~F.isna().to_numpy()                       # (n,d) bool: True where valid
     X = np.nan_to_num(F.to_numpy(dtype=float), nan=0.0)  # (n,d) float: NaN -> 0
 
-    # 3) Row norms over valid entries only (zeros elsewhere don’t contribute)
+    # 3) Row norms over valid entries only (zeros elsewhere don't contribute)
     norms = np.linalg.norm(X, axis=1)              # (n,)
 
     # Prepare output
@@ -265,62 +258,89 @@ def calculate_centroid_matrix(labeled_df, feature_fields, csv_nodata):
 
 def _detect_xy_columns(df: pd.DataFrame) -> tuple[str, str]:
     """Find X/Y columns with very tolerant matching."""
+    # Debug output
+    arcpy.AddMessage(f"Available columns: {list(df.columns)}")
+    
     norm = {c.replace(" ", "").lstrip("\ufeff").strip().lower(): c for c in df.columns}
+    
     pairs = [
         ("x","y"), ("lon","lat"), ("longitude","latitude"),
         ("easting","northing"), ("xcoord","ycoord"),
         ("projx","projy"), ("utm_x","utm_y"), ("x_","y_"),
+        ("point_x", "point_y"), ("coord_x", "coord_y"),
+        ("x_coord", "y_coord"), ("xcoordinate", "ycoordinate"),
     ]
+    
     for a, b in pairs:
-        arcpy.AddMessage(f" {a} and {b}")
+        arcpy.AddMessage(f"Checking for {a} and {b}")
         if a in norm and b in norm:
+            arcpy.AddMessage(f"Found coordinate pair: {norm[a]}, {norm[b]}")
             return norm[a], norm[b]
+    
     # last-ditch: exact X/Y uppercase
     if "X" in df.columns and "Y" in df.columns:
+        arcpy.AddMessage("Found X, Y columns")
         return "X", "Y"
+    
+    arcpy.AddMessage("No coordinate columns found")
     return None, None
 
-# --- raster sampling --------------------------------------------------------
 
 def extract_raster_values(raster_path: str, points_df: pd.DataFrame, has_geometry: bool) -> np.ndarray:
     """
     Return a 1-D float array of length len(points_df) with the raster value at each row's location.
     Uses SHAPE@XY (if present) or tolerant XY-column detection. NoData => np.nan.
     """
-    ras = arcpy.Raster(raster_path)
-    arr = arcpy.RasterToNumPyArray(ras, nodata_to_value=np.nan).astype("float32")
+    try:
+        ras = arcpy.Raster(raster_path)
+        arr = arcpy.RasterToNumPyArray(ras, nodata_to_value=np.nan).astype("float64")
 
-    ex = ras.extent
-    cw, ch = ras.meanCellWidth, ras.meanCellHeight
-    nrows, ncols = arr.shape
-    out = np.full(len(points_df), np.nan, dtype="float32")
+        ex = ras.extent
+        cw, ch = ras.meanCellWidth, ras.meanCellHeight
+        nrows, ncols = arr.shape
+        out = np.full(len(points_df), np.nan, dtype="float64")
 
-    # Get XYs
-    xs = ys = None
-    if has_geometry and "SHAPE@XY" in points_df.columns:
-        xy = points_df["SHAPE@XY"].to_numpy()
-        xs = np.array([t[0] if isinstance(t, tuple) and len(t) == 2 else np.nan for t in xy], dtype="float32")
-        ys = np.array([t[1] if isinstance(t, tuple) and len(t) == 2 else np.nan for t in xy], dtype="float32")
-    else:
-        xcol, ycol = _detect_xy_columns(points_df)
-        if xcol and ycol:
-            xs = pd.to_numeric(points_df[xcol], errors="coerce").to_numpy(dtype="float32")
-            ys = pd.to_numeric(points_df[ycol], errors="coerce").to_numpy(dtype="float32")
+        # Get XYs
+        xs = ys = None
+        if has_geometry and "SHAPE@XY" in points_df.columns:
+            arcpy.AddMessage("Using SHAPE@XY coordinates")
+            xy = points_df["SHAPE@XY"].to_numpy()
+            xs = np.array([t[0] if isinstance(t, tuple) and len(t) == 2 else np.nan for t in xy], dtype="float64")
+            ys = np.array([t[1] if isinstance(t, tuple) and len(t) == 2 else np.nan for t in xy], dtype="float64")
+        else:
+            arcpy.AddMessage(f"Looking for coordinate columns (has_geometry={has_geometry})")
+            xcol, ycol = _detect_xy_columns(points_df)
+            if xcol and ycol:
+                arcpy.AddMessage(f"Using coordinate columns: {xcol}, {ycol}")
+                xs = pd.to_numeric(points_df[xcol], errors="coerce").to_numpy(dtype="float64")
+                ys = pd.to_numeric(points_df[ycol], errors="coerce").to_numpy(dtype="float64")
 
-    if xs is None or ys is None:
-        raise ValueError("Could not find coordinates: need SHAPE@XY or X/Y columns.")
+        if xs is None or ys is None:
+            error_msg = (
+                f"Could not find coordinates. Available columns: {list(points_df.columns)}\n"
+                "For geometry data: ensure SHAPE@XY column exists\n"
+                "For tabular data: ensure coordinate columns (x/y, lon/lat, etc.) exist"
+            )
+            raise ValueError(error_msg)
 
-    # Vector index into the raster array
-    cols = np.floor((xs - ex.XMin) / cw).astype("int64", copy=False)
-    rows = np.floor((ex.YMax - ys) / ch).astype("int64", copy=False)
-    valid = (
-        np.isfinite(xs) & np.isfinite(ys) &
-        (rows >= 0) & (cols >= 0) & (rows < nrows) & (cols < ncols)
-    )
-    out[valid] = arr[rows[valid], cols[valid]]
-    return out
+        # Vector index into the raster array
+        cols = np.floor((xs - ex.XMin) / cw).astype("int64", copy=False)
+        rows = np.floor((ex.YMax - ys) / ch).astype("int64", copy=False)
+        valid = (
+            np.isfinite(xs) & np.isfinite(ys) &
+            (rows >= 0) & (cols >= 0) & (rows < nrows) & (cols < ncols)
+        )
+        
+        valid_count = np.sum(valid)
+        arcpy.AddMessage(f"Extracting values for {valid_count} valid points out of {len(points_df)} total")
+        
+        out[valid] = arr[rows[valid], cols[valid]]
+        return out
+        
+    except Exception as e:
+        arcpy.AddError(f"Error in extract_raster_values: {e}")
+        raise
 
-# --- CSI calculation --------------------------------------------------------
 
 def calculate_evidence_csi(labeled_df, feature_fields, rasters_list,
                            evidence_vectors_file, has_geometry, csv_nodata):
@@ -338,7 +358,7 @@ def calculate_evidence_csi(labeled_df, feature_fields, rasters_list,
             raster_values = extract_raster_values(raster_path, labeled_df, has_geometry)  # -> (N,)
 
             N = len(labeled_df)
-            raster_csi = np.full(N, csv_nodata, dtype="float32")
+            raster_csi = np.full(N, csv_nodata, dtype="float64")
 
             for j in range(N):
                 rv = raster_values[j]
@@ -412,14 +432,22 @@ def create_output_rasters(
 ):
     """
     Create rasters from CSI results by IDW.
-    - Uses template_raster (preferred) to set extent/snap/cell size.
-    - Otherwise derives SR from source_fc or env; falls back to WGS84.
-    - Skips layers with fewer than min_points valid points.
+
+    Works with:
+      - Feature classes (uses SHAPE@XY), or
+      - Plain tables that have coordinate columns (x/y, lon/lat, etc.)
     """
- 
-    if not has_geometry:
-        arcpy.AddWarning("Cannot create rasters without point geometry.")
-        return
+    # Decide how we will get coordinates for each row
+    use_geom = bool(has_geometry and "SHAPE@XY" in labeled_df.columns)
+    xcol = ycol = None
+    if not use_geom:
+        # fall back to tolerant XY detection in the dataframe
+        xcol, ycol = _detect_xy_columns(labeled_df)
+        if not (xcol and ycol):
+            arcpy.AddWarning(
+                "No geometry and no coordinate columns found — cannot create rasters."
+            )
+            return
 
     # Make sure output folder exists
     os.makedirs(out_raster_folder, exist_ok=True)
@@ -427,47 +455,63 @@ def create_output_rasters(
     # Resolve spatial reference
     sr = None
     try:
-        if template_raster and arcpy.Exists(template_raster):
-            sr = arcpy.Describe(template_raster).spatialReference
-        elif source_fc and arcpy.Exists(source_fc):
+        if template_raster:
+            template_path = template_raster[0] if isinstance(template_raster, list) else template_raster
+            if arcpy.Exists(template_path):
+                sr = arcpy.Describe(template_path).spatialReference
+        if sr is None and source_fc and arcpy.Exists(source_fc):
             sr = arcpy.Describe(source_fc).spatialReference
-        elif arcpy.env.outputCoordinateSystem:
+        if sr is None and arcpy.env.outputCoordinateSystem:
             sr = arcpy.env.outputCoordinateSystem
     except Exception:
         sr = None
 
-    if sr is None or sr.name in (None, "", "Unknown"):
-        arcpy.AddWarning("No spatial reference found; defaulting to WGS 1984.")
+    if sr is None or getattr(sr, "name", "") in ("", None, "Unknown"):
+        arcpy.AddWarning("No spatial reference found; defaulting to WGS 1984 (WKID 4326).")
         sr = arcpy.SpatialReference(4326)
 
     # Set raster environment from template if available
-    if template_raster and arcpy.Exists(template_raster):
-        tdesc = arcpy.Describe(template_raster)
-        arcpy.env.snapRaster = template_raster
-        arcpy.env.extent = tdesc.extent
-        if cell_size is None:
-            try:
-                cell_size = float(getattr(tdesc, "meanCellWidth", None) or getattr(tdesc, "children", [])[0].meanCellWidth)
-            except Exception:
-                cell_size = None
+    if template_raster:
+        template_path = template_raster[0] if isinstance(template_raster, list) else template_raster
+        if arcpy.Exists(template_path):
+            tdesc = arcpy.Describe(template_path)
+            arcpy.env.snapRaster = template_path
+            arcpy.env.extent = tdesc.extent
+            if cell_size is None:
+                try:
+                    cell_size = float(getattr(tdesc, "meanCellWidth", None) or
+                                      (getattr(tdesc, "children", [None])[0].meanCellWidth if getattr(tdesc, "children", None) else None))
+                except Exception:
+                    pass
 
     if cell_size is None:
-        cell_size = arcpy.env.cellSize  # Default to environment cell size
-        arcpy.AddWarning(f"No cell size provided or derivable; using default {cell_size}.")
+        cell_size = arcpy.env.cellSize
+        arcpy.AddWarning(f"No cell size provided or derivable; using environment cellSize={cell_size}.")
 
     try:
         for evidence_name, csi_values in evidence_results.items():
             # Sanitize output name
             safe_name = re.sub(r"[^A-Za-z0-9_]+", "_", str(evidence_name))[:60]
             out_raster_path = os.path.join(out_raster_folder, f"csi_{safe_name}.tif")
-
             arcpy.AddMessage(f"Creating raster for {evidence_name} → {out_raster_path}")
 
             # Build temp point FC with SR
-            temp_fc = arcpy.management.CreateFeatureclass(
-                "in_memory", f"tmp_pts_{safe_name}", "POINT", spatial_reference=sr
-            )
+            temp_fc = arcpy.management.CreateFeatureclass("in_memory", f"tmp_pts_{safe_name}", "POINT", spatial_reference=sr)
             arcpy.management.AddField(temp_fc, "CSI_VALUE", "DOUBLE")
+
+            # Helper to fetch XY for row i
+            def row_xy(i: int) -> tuple[float, float]:
+                if use_geom:
+                    v = labeled_df.at[i, "SHAPE@XY"]
+                    if isinstance(v, tuple) and len(v) == 2:
+                        return v[0], v[1]
+                    return None, None
+                # from XY columns
+                x = pd.to_numeric(labeled_df.at[i, xcol], errors="coerce")
+                y = pd.to_numeric(labeled_df.at[i, ycol], errors="coerce")
+                x = float(x) if np.isfinite(x) else None
+                y = float(y) if np.isfinite(y) else None
+                return x, y
 
             # Insert points (skip nodata/NaN)
             inserted = 0
@@ -477,31 +521,26 @@ def create_output_rasters(
                         break
                     if csi_val == csv_nodata or not np.isfinite(csi_val):
                         continue
-                    try:
-                        x, y = labeled_df["SHAPE@XY"].iloc[idx]
-                    except Exception:
-                        # If DF lacks XY, bail for this layer
-                        x = y = None
+                    x, y = row_xy(idx)
                     if x is None or y is None:
                         continue
-                    geom = arcpy.PointGeometry(arcpy.Point(float(x), float(y)), sr)
+                    geom = arcpy.PointGeometry(arcpy.Point(x, y), sr)
                     icur.insertRow([geom, float(csi_val)])
                     inserted += 1
 
             if inserted < min_points:
                 arcpy.AddWarning(
-                    f"Only {inserted} valid points for {evidence_name}; "
-                    f"need ≥{min_points} for IDW. Skipping."
+                    f"Only {inserted} valid points for {evidence_name}; need ≥{min_points} for IDW. Skipping."
                 )
                 arcpy.management.Delete(temp_fc)
                 continue
 
-            # Run IDW
+            # Run IDW and save
             try:
                 idw_raster = arcpy.sa.Idw(
                     in_point_features=temp_fc,
                     z_field="CSI_VALUE",
-                    cell_size=cell_size,  # uses env.snapRaster/extents if set
+                    cell_size=cell_size,
                 )
                 idw_raster.save(out_raster_path)
                 arcpy.AddMessage(f"Saved raster: {out_raster_path}")
@@ -545,6 +584,27 @@ def save_csv_results(pairwise_matrix, centroid_csi, evidence_results,
     except Exception as e:
         arcpy.AddError(f"Error saving CSV results: {e}")
 
+
+def debug_raster_info(raster_path):
+    """Debug function to check raster properties"""
+    try:
+        ras = arcpy.Raster(raster_path)
+        desc = arcpy.Describe(raster_path)
+        
+        arcpy.AddMessage(f"Raster: {raster_path}")
+        arcpy.AddMessage(f"  Format: {desc.format}")
+        arcpy.AddMessage(f"  Extent: {ras.extent}")
+        arcpy.AddMessage(f"  Cell size: {ras.meanCellWidth} x {ras.meanCellHeight}")
+        arcpy.AddMessage(f"  Spatial reference: {desc.spatialReference.name}")
+        arcpy.AddMessage(f"  NoData value: {ras.noDataValue}")
+        arcpy.AddMessage(f"  Data type: {ras.pixelType}")
+        
+        return True
+    except Exception as e:
+        arcpy.AddError(f"Error reading raster {raster_path}: {e}")
+        return False
+
+
 def execute(self, parameters, messages):
     """Execute the CSI calculation"""
     try:
@@ -560,6 +620,10 @@ def execute(self, parameters, messages):
         out_centroid_matrix_csv = parameters[8].valueAsText
         out_evidence_table_csv = parameters[9].valueAsText if parameters[9].value else None
         out_raster_folder = parameters[10].valueAsText if parameters[10].value else None
+        
+        arcpy.AddMessage("RASTER DEBUG")
+        for rasteri in rasters_list:
+            debug_raster_info(raster_path=rasteri)
         
         arcpy.AddMessage("Starting CSI Analysis...")
         arcpy.AddMessage("=" * 50)
@@ -621,7 +685,8 @@ def execute(self, parameters, messages):
         if out_raster_folder and evidence_results:
             create_output_rasters(
                 labeled_df, evidence_results, out_raster_folder,
-                csv_nodata, has_geometry, template_raster=rasters_list
+                csv_nodata, has_geometry, source_fc=labelled_path, 
+                template_raster=rasters_list
             )
         
         arcpy.AddMessage("\nCSI Analysis completed successfully!")
