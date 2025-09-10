@@ -67,14 +67,29 @@ def cosine_similarity(vector_a, vector_b, nodata_value=-9999.0):
 def load_labeled_data(labelled_path, label_field_names, feature_field_names):
     """Load labeled data from feature class or table"""
     try:
+        # Focus on specific vector fields: struct, appres, magn
+        priority_fields = ['struct', 'appres', 'magn']
+        
         if not feature_field_names:
             field_objects = arcpy.ListFields(labelled_path)
-            feature_field_names = [
+            all_numeric_fields = [
                 f.name for f in field_objects
                 if f.type in ['Double', 'Float', 'Integer', 'SmallInteger']
             ]
             exclude_fields = ['OBJECTID', 'OID', 'FID', 'Shape_Length', 'Shape_Area', 'SHAPE']
-            feature_field_names = [f for f in feature_field_names if f not in exclude_fields]
+            all_numeric_fields = [f for f in all_numeric_fields if f not in exclude_fields]
+            
+            # Prioritize struct, appres, magn fields
+            feature_field_names = []
+            for pfield in priority_fields:
+                matching_fields = [f for f in all_numeric_fields if pfield.lower() in f.lower()]
+                feature_field_names.extend(matching_fields)
+            
+            # Add any remaining fields if needed
+            remaining_fields = [f for f in all_numeric_fields if f not in feature_field_names]
+            feature_field_names.extend(remaining_fields)
+            
+            arcpy.AddMessage(f"Auto-detected feature fields: {feature_field_names}")
 
         fields = feature_field_names.copy()
         if label_field_names:
@@ -85,12 +100,11 @@ def load_labeled_data(labelled_path, label_field_names, feature_field_names):
         
         # For non-geometry tables, try to detect coordinate fields
         if not has_geometry:
-            # Load a sample to detect coordinate columns
             sample_fields = [f.name for f in arcpy.ListFields(labelled_path)]
             temp_data = []
-            with arcpy.da.SearchCursor(labelled_path, sample_fields[:10]) as cursor:  # Sample first 10 fields
+            with arcpy.da.SearchCursor(labelled_path, sample_fields[:10]) as cursor:
                 for i, row in enumerate(cursor):
-                    if i >= 5:  # Just get a few sample rows
+                    if i >= 5:
                         break
                     temp_data.append(row)
             
@@ -110,7 +124,6 @@ def load_labeled_data(labelled_path, label_field_names, feature_field_names):
                 data.append(row)
 
         df = pd.DataFrame(data, columns=fields)
-        # Normalize "missing" values
         df.replace({None: np.nan}, inplace=True)
 
         arcpy.AddMessage(f"Loaded {len(df)} labeled points with {len(feature_field_names)} features")
@@ -139,127 +152,47 @@ def load_raster_data(rasters_list):
         return []
 
 
-def calculate_pairwise_csi(labeled_df, feature_fields, csv_nodata, block_size=None):
+def calculate_corner_csi(labeled_df, feature_fields, csv_nodata):
     """
-    Pairwise CSI between all labeled points.
-    - Ignores NaN and csv_nodata (treated as missing).
-    - Sets CSI=csv_nodata where vectors have no overlapping valid dimensions
-      or where denominators are zero.
-    - Diagonal is forced to 1.0.
-
-    Args:
-        labeled_df: DataFrame containing features (and possibly other cols).
-        feature_fields: list[str] columns to use.
-        csv_nodata: float sentinel for "no data".
-        block_size: if None, compute full matrix in one go.
-                    If set (e.g., 2000), compute in blocks to reduce peak memory.
-
-    Returns:
-        np.ndarray (n_points, n_points) of CSI values.
+    Calculate CSI between corner vectors A and B.
+    Corner 1 vs corners 2,3,4,5 and corner 2 vs corners 1,3,4,5.
+    Returns only upper diagonal of the matrix.
     """
-    # 1) Sanitize to numeric and replace sentinel -> NaN
-    F = _sanitize_features(labeled_df, feature_fields, csv_nodata)  # (n,d), NaNs for missing
-    n, d = F.shape
-    arcpy.AddMessage(f"Calculating pairwise CSI for {n} points (d={d}). block_size={block_size or 'all'}")
-
-    # 2) Validity mask & zero-filled copy for fast algebra
-    M = ~F.isna().to_numpy()                       # (n,d) bool: True where valid
-    X = np.nan_to_num(F.to_numpy(dtype=float), nan=0.0)  # (n,d) float: NaN -> 0
-
-    # 3) Row norms over valid entries only (zeros elsewhere don't contribute)
-    norms = np.linalg.norm(X, axis=1)              # (n,)
-
-    # Prepare output
-    out = np.full((n, n), csv_nodata, dtype=float)
-
-    # Full vectorized (fastest, more memory)
-    if block_size is None:
-        # Numerator = X @ X^T only counts overlapping valid dims because invalids are 0
-        numer = X @ X.T                            # (n,n)
-
-        # Denominator per pair = ||xi|| * ||xj||
-        denom = norms[:, None] * norms[None, :]    # (n,n)
-
-        # Overlap count (how many dims valid in both) to detect empty intersections
-        overlap = (M @ M.T).astype(np.int32)       # (n,n)
-
-        with np.errstate(divide='ignore', invalid='ignore'):
-            cos = numer / denom
-
-        # Where denom==0 or no overlap -> csv_nodata (leave as initialized)
-        valid_pairs = (denom > 0) & (overlap > 0)
-        out[valid_pairs] = cos[valid_pairs]
-
-        # Diagonal = 1.0 as per original behavior
-        np.fill_diagonal(out, 1.0)
-        return out
-
-    # Block processing (lower memory; still very fast)
-    bs = int(block_size)
-    arcpy.AddMessage("Using block processing…")
-    for i0 in range(0, n, bs):
-        i1 = min(i0 + bs, n)
-
-        Xi = X[i0:i1]                     # (bi,d)
-        Mi = M[i0:i1]                     # (bi,d)
-        norm_i = norms[i0:i1]             # (bi,)
-
-        # Numerator block: Xi @ X^T -> (bi,n)
-        numer_blk = Xi @ X.T
-
-        # Denominator block: outer(norm_i, norms) -> (bi,n)
-        denom_blk = norm_i[:, None] * norms[None, :]
-
-        # Overlap block: Mi @ M^T -> (bi,n)
-        overlap_blk = (Mi @ M.T).astype(np.int32)
-
-        with np.errstate(divide='ignore', invalid='ignore'):
-            cos_blk = numer_blk / denom_blk
-
-        valid_pairs = (denom_blk > 0) & (overlap_blk > 0)
-        out[i0:i1][valid_pairs] = cos_blk[valid_pairs]
-
-        # Progress every couple blocks
-        if (i0 // bs) % 2 == 0:
-            arcpy.AddMessage(f"  processed rows {i0+1}–{i1} / {n}")
-
-    # Diagonal = 1.0
-    np.fill_diagonal(out, 1.0)
-    return out
-
-
-def calculate_centroid_matrix(labeled_df, feature_fields, csv_nodata):
-    """CSI between each labeled point and the centroid of all points."""
-    features_clean_df = _sanitize_features(labeled_df, feature_fields, csv_nodata)
-    centroid = features_clean_df.mean(skipna=True).to_numpy(dtype=float)
-
-    F = features_clean_df.to_numpy(dtype=float)  # (n,d)
-    M = ~np.isnan(F) & ~np.isnan(centroid)       # (n,d) valid overlap mask
-
-    # Zero out invalids
-    F_masked = np.where(M, F, 0.0)
-    centroid_masked = np.where(M, centroid, 0.0)
-
-    # Dot products per row
-    numer = np.sum(F_masked * centroid_masked, axis=1)
-
-    # Norms per row and centroid
-    row_norms = np.linalg.norm(F_masked, axis=1)
-    centroid_norms = np.linalg.norm(centroid_masked, axis=1)  # (n,d) → shape (n,)
-
-    denom = row_norms * centroid_norms
-    csi = np.full(F.shape[0], csv_nodata, dtype=float)
-
-    valid = (denom > 0)
-    csi[valid] = numer[valid] / denom[valid]
-
-    return csi, centroid
+    # Focus only on labeled points
+    F = _sanitize_features(labeled_df, feature_fields, csv_nodata)
+    n = len(F)
+    
+    arcpy.AddMessage(f"Calculating corner CSI for {n} labeled points with vectors A and B")
+    
+    # Initialize results matrix (upper triangular only)
+    corner_csi = np.full((n, n), None, dtype=float)
+    
+    # Convert to numpy for faster computation
+    features_array = F.to_numpy(dtype=float)
+    
+    # Calculate only upper triangular matrix
+    for i in range(n):
+        for j in range(i, n):  # Only upper diagonal (i <= j)
+            if i == j:
+                corner_csi[i, j] = 1.0  # Self-similarity
+            else:
+                # Calculate CSI between vector A (row i) and vector B (row j)
+                vector_a = features_array[i]
+                vector_b = features_array[j]
+                
+                # Calculate cosine similarity
+                csi_value = cosine_similarity(vector_a, vector_b, csv_nodata)
+                corner_csi[i, j] = csi_value
+                
+        # Progress reporting
+        if (i + 1) % 50 == 0 or i == n - 1:
+            arcpy.AddMessage(f"  Processed corner {i + 1}/{n}")
+    
+    return corner_csi
 
 
 def _detect_xy_columns(df: pd.DataFrame) -> tuple[str, str]:
-    """Find X/Y columns with very tolerant matching."""
-    # Debug output
-    arcpy.AddMessage(f"Available columns: {list(df.columns)}")
+    """Find X/Y columns with tolerant matching."""
     
     norm = {c.replace(" ", "").lstrip("\ufeff").strip().lower(): c for c in df.columns}
     
@@ -272,14 +205,10 @@ def _detect_xy_columns(df: pd.DataFrame) -> tuple[str, str]:
     ]
     
     for a, b in pairs:
-        arcpy.AddMessage(f"Checking for {a} and {b}")
         if a in norm and b in norm:
-            arcpy.AddMessage(f"Found coordinate pair: {norm[a]}, {norm[b]}")
             return norm[a], norm[b]
     
-    # last-ditch: exact X/Y uppercase
     if "X" in df.columns and "Y" in df.columns:
-        arcpy.AddMessage("Found X, Y columns")
         return "X", "Y"
     
     arcpy.AddMessage("No coordinate columns found")
@@ -289,7 +218,6 @@ def _detect_xy_columns(df: pd.DataFrame) -> tuple[str, str]:
 def extract_raster_values(raster_path: str, points_df: pd.DataFrame, has_geometry: bool) -> np.ndarray:
     """
     Return a 1-D float array of length len(points_df) with the raster value at each row's location.
-    Uses SHAPE@XY (if present) or tolerant XY-column detection. NoData => np.nan.
     """
     try:
         ras = arcpy.Raster(raster_path)
@@ -308,7 +236,6 @@ def extract_raster_values(raster_path: str, points_df: pd.DataFrame, has_geometr
             xs = np.array([t[0] if isinstance(t, tuple) and len(t) == 2 else np.nan for t in xy], dtype="float64")
             ys = np.array([t[1] if isinstance(t, tuple) and len(t) == 2 else np.nan for t in xy], dtype="float64")
         else:
-            arcpy.AddMessage(f"Looking for coordinate columns (has_geometry={has_geometry})")
             xcol, ycol = _detect_xy_columns(points_df)
             if xcol and ycol:
                 arcpy.AddMessage(f"Using coordinate columns: {xcol}, {ycol}")
@@ -319,7 +246,7 @@ def extract_raster_values(raster_path: str, points_df: pd.DataFrame, has_geometr
             error_msg = (
                 f"Could not find coordinates. Available columns: {list(points_df.columns)}\n"
                 "For geometry data: ensure SHAPE@XY column exists\n"
-                "For tabular data: ensure coordinate columns (x/y, lon/lat, etc.) exist"
+                "For tabular data: ensure coordinate columns exist"
             )
             raise ValueError(error_msg)
 
@@ -342,135 +269,150 @@ def extract_raster_values(raster_path: str, points_df: pd.DataFrame, has_geometr
         raise
 
 
-def calculate_evidence_csi(labeled_df, feature_fields, rasters_list,
-                           evidence_vectors_file, has_geometry, csv_nodata):
-    """CSI between labeled points and evidence, ignoring NaN/csv_nodata."""
+def calculate_evidence_matrix(labeled_df, feature_fields, rasters_list, has_geometry, csv_nodata):
+    """
+    Calculate evidence matrix: labeled points vs raster values.
+    Returns matrix of shape (n_labeled_points, n_rasters) for 3x40 format.
+    """
+    if not rasters_list:
+        return {}
+    
+    # Focus only on labeled points
+    n_points = len(labeled_df)
+    n_rasters = len(rasters_list)
+    
+    arcpy.AddMessage(f"Calculating evidence matrix: {n_points} labeled points × {n_rasters} rasters")
+    
+    # Initialize evidence matrix
+    evidence_matrix = np.full((n_points, n_rasters), csv_nodata, dtype=float)
     evidence_results = {}
-
-    # features_clean must be numeric with NaNs where missing
+    
+    # Get feature vectors for labeled points
     features_clean_df = _sanitize_features(labeled_df, feature_fields, csv_nodata)
     features_clean = features_clean_df.to_numpy(dtype=float)
-
-    if rasters_list:
-        arcpy.AddMessage("Processing raster evidence...")
-        for i, raster_path in enumerate(rasters_list):
-            arcpy.AddMessage(f"Processing raster {i+1}/{len(rasters_list)}: {os.path.basename(raster_path)}")
-            raster_values = extract_raster_values(raster_path, labeled_df, has_geometry)  # -> (N,)
-
-            N = len(labeled_df)
-            raster_csi = np.full(N, csv_nodata, dtype="float64")
-
-            for j in range(N):
-                rv = raster_values[j]
-                # Skip invalid raster value
-                if (isinstance(rv, float) and np.isnan(rv)) or (csv_nodata is not None and rv == csv_nodata):
-                    continue
-
-                # Pick first valid feature value in this row
-                row_feat = features_clean[j]
-                valid_mask = ~np.isnan(row_feat)
-                if not np.any(valid_mask):
-                    continue
-                feat_val = row_feat[valid_mask][0]
-
-                # Cosine similarity for scalar inputs; ensure scalar output
-                csi_value = cosine_similarity(np.array([feat_val]), np.array([rv]), csv_nodata)
-                csi_value = float(np.asarray(csi_value).squeeze())
-                raster_csi[j] = csi_value
-
-            valid_count = int(np.sum(raster_csi != csv_nodata))
-            arcpy.AddMessage(f"  Calculated {valid_count} valid CSI values for raster {i+1}")
-            evidence_results[f"raster_{i+1}_{os.path.basename(raster_path)}"] = raster_csi
-
-    # --- Vector evidence (multi-dim) ---
-    if evidence_vectors_file and arcpy.Exists(evidence_vectors_file):
-        arcpy.AddMessage("Processing vector evidence...")
-        evidence_fields = [
-            f.name for f in arcpy.ListFields(evidence_vectors_file)
-            if f.type in ['Double', 'Float', 'Integer', 'SmallInteger']
-        ]
-
-        evidence_data = []
-        with arcpy.da.SearchCursor(evidence_vectors_file, evidence_fields) as cursor:
-            for row in cursor:
-                # Normalize None → NaN
-                evidence_data.append([np.nan if val is None else val for val in row])
-
-        evidence_df = pd.DataFrame(evidence_data, columns=evidence_fields)
-        evidence_clean = evidence_df.apply(pd.to_numeric, errors="coerce").replace(csv_nodata, np.nan)
-
-        for ev_idx in range(len(evidence_clean)):
-            ev_vec = evidence_clean.iloc[ev_idx].to_numpy(dtype=float)
-
-            vector_csi = np.full(len(labeled_df), csv_nodata)
-            for label_idx in range(len(labeled_df)):
-                lab_vec = features_clean[label_idx]
-                # Align by valid indices in both vectors
-                valid = ~(np.isnan(lab_vec) | np.isnan(ev_vec))
-                if not np.any(valid):
-                    continue
-                csi_value = cosine_similarity(lab_vec[valid], ev_vec[valid], csv_nodata)
-                vector_csi[label_idx] = csi_value
-
-            valid_count = np.sum(vector_csi != csv_nodata)
-            arcpy.AddMessage(f"  Calculated {valid_count} valid CSI values for evidence vector {ev_idx+1}")
-            evidence_results[f"evidence_vector_{ev_idx+1}"] = vector_csi
-
+    
+    for raster_idx, raster_path in enumerate(rasters_list):
+        arcpy.AddMessage(f"Processing raster {raster_idx + 1}/{n_rasters}: {os.path.basename(raster_path)}")
+        
+        # Extract raster values at labeled point locations
+        raster_values = extract_raster_values(raster_path, labeled_df, has_geometry)
+        
+        # Calculate CSI between each labeled point and raster values
+        for point_idx in range(n_points):
+            raster_val = raster_values[point_idx]
+            
+            # Skip invalid raster values
+            if np.isnan(raster_val) or raster_val == csv_nodata:
+                continue
+                
+            # Get feature vector for this point
+            point_features = features_clean[point_idx]
+            
+            # Skip if no valid features
+            valid_features = ~np.isnan(point_features)
+            if not np.any(valid_features):
+                continue
+            
+            # For now, use first valid feature for CSI calculation with raster
+            # Could be enhanced to use all features or specific combinations
+            first_valid_feature = point_features[valid_features][0]
+            
+            # Calculate CSI between point feature and raster value
+            csi_value = cosine_similarity(
+                np.array([first_valid_feature]), 
+                np.array([raster_val]), 
+                csv_nodata
+            )
+            
+            evidence_matrix[point_idx, raster_idx] = float(csi_value)
+        
+        # Store individual raster results
+        raster_name = f"raster_{raster_idx + 1}_{os.path.basename(raster_path)}"
+        evidence_results[raster_name] = evidence_matrix[:, raster_idx].copy()
+        
+        valid_count = np.sum(evidence_matrix[:, raster_idx] != csv_nodata)
+        arcpy.AddMessage(f"  Calculated {valid_count} valid CSI values")
+    
+    # Store the full evidence matrix
+    evidence_results['evidence_matrix'] = evidence_matrix
+    
+    arcpy.AddMessage(f"Evidence matrix shape: {evidence_matrix.shape}")
     return evidence_results
 
 
-def create_output_rasters(
+def create_label_to_data_rasters(
     labeled_df,
-    evidence_results,
+    all_data_df,
+    feature_fields,
     out_raster_folder,
     csv_nodata,
     has_geometry,
-    source_fc=None,
     template_raster=None,
     cell_size=None,
     min_points=3,
 ):
     """
-    Create rasters from CSI results by IDW.
-
-    Works with:
-      - Feature classes (uses SHAPE@XY), or
-      - Plain tables that have coordinate columns (x/y, lon/lat, etc.)
+    Create rasters showing CSI between each labeled point and all data points.
     """
-    # Decide how we will get coordinates for each row
-    use_geom = bool(has_geometry and "SHAPE@XY" in labeled_df.columns)
-    xcol = ycol = None
-    if not use_geom:
-        # fall back to tolerant XY detection in the dataframe
-        xcol, ycol = _detect_xy_columns(labeled_df)
-        if not (xcol and ycol):
-            arcpy.AddWarning(
-                "No geometry and no coordinate columns found — cannot create rasters."
-            )
-            return
-
-    # Make sure output folder exists
     os.makedirs(out_raster_folder, exist_ok=True)
-
+    
     # Resolve spatial reference
+    sr = _get_spatial_reference(template_raster, labeled_df, has_geometry)
+    _set_raster_environment(template_raster, cell_size)
+    
+    # Get features for labeled and all data
+    labeled_features = _sanitize_features(labeled_df, feature_fields, csv_nodata).to_numpy(dtype=float)
+    all_features = _sanitize_features(all_data_df, feature_fields, csv_nodata).to_numpy(dtype=float)
+    
+    n_labeled = len(labeled_df)
+    
+    for label_idx in range(n_labeled):
+        arcpy.AddMessage(f"Creating raster for labeled point {label_idx + 1}/{n_labeled}")
+        
+        # Calculate CSI between this labeled point and all data points
+        label_vector = labeled_features[label_idx]
+        csi_values = []
+        
+        for data_idx in range(len(all_data_df)):
+            data_vector = all_features[data_idx]
+            csi_val = cosine_similarity(label_vector, data_vector, csv_nodata)
+            csi_values.append(csi_val)
+        
+        # Create raster from CSI values
+        _create_csi_raster(
+            all_data_df, 
+            np.array(csi_values), 
+            f"label_{label_idx + 1}_to_data",
+            out_raster_folder,
+            sr,
+            has_geometry,
+            csv_nodata,
+            min_points
+        )
+
+
+def _get_spatial_reference(template_raster, data_df, has_geometry):
+    """Get spatial reference from template or data"""
     sr = None
     try:
         if template_raster:
             template_path = template_raster[0] if isinstance(template_raster, list) else template_raster
             if arcpy.Exists(template_path):
                 sr = arcpy.Describe(template_path).spatialReference
-        if sr is None and source_fc and arcpy.Exists(source_fc):
-            sr = arcpy.Describe(source_fc).spatialReference
         if sr is None and arcpy.env.outputCoordinateSystem:
             sr = arcpy.env.outputCoordinateSystem
     except Exception:
-        sr = None
+        pass
 
     if sr is None or getattr(sr, "name", "") in ("", None, "Unknown"):
         arcpy.AddWarning("No spatial reference found; defaulting to WGS 1984 (WKID 4326).")
         sr = arcpy.SpatialReference(4326)
+    
+    return sr
 
-    # Set raster environment from template if available
+
+def _set_raster_environment(template_raster, cell_size):
+    """Set raster processing environment"""
     if template_raster:
         template_path = template_raster[0] if isinstance(template_raster, list) else template_raster
         if arcpy.Exists(template_path):
@@ -479,114 +421,106 @@ def create_output_rasters(
             arcpy.env.extent = tdesc.extent
             if cell_size is None:
                 try:
-                    cell_size = float(getattr(tdesc, "meanCellWidth", None) or
-                                      (getattr(tdesc, "children", [None])[0].meanCellWidth if getattr(tdesc, "children", None) else None))
+                    cell_size = float(getattr(tdesc, "meanCellWidth", None) or 
+                                    (getattr(tdesc, "children", [None])[0].meanCellWidth if getattr(tdesc, "children", None) else None))
                 except Exception:
                     pass
 
     if cell_size is None:
         cell_size = arcpy.env.cellSize
-        arcpy.AddWarning(f"No cell size provided or derivable; using environment cellSize={cell_size}.")
+        arcpy.AddWarning(f"No cell size provided; using environment cellSize={cell_size}")
 
-    try:
-        for evidence_name, csi_values in evidence_results.items():
-            # Sanitize output name
-            safe_name = re.sub(r"[^A-Za-z0-9_]+", "_", str(evidence_name))[:60]
-            out_raster_path = os.path.join(out_raster_folder, f"csi_{safe_name}.tif")
-            arcpy.AddMessage(f"Creating raster for {evidence_name} → {out_raster_path}")
 
-            # Build temp point FC with SR
-            temp_fc = arcpy.management.CreateFeatureclass("in_memory", f"tmp_pts_{safe_name}", "POINT", spatial_reference=sr)
-            arcpy.management.AddField(temp_fc, "CSI_VALUE", "DOUBLE")
-
-            # Helper to fetch XY for row i
-            def row_xy(i: int) -> tuple[float, float]:
-                if use_geom:
-                    v = labeled_df.at[i, "SHAPE@XY"]
-                    if isinstance(v, tuple) and len(v) == 2:
-                        return v[0], v[1]
-                    return None, None
-                # from XY columns
-                x = pd.to_numeric(labeled_df.at[i, xcol], errors="coerce")
-                y = pd.to_numeric(labeled_df.at[i, ycol], errors="coerce")
-                x = float(x) if np.isfinite(x) else None
-                y = float(y) if np.isfinite(y) else None
-                return x, y
-
-            # Insert points (skip nodata/NaN)
-            inserted = 0
-            with arcpy.da.InsertCursor(temp_fc, ["SHAPE@", "CSI_VALUE"]) as icur:
-                for idx, csi_val in enumerate(csi_values):
-                    if idx >= len(labeled_df):
-                        break
-                    if csi_val == csv_nodata or not np.isfinite(csi_val):
-                        continue
-                    x, y = row_xy(idx)
-                    if x is None or y is None:
-                        continue
-                    geom = arcpy.PointGeometry(arcpy.Point(x, y), sr)
-                    icur.insertRow([geom, float(csi_val)])
-                    inserted += 1
-
-            if inserted < min_points:
-                arcpy.AddWarning(
-                    f"Only {inserted} valid points for {evidence_name}; need ≥{min_points} for IDW. Skipping."
-                )
-                arcpy.management.Delete(temp_fc)
+def _create_csi_raster(data_df, csi_values, name, out_folder, sr, has_geometry, csv_nodata, min_points):
+    """Create individual CSI raster using IDW"""
+    safe_name = re.sub(r"[^A-Za-z0-9_]+", "_", str(name))[:60]
+    out_path = os.path.join(out_folder, f"csi_{safe_name}.tif")
+    
+    temp_fc = arcpy.management.CreateFeatureclass("in_memory", f"tmp_{safe_name}", "POINT", spatial_reference=sr)
+    arcpy.management.AddField(temp_fc, "CSI_VALUE", "DOUBLE")
+    
+    inserted = 0
+    with arcpy.da.InsertCursor(temp_fc, ["SHAPE@", "CSI_VALUE"]) as icur:
+        for idx, csi_val in enumerate(csi_values):
+            if idx >= len(data_df):
+                break
+            if csi_val == csv_nodata or not np.isfinite(csi_val):
                 continue
+                
+            x, y = _get_point_coordinates(data_df, idx, has_geometry)
+            if x is None or y is None:
+                continue
+                
+            geom = arcpy.PointGeometry(arcpy.Point(x, y), sr)
+            icur.insertRow([geom, float(csi_val)])
+            inserted += 1
+    
+    if inserted >= min_points:
+        try:
+            idw_raster = arcpy.sa.Idw(temp_fc, "CSI_VALUE")
+            idw_raster.save(out_path)
+            arcpy.AddMessage(f"Saved raster: {out_path}")
+        except Exception as e:
+            arcpy.AddError(f"IDW failed for {name}: {e}")
+    else:
+        arcpy.AddWarning(f"Only {inserted} valid points for {name}; need ≥{min_points}")
+    
+    arcpy.management.Delete(temp_fc)
 
-            # Run IDW and save
-            try:
-                idw_raster = arcpy.sa.Idw(
-                    in_point_features=temp_fc,
-                    z_field="CSI_VALUE",
-                    cell_size=cell_size,
-                )
-                idw_raster.save(out_raster_path)
-                arcpy.AddMessage(f"Saved raster: {out_raster_path}")
-            except Exception as e:
-                arcpy.AddError(f"IDW failed for {evidence_name}: {e}")
-            finally:
-                arcpy.management.Delete(temp_fc)
 
-    except Exception as e:
-        arcpy.AddError(f"Error creating output rasters: {e}")
-
+def _get_point_coordinates(df, idx, has_geometry):
+    """Get X,Y coordinates for a point"""
+    if has_geometry and "SHAPE@XY" in df.columns:
+        v = df.iloc[idx]["SHAPE@XY"]
+        if isinstance(v, tuple) and len(v) == 2:
+            return v[0], v[1]
+    else:
+        xcol, ycol = _detect_xy_columns(df)
+        if xcol and ycol:
+            x = pd.to_numeric(df.iloc[idx][xcol], errors="coerce")
+            y = pd.to_numeric(df.iloc[idx][ycol], errors="coerce")
+            if np.isfinite(x) and np.isfinite(y):
+                return float(x), float(y)
+    return None, None
 
 
-def save_csv_results(pairwise_matrix, centroid_csi, evidence_results, 
-                    out_labelled_pairwise_csv, out_centroid_matrix_csv, 
-                    out_evidence_table_csv, csv_nodata):
-    """Save all results to CSV files"""
+def save_csv_results(corner_matrix, evidence_results, 
+                    out_labelled_pairwise_csv, out_evidence_table_csv, csv_nodata):
+    """Save results to CSV files"""
     try:
-        # Save pairwise CSI matrix
-        pairwise_df = pd.DataFrame(pairwise_matrix)
-        pairwise_df.index = [f"Point_{i+1}" for i in range(len(pairwise_matrix))]
-        pairwise_df.columns = [f"Point_{i+1}" for i in range(len(pairwise_matrix))]
-        pairwise_df.to_csv(out_labelled_pairwise_csv)
-        arcpy.AddMessage(f"Saved pairwise CSI matrix: {out_labelled_pairwise_csv}")
+        # Save corner CSI matrix (upper triangular only)
+        corner_df = pd.DataFrame(corner_matrix)
+        corner_df.index = [f"Point_{i+1}" for i in range(len(corner_matrix))]
+        corner_df.columns = [f"Point_{i+1}" for i in range(len(corner_matrix))]
+        corner_df.to_csv(out_labelled_pairwise_csv)
+        arcpy.AddMessage(f"Saved corner CSI matrix: {out_labelled_pairwise_csv}")
         
-        # Save centroid CSI
-        centroid_df = pd.DataFrame({
-            'Point_ID': [f"Point_{i+1}" for i in range(len(centroid_csi))],
-            'Centroid_CSI': centroid_csi
-        })
-        centroid_df.to_csv(out_centroid_matrix_csv, index=False)
-        arcpy.AddMessage(f"Saved centroid CSI: {out_centroid_matrix_csv}")
-        
-        # Save evidence CSI table
+        # Save evidence matrix and individual results
         if evidence_results and out_evidence_table_csv:
-            evidence_df = pd.DataFrame(evidence_results)
-            evidence_df.index = [f"Point_{i+1}" for i in range(len(evidence_df))]
-            evidence_df.to_csv(out_evidence_table_csv)
-            arcpy.AddMessage(f"Saved evidence CSI table: {out_evidence_table_csv}")
+            # Save the full evidence matrix if it exists
+            if 'evidence_matrix' in evidence_results:
+                evidence_matrix = evidence_results['evidence_matrix']
+                evidence_df = pd.DataFrame(evidence_matrix)
+                evidence_df.index = [f"Point_{i+1}" for i in range(len(evidence_df))]
+                evidence_df.columns = [f"Raster_{i+1}" for i in range(evidence_df.shape[1])]
+                evidence_df.to_csv(out_evidence_table_csv)
+                arcpy.AddMessage(f"Saved evidence matrix ({evidence_df.shape}): {out_evidence_table_csv}")
+            
+            # Save individual raster results
+            individual_results = {k: v for k, v in evidence_results.items() if k != 'evidence_matrix'}
+            if individual_results:
+                individual_df = pd.DataFrame(individual_results)
+                individual_df.index = [f"Point_{i+1}" for i in range(len(individual_df))]
+                individual_csv = out_evidence_table_csv.replace('.csv', '_individual.csv')
+                individual_df.to_csv(individual_csv)
+                arcpy.AddMessage(f"Saved individual evidence results: {individual_csv}")
             
     except Exception as e:
         arcpy.AddError(f"Error saving CSV results: {e}")
 
 
 def execute(self, parameters, messages):
-    """Execute the CSI calculation"""
+    """Execute the modified CSI calculation"""
     try:
         # Get parameters
         labelled_path = parameters[0].valueAsText
@@ -595,79 +529,69 @@ def execute(self, parameters, messages):
         feature_field_names = parameters[3].valueAsText.split(';') if parameters[3].valueAsText else None
         evidence_type = parameters[4].valueAsText if parameters[4].value else None
         rasters_list = parameters[5].valueAsText.split(';') if parameters[5].valueAsText else []
-        evidence_vectors_file = parameters[6].valueAsText if parameters[6].value else None
         out_labelled_pairwise_csv = parameters[7].valueAsText
-        out_centroid_matrix_csv = parameters[8].valueAsText
         out_evidence_table_csv = parameters[9].valueAsText if parameters[9].value else None
         out_raster_folder = parameters[10].valueAsText if parameters[10].value else None
         
-        arcpy.AddMessage("Starting CSI Analysis...")
-        arcpy.AddMessage("=" * 50)
+        arcpy.AddMessage("Starting Modified CSI Analysis...")
+        arcpy.AddMessage("Focus: Vectors A and B (struct, appres, magn)")
+        arcpy.AddMessage("=" * 60)
         
         # Load labeled data
-        labeled_df, feature_fields, has_geometry = load_labeled_data(
+        all_df, feature_fields, has_geometry = load_labeled_data(
             labelled_path, label_field_names, feature_field_names
         )
         
-        if labeled_df is None:
+        if all_df is None:
             return
         
-        label_mask = _rows_with_labels(labeled_df, label_field_names, csv_nodata)
-        labeled_only = labeled_df.loc[label_mask].reset_index(drop=True)
+        # Filter to only labeled points
+        label_mask = _rows_with_labels(all_df, label_field_names, csv_nodata)
+        labeled_df = all_df.loc[label_mask].reset_index(drop=True)
 
         arcpy.AddMessage(
-            f"Detected label columns: {label_field_names or 'None'}; "
-            f"using {len(labeled_only)} labeled points out of {len(labeled_df)} total."
+            f"Using {len(labeled_df)} labeled points out of {len(all_df)} total."
         )
 
-        if len(labeled_only) == 0:
-            arcpy.AddWarning("No labeled rows found — falling back to all rows.")
-            labeled_only = labeled_df.copy()
+        if len(labeled_df) == 0:
+            arcpy.AddError("No labeled rows found - cannot proceed with corner analysis.")
+            return
         
-        # Calculate pairwise CSI matrix
-        pairwise_matrix = calculate_pairwise_csi(labeled_only, feature_fields, csv_nodata)
+        # Calculate corner CSI matrix (upper triangular only)
+        arcpy.AddMessage("\n1. Calculating corner CSI matrix...")
+        corner_matrix = calculate_corner_csi(labeled_df, feature_fields, csv_nodata)
         
-        # Calculate centroid CSI
-        centroid_csi, centroid = calculate_centroid_matrix(labeled_only, feature_fields, csv_nodata)
-        
-        # Calculate evidence CSI if requested
+        # Calculate evidence matrix (labeled points vs rasters)
         evidence_results = {}
         if evidence_type in ["Raster"] and rasters_list:
+            arcpy.AddMessage("\n2. Calculating evidence matrix...")
             raster_data = load_raster_data(rasters_list)
             if raster_data:
-                evidence_results.update(
-                    calculate_evidence_csi(
-                        labeled_df, feature_fields, raster_data, None, 
-                        has_geometry, csv_nodata
-                    )
+                evidence_results = calculate_evidence_matrix(
+                    labeled_df, feature_fields, raster_data, has_geometry, csv_nodata
                 )
-        
-        if evidence_type in ["Vector"] and evidence_vectors_file:
-            evidence_results.update(
-                calculate_evidence_csi(
-                    labeled_df, feature_fields, [], evidence_vectors_file, 
-                    has_geometry, csv_nodata
-                )
-            )
         
         # Save CSV results
+        arcpy.AddMessage("\n3. Saving CSV results...")
         save_csv_results(
-            pairwise_matrix, centroid_csi, evidence_results,
-            out_labelled_pairwise_csv, out_centroid_matrix_csv, 
-            out_evidence_table_csv, csv_nodata
+            corner_matrix, evidence_results,
+            out_labelled_pairwise_csv, out_evidence_table_csv, csv_nodata
         )
         
-        # Create output rasters if requested
-        if out_raster_folder and evidence_results:
-            create_output_rasters(
-                labeled_df, evidence_results, out_raster_folder,
-                csv_nodata, has_geometry, source_fc=labelled_path, 
-                template_raster=rasters_list
+        # Create rasters between label data and each data point
+        if out_raster_folder:
+            arcpy.AddMessage("\n4. Creating label-to-data rasters...")
+            create_label_to_data_rasters(
+                labeled_df, all_df, feature_fields, out_raster_folder,
+                csv_nodata, has_geometry, template_raster=rasters_list
             )
         
-        arcpy.AddMessage("\nCSI Analysis completed successfully!")
+        arcpy.AddMessage(f"\nModified CSI Analysis completed successfully!")
+        arcpy.AddMessage(f"Corner matrix shape: {corner_matrix.shape}")
+        if 'evidence_matrix' in evidence_results:
+            arcpy.AddMessage(f"Evidence matrix shape: {evidence_results['evidence_matrix'].shape}")
         
     except Exception as e:
-        arcpy.AddError(f"Error in CSI calculation: {e}")
+        arcpy.AddError(f"Error in modified CSI calculation: {e}")
         import traceback
         arcpy.AddError(traceback.format_exc())
