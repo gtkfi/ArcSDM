@@ -382,7 +382,7 @@ def Execute_MLP_regressor(self, parameters, messages):
         random_state = int(parameters[20].value) if parameters[20].value else None
         output_file = parameters[21].valueAsText
         
-        arcpy.AddMessage("Starting MLP classifier training...")
+        arcpy.AddMessage("Starting MLP regressor training...")
         
         if (target_labels_attr != None and (target_labels_attr.lower() == "shape" or target_labels_attr.lower() == "fid")):
             arcpy.AddError("Invalid 'Target labels attribute' field name")
@@ -392,7 +392,7 @@ def Execute_MLP_regressor(self, parameters, messages):
 
         arcpy.AddMessage("Data preparation completed.")
 
-        model, history = train_MLP_regressor(
+        model = train_MLP_regressor(
             X=X,
             y=y,
             neurons=neurons,
@@ -413,10 +413,7 @@ def Execute_MLP_regressor(self, parameters, messages):
             random_state=random_state,
         )
         
-        arcpy.AddMessage("="*5 + "Model training completed." + "="*5)
-        arcpy.AddMessage(f"Saving model to {output_file}.joblib")
-        arcpy.AddMessage(f"Model training history:")
-        arcpy.AddMessage(f"{history.history}")
+        arcpy.AddMessage(f"Saving model to {output_file}.keras")
         
         save_model(model, output_file)
 
@@ -450,7 +447,7 @@ def train_MLP_regressor(
     es_patience: int = 5,
     metrics: Optional[Sequence[Literal["mse", "rmse", "mae", "r2"]]] = ["mse"],
     random_state: Optional[int] = None,
-) -> Tuple[keras.Model, dict]:
+) -> keras.Model:
     """
     Train MLP (Multilayer Perceptron) regressor using Keras.
 
@@ -535,10 +532,8 @@ def train_MLP_regressor(
     # Early stopping callback
     callbacks = [keras.callbacks.EarlyStopping(monitor="val_loss", patience=es_patience)] if early_stopping else []
     callbacks.append(ArcPyLoggingCallback(epochs))
-    
-    arcpy.AddMessage("Training the model...")
 
-    history = model.fit(
+    model.fit(
         X,
         y,
         epochs=epochs,
@@ -548,4 +543,4 @@ def train_MLP_regressor(
         callbacks=callbacks,
     )
 
-    return model, history
+    return model
