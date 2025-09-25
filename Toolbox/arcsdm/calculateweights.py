@@ -471,8 +471,7 @@ def Calculate(self, parameters, messages):
             # Reclassify
             reclassified = False
 
-            tp_count_99 = 0
-            unit_cell_count_99 = 0.0
+            unit_cell_count_99_no_TP = 0.0
             tp_count = 0
             unit_cell_count = 0.0
 
@@ -482,8 +481,10 @@ def Calculate(self, parameters, messages):
 
                     if (class_category != nodata_value) and (abs(stud_cnt) < studentized_contrast_threshold):
                         gen_class = 99
-                        tp_count_99 += no_points
-                        unit_cell_count_99 += area_units
+                        
+                        if no_points == 0:
+                            unit_cell_count_99_no_TP += area_units
+
                         reclassified = True
                     else:
                         gen_class = class_category
@@ -491,7 +492,7 @@ def Calculate(self, parameters, messages):
                     tp_count += no_points
                     unit_cell_count += area_units
 
-                    # Set generalized weights to defaults (will be updated for class 99)
+                    # Set generalized weights to defaults (will be updated for class 99 entries with no TPs)
                     weight = wplus
                     w_std = s_wplus
                     
@@ -501,18 +502,16 @@ def Calculate(self, parameters, messages):
             if not reclassified:
                 arcpy.AddWarning(f"Unable to generalize classes with the given studentized contrast threshold!")
             else:
-                gen_weight_99, gen_w_std_99, _, _, _, _, _ = calculate_weights(tp_count_99, unit_cell_count_99, tp_count, unit_cell_count, 99)
+                gen_weight_99_no_TP, gen_w_std_99_no_TP, _, _, _, _, _ = calculate_weights(0.001, unit_cell_count_99_no_TP, tp_count, unit_cell_count, 99)
 
-                arcpy.AddMessage(f"Generalized weight: {gen_weight_99}, STD of generalized weight: {gen_w_std_99}")
-
-                categorical_clause = f"GEN_CLASS = 99"
+                categorical_clause = f"GEN_CLASS = 99 AND NO_POINTS = 0"
 
                 with arcpy.da.UpdateCursor(output_weights_table, generalized_weight_field_names, where_clause=categorical_clause) as cursor_generalized:
                     for row in cursor_generalized:
                         gen_class, weight, w_std = row
 
-                        weight = gen_weight_99
-                        w_std = gen_w_std_99
+                        weight = gen_weight_99_no_TP
+                        w_std = gen_w_std_99_no_TP
 
                         updated_row = (gen_class, weight, w_std)
                         cursor_generalized.updateRow(updated_row)
