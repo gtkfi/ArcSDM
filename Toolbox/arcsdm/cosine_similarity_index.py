@@ -67,8 +67,6 @@ def cosine_similarity(vector_a, vector_b, nodata_value=-9999.0):
 def load_labeled_data(labelled_path, label_field_names, feature_field_names):
     """Load labeled data from feature class or table"""
     try:
-        # Focus on specific vector fields: struct, appres, magn
-        priority_fields = ['struct', 'appres', 'magn']
         
         if not feature_field_names:
             field_objects = arcpy.ListFields(labelled_path)
@@ -78,12 +76,6 @@ def load_labeled_data(labelled_path, label_field_names, feature_field_names):
             ]
             exclude_fields = ['OBJECTID', 'OID', 'FID', 'Shape_Length', 'Shape_Area', 'SHAPE']
             all_numeric_fields = [f for f in all_numeric_fields if f not in exclude_fields]
-            
-            # Prioritize struct, appres, magn fields
-            feature_field_names = []
-            for pfield in priority_fields:
-                matching_fields = [f for f in all_numeric_fields if pfield.lower() in f.lower()]
-                feature_field_names.extend(matching_fields)
             
             # Add any remaining fields if needed
             remaining_fields = [f for f in all_numeric_fields if f not in feature_field_names]
@@ -155,7 +147,6 @@ def load_raster_data(rasters_list):
 def calculate_corner_csi(labeled_df, feature_fields, csv_nodata):
     """
     Calculate CSI between corner vectors A and B.
-    Corner 1 vs corners 2,3,4,5 and corner 2 vs corners 1,3,4,5.
     Returns only upper diagonal of the matrix.
     """
     # Focus only on labeled points
@@ -419,6 +410,8 @@ def _set_raster_environment(template_raster, cell_size):
             tdesc = arcpy.Describe(template_path)
             arcpy.env.snapRaster = template_path
             arcpy.env.extent = tdesc.extent
+            arcpy.env.mask = template_path
+            arcpy.AddMessage(f"Set raster environment from template: {template_path}")
             if cell_size is None:
                 try:
                     cell_size = float(getattr(tdesc, "meanCellWidth", None) or 
@@ -519,8 +512,279 @@ def save_csv_results(corner_matrix, evidence_results,
         arcpy.AddError(f"Error saving CSV results: {e}")
 
 
+def validate_feature_rasters(rasters_list, feature_fields):
+    """
+    Validate that rasters correspond to feature space variables.
+    Returns mapping of feature field to raster path.
+    """
+    if len(rasters_list) != len(feature_fields):
+        arcpy.AddError(f"Number of rasters ({len(rasters_list)}) must match number of feature fields ({len(feature_fields)})")
+        return None
+    
+    feature_raster_map = {}
+    for i, (field, raster_path) in enumerate(zip(feature_fields, rasters_list)):
+        if not arcpy.Exists(raster_path):
+            arcpy.AddError(f"Raster does not exist: {raster_path}")
+            return None
+        
+        feature_raster_map[field] = raster_path
+        arcpy.AddMessage(f"Feature '{field}' mapped to raster: {os.path.basename(raster_path)}")
+    
+    return feature_raster_map
+
+
+def get_raster_properties(raster_path):
+    """Get raster spatial properties for processing"""
+    try:
+        raster = arcpy.Raster(raster_path)
+        extent = raster.extent
+        cell_width = raster.meanCellWidth
+        cell_height = raster.meanCellHeight
+        spatial_ref = raster.spatialReference
+        
+        # Convert to numpy array
+        array = arcpy.RasterToNumPyArray(raster, nodata_to_value=np.nan).astype("float64")
+        
+        return {
+            'array': array,
+            'extent': extent,
+            'cell_width': cell_width,
+            'cell_height': cell_height,
+            'spatial_ref': spatial_ref,
+            'nrows': array.shape[0],
+            'ncols': array.shape[1]
+        }
+    except Exception as e:
+        arcpy.AddError(f"Error reading raster {raster_path}: {e}")
+        return None
+
+
+def create_pixel_vectors(feature_raster_map, feature_fields):
+    """
+    Create pixel vectors from feature rasters.
+    Returns 3D array: (nrows, ncols, n_features)
+    """
+    arcpy.AddMessage("Creating pixel vectors from feature rasters...")
+    
+    # Load all raster properties
+    raster_props = {}
+    reference_props = None
+    
+    for field in feature_fields:
+        raster_path = feature_raster_map[field]
+        props = get_raster_properties(raster_path)
+        if props is None:
+            return None, None
+        
+        raster_props[field] = props
+        
+        # Use first raster as reference for dimensions and extent
+        if reference_props is None:
+            reference_props = props
+    
+    # Validate all rasters have same dimensions
+    nrows, ncols = reference_props['nrows'], reference_props['ncols']
+    for field, props in raster_props.items():
+        if props['nrows'] != nrows or props['ncols'] != ncols:
+            arcpy.AddError(f"Raster dimension mismatch for {field}: "
+                          f"Expected {nrows}x{ncols}, got {props['nrows']}x{props['ncols']}")
+            return None, None
+    
+    # Create 3D array for pixel vectors
+    pixel_vectors = np.full((nrows, ncols, len(feature_fields)), np.nan, dtype='float64')
+    
+    for i, field in enumerate(feature_fields):
+        pixel_vectors[:, :, i] = raster_props[field]['array']
+        arcpy.AddMessage(f"Loaded feature '{field}' into pixel vector layer {i+1}")
+    
+    return pixel_vectors, reference_props
+
+
+def calculate_pixel_to_label_csi(pixel_vectors, labeled_features, 
+                                csv_nodata, progress_step=1000):
+    """
+    Calculate CSI between each pixel vector and each labeled point vector.
+    Returns list of 2D arrays, one per labeled point.
+    """
+    nrows, ncols, n_features = pixel_vectors.shape
+    n_labeled = len(labeled_features)
+    
+    arcpy.AddMessage(f"Calculating pixel-to-label CSI for {nrows}x{ncols} pixels vs {n_labeled} labeled points")
+    
+    # Initialize output arrays - one per labeled point
+    csi_arrays = []
+    for i in range(n_labeled):
+        csi_arrays.append(np.full((nrows, ncols), csv_nodata, dtype='float64'))
+    
+    total_pixels = nrows * ncols
+    processed_pixels = 0
+    
+    # Process each pixel
+    for row in range(nrows):
+        for col in range(ncols):
+            # Get pixel vector (values from all feature rasters at this location)
+            pixel_vector = pixel_vectors[row, col, :]
+            
+            # Skip pixels with any invalid values
+            if np.any(np.isnan(pixel_vector)) or np.any(pixel_vector == csv_nodata):
+                processed_pixels += 1
+                continue
+            
+            # Calculate CSI between this pixel and each labeled point
+            for label_idx in range(n_labeled):
+                labeled_vector = labeled_features[label_idx]
+                
+                # Calculate CSI between pixel vector and labeled vector
+                csi_value = cosine_similarity(pixel_vector, labeled_vector, csv_nodata)
+                
+                # Store result
+                if csi_value != csv_nodata:
+                    csi_arrays[label_idx][row, col] = csi_value
+            
+            processed_pixels += 1
+            
+            # Progress reporting
+            if processed_pixels % progress_step == 0 or processed_pixels == total_pixels:
+                pct = (processed_pixels / total_pixels) * 100
+                arcpy.AddMessage(f"  Processed {processed_pixels}/{total_pixels} pixels ({pct:.1f}%)")
+    
+    return csi_arrays
+
+
+def save_csi_rasters(csi_arrays, labeled_df, reference_props, out_raster_folder, 
+                    label_field_names, csv_nodata):
+    """
+    Save CSI arrays as raster files - one per labeled point.
+    """
+    os.makedirs(out_raster_folder, exist_ok=True)
+    
+    n_labeled = len(csi_arrays)
+    arcpy.AddMessage(f"Saving {n_labeled} CSI rasters to: {out_raster_folder}")
+    
+    # Set up raster environment
+    extent = reference_props['extent']
+    cell_width = reference_props['cell_width']
+    cell_height = reference_props['cell_height']
+    spatial_ref = reference_props['spatial_ref']
+    
+    for label_idx, csi_array in enumerate(csi_arrays):
+        try:
+            # Create label identifier
+            label_id = f"label_{label_idx + 1}"
+            
+            # Try to get a meaningful label from the data if available
+            if label_field_names and len(label_field_names) > 0:
+                label_col = label_field_names[0]
+                if label_col in labeled_df.columns:
+                    label_value = labeled_df.iloc[label_idx][label_col]
+                    if pd.notna(label_value) and str(label_value).strip():
+                        # Sanitize label value for filename
+                        safe_label = re.sub(r"[^A-Za-z0-9_]+", "_", str(label_value))[:20]
+                        label_id = f"label_{label_idx + 1}_{safe_label}"
+            
+            # Create output filename
+            output_filename = f"csi_{label_id}.tif"
+            output_path = os.path.join(out_raster_folder, output_filename)
+            
+            # Convert numpy array to raster
+            # Replace csv_nodata with np.nan for proper NoData handling
+            clean_array = np.where(csi_array == csv_nodata, np.nan, csi_array)
+            
+            # Create raster from array
+            lower_left = arcpy.Point(extent.XMin, extent.YMin)
+            raster = arcpy.NumPyArrayToRaster(clean_array, lower_left, cell_width, cell_height)
+            
+            # Set spatial reference
+            arcpy.management.DefineProjection(raster, spatial_ref)
+            
+            # Set NoData value
+            arcpy.management.SetRasterProperties(raster, nodata="1 " + str(csv_nodata))
+            
+            # Save raster
+            raster.save(output_path)
+            
+            # Calculate statistics
+            valid_pixels = np.sum(~np.isnan(clean_array))
+            min_csi = np.nanmin(clean_array) if valid_pixels > 0 else csv_nodata
+            max_csi = np.nanmax(clean_array) if valid_pixels > 0 else csv_nodata
+            mean_csi = np.nanmean(clean_array) if valid_pixels > 0 else csv_nodata
+            
+            arcpy.AddMessage(f"Saved {output_filename}: {valid_pixels} valid pixels, "
+                           f"CSI range [{min_csi:.4f}, {max_csi:.4f}], mean {mean_csi:.4f}")
+            
+        except Exception as e:
+            arcpy.AddError(f"Error saving raster for label {label_idx + 1}: {e}")
+
+
+def pixel_to_label_csi(labeled_df, feature_fields, rasters_list, out_raster_folder,
+                           label_field_names, csv_nodata):
+    """
+    Main function to implement Part 2 workflow:
+    - Validate feature rasters match feature space
+    - Create pixel vectors from rasters
+    - Calculate CSI between each pixel and each labeled point
+    - Output p rasters (one per labeled point)
+    """
+    arcpy.AddMessage("\n" + "="*60)
+    arcpy.AddMessage("PART 2: Pixel-to-Label CSI Analysis")
+    arcpy.AddMessage("="*60)
+    
+    # Step 1: Validate feature rasters
+    arcpy.AddMessage("Step 1: Validating feature rasters...")
+    feature_raster_map = validate_feature_rasters(rasters_list, feature_fields)
+    if feature_raster_map is None:
+        arcpy.AddError("Feature raster validation failed")
+        return False
+    
+    # Step 2: Create pixel vectors
+    arcpy.AddMessage("Step 2: Creating pixel vectors...")
+    pixel_vectors, reference_props = create_pixel_vectors(feature_raster_map, feature_fields)
+    if pixel_vectors is None:
+        arcpy.AddError("Failed to create pixel vectors")
+        return False
+    
+    # Step 3: Prepare labeled feature vectors
+    arcpy.AddMessage("Step 3: Preparing labeled feature vectors...")
+    labeled_features_df = _sanitize_features(labeled_df, feature_fields, csv_nodata)
+    labeled_features = labeled_features_df.to_numpy(dtype='float64')
+    
+    # Validate labeled features
+    valid_labels = []
+    for i, label_vector in enumerate(labeled_features):
+        if not np.any(np.isnan(label_vector)) and not np.any(label_vector == csv_nodata):
+            valid_labels.append(i)
+    
+    if len(valid_labels) == 0:
+        arcpy.AddError("No valid labeled feature vectors found")
+        return False
+    
+    arcpy.AddMessage(f"Using {len(valid_labels)} valid labeled points out of {len(labeled_features)}")
+    
+    # Filter to valid labels only
+    labeled_features = labeled_features[valid_labels]
+    labeled_df_filtered = labeled_df.iloc[valid_labels].reset_index(drop=True)
+    
+    # Step 4: Calculate pixel-to-label CSI
+    arcpy.AddMessage("Step 4: Calculating pixel-to-label CSI...")
+    csi_arrays = calculate_pixel_to_label_csi(
+        pixel_vectors, labeled_features, reference_props, csv_nodata
+    )
+    
+    # Step 5: Save output rasters
+    arcpy.AddMessage("Step 5: Saving CSI rasters...")
+    save_csi_rasters(
+        csi_arrays, labeled_df_filtered, reference_props, out_raster_folder,
+        label_field_names, csv_nodata
+    )
+    
+    arcpy.AddMessage(f"\nPart 2 completed successfully!")
+    arcpy.AddMessage(f"Created {len(csi_arrays)} CSI rasters in: {out_raster_folder}")
+    
+    return True
+
+
 def execute(self, parameters, messages):
-    """Execute the modified CSI calculation"""
+    """Execute the CSI calculation"""
     try:
         # Get parameters
         labelled_path = parameters[0].valueAsText
@@ -533,9 +797,11 @@ def execute(self, parameters, messages):
         out_evidence_table_csv = parameters[9].valueAsText if parameters[9].value else None
         out_raster_folder = parameters[10].valueAsText if parameters[10].value else None
         
-        arcpy.AddMessage("Starting Modified CSI Analysis...")
-        arcpy.AddMessage("Focus: Vectors A and B (struct, appres, magn)")
-        arcpy.AddMessage("=" * 60)
+        # Filter labeled points by field value
+        selected_label_field = parameters[11].valueAsText if len(parameters) > 11 and parameters[11].value else None
+        
+        arcpy.AddMessage("Starting CSI Analysis...")
+        arcpy.AddMessage("="*60)
         
         # Load labeled data
         all_df, feature_fields, has_geometry = load_labeled_data(
@@ -548,50 +814,49 @@ def execute(self, parameters, messages):
         # Filter to only labeled points
         label_mask = _rows_with_labels(all_df, label_field_names, csv_nodata)
         labeled_df = all_df.loc[label_mask].reset_index(drop=True)
-
-        arcpy.AddMessage(
-            f"Using {len(labeled_df)} labeled points out of {len(all_df)} total."
-        )
+        
+        # Optional: Further filter by selected label field
+        if selected_label_field and selected_label_field in labeled_df.columns:
+            selected_mask = labeled_df[selected_label_field].notna()
+            labeled_df = labeled_df.loc[selected_mask].reset_index(drop=True)
+            arcpy.AddMessage(f"Filtered to {len(labeled_df)} points with valid {selected_label_field}")
+        
+        arcpy.AddMessage(f"Using {len(labeled_df)} labeled points for analysis")
 
         if len(labeled_df) == 0:
-            arcpy.AddError("No labeled rows found - cannot proceed with corner analysis.")
+            arcpy.AddError("No labeled rows found - cannot proceed with analysis.")
             return
         
-        # Calculate corner CSI matrix (upper triangular only)
-        arcpy.AddMessage("\n1. Calculating corner CSI matrix...")
+        # Calculate corner CSI matrix
+        arcpy.AddMessage("\nCorner CSI Matrix Calculation")
         corner_matrix = calculate_corner_csi(labeled_df, feature_fields, csv_nodata)
         
-        # Calculate evidence matrix (labeled points vs rasters)
-        evidence_results = {}
-        if evidence_type in ["Raster"] and rasters_list:
-            arcpy.AddMessage("\n2. Calculating evidence matrix...")
-            raster_data = load_raster_data(rasters_list)
-            if raster_data:
-                evidence_results = calculate_evidence_matrix(
-                    labeled_df, feature_fields, raster_data, has_geometry, csv_nodata
-                )
+        # PART 2: Pixel-to-Label CSI (if rasters provided and output folder specified)
+        if evidence_type == "Raster" and rasters_list and out_raster_folder:
+            
+            coord_1, coord_2 = _detect_xy_columns(labeled_df)
+            feature_fields_only = [f for f in feature_fields if f not in (coord_1, coord_2)]
+            success = pixel_to_label_csi(
+                labeled_df, feature_fields_only, rasters_list, out_raster_folder,
+                label_field_names, csv_nodata
+            )
+            if not success:
+                arcpy.AddWarning("Part 2 workflow failed, continuing with Part 1 results only")
         
         # Save CSV results
-        arcpy.AddMessage("\n3. Saving CSV results...")
+        arcpy.AddMessage("\nSaving CSV results...")
+        evidence_results = {}  # Empty for Part 2 implementation
         save_csv_results(
             corner_matrix, evidence_results,
             out_labelled_pairwise_csv, out_evidence_table_csv, csv_nodata
         )
         
-        # Create rasters between label data and each data point
-        if out_raster_folder:
-            arcpy.AddMessage("\n4. Creating label-to-data rasters...")
-            create_label_to_data_rasters(
-                labeled_df, all_df, feature_fields, out_raster_folder,
-                csv_nodata, has_geometry, template_raster=rasters_list
-            )
-        
-        arcpy.AddMessage(f"\nModified CSI Analysis completed successfully!")
+        arcpy.AddMessage(f"\nCSI Analysis completed successfully!")
         arcpy.AddMessage(f"Corner matrix shape: {corner_matrix.shape}")
-        if 'evidence_matrix' in evidence_results:
-            arcpy.AddMessage(f"Evidence matrix shape: {evidence_results['evidence_matrix'].shape}")
+        if evidence_type == "Raster" and rasters_list and out_raster_folder:
+            arcpy.AddMessage(f"Created {len(labeled_df)} pixel-to-label CSI rasters")
         
     except Exception as e:
-        arcpy.AddError(f"Error in modified CSI calculation: {e}")
+        arcpy.AddError(f"Error in CSI calculation: {e}")
         import traceback
         arcpy.AddError(traceback.format_exc())
