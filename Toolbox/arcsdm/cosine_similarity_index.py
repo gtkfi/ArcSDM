@@ -969,7 +969,7 @@ def execute(self, parameters, messages):
             return
         
         # Calculate corner CSI matrix
-        arcpy.AddMessage("\nPart 1: Corner CSI Matrix Calculation")
+        arcpy.AddMessage("\nCorner CSI Matrix Calculation")
         corner_matrix = calculate_corner_csi(labeled_df, feature_fields, csv_nodata)
         
         # PART 2: Pixel-to-Label CSI (if rasters provided and output folder specified)
@@ -983,7 +983,7 @@ def execute(self, parameters, messages):
                 label_field_names, csv_nodata
             )
             if not success:
-                arcpy.AddWarning("Part 2 workflow failed, continuing with Part 1 results only")
+                arcpy.AddWarning("Workflow failed, continuing with Part 1 results only")
         
         # Calculate evidence matrix for CSV output (if needed)
         evidence_results = {}
