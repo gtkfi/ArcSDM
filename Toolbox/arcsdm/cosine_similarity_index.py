@@ -468,7 +468,7 @@ def _create_csi_raster(
     csi_values: np.ndarray,
     name: str,
     out_folder: str,
-    sr: Any,
+    sr: arcpy.SpatialReference,
     has_geometry: bool,
     csv_nodata: float,
     min_points: int
@@ -604,7 +604,7 @@ def get_raster_properties(
         spatial_ref = raster.spatialReference
         
         # Convert to numpy array
-        array = arcpy.RasterToNumPyArray(raster, nodata_to_value=np.nan).astype("float32")
+        array = arcpy.RasterToNumPyArray(raster, nodata_to_value=np.nan).astype("float64")
         
         return {
             'array': array,
@@ -613,7 +613,8 @@ def get_raster_properties(
             'cell_height': cell_height,
             'spatial_ref': spatial_ref,
             'nrows': array.shape[0],
-            'ncols': array.shape[1]
+            'ncols': array.shape[1],
+            'nodata_value': raster.noDataValue
         }
     except Exception as e:
         arcpy.AddError(f"Error reading raster {raster_path}: {e}")
@@ -627,6 +628,7 @@ def create_pixel_vectors(
     """
     Create pixel vectors from feature rasters.
     Returns 3D array: (nrows, ncols, n_features)
+    Uses mask if set in environment.
     """
     arcpy.AddMessage("Creating pixel vectors from feature rasters...")
     
@@ -655,11 +657,39 @@ def create_pixel_vectors(
             return None, None
     
     # Create 3D array for pixel vectors
-    pixel_vectors = np.full((nrows, ncols, len(feature_fields)), np.nan, dtype='float32')
+    pixel_vectors = np.full((nrows, ncols, len(feature_fields)), np.nan, dtype='float64')
     
     for i, field in enumerate(feature_fields):
         pixel_vectors[:, :, i] = raster_props[field]['array']
         arcpy.AddMessage(f"Loaded feature '{field}' into pixel vector layer {i+1}")
+    
+    # Apply mask if set in environment
+    mask_array = None
+    if arcpy.env.mask:
+        try:
+            arcpy.AddMessage(f"Applying mask from: {arcpy.env.mask}")
+            mask_raster = arcpy.Raster(arcpy.env.mask)
+            mask_array = arcpy.RasterToNumPyArray(mask_raster, nodata_to_value=0).astype(bool)
+            
+            # Validate mask dimensions
+            if mask_array.shape != (nrows, ncols):
+                arcpy.AddWarning(f"Mask dimensions {mask_array.shape} don't match raster dimensions {(nrows, ncols)}")
+                mask_array = None
+            else:
+                # Apply mask to all feature layers
+                for i in range(len(feature_fields)):
+                    pixel_vectors[:, :, i] = np.where(mask_array, pixel_vectors[:, :, i], np.nan)
+                
+                valid_pixels = np.sum(mask_array)
+                arcpy.AddMessage(f"Mask applied: {valid_pixels} valid pixels out of {nrows * ncols}")
+        except Exception as e:
+            arcpy.AddWarning(f"Failed to apply mask: {e}")
+            mask_array = None
+    else:
+        arcpy.AddMessage("No mask set in environment")
+    
+    # Store mask info in reference props
+    reference_props['mask_array'] = mask_array
     
     return pixel_vectors, reference_props
 
@@ -686,6 +716,7 @@ def calculate_pixel_to_label_csi(
     
     total_pixels = nrows * ncols
     processed_pixels = 0
+    valid_processed = 0
     
     # Process each pixel
     for row in range(nrows):
@@ -709,12 +740,15 @@ def calculate_pixel_to_label_csi(
                 if csi_value != csv_nodata and np.isfinite(csi_value):
                     csi_arrays[label_idx][row, col] = float(csi_value)
             
+            valid_processed += 1
             processed_pixels += 1
             
             # Progress reporting
             if processed_pixels % progress_step == 0 or processed_pixels == total_pixels:
                 pct = (processed_pixels / total_pixels) * 100
-                arcpy.AddMessage(f"  Processed {processed_pixels}/{total_pixels} pixels ({pct:.1f}%)")
+                arcpy.AddMessage(f"  Processed {processed_pixels}/{total_pixels} pixels ({pct:.1f}%) - {valid_processed} valid")
+    
+    arcpy.AddMessage(f"Completed CSI calculation for {valid_processed} valid pixels")
     
     # Verify arrays are properly formed before returning
     for idx, arr in enumerate(csi_arrays):
@@ -737,6 +771,7 @@ def save_csi_rasters(
 ) -> None:
     """
     Save CSI arrays as raster files - one per labeled point.
+    Direct array to raster conversion.
     """
     os.makedirs(out_raster_folder, exist_ok=True)
     
@@ -751,6 +786,7 @@ def save_csi_rasters(
     
     for label_idx, csi_array in enumerate(csi_arrays):
         try:
+            
             # Create label identifier
             label_id = f"label_{label_idx + 1}"
             
@@ -779,7 +815,7 @@ def save_csi_rasters(
             # Replace csv_nodata with np.nan for proper NoData handling
             clean_array = np.where(csi_array == csv_nodata, np.nan, csi_array)
             
-            # Create raster from array
+            # Create raster from array - NO INTERPOLATION
             lower_left = arcpy.Point(extent.XMin, extent.YMin)
             raster = arcpy.NumPyArrayToRaster(
                 clean_array, 
@@ -793,7 +829,6 @@ def save_csi_rasters(
             arcpy.management.DefineProjection(raster, spatial_ref)
             
             # Save raster
-            arcpy.AddMessage(f"Saving raster for label {label_idx + 1}: {output_path}")
             raster.save(output_path)
             
             # Build statistics and pyramids
@@ -802,12 +837,14 @@ def save_csi_rasters(
             
             # Calculate statistics for reporting
             valid_pixels = np.sum(~np.isnan(clean_array))
-            min_csi = np.nanmin(clean_array) if valid_pixels > 0 else csv_nodata
-            max_csi = np.nanmax(clean_array) if valid_pixels > 0 else csv_nodata
-            mean_csi = np.nanmean(clean_array) if valid_pixels > 0 else csv_nodata
-            
-            arcpy.AddMessage(f"Saved {output_filename}: {valid_pixels} valid pixels, "
-                           f"CSI range [{min_csi:.4f}, {max_csi:.4f}], mean {mean_csi:.4f}")
+            if valid_pixels > 0:
+                min_csi = np.nanmin(clean_array)
+                max_csi = np.nanmax(clean_array)
+                mean_csi = np.nanmean(clean_array)
+                arcpy.AddMessage(f"Saved {output_filename}: {valid_pixels} valid pixels, "
+                               f"CSI range [{min_csi:.4f}, {max_csi:.4f}], mean {mean_csi:.4f}")
+            else:
+                arcpy.AddWarning(f"Saved {output_filename}: No valid pixels (all NoData)")
             
         except Exception as e:
             arcpy.AddError(f"Error saving raster for label {label_idx + 1}: {e}")
@@ -908,7 +945,7 @@ def execute(self, parameters, messages):
         arcpy.AddMessage("="*60)
         
         # Load labeled data
-        all_df, feature_fields, _ = load_labeled_data(
+        all_df, feature_fields, has_geometry = load_labeled_data(
             labelled_path, label_field_names, feature_field_names
         )
         
@@ -932,14 +969,15 @@ def execute(self, parameters, messages):
             return
         
         # Calculate corner CSI matrix
-        arcpy.AddMessage("\nCorner CSI Matrix Calculation")
+        arcpy.AddMessage("\nPart 1: Corner CSI Matrix Calculation")
         corner_matrix = calculate_corner_csi(labeled_df, feature_fields, csv_nodata)
         
-        # Pixel-to-Label CSI (if rasters provided and output folder specified)
+        # PART 2: Pixel-to-Label CSI (if rasters provided and output folder specified)
         if evidence_type == "Raster" and rasters_list and out_raster_folder:
-            
+            # Filter out coordinate columns from feature fields
             coord_1, coord_2 = _detect_xy_columns(labeled_df)
-            feature_fields_only = [f for f in feature_fields if f not in (coord_1, coord_2)]
+            feature_fields_only = [f for f in feature_fields if f not in (coord_1, coord_2, 'SHAPE@XY')]
+            
             success = pixel_to_label_csi(
                 labeled_df, feature_fields_only, rasters_list, out_raster_folder,
                 label_field_names, csv_nodata
@@ -947,9 +985,18 @@ def execute(self, parameters, messages):
             if not success:
                 arcpy.AddWarning("Part 2 workflow failed, continuing with Part 1 results only")
         
+        # Calculate evidence matrix for CSV output (if needed)
+        evidence_results = {}
+        if evidence_type == "Raster" and rasters_list and out_evidence_table_csv:
+            arcpy.AddMessage("\nCalculating evidence matrix for CSV output...")
+            raster_data = load_raster_data(rasters_list)
+            if raster_data:
+                evidence_results = calculate_evidence_matrix(
+                    labeled_df, feature_fields, raster_data, has_geometry, csv_nodata
+                )
+        
         # Save CSV results
         arcpy.AddMessage("\nSaving CSV results...")
-        evidence_results = {}  # Empty for Part 2 implementation
         save_csv_results(
             corner_matrix, evidence_results,
             out_labelled_pairwise_csv, out_evidence_table_csv
@@ -958,7 +1005,7 @@ def execute(self, parameters, messages):
         arcpy.AddMessage(f"\nCSI Analysis completed successfully!")
         arcpy.AddMessage(f"Corner matrix shape: {corner_matrix.shape}")
         if evidence_type == "Raster" and rasters_list and out_raster_folder:
-            arcpy.AddMessage(f"Created {len(labeled_df)} pixel-to-label CSI rasters")
+            arcpy.AddMessage(f"Pixel-to-label CSI rasters created")
         
     except Exception as e:
         arcpy.AddError(f"Error in CSI calculation: {e}")
