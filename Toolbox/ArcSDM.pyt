@@ -1167,54 +1167,55 @@ class TOCFuzzificationTool(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "TOC Fuzzification"
-        self.description = "This fuzzification method utilized the symbolization of the input raster that has been applied in the map document table of contects (TOC). The symbolization in the TOC defines the number of classes and this tool rescales those classes (1...N) to the range [0,1] by (C - 1)/(N-1) where C is the class value and N is the number of classes."
+        self.description = "This fuzzification method utilized the symbolization of the input raster that has been applied in the map document table of contents (TOC). The symbolization in the TOC defines the number of classes and this tool rescales those classes (1...N) to the range [0,1] by (C - 1)/(N-1) where C is the class value and N is the number of classes."
         self.canRunInBackground = False
         self.category = f"{TS_PREPROCESSING}\\{TS_EVIDENCE_DATA_PROCESSING}\\{TS_FUZZY}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
-        param0 = arcpy.Parameter(
+        param_input_raster = arcpy.Parameter(
         displayName="Input Raster",
         name="input_raster",
         datatype="GPRasterLayer",
         parameterType="Required",
         direction="Input")
         
-        param1 = arcpy.Parameter(
+        param_reclass_field = arcpy.Parameter(
         displayName="Reclass Field",
         name="reclass_field",
         datatype="Field",
         parameterType="Required",
         direction="Input")
 
-        param2 = arcpy.Parameter(
+        param_reclassification = arcpy.Parameter(
         displayName="Reclassification",
         name="reclassification",
         datatype="remap",
         parameterType="Required",
         direction="Input")
 
-        param3 = arcpy.Parameter(
+        param_num_classes = arcpy.Parameter(
         displayName="Number of Classes",
         name="classes",
         datatype="GPLong",
         parameterType="Required",
         direction="Input")
 
-        param4 = arcpy.Parameter(
-        displayName="Fuzzy Membership Raster",
+        param_output_raster = arcpy.Parameter(
+        displayName="Output Fuzzy Membership Raster",
         name="fmtoc",
         datatype="DERasterDataset",
         parameterType="Required",
         direction="Output")
+        param_output_raster.value = "%Workspace%\FMTOC"
         
-        param1.value = "VALUE"
-        param1.enabled = False
-        param2.enabled = False
+        param_reclass_field.value = "VALUE"
+        param_reclass_field.enabled = False
+        param_reclassification.enabled = False
         
-        param1.parameterDependencies = [param0.name]  
-        param2.parameterDependencies = [param0.name,param1.name]
-        params = [param0,param1,param2,param3,param4]
+        param_reclass_field.parameterDependencies = [param_input_raster.name]  
+        param_reclassification.parameterDependencies = [param_input_raster.name,param_reclass_field.name]
+        params = [param_input_raster,param_reclass_field,param_reclassification,param_num_classes,param_output_raster]
         return params
 
     def isLicensed(self):
@@ -1236,11 +1237,21 @@ class TOCFuzzificationTool(object):
         else:
             parameters[1].enabled = False
             parameters[2].enabled = False
+
+        input_file_type = os.path.splitext(parameters[0].valueAsText.lower())[1]
+        output_path = parameters[4].valueAsText.lower()
+
+        if ".gdb" not in output_path:
+            parameters[4].value = os.path.join(os.path.dirname(output_path), "FMTOC" + input_file_type)
+
         return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
         parameter. This method is called after internal validation."""
+        
+        if parameters[3].value and parameters[3].value < 1:
+            parameters[3].setErrorMessage("'Classes' must be greater than 1.")
         return
 
     def execute(self, parameters, messages):
@@ -1344,55 +1355,67 @@ class FuzzyROC2(object):
     def getParameterInfo(self):
         """Define parameter definitions"""
         
-        param0 = arcpy.Parameter(
+        param_inputs = arcpy.Parameter(
         displayName="Input rasters, Fuzzy Membership functions and parameters",
-        name="inputrasters",
-        datatype="DETable",
-        multiValue=1,
-        parameterType="Required",
-        direction="Input")
-        param0.columns = [['GPRasterLayer', 'Input raster name'], ['String', 'Membership type'], ['String', 'Midpoint Min'], ['String', 'Midpoint Max'], ['String', 'Midpoint Count'], ['String', 'Spread Min'], ['String', 'Spread Max'], ['String', 'Spread Count']]
-        param0.filters[1].type = 'ValueList'
-        param0.filters[1].list = ['Small', 'Large']
+            name="inputrasters",
+            datatype="DETable",
+            multiValue=1,
+            parameterType="Required",
+            direction="Input")
+        param_inputs.columns = [['GPRasterLayer', 'Input raster name'], ['String', 'Membership type'], ['String', 'Midpoint Min'], ['String', 'Midpoint Max'], ['String', 'Midpoint Count'], ['String', 'Spread Min'], ['String', 'Spread Max'], ['String', 'Spread Count']]
+        param_inputs.filters[1].type = 'ValueList'
+        param_inputs.filters[1].list = ['Small', 'Large']
 
-        param1 = arcpy.Parameter(
-        displayName="Draw only Fuzzy Membership plots",
-        name="plots",
-        datatype="GPBoolean",
-        parameterType="Optional",
-        direction="Input")
-        param1.value = False
-        
-        param2 = arcpy.Parameter(
-        displayName="\nTrue Positives Feature Class",
-        name="truepositives",
-        datatype="DEFeatureClass",
-        parameterType="Required",
-        direction="Input")
+        param_draw = arcpy.Parameter(
+            displayName="Draw only Fuzzy Membership plots",
+            name="plots",
+            datatype="GPBoolean",
+            parameterType="Optional",
+            direction="Input")
+        param_draw.value = False
 
-        param3 = arcpy.Parameter(
-        displayName="Output Folder",
-        name="output_folder",
-        datatype="DEFolder",
-        parameterType="Required",
-        direction="Input")
-        param3.filter.list = ["File System"]
+        param_true_positives = arcpy.Parameter(
+            displayName="\nTrue Positives Feature Class",
+            name="truepositives",
+            datatype="DEFeatureClass",
+            parameterType="Required",
+            direction="Input")
 
-        param4 = arcpy.Parameter(
-        displayName="Fuzzy Overlay Parameters",
-        name="foparams",
-        datatype="DETable",
-        parameterType="Required",
-        direction="Input",
-        enabled=True,
-        category="Calculation")
+        param_output_folder = arcpy.Parameter(
+            displayName="Output Folder",
+            name="output_folder",
+            datatype="DEFolder",
+            parameterType="Required",
+            direction="Input")
+        param_output_folder.filter.list = ["File System"]
 
-        param4.columns = [['String', 'Overlay type'], ['String', 'Parameter']]
-        param4.filters[0].type = 'ValueList'
-        param4.filters[0].list = ['And', 'Or', 'Product', 'Sum', 'Gamma']
-        param4.values = [['And', '0']]
+        if arcpy.env.workspace:
+            param_output_folder.value = os.path.join(os.path.dirname(arcpy.env.workspace), "FuzzyROC")
 
-        param5 = arcpy.Parameter(
+        param_overlay_type = arcpy.Parameter(
+            displayName="Fuzzy Overlay Type",
+            name="overlay_type",
+            datatype="GPString",
+            parameterType="Required",
+            direction="Input"
+        )
+        param_overlay_type.filter.type = "ValueList"
+        param_overlay_type.filter.list = ['And', 'Or', 'Product', 'Sum', 'Gamma']
+        param_overlay_type.value = 'And'
+
+        param_overlay_parameter = arcpy.Parameter(
+            displayName="Fuzzy Overlay Parameter",
+            name="overlay_param",
+            datatype="GPDouble",
+            parameterType="Required",
+            direction="Input"
+        )
+
+        param_overlay_parameter.value = 0.0
+        param_overlay_parameter.filter.type = "Range"
+        param_overlay_parameter.filter.list = [0.0, 1.0]
+
+        param_display_method = arcpy.Parameter(
         displayName="Plot display method",
         name="display_method",
         datatype="GPString",
@@ -1400,11 +1423,11 @@ class FuzzyROC2(object):
         direction="Input",
         enabled=False,
         category='Plotting')
-        param5.filter.type = "ValueList"
-        param5.filter.list = ["To Window(s)", "To PDF file(s)", "To PNG file(s)"];
-        param5.value = "To Window(s)"
+        param_display_method.filter.type = "ValueList"
+        param_display_method.filter.list = ["To PDF file(s)", "To PNG file(s)"]
+        param_display_method.value = "To PDF file(s)"
 
-        params = [param0, param1, param2, param3, param4, param5]
+        params = [param_inputs, param_draw, param_true_positives, param_output_folder, param_overlay_type, param_overlay_parameter, param_display_method]
         return params
 
     def isLicensed(self):    
@@ -1422,19 +1445,33 @@ class FuzzyROC2(object):
         has been changed."""
         if (parameters[1].value):
             parameters[4].enabled = False
-            parameters[5].enabled = True
+            parameters[6].enabled = True
         else:
             parameters[4].enabled = True
+            parameters[6].enabled = False
+
+        if parameters[4].value == "Gamma" and parameters[4].enabled:
+            parameters[5].enabled = True
+        else:
             parameters[5].enabled = False
+
         return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
         parameter. This method is called after internal validation."""
+        default_folder = os.path.join(os.path.dirname(arcpy.env.workspace), "FuzzyROC")
+        if default_folder and os.path.normpath(parameters[3].valueAsText) == os.path.normpath(default_folder):
+            parameters[3].clearMessage()
+
         return
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
+        default_folder = os.path.join(os.path.dirname(arcpy.env.workspace), "FuzzyROC")
+        if default_folder and os.path.normpath(parameters[3].valueAsText) == os.path.normpath(default_folder):
+            if not os.path.exists(default_folder):
+                os.makedirs(default_folder)
         execute_tool(arcsdm.fuzzyroc2.Execute, self, parameters, messages)
         return
 
@@ -1932,15 +1969,6 @@ class PCARaster(object):
             multiValue=True
         )
         
-        param_nodata_value = arcpy.Parameter(
-            displayName="NoData Value",
-            name="nodata_value",
-            datatype="GPLong",
-            parameterType="Optional",
-            direction="Input"
-        )
-        param_nodata_value.value = -99
-
         param_num_components = arcpy.Parameter(
             displayName="Number of Components",
             name="num_components",
@@ -1979,7 +2007,7 @@ class PCARaster(object):
         param_transformed_data.value = 'transformed_raster'
 
         params = [param_input_rasters,
-                  param_nodata_value,
+                #   param_nodata_value,
                   param_num_components,
                   param_scaler_type,
                   param_nodata_handling,
