@@ -34,34 +34,6 @@ def _rows_with_labels(
 
 def _sanitize_features(
     df: pd.DataFrame,
-    label_cols: List[str],
-    csv_nodata: float
-) -> pd.DataFrame:
-    """Row is labeled if ANY label_col is present (not NaN/empty/sentinel)."""
-    if not label_cols:
-        # No label columns found → nothing to filter; treat all as unlabeled
-        return pd.Series(False, index=df.index)
-
-    masks = []
-    for col in label_cols:
-        s = df[col]
-        if pd.api.types.is_numeric_dtype(s):
-            m = s.notna() & (s.astype(float) != float(csv_nodata))
-        else:
-            # Treat '', 'nan', 'none', 'null', and textual sentinel as missing
-            txt = s.astype("string").str.strip()
-            m = txt.notna() & (txt != "") \
-                & ~txt.str.lower().isin({"nan", "none", "null", str(csv_nodata).lower()})
-        masks.append(m)
-
-    mask = masks[0]
-    for m in masks[1:]:
-        mask = mask | m
-    return mask
-
-
-def _sanitize_features(
-    df: pd.DataFrame,
     fields: List[str],
     csv_nodata: float
 ) -> pd.DataFrame:
@@ -710,7 +682,7 @@ def calculate_pixel_to_label_csi(
     # Initialize output arrays - one per labeled point
     csi_arrays = []
     for i in range(n_labeled):
-        csi_arrays.append(np.full((nrows, ncols), csv_nodata))
+        csi_arrays.append(np.full((nrows, ncols), float(csv_nodata), dtype=np.float64))
     
     total_pixels = nrows * ncols
     processed_pixels = 0
@@ -733,9 +705,9 @@ def calculate_pixel_to_label_csi(
                 # Calculate CSI between pixel vector and labeled vector
                 csi_value = cosine_similarity(pixel_vector, labeled_vector, csv_nodata)
                 
-                # Store result
-                if csi_value != csv_nodata:
-                    csi_arrays[label_idx][row, col] = csi_value
+                # Store result - ensure it's a float
+                if csi_value != csv_nodata and np.isfinite(csi_value):
+                    csi_arrays[label_idx][row, col] = float(csi_value)
             
             processed_pixels += 1
             
@@ -743,6 +715,14 @@ def calculate_pixel_to_label_csi(
             if processed_pixels % progress_step == 0 or processed_pixels == total_pixels:
                 pct = (processed_pixels / total_pixels) * 100
                 arcpy.AddMessage(f"  Processed {processed_pixels}/{total_pixels} pixels ({pct:.1f}%)")
+    
+    # Verify arrays are properly formed before returning
+    for idx, arr in enumerate(csi_arrays):
+        if not isinstance(arr, np.ndarray):
+            arcpy.AddError(f"CSI array {idx} is not a numpy array: {type(arr)}")
+        elif arr.dtype != np.float64:
+            arcpy.AddWarning(f"CSI array {idx} has dtype {arr.dtype}, converting to float64")
+            csi_arrays[idx] = arr.astype(np.float64)
     
     return csi_arrays
 
@@ -788,24 +768,39 @@ def save_csi_rasters(
             output_filename = f"csi_{label_id}.tif"
             output_path = os.path.join(out_raster_folder, output_filename)
             
-            # Convert numpy array to raster
+            # Ensure array is the right type and format
+            if csi_array.dtype != np.float64:
+                csi_array = csi_array.astype(np.float64)
+            
+            # Make sure array is contiguous
+            if not csi_array.flags['C_CONTIGUOUS']:
+                csi_array = np.ascontiguousarray(csi_array)
+            
             # Replace csv_nodata with np.nan for proper NoData handling
             clean_array = np.where(csi_array == csv_nodata, np.nan, csi_array)
             
             # Create raster from array
             lower_left = arcpy.Point(extent.XMin, extent.YMin)
-            raster = arcpy.NumPyArrayToRaster(clean_array, lower_left, cell_width, cell_height)
+            raster = arcpy.NumPyArrayToRaster(
+                clean_array, 
+                lower_left, 
+                cell_width, 
+                cell_height,
+                value_to_nodata=np.nan
+            )
             
             # Set spatial reference
             arcpy.management.DefineProjection(raster, spatial_ref)
             
-            # Set NoData value
-            arcpy.management.SetRasterProperties(raster, nodata="1 " + str(csv_nodata))
-            
             # Save raster
+            arcpy.AddMessage(f"Saving raster for label {label_idx + 1}: {output_path}")
             raster.save(output_path)
             
-            # Calculate statistics
+            # Build statistics and pyramids
+            arcpy.management.CalculateStatistics(output_path)
+            arcpy.management.BuildPyramids(output_path)
+            
+            # Calculate statistics for reporting
             valid_pixels = np.sum(~np.isnan(clean_array))
             min_csi = np.nanmin(clean_array) if valid_pixels > 0 else csv_nodata
             max_csi = np.nanmax(clean_array) if valid_pixels > 0 else csv_nodata
@@ -816,6 +811,8 @@ def save_csi_rasters(
             
         except Exception as e:
             arcpy.AddError(f"Error saving raster for label {label_idx + 1}: {e}")
+            import traceback
+            arcpy.AddError(traceback.format_exc())
 
 
 def pixel_to_label_csi(
@@ -825,7 +822,7 @@ def pixel_to_label_csi(
     out_raster_folder: str,
     label_field_names: List[str],
     csv_nodata: float
-) -> None:
+) -> bool:
     """
     - Validate feature rasters match feature space
     - Create pixel vectors from rasters
@@ -874,7 +871,7 @@ def pixel_to_label_csi(
     # Step 4: Calculate pixel-to-label CSI
     arcpy.AddMessage("Step 4: Calculating pixel-to-label CSI...")
     csi_arrays = calculate_pixel_to_label_csi(
-        pixel_vectors, labeled_features, reference_props, csv_nodata
+        pixel_vectors, labeled_features, csv_nodata
     )
     
     # Step 5: Save output rasters
