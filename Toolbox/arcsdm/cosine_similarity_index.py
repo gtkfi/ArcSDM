@@ -3,10 +3,12 @@ import re
 import arcpy
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-
-def _rows_with_labels(df: pd.DataFrame, label_cols: list[str], csv_nodata: float) -> pd.Series:
+def _rows_with_labels(
+    df: pd.DataFrame,
+    label_cols: List[str],
+    csv_nodata: float) -> pd.Series: 
     """Row is labeled if ANY label_col is present (not NaN/empty/sentinel)."""
     if not label_cols:
         # No label columns found → nothing to filter; treat all as unlabeled
@@ -30,14 +32,50 @@ def _rows_with_labels(df: pd.DataFrame, label_cols: list[str], csv_nodata: float
     return mask
 
 
-def _sanitize_features(df: pd.DataFrame, fields: list[str], csv_nodata: float) -> pd.DataFrame:
+def _sanitize_features(
+    df: pd.DataFrame,
+    label_cols: List[str],
+    csv_nodata: float
+) -> pd.DataFrame:
+    """Row is labeled if ANY label_col is present (not NaN/empty/sentinel)."""
+    if not label_cols:
+        # No label columns found → nothing to filter; treat all as unlabeled
+        return pd.Series(False, index=df.index)
+
+    masks = []
+    for col in label_cols:
+        s = df[col]
+        if pd.api.types.is_numeric_dtype(s):
+            m = s.notna() & (s.astype(float) != float(csv_nodata))
+        else:
+            # Treat '', 'nan', 'none', 'null', and textual sentinel as missing
+            txt = s.astype("string").str.strip()
+            m = txt.notna() & (txt != "") \
+                & ~txt.str.lower().isin({"nan", "none", "null", str(csv_nodata).lower()})
+        masks.append(m)
+
+    mask = masks[0]
+    for m in masks[1:]:
+        mask = mask | m
+    return mask
+
+
+def _sanitize_features(
+    df: pd.DataFrame,
+    fields: List[str],
+    csv_nodata: float
+) -> pd.DataFrame:
     """Return a numeric-only view of df[fields] with csv_nodata turned into NaN."""
     # Coerce to numeric (invalid → NaN) and then map sentinel → NaN
     clean = df[fields].apply(pd.to_numeric, errors="coerce").replace(csv_nodata, np.nan)
     return clean
 
 
-def cosine_similarity(vector_a, vector_b, nodata_value=-9999.0):
+def cosine_similarity(
+    vector_a: np.ndarray,
+    vector_b: np.ndarray,
+    nodata_value: float = -9999.0
+) -> float:
     """
     Calculate cosine similarity between two vectors, ignoring NaN and nodata.
     CSI(A,B) = cos θ = (A·B) / (||A|| ||B||)
@@ -64,7 +102,12 @@ def cosine_similarity(vector_a, vector_b, nodata_value=-9999.0):
     return dot_product / (magnitude_a * magnitude_b)
 
 
-def load_labeled_data(labelled_path, label_field_names, feature_field_names):
+def load_labeled_data(
+    labelled_path: str,
+    label_field_names: Optional[List[str]],
+    feature_field_names: Optional[List[str]]
+) -> Tuple[Optional[pd.DataFrame], Optional[List[str]], bool]:
+
     """Load labeled data from feature class or table"""
     try:
         
@@ -126,7 +169,9 @@ def load_labeled_data(labelled_path, label_field_names, feature_field_names):
         return None, None, False
 
 
-def load_raster_data(rasters_list):
+def load_raster_data(
+    rasters_list: List[str]
+) -> List[str]:
     """Load raster data"""
     try:
         raster_data = []
@@ -144,7 +189,11 @@ def load_raster_data(rasters_list):
         return []
 
 
-def calculate_corner_csi(labeled_df, feature_fields, csv_nodata):
+def calculate_corner_csi(
+    labeled_df: pd.DataFrame,
+    feature_fields: List[str],
+    csv_nodata: float
+) -> np.ndarray:
     """
     Calculate CSI between corner vectors A and B.
     Returns only upper diagonal of the matrix.
@@ -182,7 +231,10 @@ def calculate_corner_csi(labeled_df, feature_fields, csv_nodata):
     return corner_csi
 
 
-def _detect_xy_columns(df: pd.DataFrame) -> tuple[str, str]:
+def _detect_xy_columns(
+    df: pd.DataFrame
+) -> Tuple[Optional[str], Optional[str]]:
+
     """Find X/Y columns with tolerant matching."""
     
     norm = {c.replace(" ", "").lstrip("\ufeff").strip().lower(): c for c in df.columns}
@@ -206,32 +258,36 @@ def _detect_xy_columns(df: pd.DataFrame) -> tuple[str, str]:
     return None, None
 
 
-def extract_raster_values(raster_path: str, points_df: pd.DataFrame, has_geometry: bool) -> np.ndarray:
+def extract_raster_values(
+    raster_path: str,
+    points_df: pd.DataFrame,
+    has_geometry: bool
+) -> np.ndarray:
     """
     Return a 1-D float array of length len(points_df) with the raster value at each row's location.
     """
     try:
         ras = arcpy.Raster(raster_path)
-        arr = arcpy.RasterToNumPyArray(ras, nodata_to_value=np.nan).astype("float64")
+        arr = arcpy.RasterToNumPyArray(ras, nodata_to_value=np.nan).astype("float32")
 
         ex = ras.extent
         cw, ch = ras.meanCellWidth, ras.meanCellHeight
         nrows, ncols = arr.shape
-        out = np.full(len(points_df), np.nan, dtype="float64")
+        out = np.full(len(points_df), np.nan, dtype="float32")
 
         # Get XYs
         xs = ys = None
         if has_geometry and "SHAPE@XY" in points_df.columns:
             arcpy.AddMessage("Using SHAPE@XY coordinates")
             xy = points_df["SHAPE@XY"].to_numpy()
-            xs = np.array([t[0] if isinstance(t, tuple) and len(t) == 2 else np.nan for t in xy], dtype="float64")
-            ys = np.array([t[1] if isinstance(t, tuple) and len(t) == 2 else np.nan for t in xy], dtype="float64")
+            xs = np.array([t[0] if isinstance(t, tuple) and len(t) == 2 else np.nan for t in xy], dtype="float32")
+            ys = np.array([t[1] if isinstance(t, tuple) and len(t) == 2 else np.nan for t in xy], dtype="float32")
         else:
             xcol, ycol = _detect_xy_columns(points_df)
             if xcol and ycol:
                 arcpy.AddMessage(f"Using coordinate columns: {xcol}, {ycol}")
-                xs = pd.to_numeric(points_df[xcol], errors="coerce").to_numpy(dtype="float64")
-                ys = pd.to_numeric(points_df[ycol], errors="coerce").to_numpy(dtype="float64")
+                xs = pd.to_numeric(points_df[xcol], errors="coerce").to_numpy(dtype="float32")
+                ys = pd.to_numeric(points_df[ycol], errors="coerce").to_numpy(dtype="float32")
 
         if xs is None or ys is None:
             error_msg = (
@@ -260,7 +316,13 @@ def extract_raster_values(raster_path: str, points_df: pd.DataFrame, has_geometr
         raise
 
 
-def calculate_evidence_matrix(labeled_df, feature_fields, rasters_list, has_geometry, csv_nodata):
+def calculate_evidence_matrix(
+    labeled_df: pd.DataFrame,
+    feature_fields: List[str],
+    rasters_list: List[str],
+    has_geometry: bool,
+    csv_nodata: float
+) -> Dict[str, np.ndarray]:
     """
     Calculate evidence matrix: labeled points vs raster values.
     Returns matrix of shape (n_labeled_points, n_rasters) for 3x40 format.
@@ -332,16 +394,16 @@ def calculate_evidence_matrix(labeled_df, feature_fields, rasters_list, has_geom
 
 
 def create_label_to_data_rasters(
-    labeled_df,
-    all_data_df,
-    feature_fields,
-    out_raster_folder,
-    csv_nodata,
-    has_geometry,
-    template_raster=None,
-    cell_size=None,
-    min_points=3,
-):
+    labeled_df: pd.DataFrame,
+    all_data_df: pd.DataFrame,
+    feature_fields: List[str],
+    out_raster_folder: str,
+    csv_nodata: float,
+    has_geometry: bool,
+    template_raster: Optional[Union[str, List[str]]] = None,
+    cell_size: Optional[float] = None,
+    min_points: int = 3
+) -> None:
     """
     Create rasters showing CSI between each labeled point and all data points.
     """
@@ -382,7 +444,9 @@ def create_label_to_data_rasters(
         )
 
 
-def _get_spatial_reference(template_raster, data_df, has_geometry):
+def _get_spatial_reference(
+    template_raster: Optional[Union[str, List[str]]],
+) -> Optional[arcpy.SpatialReference]:
     """Get spatial reference from template or data"""
     sr = None
     try:
@@ -402,7 +466,10 @@ def _get_spatial_reference(template_raster, data_df, has_geometry):
     return sr
 
 
-def _set_raster_environment(template_raster, cell_size):
+def _set_raster_environment(
+    template_raster: Optional[Union[str, List[str]]],
+    cell_size: Optional[float]
+) -> None:
     """Set raster processing environment"""
     if template_raster:
         template_path = template_raster[0] if isinstance(template_raster, list) else template_raster
@@ -424,7 +491,16 @@ def _set_raster_environment(template_raster, cell_size):
         arcpy.AddWarning(f"No cell size provided; using environment cellSize={cell_size}")
 
 
-def _create_csi_raster(data_df, csi_values, name, out_folder, sr, has_geometry, csv_nodata, min_points):
+def _create_csi_raster(
+    data_df: pd.DataFrame,
+    csi_values: np.ndarray,
+    name: str,
+    out_folder: str,
+    sr: Any,
+    has_geometry: bool,
+    csv_nodata: float,
+    min_points: int
+) -> None:
     """Create individual CSI raster using IDW"""
     safe_name = re.sub(r"[^A-Za-z0-9_]+", "_", str(name))[:60]
     out_path = os.path.join(out_folder, f"csi_{safe_name}.tif")
@@ -461,7 +537,11 @@ def _create_csi_raster(data_df, csi_values, name, out_folder, sr, has_geometry, 
     arcpy.management.Delete(temp_fc)
 
 
-def _get_point_coordinates(df, idx, has_geometry):
+def _get_point_coordinates(
+    df: pd.DataFrame,
+    idx: int,
+    has_geometry: bool
+) -> Tuple[Optional[float], Optional[float]]:
     """Get X,Y coordinates for a point"""
     if has_geometry and "SHAPE@XY" in df.columns:
         v = df.iloc[idx]["SHAPE@XY"]
@@ -477,8 +557,12 @@ def _get_point_coordinates(df, idx, has_geometry):
     return None, None
 
 
-def save_csv_results(corner_matrix, evidence_results, 
-                    out_labelled_pairwise_csv, out_evidence_table_csv, csv_nodata):
+def save_csv_results(
+    corner_matrix: np.ndarray,
+    evidence_results: Dict[str, np.ndarray],
+    out_labelled_pairwise_csv: str,
+    out_evidence_table_csv: Optional[str]
+) -> None:
     """Save results to CSV files"""
     try:
         # Save corner CSI matrix (upper triangular only)
@@ -512,7 +596,10 @@ def save_csv_results(corner_matrix, evidence_results,
         arcpy.AddError(f"Error saving CSV results: {e}")
 
 
-def validate_feature_rasters(rasters_list, feature_fields):
+def validate_feature_rasters(
+    rasters_list: List[str],
+    feature_fields: List[str]
+) -> Optional[Dict[str, str]]:
     """
     Validate that rasters correspond to feature space variables.
     Returns mapping of feature field to raster path.
@@ -533,7 +620,9 @@ def validate_feature_rasters(rasters_list, feature_fields):
     return feature_raster_map
 
 
-def get_raster_properties(raster_path):
+def get_raster_properties(
+    raster_path: str
+) -> Optional[Dict[str, Any]]:
     """Get raster spatial properties for processing"""
     try:
         raster = arcpy.Raster(raster_path)
@@ -543,7 +632,7 @@ def get_raster_properties(raster_path):
         spatial_ref = raster.spatialReference
         
         # Convert to numpy array
-        array = arcpy.RasterToNumPyArray(raster, nodata_to_value=np.nan).astype("float64")
+        array = arcpy.RasterToNumPyArray(raster, nodata_to_value=np.nan).astype("float32")
         
         return {
             'array': array,
@@ -559,7 +648,10 @@ def get_raster_properties(raster_path):
         return None
 
 
-def create_pixel_vectors(feature_raster_map, feature_fields):
+def create_pixel_vectors(
+    feature_raster_map: Dict[str, str],
+    feature_fields: List[str]
+) -> Tuple[Optional[np.ndarray], Optional[Dict[str, Any]]]:
     """
     Create pixel vectors from feature rasters.
     Returns 3D array: (nrows, ncols, n_features)
@@ -591,7 +683,7 @@ def create_pixel_vectors(feature_raster_map, feature_fields):
             return None, None
     
     # Create 3D array for pixel vectors
-    pixel_vectors = np.full((nrows, ncols, len(feature_fields)), np.nan, dtype='float64')
+    pixel_vectors = np.full((nrows, ncols, len(feature_fields)), np.nan, dtype='float32')
     
     for i, field in enumerate(feature_fields):
         pixel_vectors[:, :, i] = raster_props[field]['array']
@@ -600,8 +692,12 @@ def create_pixel_vectors(feature_raster_map, feature_fields):
     return pixel_vectors, reference_props
 
 
-def calculate_pixel_to_label_csi(pixel_vectors, labeled_features, 
-                                csv_nodata, progress_step=1000):
+def calculate_pixel_to_label_csi(
+    pixel_vectors: np.ndarray,
+    labeled_features: np.ndarray,
+    csv_nodata: float,
+    progress_step: int = 1000
+) -> List[np.ndarray]:
     """
     Calculate CSI between each pixel vector and each labeled point vector.
     Returns list of 2D arrays, one per labeled point.
@@ -614,7 +710,7 @@ def calculate_pixel_to_label_csi(pixel_vectors, labeled_features,
     # Initialize output arrays - one per labeled point
     csi_arrays = []
     for i in range(n_labeled):
-        csi_arrays.append(np.full((nrows, ncols), csv_nodata, dtype='float64'))
+        csi_arrays.append(np.full((nrows, ncols), csv_nodata))
     
     total_pixels = nrows * ncols
     processed_pixels = 0
@@ -651,8 +747,14 @@ def calculate_pixel_to_label_csi(pixel_vectors, labeled_features,
     return csi_arrays
 
 
-def save_csi_rasters(csi_arrays, labeled_df, reference_props, out_raster_folder, 
-                    label_field_names, csv_nodata):
+def save_csi_rasters(
+    csi_arrays: List[np.ndarray],
+    labeled_df: pd.DataFrame,
+    reference_props: Dict[str, Any],
+    out_raster_folder: str,
+    label_field_names: List[str],
+    csv_nodata: float
+) -> None:
     """
     Save CSI arrays as raster files - one per labeled point.
     """
@@ -716,10 +818,15 @@ def save_csi_rasters(csi_arrays, labeled_df, reference_props, out_raster_folder,
             arcpy.AddError(f"Error saving raster for label {label_idx + 1}: {e}")
 
 
-def pixel_to_label_csi(labeled_df, feature_fields, rasters_list, out_raster_folder,
-                           label_field_names, csv_nodata):
+def pixel_to_label_csi(
+    labeled_df: pd.DataFrame,
+    feature_fields: List[str],
+    rasters_list: List[str],
+    out_raster_folder: str,
+    label_field_names: List[str],
+    csv_nodata: float
+) -> None:
     """
-    Main function to implement Part 2 workflow:
     - Validate feature rasters match feature space
     - Create pixel vectors from rasters
     - Calculate CSI between each pixel and each labeled point
@@ -746,7 +853,7 @@ def pixel_to_label_csi(labeled_df, feature_fields, rasters_list, out_raster_fold
     # Step 3: Prepare labeled feature vectors
     arcpy.AddMessage("Step 3: Preparing labeled feature vectors...")
     labeled_features_df = _sanitize_features(labeled_df, feature_fields, csv_nodata)
-    labeled_features = labeled_features_df.to_numpy(dtype='float64')
+    labeled_features = labeled_features_df.to_numpy(dtype='float32')
     
     # Validate labeled features
     valid_labels = []
@@ -804,7 +911,7 @@ def execute(self, parameters, messages):
         arcpy.AddMessage("="*60)
         
         # Load labeled data
-        all_df, feature_fields, has_geometry = load_labeled_data(
+        all_df, feature_fields, _ = load_labeled_data(
             labelled_path, label_field_names, feature_field_names
         )
         
@@ -831,7 +938,7 @@ def execute(self, parameters, messages):
         arcpy.AddMessage("\nCorner CSI Matrix Calculation")
         corner_matrix = calculate_corner_csi(labeled_df, feature_fields, csv_nodata)
         
-        # PART 2: Pixel-to-Label CSI (if rasters provided and output folder specified)
+        # Pixel-to-Label CSI (if rasters provided and output folder specified)
         if evidence_type == "Raster" and rasters_list and out_raster_folder:
             
             coord_1, coord_2 = _detect_xy_columns(labeled_df)
@@ -848,7 +955,7 @@ def execute(self, parameters, messages):
         evidence_results = {}  # Empty for Part 2 implementation
         save_csv_results(
             corner_matrix, evidence_results,
-            out_labelled_pairwise_csv, out_evidence_table_csv, csv_nodata
+            out_labelled_pairwise_csv, out_evidence_table_csv
         )
         
         arcpy.AddMessage(f"\nCSI Analysis completed successfully!")
