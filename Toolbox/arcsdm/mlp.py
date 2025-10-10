@@ -392,7 +392,7 @@ def Execute_MLP_regressor(self, parameters, messages):
 
         arcpy.AddMessage("Data preparation completed.")
 
-        model = train_MLP_regressor(
+        model, history = train_MLP_regressor(
             X=X,
             y=y,
             neurons=neurons,
@@ -414,6 +414,8 @@ def Execute_MLP_regressor(self, parameters, messages):
         )
         
         arcpy.AddMessage(f"Saving model to {output_file}.keras")
+        arcpy.AddMessage(f"Model training history:")
+        arcpy.AddMessage(f"{history.history}")
         
         save_model(model, output_file)
 
@@ -447,7 +449,7 @@ def train_MLP_regressor(
     es_patience: int = 5,
     metrics: Optional[Sequence[Literal["mse", "rmse", "mae", "r2"]]] = ["mse"],
     random_state: Optional[int] = None,
-) -> keras.Model:
+) -> Tuple[keras.Model, dict]:
     """
     Train MLP (Multilayer Perceptron) regressor using Keras.
 
@@ -533,7 +535,7 @@ def train_MLP_regressor(
     callbacks = [keras.callbacks.EarlyStopping(monitor="val_loss", patience=es_patience)] if early_stopping else []
     callbacks.append(ArcPyLoggingCallback(epochs))
 
-    model.fit(
+    history = model.fit(
         X,
         y,
         epochs=epochs,
@@ -543,4 +545,4 @@ def train_MLP_regressor(
         callbacks=callbacks,
     )
 
-    return model
+    return model, history
