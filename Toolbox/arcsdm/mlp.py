@@ -362,7 +362,7 @@ def Execute_MLP_classifier(self, parameters, messages):
 
 def Execute_MLP_regressor(self, parameters, messages):
     
-    #try:
+    try:
         input_rasters = parameters[0].valueAsText.split(';')
         target_labels = parameters[1].valueAsText
         target_labels_attr = parameters[2].valueAsText
@@ -422,52 +422,6 @@ def Execute_MLP_regressor(self, parameters, messages):
         arcpy.AddMessage(f"{history.history}")
         
         save_model(model, output_file)
-
-
-
-        # TEST OSUUS ....
-
-        arcpy.AddMessage(f"Testerin suoritus alkaa...")
-
-        #model2 = load_model(output_file + ".joblib")
-
-        #arcpy.AddMessage(model2)
-        predictions = predict_regressor(X, model)
-
-        arcpy.AddMessage("predictions:")
-        # Set print options to avoid truncation
-        #np.set_printoptions(threshold=np.inf)
-        #arcpy.AddMessage(predictions)
-
-        raster = arcpy.Raster(input_rasters[0])
-        desc = arcpy.Describe(raster)
-
-        arcpy.AddMessage(raster.width)
-        arcpy.AddMessage(raster.height)
-
-        predictions_reshaped = reshape_predictions(  # nodata mask täytyy olla olemassa
-            predictions, raster.height, raster.width, nodata_mask
-        )
-
-        arcpy.AddMessage("predictions_reshaped:") # tämä on pelkkää tyhjää???? 
-        arcpy.AddMessage(predictions_reshaped)
-
-        lower_left_corner = arcpy.Point(raster.extent.XMin, raster.extent.YMin)
-        x_cell_size = raster.meanCellWidth
-        y_cell_size = raster.meanCellHeight
-
-        out_predictions_raster = arcpy.NumPyArrayToRaster(predictions_reshaped, lower_left_corner=lower_left_corner,
-                                               x_cell_size=x_cell_size, y_cell_size=y_cell_size, value_to_nodata=-9)
-
-        out_predictions_raster.save("TESTIRASTERI")
-        arcpy.DefineProjection_management(out_predictions_raster, desc.spatialReference)
-        out_predictions_raster.save()
-
-        metrics_dict = score_predictions(y, predictions, "mse", decimals=3)
-
-        arcpy.AddMessage(metrics_dict)
-
-        arcpy.AddMessage(f"LOPPU")
 
     # Return geoprocessing specific errors
     except arcpy.ExecuteError:    
@@ -600,9 +554,8 @@ def train_MLP_regressor(
     return model, history
 
 
-
 def Execute_MLP_regressor_test(self, parameters, messages):
-    #try:
+    try:
         input_rasters = parameters[0].valueAsText.split(';')
         target_labels = parameters[1].valueAsText
         target_labels_attr = parameters[2].valueAsText
@@ -614,37 +567,22 @@ def Execute_MLP_regressor_test(self, parameters, messages):
         output_raster = parameters[6].valueAsText
         test_metrics = parameters[7].valueAsText.split(';')
         
-        
         arcpy.AddMessage("Starting MLP regressor test...")
-        
-        X, y, reference_profile, nodata_mask = prepare_data_for_ml(input_rasters, target_labels, target_labels_attr, X_nodata_value, y_nodata_value)
+    
         model = load_model(model_file)
 
-        arcpy.AddMessage("22...")
+        X, y, reference_profile = prepare_data_for_ml(input_rasters, target_labels, target_labels_attr, X_nodata_value, y_nodata_value)
+        arcpy.AddMessage("Data preparation completed.")
+
+        predictions = predict_regressor(X, model)
 
         raster = arcpy.Raster(input_rasters[0])
         desc = arcpy.Describe(raster)
 
-        predictions = predict_regressor(X, model)
-
-        arcpy.AddMessage("X:")
-        arcpy.AddMessage(X)
-        
-        arcpy.AddMessage("Predictions:")
-        arcpy.AddMessage(predictions)
-        arcpy.AddMessage(raster.height)
-        arcpy.AddMessage(raster.width)
-
-        predictions_reshaped = reshape_predictions(
-            predictions, raster.height, raster.width
+        predictions_reshaped = reshape_predictions(  # nodata mask täytyy olla olemassa
+            predictions, raster.height, raster.width, reference_profile["nodata_mask"]
         )
-        
-        arcpy.AddMessage("predictions_reshaped:")
-        arcpy.AddMessage(predictions_reshaped)
 
-        arcpy.AddMessage("55...")
-
-        # Save rasters
         lower_left_corner = arcpy.Point(raster.extent.XMin, raster.extent.YMin)
         x_cell_size = raster.meanCellWidth
         y_cell_size = raster.meanCellHeight
@@ -656,45 +594,22 @@ def Execute_MLP_regressor_test(self, parameters, messages):
         arcpy.DefineProjection_management(out_predictions_raster, desc.spatialReference)
         out_predictions_raster.save()
 
-        arcpy.AddMessage("66...  score_predictions")
-        metrics_dict = score_predictions(y, predictions, "mae", decimals=3)
+        metrics_dict = score_predictions(y, predictions, test_metrics, decimals=3)
 
+        arcpy.AddMessage("Metrics:")
         arcpy.AddMessage(metrics_dict)
-        #arcpy.AddMessage(out_profile)
-        #out_profile = reference_profile.copy()
-        #out_profile.update({"count": 1, "dtype": np.float32})
 
-
-        
-        arcpy.management.CalculateStatistics(output_raster)
-
-        ResultSender.send_dict_as_json(metrics_dict)
-
-        arcpy.AddMessage("FINNISH...")
-
-        #metrics_dict = score_predictions(y, predictions, get_enum_values(test_metrics), decimals=3)
-
-        #out_profile = reference_profile.copy()
-        #out_profile.update({"count": 1, "dtype": np.float32})
-
-        #with ProgressLog.saving_output_files(output_raster):
-        #    with rasterio.open(output_raster, "w", **out_profile) as dst:
-        #        dst.write(predictions_reshaped, 1)
-        #        dst.update_stats()
-
-        #ResultSender.send_dict_as_json(metrics_dict)
-        #ProgressLog.finish()
-
+        arcpy.AddMessage(f"Finnish")
 
     # Return geoprocessing specific errors
-    #except arcpy.ExecuteError:    
-    #    arcpy.AddError(arcpy.GetMessages(2))    
-#
-    ## Return any other type of error
-    #except:
-    #    # By default any other errors will be caught here
-    #    e = sys.exc_info()[1]
-    #    print(e.args[0])
+    except arcpy.ExecuteError:    
+        arcpy.AddError(arcpy.GetMessages(2))    
+
+    # Return any other type of error
+    except:
+        # By default any other errors will be caught here
+        e = sys.exc_info()[1]
+        arcpy.AddError(e.args[0])
 
 class ResultSender:
     @staticmethod

@@ -1977,15 +1977,14 @@ class PCAVector(object):
         return
     
 
-
-    
+   
 class MLPRegressorTestTool(object):
     def __init__(self):
         """Test trained machine learning regressor model by predicting and scoring."""
         self.label = "Test MLP Regressor"
         self.description = "Test trained machine learning regressor model by predicting and scoring."
         self.canRunInBackground = False
-        self.category = "Prediction"
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
@@ -2052,6 +2051,10 @@ class MLPRegressorTestTool(object):
             direction="Input",
             multiValue=True
         )
+
+        param_test_metrics.filter.type = "ValueList"
+        param_test_metrics.filter.list = ["mse", "rmse", "mae", "r2"]
+        param_test_metrics.value = "mse"
 
         params = [param_X,
                   param_y,
