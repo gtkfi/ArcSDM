@@ -26,9 +26,9 @@ def Execute(self, parameters, messages):
         #Get and print version information
         with open (os.path.join(os.path.dirname(__file__), "arcsdm_version.txt"), "r") as myfile:
             data=myfile.readlines()
-        arcpy.AddMessage("%-20s %s" % ("", data[0]) ); 
-        installinfo = arcpy.GetInstallInfo ();
-        arcpy.AddMessage("%-20s %s (%s)" % ("Arcgis environment: ", installinfo['ProductName'] , installinfo['Version'] ));
+        arcpy.AddMessage("%-20s %s" % ("", data[0]))
+        installinfo = arcpy.GetInstallInfo()
+        arcpy.AddMessage("%-20s %s (%s)" % ("Arcgis environment: ", installinfo['ProductName'] , installinfo['Version'] ))
 
         # Load parameters...
         # Param 0: Input rasters, Fuzzy Membership functions and parameters, DETable, multiValue=1, Required, Input
@@ -52,20 +52,19 @@ def Execute(self, parameters, messages):
         # Param 3: Output Folder, DEFolder, Required, Input, "File System"
         output_folder = parameters[3].valueAsText
 
-        # Param 4: Fuzzy Overlay Parameters, DETable, Required, Input
-        # when plots = False
-        # columns = Overlay type, Parameter
+        # Param 4: Fuzzy Overlay Type, GPString
         # Overlay types: And, Or, Product, Sum, Gamma
-        # parameters[1] = And # (or: Gamma 5)
-        overlayParams = parameters[4].valueAsText.split(' ')
+        overlayTypeParam = parameters[4].valueAsText
 
-        # Param 5: Plot display method
+        # Param 5: Fuzzy Overlay Parameter, GPDouble
+        overlayParameterParam = parameters[5].valueAsText
+
+        # Param 6: Plot display method
         # when plots = True
         page_type = ""
-        display_method = parameters[5].valueAsText
-        if display_method == "To Window(s)":
-            page_type = "Win"
-        elif display_method == "To PDF file(s)":
+        display_method = parameters[6].valueAsText
+
+        if display_method == "To PDF file(s)":
             page_type = "pdf"
         elif display_method == "To PNG file(s)":
             page_type = "png"
@@ -176,7 +175,7 @@ def Execute(self, parameters, messages):
             # Run Fuzzy Memberships, Fuzzy Overlays and ROC Tool
             calculation(inputRasters, output_folder, true_coord_system, memberParams, memberTypes, 
             midcounts, midmins, midmaxes, midsteps, spreadcounts, spreadmins, spreadmaxes, spreadsteps, 
-            overlayParams, truepositives, enviWorkspace)
+            overlayTypeParam, overlayParameterParam, truepositives, enviWorkspace)
 
     except arcpy.ExecuteError:
         arcpy.AddMessage("*"*30)
@@ -302,7 +301,7 @@ plotname):
             inputRaster = inputRasters[index]
             arcpy.AddMessage("Preparing " + os.path.basename(inputRaster) + "...")
             output_points = arcpy.CreateUniqueName("OutputPoints.shp", output_folder)
-            ExtractValuesToPoints(truepositives, inputRaster, output_points, "INTERPOLATE", "VALUE_ONLY")
+            arcpy.sa.ExtractValuesToPoints(truepositives, inputRaster, output_points, "INTERPOLATE", "VALUE_ONLY")
 
             # Extract the RASTERVALU values from the output_points shape into a RASTERVALUES list
             rastervalues=[]
@@ -392,7 +391,7 @@ plotname):
                 while midpoint <= midmaxes[index]:
                     number = number + 1
                     if number > plotrows*plotcols:
-                        new_page(plotname, page_number, page_type, fig)
+                        new_page(plotname, page_number, page_type, fig, output_folder)
                         page_number = page_number+1
                         number = 1
                         arcpy.AddMessage("figure " + str(page_number))
@@ -432,7 +431,7 @@ plotname):
                     while int(number/plotcols)*plotcols != number: number = number + 1
             arcpy.AddMessage("Plots ready.")
 
-        new_page(plotname, page_number, page_type, fig)
+        new_page(plotname, page_number, page_type, fig, output_folder)
         plt.close("all")
 
     except:
@@ -447,28 +446,24 @@ plotname):
 
 # Save plot page
 # --------------
-def new_page(plotname, page_number, page_type, fig):
+def new_page(plotname, page_number, page_type, fig, output_folder):
     arcpy.AddMessage("Save page " + plotname + ", page_number " + str(page_number))
-    # Display charts to Window
-    if page_type == "Win":
-        plt.show()
-    else:
-        # Save charts to PNG or tp PDF file
-        if str(arcpy.GetInstallInfo()['ProductName']) == "ArcGISPro":
-            # ArcGIS Pro
-            plt.savefig("C:/ArcSDM/work/PLOT_" + plotname + "_Pro_" + str(page_number) + "." + page_type, bbox_inches='tight')
-            arcpy.AddMessage("C:/ArcSDM/work/PLOT_" + plotname + "_Pro_" + str(page_number) + "." + page_type + " done")
-        else:
-            # ArcMap
-            plt.savefig("C:/ArcSDM/work/PLOT_" + plotname + "_Map_" + str(page_number) + "." + page_type, bbox_inches='tight')
-            arcpy.AddMessage("C:/ArcSDM/work/PLOT_" + plotname + "_Map_" + str(page_number) + "." + page_type + " done")
+    # Save charts to PNG or tp PDF file
+    if str(arcpy.GetInstallInfo()['ProductName']) == "ArcGISPro":
+        plot_dir = os.path.join(output_folder, "plot")
+
+        if not os.path.exists(plot_dir):
+            os.makedirs(plot_dir)
+
+        plt.savefig(output_folder + "\\plot\\" + plotname + "_Pro_" + str(page_number) + "." + page_type), 
+        arcpy.AddMessage(output_folder + "\\plot\\" + plotname + "_Pro_" + str(page_number) + "." + page_type + " done")
     plt.close()
 
 # Run Fuzzy Memberships, Fuzzy Overlays and ROC Tool
 # --------------------------------------------------
 def calculation (inputRasters, output_folder, true_coord_system, memberParams, memberTypes, 
 midcounts, midmins, midmaxes, midsteps, spreadcounts, spreadmins, spreadmaxes, spreadsteps, 
-overlayParams, truepositives, enviWorkspace):
+overlayTypeParam, overlayParameterParam, truepositives, enviWorkspace):
     csvfile = "?"
 
     try:
@@ -519,17 +514,17 @@ overlayParams, truepositives, enviWorkspace):
                     fmcount=fmcount+1
                     
                     if (memberType == "Large"):
-                        outFzyMember = FuzzyMembership(inputRaster, FuzzyLarge(midpoint, spread))
+                        outFzyMember = arcpy.sa.FuzzyMembership(inputRaster, arcpy.sa.FuzzyLarge(midpoint, spread))
                     elif (memberType == "Small"):
-                        outFzyMember = FuzzyMembership(inputRaster, FuzzySmall(midpoint, spread))
+                        outFzyMember = arcpy.sa.FuzzyMembership(inputRaster, arcpy.sa.FuzzySmall(midpoint, spread))
                     outFzyMember.save(fmout)
                     spread = spread+spreadsteps[index]
                 midpoint = midpoint+midsteps[index]
 
         # Close CSV file
         csvfile.close()
-        arcpy.AddMessage(str(fmcount) + " FM outputs saved to " + env.workspace)
-        arcpy.AddMessage("FM output names are written to " + env.workspace + "\\FuzzyMembership.csv")
+        arcpy.AddMessage(str(fmcount) + " FM outputs saved to " + output_folder)
+        arcpy.AddMessage("FM output names are written to " + output_folder + "\\FuzzyMembership.csv")
         csvfile="?"
 
         # Define ROC Tool (Receiver Operator Characteristics)
@@ -587,10 +582,10 @@ overlayParams, truepositives, enviWorkspace):
                     csvfile.write ("FO_" + str(num) + ";" + fo_csv + "\n")
                         
                     overlays = [fo_ovr]
-                    if (overlayParams[0] == "Gamma"):
-                        outFzyOverlay = FuzzyOverlay(fo_ovr, "Gamma", overlayParams[1])
+                    if (overlayTypeParam == "Gamma"):
+                        outFzyOverlay = arcpy.sa.FuzzyOverlay(fo_ovr, "Gamma", overlayParameterParam)
                     else:
-                        outFzyOverlay = FuzzyOverlay(fo_ovr, overlayParams[0])
+                        outFzyOverlay = arcpy.sa.FuzzyOverlay(fo_ovr, overlayTypeParam)
                     outFzyOverlay.save("FO_" + str(num))
                     result = arcpy.ROCTool_ArcSDM(truepositives, "", "FO_" + str(num), output_folder)
 
@@ -606,8 +601,8 @@ overlayParams, truepositives, enviWorkspace):
                     break
             i = i+1
         num = num+1
-        arcpy.AddMessage(str(num) + " FO outputs saved to " + env.workspace)
-        arcpy.AddMessage("FO output names are written to " + env.workspace + "\\FuzzyOverlay.csv")
+        arcpy.AddMessage(str(num) + " FO outputs saved to " + output_folder)
+        arcpy.AddMessage("FO output names are written to " + output_folder + "\\FuzzyOverlay.csv")
         csvfile.close()
         csvfile="?"
         if num != required_files:
@@ -632,7 +627,7 @@ overlayParams, truepositives, enviWorkspace):
             del cursor
         csvfile.close()
         csvfile="?"
-        arcpy.AddMessage("ROC results are written to " + env.workspace + "\\FuzzyROC.csv")
+        arcpy.AddMessage("ROC results are written to " + output_folder + "\\FuzzyROC.csv")
         import gc
         gc.collect()
 
