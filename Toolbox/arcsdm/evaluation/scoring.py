@@ -49,6 +49,7 @@ def score_predictions(
         return round(score, decimals) if decimals is not None else score
     else:
         out_metrics = {}
+        
         for metric in metrics:
             score = _score_predictions(y_true, y_pred, metric)
             out_metrics[metric] = round(score, decimals) if decimals is not None else score
