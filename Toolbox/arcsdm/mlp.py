@@ -416,8 +416,7 @@ def Execute_MLP_regressor(self, parameters, messages):
             random_state=random_state,
         )
         
-        arcpy.AddMessage("="*5 + "Model training completed." + "="*5)
-        arcpy.AddMessage(f"Saving model to {output_file}.joblib")
+        arcpy.AddMessage(f"Saving model to {output_file}.keras")
         arcpy.AddMessage(f"Model training history:")
         arcpy.AddMessage(f"{history.history}")
         
@@ -538,8 +537,6 @@ def train_MLP_regressor(
     # Early stopping callback
     callbacks = [keras.callbacks.EarlyStopping(monitor="val_loss", patience=es_patience)] if early_stopping else []
     callbacks.append(ArcPyLoggingCallback(epochs))
-    
-    arcpy.AddMessage("Training the model...")
 
     history = model.fit(
         X,
