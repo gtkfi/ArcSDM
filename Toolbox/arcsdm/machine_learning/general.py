@@ -281,7 +281,7 @@ def _apply_explicit_nodata_inplace(arr: np.ndarray, nodata_value: Number):
 
 def prepare_data_for_ml(
     feature_raster_files: Sequence[str],
-    label_file: Optional[str] = None,
+    label_files: Optional[Union[str, Sequence[str]]] = None,
     label_field: Optional[str] = None,
     feature_raster_nodata_value: Number = np.nan,
     label_nodata_value: Number = np.nan,
@@ -323,42 +323,60 @@ def prepare_data_for_ml(
 
     # --- Labels ---
     y = None
-    if label_file is not None and arcpy.Exists(label_file):
-        _, ext = os.path.splitext(label_file)
-        ext = ext.lower()
-
-        # Vector labels -> rasterize
-        if (ext in {".shp", ".geojson", ".json", ".gpkg", ".gdb"} or
-            arcpy.Describe(label_file).dataType in {"FeatureClass", "ShapeFile", "FeatureLayer"}):
-            y_arr = _rasterize_vector_to_array(label_file, reference, value_field=label_field)
+    if label_files is not None:
+        if isinstance(label_files, str): 
+            label_files = [label_files]
         else:
-            # Raster labels -> must match grid
-            lbl_grid = _describe_raster_grid(label_file)
-            if not _check_raster_grids([reference, lbl_grid], same_extent=True):
-                msg = "Label raster should have the same grid properties as features."
+            label_files = list(label_files)
+        
+        y_arrs = []
+        for label_file in label_files:
+            if not arcpy.Exists(label_file):
+                msg = f"Label file does not exist: {label_file}"
                 arcpy.AddError(msg)
                 raise ValueError(msg)
-            # Read label raster; map native NoData -> NaN via IsNull inside helper or here:
-            lbl_data = arcpy.RasterToNumPyArray(label_file).astype(float, copy=False)
-            lbl_mask = arcpy.RasterToNumPyArray(arcpy.sa.IsNull(label_file)).astype(bool)
-            lbl_data[lbl_mask] = np.nan
-            y_arr = lbl_data
 
-        if y_arr.shape != (rows, cols):
-            msg = "Rasterized/label grid shape mismatch."
-            arcpy.AddError(msg)
-            raise ValueError(msg)
+            _, ext = os.path.splitext(label_file)
+            ext = ext.lower()
 
-        # Apply the user-provided label NoData value (if not NaN)
-        if not _is_nan_like(label_nodata_value):
-            _apply_explicit_nodata_inplace(y_arr, label_nodata_value)
+            # Vector labels -> rasterize
+            if (ext in {".shp", ".geojson", ".json", ".gpkg", ".gdb"} or
+                arcpy.Describe(label_file).dataType in {"FeatureClass", "ShapeFile", "FeatureLayer"}):
+                y_arr = _rasterize_vector_to_array(label_file, reference, value_field=label_field)
+            else:
+                # Raster labels -> must match grid
+                lbl_grid = _describe_raster_grid(label_file)
+                if not _check_raster_grids([reference, lbl_grid], same_extent=True):
+                    msg = "Label raster should have the same grid properties as features."
+                    arcpy.AddError(msg)
+                    raise ValueError(msg)
+                # Read label raster; map native NoData -> NaN via IsNull inside helper or here:
+                lbl_data = arcpy.RasterToNumPyArray(label_file).astype(float, copy=False)
+                lbl_mask = arcpy.RasterToNumPyArray(arcpy.sa.IsNull(label_file)).astype(bool)
+                lbl_data[lbl_mask] = np.nan
+                y_arr = lbl_data
 
+            if y_arr.shape != (rows, cols):
+                msg = "Rasterized/label grid shape mismatch."
+                arcpy.AddError(msg)
+                raise ValueError(msg)
+
+            # Apply the user-provided label NoData value (if not NaN)
+            if not _is_nan_like(label_nodata_value):
+                _apply_explicit_nodata_inplace(y_arr, label_nodata_value)
+
+            y_arrs.append(y_arr.reshape(-1))
+
+        y_stacked = np.stack(y_arrs, axis=1)
+        
         # Any NaN in labels is excluded from training/eval
-        label_mask = np.isnan(y_arr).reshape(-1)
+        label_mask = np.isnan(y_stacked).any(axis=1)
         nodata_mask = nodata_mask | label_mask
 
-        # Flatten labels after masking
-        y = y_arr.reshape(-1)[~nodata_mask]
+        y = y_stacked[~nodata_mask, :]
+
+        if y.shape[1] == 1:
+            y = y.squeeze(axis=1)
 
     # Apply final mask to features
     X = X_full[~nodata_mask, :]
