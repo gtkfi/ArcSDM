@@ -683,3 +683,108 @@ def Execute_MLP_classifier_test(self, parameters, messages):
         # By default any other errors will be caught here
         e = sys.exc_info()[1]
         arcpy.AddError(e.args[0])
+
+
+def Execute_regressor_predict(self, parameters, messages):
+    try:
+        input_rasters = parameters[0].valueAsText.split(';')
+        X_nodata_value = parameters[1].value
+        y_nodata_value = parameters[2].value
+        model_file = parameters[3].valueAsText
+        output_raster_classified_name = parameters[4].valueAsText
+
+        arcpy.AddMessage("Starting Regressor predict...")
+
+        X, y, reference_profile = prepare_data_for_ml(input_rasters, None, None, X_nodata_value, y_nodata_value)
+        nodata_mask = reference_profile["nodata_mask"]
+
+        # load trained model
+        model = load_model(model_file)
+        raster = arcpy.Raster(input_rasters[0])
+        desc = arcpy.Describe(raster)
+        predictions = predict_regressor(X, model)
+
+        predictions_reshaped = reshape_predictions(
+            predictions, raster.height, raster.width, nodata_mask
+        )
+
+        # Save rasters
+        lower_left_corner = arcpy.Point(raster.extent.XMin, raster.extent.YMin)
+        x_cell_size = raster.meanCellWidth
+        y_cell_size = raster.meanCellHeight
+
+        out_predictions_raster = arcpy.NumPyArrayToRaster(predictions_reshaped, lower_left_corner=lower_left_corner,
+                                               x_cell_size=x_cell_size, y_cell_size=y_cell_size, value_to_nodata=-9)
+
+        out_predictions_raster.save(output_raster_classified_name)
+
+        arcpy.DefineProjection_management(out_predictions_raster, desc.spatialReference)
+
+        arcpy.AddMessage("Regressor predict completed.")
+
+    # Return geoprocessing specific errors
+    except arcpy.ExecuteError:    
+        arcpy.AddError(arcpy.GetMessages(2))    
+    # Return any other type of error
+    except:
+        # By default any other errors will be caught here
+        e = sys.exc_info()[1]
+        arcpy.AddError(e.args[0])
+
+
+def Execute_classifier_predict(self, parameters, messages):
+    try:
+        input_rasters = parameters[0].valueAsText.split(';')
+        X_nodata_value = parameters[1].value
+        y_nodata_value = parameters[2].value
+        model_file = parameters[3].valueAsText
+        classification_threshold = parameters[4].value
+        output_raster_probability_name = parameters[5].valueAsText
+        output_raster_classified_name = parameters[6].valueAsText
+
+        arcpy.AddMessage("Starting Classifier predict...")
+
+        X, y, reference_profile = prepare_data_for_ml(input_rasters, None, None, X_nodata_value, y_nodata_value)
+        nodata_mask = reference_profile["nodata_mask"]
+
+        # load trained model
+        model = load_model(model_file)
+        raster = arcpy.Raster(input_rasters[0])
+        desc = arcpy.Describe(raster)
+        predictions, probabilities = predict_classifier(X, model, classification_threshold, True)
+        
+        probabilities_reshaped = reshape_predictions(
+            probabilities, raster.height, raster.width, nodata_mask
+        )
+        predictions_reshaped = reshape_predictions(
+            predictions, raster.height, raster.width, nodata_mask
+        )
+
+        # Save rasters
+        lower_left_corner = arcpy.Point(raster.extent.XMin, raster.extent.YMin)
+        x_cell_size = raster.meanCellWidth
+        y_cell_size = raster.meanCellHeight
+
+        out_probabilities_raster = arcpy.NumPyArrayToRaster(probabilities_reshaped, lower_left_corner=lower_left_corner,
+                                                    x_cell_size=x_cell_size, y_cell_size=y_cell_size, value_to_nodata=-9)
+
+        out_predictions_raster = arcpy.NumPyArrayToRaster(predictions_reshaped, lower_left_corner=lower_left_corner,
+                                               x_cell_size=x_cell_size, y_cell_size=y_cell_size, value_to_nodata=-9)
+
+        out_probabilities_raster.save(output_raster_probability_name)
+        out_predictions_raster.save(output_raster_classified_name)
+
+        arcpy.DefineProjection_management(out_probabilities_raster, desc.spatialReference)
+        arcpy.DefineProjection_management(out_predictions_raster, desc.spatialReference)
+
+        arcpy.AddMessage("Classifier predict completed.")
+
+    # Return geoprocessing specific errors
+    except arcpy.ExecuteError:    
+        arcpy.AddError(arcpy.GetMessages(2))    
+    # Return any other type of error
+    except:
+        # By default any other errors will be caught here
+        e = sys.exc_info()[1]
+        arcpy.AddError(e.args[0])
+
