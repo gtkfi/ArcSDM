@@ -612,3 +612,71 @@ class ResultSender:
     @staticmethod
     def send_dict_as_json(dictionary: dict):
         arcpy.AddMessage(f"Results: {json.dumps(dictionary)}")
+
+
+def Execute_MLP_classifier_test(self, parameters, messages):
+    try:
+        input_rasters = parameters[0].valueAsText.split(';')
+        target_labels = parameters[1].valueAsText
+        target_labels_attr = parameters[2].valueAsText
+        X_nodata_value = parameters[3].value
+        y_nodata_value = parameters[4].value
+        model_file = parameters[5].valueAsText
+        classification_threshold = parameters[6].value
+        output_raster_probability_name = parameters[7].valueAsText
+        output_raster_classified_name = parameters[8].valueAsText
+        test_metrics = parameters[9].valueAsText.split(';')
+
+        arcpy.AddMessage("Starting MLP classifier test...")
+
+        if (target_labels_attr != None and (target_labels_attr.lower() == "shape" or target_labels_attr.lower() == "fid")):
+            arcpy.AddError("Invalid 'Target labels attribute' field name")
+            return
+
+        X, y, reference_profile = prepare_data_for_ml(input_rasters, target_labels, target_labels_attr, X_nodata_value, y_nodata_value)
+        nodata_mask = reference_profile["nodata_mask"]
+
+        # load trained model
+        model = load_model(model_file)
+        raster = arcpy.Raster(input_rasters[0])
+        desc = arcpy.Describe(raster)
+        predictions, probabilities = predict_classifier(X, model, classification_threshold, True)
+        
+        probabilities_reshaped = reshape_predictions(
+            probabilities, raster.height, raster.width, nodata_mask
+        )
+        predictions_reshaped = reshape_predictions(
+            predictions, raster.height, raster.width, nodata_mask
+        )
+
+        metrics_dict = score_predictions(y, predictions, test_metrics, decimals=5)
+
+        # Save rasters
+        lower_left_corner = arcpy.Point(raster.extent.XMin, raster.extent.YMin)
+        x_cell_size = raster.meanCellWidth
+        y_cell_size = raster.meanCellHeight
+
+        out_probabilities_raster = arcpy.NumPyArrayToRaster(probabilities_reshaped, lower_left_corner=lower_left_corner,
+                                                    x_cell_size=x_cell_size, y_cell_size=y_cell_size, value_to_nodata=-9)
+
+        out_predictions_raster = arcpy.NumPyArrayToRaster(predictions_reshaped, lower_left_corner=lower_left_corner,
+                                               x_cell_size=x_cell_size, y_cell_size=y_cell_size, value_to_nodata=-9)
+
+        out_probabilities_raster.save(output_raster_probability_name)
+        out_predictions_raster.save(output_raster_classified_name)
+
+        arcpy.DefineProjection_management(out_probabilities_raster, desc.spatialReference)
+        arcpy.DefineProjection_management(out_predictions_raster, desc.spatialReference)
+
+        arcpy.AddMessage("Classifier test completed.")
+        if target_labels:
+            arcpy.AddMessage(f"Metrics: {metrics_dict}")
+
+    # Return geoprocessing specific errors
+    except arcpy.ExecuteError:    
+        arcpy.AddError(arcpy.GetMessages(2))    
+    # Return any other type of error
+    except:
+        # By default any other errors will be caught here
+        e = sys.exc_info()[1]
+        arcpy.AddError(e.args[0])

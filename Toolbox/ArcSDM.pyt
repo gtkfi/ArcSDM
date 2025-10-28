@@ -62,7 +62,8 @@ class Toolbox(object):
             TOCFuzzificationTool,
             TrainMLPClassifierTool,
             TrainMLPRegressorTool,
-            MLPRegressorTestTool
+            MLPRegressorTestTool,
+            MLPClassifierTestTool
         ]
 
 
@@ -2116,3 +2117,135 @@ class MLPRegressorTestTool(object):
         """Execute the tool."""
         execute_tool(arcsdm.mlp.Execute_MLP_regressor_test, self, parameters, messages)
 
+
+
+class MLPClassifierTestTool(object):
+    def __init__(self):
+        """Test trained machine learning classifier model by predicting and scoring."""
+        self.label = "Test MLP Classifier"
+        self.description = "Test trained machine learning classifier model by predicting and scoring."
+        self.canRunInBackground = False
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MACHINE_LEARNING}\\{TS_MODELING}"
+
+
+    def getParameterInfo(self):
+        """Define parameter definitions"""
+
+        param_X = arcpy.Parameter(
+            displayName="Input Features",
+            name="X",
+            datatype=["GPRasterLayer"],
+            parameterType="Required",
+            multiValue=True,
+            direction="Input")
+
+        param_y = arcpy.Parameter(
+            displayName="Target Labels",
+            name="y",
+            datatype=["GPRasterLayer", "GPFeatureLayer"],
+            parameterType="Required",
+            direction="Input")
+
+        param_y_attribute = arcpy.Parameter(
+            displayName="Target Labels attribute",
+            name="y_attribute",
+            datatype="Field",
+            parameterType="Optional",
+            direction="Input")
+        
+        param_y_attribute.parameterDependencies = [param_y.name]
+
+        param_X_nodata_value = arcpy.Parameter(
+            displayName="Input Feature NoData Value",
+            name="X_nodata_value",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
+        param_X_nodata_value.value = -99
+
+        param_y_nodata_value = arcpy.Parameter(
+            displayName="Label NoData Value",
+            name="y_nodata_value",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
+
+        param_model_file = arcpy.Parameter(
+            displayName="Input Model File",
+            name="model_file",
+            datatype="DEFile",
+            parameterType="Required",
+            direction="input")
+
+        param_classification_threshold = arcpy.Parameter(
+            displayName="Classification threshold",
+            name="Output_classification_threshold",
+            datatype="GPDouble",
+            parameterType="Required",
+            direction="Output"
+        )
+        param_classification_threshold.value = 0.5 
+
+        param_pred_probability_raster_output = arcpy.Parameter(
+            displayName="Output predicted values probability raster",
+            name="Output_Predicted_values_probability_raster",
+            datatype="DERasterDataset",
+            parameterType="Required",
+            direction="Output"
+        )
+        param_pred_probability_raster_output.value = "classifier_probability_test_result"
+
+        param_pred_classified_raster_output = arcpy.Parameter(
+            displayName="Output predicted values classified raster",
+            name="Output_Predicted_values_classified_raster",
+            datatype="DERasterDataset",
+            parameterType="Required",
+            direction="Output"
+        )
+        param_pred_classified_raster_output.value = "classifier_classified_test_result"
+
+        param_test_metrics = arcpy.Parameter(
+            displayName="Test Metrics",
+            name="test_metrics",
+            datatype="String",
+            parameterType="Required",
+            direction="Input",
+            multiValue=True
+        )
+
+        param_test_metrics.filter.type = "ValueList"
+        param_test_metrics.filter.list = ["accuracy", "precision", "recall", "f1"]
+
+        params = [param_X,
+                  param_y,
+                  param_y_attribute,
+                  param_X_nodata_value,
+                  param_y_nodata_value,
+                  param_model_file,
+                  param_classification_threshold,
+                  param_pred_probability_raster_output,
+                  param_pred_classified_raster_output,
+                  param_test_metrics,
+                ]
+        return params
+
+    def isLicensed(self):
+        """Set whether tool is licensed to execute."""
+        try:
+            if arcpy.CheckExtension("Spatial") != "Available":
+                raise Exception
+        except Exception:
+            return False
+        return True
+
+    def updateParameters(self, parameters):
+        """Modify the values and properties of parameters before internal validation is performed. This method is called whenever a parameter has been changed."""
+        return
+
+    def updateMessages(self, parameters):
+        """Modify the messages created by internal validation for each tool parameter. This method is called after internal validation."""
+        return
+
+    def execute(self, parameters, messages):
+        """Execute the tool."""
+        execute_tool(arcsdm.mlp.Execute_MLP_classifier_test, self, parameters, messages)
