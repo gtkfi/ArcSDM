@@ -840,7 +840,7 @@ class CosineSimilarityIndex(object):
             parameterType="Required",
             direction="Input",
         )
-        param_evidence_source_type.filter.list = ["Raster", "Vector", "None"]
+        param_evidence_source_type.filter.list = ["Raster"]
         param_evidence_source_type.value = "Raster"
 
         param_evidence_rasters = arcpy.Parameter(
