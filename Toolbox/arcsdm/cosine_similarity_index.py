@@ -5,6 +5,17 @@ import numpy as np
 import pandas as pd
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+try:
+    from numba import jit
+    HAS_NUMBA = True
+except ImportError:
+    HAS_NUMBA = False
+    arcpy.AddWarning("numba not available - performance will be slower")
+    def jit(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+
 def _rows_with_labels(
     df: pd.DataFrame,
     label_cols: List[str],
@@ -43,35 +54,62 @@ def _sanitize_features(
     return clean
 
 
-def cosine_similarity(
-    vector_a: np.ndarray,
-    vector_b: np.ndarray,
-    nodata_value: float = -9999.0
-) -> float:
+@jit(nopython=True, cache=True)
+def cosine_similarity_numba(vector_a, vector_b, nodata_value):
+    """Numba-compiled cosine similarity."""
+    dot_sum = 0.0
+    norm_a = 0.0
+    norm_b = 0.0
+    count = 0
+    
+    for i in range(len(vector_a)):
+        a_val = vector_a[i]
+        b_val = vector_b[i]
+        
+        # Skip invalid values
+        if (np.isnan(a_val) or np.isnan(b_val) or 
+            a_val == nodata_value or b_val == nodata_value):
+            continue
+        
+        dot_sum += a_val * b_val
+        norm_a += a_val * a_val
+        norm_b += b_val * b_val
+        count += 1
+    
+    if count == 0 or norm_a == 0.0 or norm_b == 0.0:
+        return nodata_value
+    
+    return dot_sum / (np.sqrt(norm_a) * np.sqrt(norm_b))
+
+
+def cosine_similarity(vector_a, vector_b, nodata_value=-9999.0):
     """
     Calculate cosine similarity between two vectors, ignoring NaN and nodata.
-    CSI(A,B) = cos θ = (A·B) / (||A|| ||B||)
+    Uses numba if available for significant speedup.
     """
-    # Build mask for valid (both finite, not nodata)
-    mask = ~(
-        np.isnan(vector_a) | np.isnan(vector_b) |
-        (vector_a == nodata_value) | (vector_b == nodata_value)
-    )
-    if not np.any(mask):
-        return nodata_value
+    if HAS_NUMBA:
+        return cosine_similarity_numba(vector_a, vector_b, nodata_value)
+    else:
+        # Fallback to original implementation
+        mask = ~(
+            np.isnan(vector_a) | np.isnan(vector_b) |
+            (vector_a == nodata_value) | (vector_b == nodata_value)
+        )
+        if not np.any(mask):
+            return nodata_value
 
-    a_clean = vector_a[mask]
-    b_clean = vector_b[mask]
-    if a_clean.size == 0:
-        return nodata_value
+        a_clean = vector_a[mask]
+        b_clean = vector_b[mask]
+        if a_clean.size == 0:
+            return nodata_value
 
-    dot_product = np.dot(a_clean, b_clean)
-    magnitude_a = np.linalg.norm(a_clean)
-    magnitude_b = np.linalg.norm(b_clean)
+        dot_product = np.dot(a_clean, b_clean)
+        magnitude_a = np.linalg.norm(a_clean)
+        magnitude_b = np.linalg.norm(b_clean)
 
-    if magnitude_a == 0 or magnitude_b == 0:
-        return nodata_value
-    return dot_product / (magnitude_a * magnitude_b)
+        if magnitude_a == 0 or magnitude_b == 0:
+            return nodata_value
+        return dot_product / (magnitude_a * magnitude_b)
 
 
 def load_labeled_data(
@@ -170,35 +208,56 @@ def calculate_corner_csi(
     Calculate CSI between corner vectors A and B.
     Returns only upper diagonal of the matrix.
     """
-    # Focus only on labeled points
     F = _sanitize_features(labeled_df, feature_fields, csv_nodata)
     n = len(F)
     
     arcpy.AddMessage(f"Calculating corner CSI for {n} labeled points with vectors A and B")
     
     # Initialize results matrix (upper triangular only)
-    corner_csi = np.full((n, n), None, dtype=float)
+    corner_csi = np.full((n, n), csv_nodata, dtype=np.float64)
     
     # Convert to numpy for faster computation
-    features_array = F.to_numpy(dtype=float)
+    features_array = F.to_numpy(dtype=np.float64)
+    
+    # Pre-compute valid masks to avoid repeated checks
+    valid_masks = []
+    for i in range(n):
+        mask = ~(np.isnan(features_array[i]) | (features_array[i] == csv_nodata))
+        valid_masks.append(mask)
+        if not np.any(mask):
+            arcpy.AddWarning(f"Point {i+1} has no valid features")
     
     # Calculate only upper triangular matrix
+    total_comparisons = (n * (n + 1)) // 2
+    completed = 0
+    
     for i in range(n):
-        for j in range(i, n):  # Only upper diagonal (i <= j)
-            if i == j:
-                corner_csi[i, j] = 1.0  # Self-similarity
-            else:
-                # Calculate CSI between vector A (row i) and vector B (row j)
-                vector_a = features_array[i]
-                vector_b = features_array[j]
-                
-                # Calculate cosine similarity
-                csi_value = cosine_similarity(vector_a, vector_b, csv_nodata)
-                corner_csi[i, j] = csi_value
-                
+        # Diagonal is always 1.0
+        corner_csi[i, i] = 1.0
+        completed += 1
+        
+        # Skip if point i has no valid features
+        if not np.any(valid_masks[i]):
+            continue
+        
+        for j in range(i + 1, n):  # Only upper diagonal (i < j)
+            # Skip if point j has no valid features
+            if not np.any(valid_masks[j]):
+                continue
+            
+            # Calculate CSI
+            csi_value = cosine_similarity(
+                features_array[i], 
+                features_array[j], 
+                csv_nodata
+            )
+            corner_csi[i, j] = float(csi_value)
+            completed += 1
+        
         # Progress reporting
         if (i + 1) % 50 == 0 or i == n - 1:
-            arcpy.AddMessage(f"  Processed corner {i + 1}/{n}")
+            pct = (completed / total_comparisons) * 100
+            arcpy.AddMessage(f"  Processed {completed}/{total_comparisons} comparisons ({pct:.1f}%)")
     
     return corner_csi
 
@@ -363,6 +422,134 @@ def calculate_evidence_matrix(
     
     arcpy.AddMessage(f"Evidence matrix shape: {evidence_matrix.shape}")
     return evidence_results
+
+
+def calculate_class_centroids(
+    labeled_df: pd.DataFrame,
+    feature_fields: List[str],
+    label_field_names: List[str],
+    csv_nodata: float
+) -> pd.DataFrame:
+    """
+    Calculate centroid (mean) feature vector for each class.
+    Returns DataFrame with one row per class containing centroid values.
+    """
+    if not label_field_names:
+        arcpy.AddWarning("No label fields specified - cannot calculate centroids")
+        return pd.DataFrame()
+    
+    arcpy.AddMessage("\n" + "="*60)
+    arcpy.AddMessage("Calculating Class Centroids")
+    arcpy.AddMessage("="*60)
+    
+    # Get clean feature data
+    features_clean = _sanitize_features(labeled_df, feature_fields, csv_nodata)
+    
+    # Use first label field as primary class identifier
+    primary_label_field = label_field_names[0]
+    
+    if primary_label_field not in labeled_df.columns:
+        arcpy.AddError(f"Label field '{primary_label_field}' not found in data")
+        return pd.DataFrame()
+    
+    # Get unique classes
+    classes = labeled_df[primary_label_field].dropna().unique()
+    arcpy.AddMessage(f"Found {len(classes)} unique classes in '{primary_label_field}'")
+    
+    # Initialize results
+    centroids_data = []
+    
+    for class_value in classes:
+        # Get all points belonging to this class
+        class_mask = labeled_df[primary_label_field] == class_value
+        class_features = features_clean[class_mask]
+        
+        n_points = len(class_features)
+        
+        if n_points == 0:
+            continue
+        
+        # Calculate centroid (mean of valid values for each feature)
+        centroid = {}
+        centroid['class'] = class_value
+        centroid['n_points'] = n_points
+        
+        for feature_field in feature_fields:
+            feature_values = class_features[feature_field].values
+            # Calculate mean ignoring NaN
+            valid_values = feature_values[~np.isnan(feature_values)]
+            
+            if len(valid_values) > 0:
+                centroid[f'centroid_{feature_field}'] = float(np.mean(valid_values))
+                centroid[f'std_{feature_field}'] = float(np.std(valid_values))
+                centroid[f'min_{feature_field}'] = float(np.min(valid_values))
+                centroid[f'max_{feature_field}'] = float(np.max(valid_values))
+                centroid[f'n_valid_{feature_field}'] = len(valid_values)
+            else:
+                centroid[f'centroid_{feature_field}'] = csv_nodata
+                centroid[f'std_{feature_field}'] = csv_nodata
+                centroid[f'min_{feature_field}'] = csv_nodata
+                centroid[f'max_{feature_field}'] = csv_nodata
+                centroid[f'n_valid_{feature_field}'] = 0
+        
+        centroids_data.append(centroid)
+        arcpy.AddMessage(f"  Class '{class_value}': {n_points} points")
+    
+    centroids_df = pd.DataFrame(centroids_data)
+    
+    if len(centroids_df) > 0:
+        arcpy.AddMessage(f"\nCalculated centroids for {len(centroids_df)} classes")
+    else:
+        arcpy.AddWarning("No centroids calculated")
+    
+    return centroids_df
+
+
+def calculate_centroid_to_centroid_csi(
+    centroids_df: pd.DataFrame,
+    feature_fields: List[str],
+    csv_nodata: float
+) -> np.ndarray:
+    """
+    Calculate CSI between class centroids (pairwise similarity matrix).
+    Returns symmetric matrix of centroid similarities.
+    """
+    n_classes = len(centroids_df)
+    
+    if n_classes == 0:
+        return np.array([])
+    
+    arcpy.AddMessage(f"\nCalculating pairwise CSI between {n_classes} class centroids")
+    
+    # Extract centroid feature vectors
+    centroid_vectors = []
+    for feature_field in feature_fields:
+        col_name = f'centroid_{feature_field}'
+        if col_name in centroids_df.columns:
+            centroid_vectors.append(centroids_df[col_name].values)
+        else:
+            arcpy.AddWarning(f"Centroid column '{col_name}' not found")
+            centroid_vectors.append(np.full(n_classes, csv_nodata))
+    
+    centroid_array = np.array(centroid_vectors).T  # Shape: (n_classes, n_features)
+    
+    # Calculate pairwise CSI
+    csi_matrix = np.full((n_classes, n_classes), csv_nodata, dtype=np.float64)
+    
+    for i in range(n_classes):
+        csi_matrix[i, i] = 1.0  # Self-similarity
+        
+        for j in range(i + 1, n_classes):
+            csi_value = cosine_similarity(
+                centroid_array[i],
+                centroid_array[j],
+                csv_nodata
+            )
+            csi_matrix[i, j] = float(csi_value)
+            csi_matrix[j, i] = float(csi_value)  # Symmetric
+    
+    arcpy.AddMessage(f"Completed centroid-to-centroid CSI matrix")
+    return csi_matrix
 
 
 def create_label_to_data_rasters(
@@ -532,8 +719,11 @@ def _get_point_coordinates(
 def save_csv_results(
     corner_matrix: np.ndarray,
     evidence_results: Dict[str, np.ndarray],
+    centroids_df: pd.DataFrame,
+    centroid_csi_matrix: np.ndarray,
     out_labelled_pairwise_csv: str,
-    out_evidence_table_csv: Optional[str]
+    out_evidence_table_csv: Optional[str],
+    out_centroids_csv: Optional[str] = None
 ) -> None:
     """Save results to CSV files"""
     try:
@@ -563,6 +753,22 @@ def save_csv_results(
                 individual_csv = out_evidence_table_csv.replace('.csv', '_individual.csv')
                 individual_df.to_csv(individual_csv)
                 arcpy.AddMessage(f"Saved individual evidence results: {individual_csv}")
+        
+        # Save class centroids
+        if len(centroids_df) > 0 and out_centroids_csv:
+            centroids_df.to_csv(out_centroids_csv, index=False)
+            arcpy.AddMessage(f"Saved class centroids: {out_centroids_csv}")
+            
+            # Save centroid-to-centroid CSI matrix if available
+            if centroid_csi_matrix is not None and len(centroid_csi_matrix) > 0:
+                centroid_csi_df = pd.DataFrame(centroid_csi_matrix)
+                class_labels = centroids_df['class'].values
+                centroid_csi_df.index = [f"Class_{c}" for c in class_labels]
+                centroid_csi_df.columns = [f"Class_{c}" for c in class_labels]
+                
+                centroid_csi_csv = out_centroids_csv.replace('.csv', '_csi.csv')
+                centroid_csi_df.to_csv(centroid_csi_csv)
+                arcpy.AddMessage(f"Saved centroid-to-centroid CSI matrix: {centroid_csi_csv}")
             
     except Exception as e:
         arcpy.AddError(f"Error saving CSV results: {e}")
@@ -698,66 +904,76 @@ def calculate_pixel_to_label_csi(
     pixel_vectors: np.ndarray,
     labeled_features: np.ndarray,
     csv_nodata: float,
-    progress_step: int = 1000
+    progress_step: int = 10000
 ) -> List[np.ndarray]:
     """
     Calculate CSI between each pixel vector and each labeled point vector.
     Returns list of 2D arrays, one per labeled point.
+    Optimized with pre-filtering and vectorization.
     """
     nrows, ncols, n_features = pixel_vectors.shape
     n_labeled = len(labeled_features)
     
     arcpy.AddMessage(f"Calculating pixel-to-label CSI for {nrows}x{ncols} pixels vs {n_labeled} labeled points")
     
+    # Reshape pixel_vectors to 2D: (n_pixels, n_features)
+    n_pixels = nrows * ncols
+    pixel_vectors_2d = pixel_vectors.reshape(n_pixels, n_features)
+    
+    # Pre-compute valid pixel mask (pixels with all valid features)
+    arcpy.AddMessage("Pre-filtering valid pixels...")
+    pixel_valid = ~(np.isnan(pixel_vectors_2d) | (pixel_vectors_2d == csv_nodata))
+    pixel_all_valid = np.all(pixel_valid, axis=1)  # True if ALL features are valid
+    valid_indices = np.where(pixel_all_valid)[0]
+    n_valid = len(valid_indices)
+    
+    arcpy.AddMessage(f"Found {n_valid} valid pixels out of {n_pixels} ({100*n_valid/n_pixels:.1f}%)")
+    
+    if n_valid == 0:
+        arcpy.AddWarning("No valid pixels found!")
+        return [np.full((nrows, ncols), csv_nodata, dtype=np.float64) for _ in range(n_labeled)]
+    
+    # Pre-compute valid feature masks for labeled points
+    labeled_valid = []
+    for i in range(n_labeled):
+        mask = ~(np.isnan(labeled_features[i]) | (labeled_features[i] == csv_nodata))
+        labeled_valid.append(mask)
+    
     # Initialize output arrays - one per labeled point
     csi_arrays = []
     for i in range(n_labeled):
-        csi_arrays.append(np.full((nrows, ncols), float(csv_nodata), dtype=np.float64))
+        csi_arrays.append(np.full((nrows, ncols), csv_nodata, dtype=np.float64))
     
-    total_pixels = nrows * ncols
-    processed_pixels = 0
-    valid_processed = 0
-    
-    # Process each pixel
-    for row in range(nrows):
-        for col in range(ncols):
-            # Get pixel vector (values from all feature rasters at this location)
-            pixel_vector = pixel_vectors[row, col, :]
+    # Process only valid pixels
+    arcpy.AddMessage("Calculating CSI for valid pixels...")
+    for label_idx in range(n_labeled):
+        arcpy.AddMessage(f"  Processing labeled point {label_idx + 1}/{n_labeled}...")
+        
+        labeled_vector = labeled_features[label_idx]
+        csi_values_1d = np.full(n_pixels, csv_nodata, dtype=np.float64)
+        
+        # Process valid pixels in chunks for better memory efficiency
+        chunk_size = 10000
+        for chunk_start in range(0, n_valid, chunk_size):
+            chunk_end = min(chunk_start + chunk_size, n_valid)
+            chunk_indices = valid_indices[chunk_start:chunk_end]
             
-            # Skip pixels with any invalid values
-            if np.any(np.isnan(pixel_vector)) or np.any(pixel_vector == csv_nodata):
-                processed_pixels += 1
-                continue
-            
-            # Calculate CSI between this pixel and each labeled point
-            for label_idx in range(n_labeled):
-                labeled_vector = labeled_features[label_idx]
-                
-                # Calculate CSI between pixel vector and labeled vector
+            for idx in chunk_indices:
+                pixel_vector = pixel_vectors_2d[idx]
                 csi_value = cosine_similarity(pixel_vector, labeled_vector, csv_nodata)
                 
-                # Store result - ensure it's a float
                 if csi_value != csv_nodata and np.isfinite(csi_value):
-                    csi_arrays[label_idx][row, col] = float(csi_value)
-            
-            valid_processed += 1
-            processed_pixels += 1
+                    csi_values_1d[idx] = float(csi_value)
             
             # Progress reporting
-            if processed_pixels % progress_step == 0 or processed_pixels == total_pixels:
-                pct = (processed_pixels / total_pixels) * 100
-                arcpy.AddMessage(f"  Processed {processed_pixels}/{total_pixels} pixels ({pct:.1f}%) - {valid_processed} valid")
+            if chunk_end % progress_step == 0 or chunk_end == n_valid:
+                pct = (chunk_end / n_valid) * 100
+                arcpy.AddMessage(f"    Processed {chunk_end}/{n_valid} valid pixels ({pct:.1f}%)")
+        
+        # Reshape back to 2D
+        csi_arrays[label_idx] = csi_values_1d.reshape(nrows, ncols)
     
-    arcpy.AddMessage(f"Completed CSI calculation for {valid_processed} valid pixels")
-    
-    # Verify arrays are properly formed before returning
-    for idx, arr in enumerate(csi_arrays):
-        if not isinstance(arr, np.ndarray):
-            arcpy.AddError(f"CSI array {idx} is not a numpy array: {type(arr)}")
-        elif arr.dtype != np.float64:
-            arcpy.AddWarning(f"CSI array {idx} has dtype {arr.dtype}, converting to float64")
-            csi_arrays[idx] = arr.astype(np.float64)
-    
+    arcpy.AddMessage(f"Completed CSI calculation")
     return csi_arrays
 
 
@@ -935,6 +1151,7 @@ def execute(self, parameters, messages):
         evidence_type = parameters[4].valueAsText if parameters[4].value else None
         rasters_list = parameters[5].valueAsText.split(';') if parameters[5].valueAsText else []
         out_labelled_pairwise_csv = parameters[7].valueAsText
+        out_class_centroid = parameters[8].valueAsText if parameters[8].value else None
         out_evidence_table_csv = parameters[9].valueAsText if parameters[9].value else None
         out_raster_folder = parameters[10].valueAsText if parameters[10].value else None
         
@@ -972,6 +1189,18 @@ def execute(self, parameters, messages):
         arcpy.AddMessage("\nCorner CSI Matrix Calculation")
         corner_matrix = calculate_corner_csi(labeled_df, feature_fields, csv_nodata)
         
+        # Calculate class centroids
+        centroids_df = calculate_class_centroids(
+            labeled_df, feature_fields, label_field_names, csv_nodata
+        )
+        
+        # Calculate centroid-to-centroid CSI
+        centroid_csi_matrix = np.array([])
+        if len(centroids_df) > 0:
+            centroid_csi_matrix = calculate_centroid_to_centroid_csi(
+                centroids_df, feature_fields, csv_nodata
+            )
+        
         # PART 2: Pixel-to-Label CSI (if rasters provided and output folder specified)
         if evidence_type == "Raster" and rasters_list and out_raster_folder:
             # Filter out coordinate columns from feature fields
@@ -997,9 +1226,10 @@ def execute(self, parameters, messages):
         
         # Save CSV results
         arcpy.AddMessage("\nSaving CSV results...")
+        
         save_csv_results(
-            corner_matrix, evidence_results,
-            out_labelled_pairwise_csv, out_evidence_table_csv
+            corner_matrix, evidence_results, centroids_df, centroid_csi_matrix,
+            out_labelled_pairwise_csv, out_evidence_table_csv, out_class_centroid
         )
         
         arcpy.AddMessage(f"\nCSI Analysis completed successfully!")
