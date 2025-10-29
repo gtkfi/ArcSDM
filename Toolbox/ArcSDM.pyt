@@ -1855,7 +1855,7 @@ class PCARaster(object):
             parameterType="Required",
             direction="Output"
         )
-        param_transformed_data.value = 'transformed_raster'
+        param_transformed_data.value = 'PCA_scores_raster'
 
         params = [param_input_rasters,
                 #   param_nodata_value,
@@ -1880,7 +1880,7 @@ class PCARaster(object):
         validation is performed. This method is called whenever a parameter
         has been changed."""
         if not parameters[4].altered:
-            parameters[4].value = "transformed_raster"
+            parameters[4].value = "PCA_scores_raster"
 
         return
 
@@ -1969,7 +1969,7 @@ class PCAVector(object):
             parameterType="Required",
             direction="Output"
         )
-        param_transformed_data.value = 'transformed_vector'
+        param_transformed_data.value = 'PCA_scores_vector'
 
         params = [param_input_vectors,
                   param_input_fields,
@@ -1995,7 +1995,7 @@ class PCAVector(object):
         validation is performed. This method is called whenever a parameter
         has been changed."""
         if not parameters[6].altered:
-            parameters[6].value = "transformed_vector"
+            parameters[6].value = "PCA_scores_vector"
         
         return
 
