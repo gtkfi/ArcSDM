@@ -26,12 +26,12 @@ def Execute(self, parameters, messages):
     try:
         input_data = parameters[0].valueAsText.split(';')
         input_dataType = arcpy.Describe(input_data[0]).dataType
-        is_vector = input_dataType == "FeatureLayer"
+        is_vector = input_dataType in ("FeatureClass", "ShapeFile", "FeatureLayer")
 
         if (is_vector):
             input_fields = parameters[1].valueAsText.split(';')
             nodata_param = parameters[2].value
-            nodata_value = np.float(nodata_param) if nodata_param is not None else np.nan  # Convert to float for numpy operations
+            nodata_value = nodata_param if nodata_param is not None else -99
             number_of_components = parameters[3].value
             scaler_type = parameters[4].valueAsText
             nodata_handling = parameters[5].valueAsText
@@ -78,19 +78,12 @@ def Execute(self, parameters, messages):
             scaler_type = parameters[2].valueAsText
             nodata_handling = parameters[3].valueAsText
             transformed_data_output = parameters[4].valueAsText
-            
+            raster_nodata = arcpy.Raster(input_data[0]).noDataValue
+            nodata_value = raster_nodata if raster_nodata is not None else -99
+
         desc_input = arcpy.Describe(input_data[0])
         is_multiband = hasattr(desc_input, "bandCount") and desc_input.bandCount > 1
-
-        if is_multiband:        
-            nodata_value = arcpy.Raster(input_data[0]).noDataValue
-        else:
-            nodata_value = desc_input.noDataValue
-        
         stacked_arrays = read_and_stack_rasters(input_data, nodata_value, nodata_handling = "convert_to_nan")
-
-        if (nodata_value is None):
-            nodata_value = np.nan
         
         if len(stacked_arrays) == 1:
             arcpy.AddError("Only one band found in input data. PCA requires at least two bands.")
@@ -102,8 +95,26 @@ def Execute(self, parameters, messages):
         )
 
         arcpy.AddMessage('='*5 + ' PCA results ' + '='*5)
+        
         # Save output data
-        if transformed_data.ndim is 2 or transformed_data.ndim is 3:
+        if is_vector:
+            arcpy.management.CopyFeatures(input_vector, transformed_data_output)
+            
+            if transformed_data.ndim > 2:
+                rows, cols = transformed_data.shape[1], transformed_data.shape[2]
+                transformed_data = transformed_data.transpose(1, 2, 0).reshape(rows * cols, -1)
+            
+            for i in range(principal_components.shape[0]):
+                field_name = f"PCA_component_{i+1}"
+                arcpy.management.AddField(transformed_data_output, field_name, "DOUBLE")
+                
+                with arcpy.da.UpdateCursor(transformed_data_output, field_name) as cursor:
+                    for j, row in enumerate(cursor):
+                        row[0] = float(transformed_data[j, i])
+                        cursor.updateRow(row)
+
+        elif transformed_data.ndim == 2 or transformed_data.ndim == 3:
+            desc_input = arcpy.Describe(input_data[0])
             if is_multiband:
                 first_band = arcpy.ia.ExtractBand(input_data[0], band_ids=1)
                 desc_input = arcpy.Describe(first_band)
