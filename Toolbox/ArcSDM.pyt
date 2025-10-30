@@ -1847,7 +1847,7 @@ class PCARaster(object):
             parameterType="Required",
             direction="Output"
         )
-        param_transformed_data.value = 'transformed_raster'
+        param_transformed_data.value = 'PCA_scores_raster'
 
         params = [param_input_rasters,
                 #   param_nodata_value,
@@ -1871,6 +1871,9 @@ class PCARaster(object):
         """Modify the values and properties of parameters before internal
         validation is performed. This method is called whenever a parameter
         has been changed."""
+        if not parameters[4].altered:
+            parameters[4].value = "PCA_scores_raster"
+
         return
 
     def updateMessages(self, parameters):
@@ -1958,7 +1961,7 @@ class PCAVector(object):
             parameterType="Required",
             direction="Output"
         )
-        param_transformed_data.value = 'transformed_raster'
+        param_transformed_data.value = 'PCA_scores_vector'
 
         params = [param_input_vectors,
                   param_input_fields,
@@ -1983,6 +1986,9 @@ class PCAVector(object):
         """Modify the values and properties of parameters before internal
         validation is performed. This method is called whenever a parameter
         has been changed."""
+        if not parameters[6].altered:
+            parameters[6].value = "PCA_scores_vector"
+        
         return
 
     def updateMessages(self, parameters):
@@ -1991,7 +1997,6 @@ class PCAVector(object):
 
         if parameters[1].value and parameters[1].value.rowCount < 2:
             parameters[1].setErrorMessage("Select Fields requires at least two fields.")
-        
         return
 
     def execute(self, parameters, messages):
