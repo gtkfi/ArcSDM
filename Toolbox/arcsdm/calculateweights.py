@@ -67,7 +67,6 @@ from arcsdm.wofe_common import (
 ASCENDING = "Ascending"
 DESCENDING = "Descending"
 CATEGORICAL = "Categorical"
-UNIQUE = "Unique"
 
 
 def calculate_weights_sq_km(pattern_tp_count, pattern_area_sq_km, unit_area_sq_km, tp_count, total_area_sq_km, class_category):
@@ -314,7 +313,6 @@ def Calculate(self, parameters, messages):
             ["NO_POINTS", "LONG"], # Training point count
         ] + weight_fields
 
-        # Generalized weights are for all but unique weights
         all_fields = all_fields + generalized_weight_fields
 
         codename_query = [] if (code_name is None or code_name == "") else [code_name]
@@ -330,9 +328,6 @@ def Calculate(self, parameters, messages):
             arcpy.management.AddField(output_weights_table, *field_details)
         for field_name in weight_field_names:
             arcpy.management.AssignDefaultToField(output_weights_table, field_name, 0.0)
-        if selected_weight_type == UNIQUE:
-            for field_name in generalized_weight_field_names:
-                arcpy.management.AssignDefaultToField(output_weights_table, field_name, 0.0)
 
         arcpy.AddMessage("Created output weights table")
 
@@ -439,12 +434,10 @@ def Calculate(self, parameters, messages):
             max_contrast_OID = -1
             max_contrast = -9999999.0
             tp_count = 0
-            area_cell_count = 0.0
             max_wplus = -9999.0
             max_s_wplus = -9999.0
             max_wminus = -9999.0
             max_s_wminus = -9999.0
-            max_std_contrast = -9999.0
 
             threshold_clause = f"STUD_CNT >= {studentized_contrast_threshold}"
             with arcpy.da.SearchCursor(output_weights_table, fields_to_read, where_clause=threshold_clause) as cursor_weights:
@@ -456,15 +449,12 @@ def Calculate(self, parameters, messages):
                             max_contrast_OID = oid
                             max_contrast = contrast
                             tp_count = no_points
-                            area_cell_count = area_units
                             max_wplus = wplus
                             max_s_wplus = s_wplus
                             max_wminus = wminus
                             max_s_wminus = s_wminus
 
             if max_contrast_OID >= 0:
-                update_clause = f"OBJECTID <= {max_contrast_OID}"
-                
                 with arcpy.da.UpdateCursor(output_weights_table, fields_to_update) as cursor_generalized:
                     for row in cursor_generalized:
                         oid, class_category, gen_class, weight, w_std = row
@@ -486,7 +476,7 @@ def Calculate(self, parameters, messages):
                         updated_row = (oid, class_category, gen_class, weight, w_std)
                         cursor_generalized.updateRow(updated_row)
             else:
-                arcpy.AddWarning(f"Unable to generalize weights! No contrast for type {selected_weight_type} satisties the user-defined confidence level {studentized_contrast_threshold}")
+                arcpy.AddWarning(f"Unable to generalize weights! No contrast for type {selected_weight_type} satisfies the user-defined confidence level {studentized_contrast_threshold}.")
                 arcpy.AddWarning(f"Table {output_weights_table} is incomplete.")
 
         elif selected_weight_type == CATEGORICAL:

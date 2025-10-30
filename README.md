@@ -14,9 +14,16 @@ ArcSDM wiki contains a howtopage: https://github.com/gtkfi/ArcSDM/wiki/Howto-sta
 
 ---
 
-### Toolbox <br>
-Click "Clone or download" and select the suitable download option for you. "Download Zip" is the safe and easy choice, just open the zip in a place where ArcGIS Pro has access in your computer and add the toolbox to ArcGIS Pro. <br>
+### Setting Up ArcSDM
+1. **Install by cloning or downloading the toolbox**<br>
+    Click "Clone or download" and select the suitable download option for you. "Download Zip" is the safe and easy choice, just open the zip in a place where ArcGIS Pro has access in your computer.
+2. **Add the toolbox to ArcGIS Pro**
+    - In ArcGIS Pro, add the toolbox from `Insert` -> `Toolbox` -> `Add Toolbox`
+    - Find your ArcSDM install location and select `ArcSDM.pyt` from the `Toolbox`-folder
+3. **Install the Python environment**<br>
+    See [Setting up the Python environment](#setting-up-the-python-environment) for instructions.
 
+**Video guide**<br>
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=w-EAv2A2jOM
 " target="_blank"><img src="http://img.youtube.com/vi/w-EAv2A2jOM/0.jpg" 
 alt="How to download and extract the toolbox" width="240" height="180" border="10" /></a>
@@ -40,42 +47,54 @@ alt="How to download and extract the toolbox" width="240" height="180" border="1
 
 ---
 
-## Usage of the ArcSDM Python env
-
-At the moment is this advised to clone the ArcGIS Pro Python env and downloading the necessary packages to the cloned Python env.
-Do not clone it to the default AppData folder. This might cause the required packages to not install.
-Please clone the Python env to for example C:\user\path_to_a_folder\arcpy-py3-env
-
+## Setting up the Python environment
 [How to use Python environments in ArcGIS Pro](https://pro.arcgis.com/en/pro-app/latest/arcpy/get-started/activate-an-environment.htm)
 
----
+You can set up the Python environment for ArcSDM by cloning the default `arcgispro-py3` environment and installing the dependencies in the cloned environment.
+Alternatively, you can download Esri's [ArcGIS Deep Learning Libraries Installer](https://github.com/Esri/deep-learning-frameworks) and use it to safely install the dependencies to the default `arcgispro-py3` environment.
 
-## Setting Up ArcSDM Python Environment
-
-To use ArcSDM with ArcGIS Pro, follow these steps:
-
-1. **Clone the Repository**:
+### Option A. Set up using cloned environment and manually install dependencies
+1. **Clone the Environment**
     - Open ArcGIS Pro.
     - Navigate to `Project` -> `Package Manager`.
-    - Clone the environment (not in the default location) to your local machine.
+    - In the right side of the screen, click on the gear icon to access the `Environment Manager`.
+    - Clone the default `arcgispro-py3` environment to a file location to which you have access rights. It is recommended to clone the environment to a location inside your user folder, for example `C:\Users\<username>\<path_to_a_folder>\arcgispro-py3-clone`.
 
-2. **Change ArcGIS Pro to Use ArcSDM Python Environment**:
-    - Set ArcGIS Pro to use the `arcsdm-py3-env` environment.
+2. **Change ArcGIS Pro to use the cloned environment**:
+    - Set ArcGIS Pro to use the cloned environment instead of the default `arcgispro-py3` environment.
     ![Using ArcSDM Python Environment](./img/use_arcsdm-py3-env.PNG)
 
-3. **Restart ArcGIS Pro**:
-    - Close and reopen ArcGIS Pro to apply the changes.
-    - Add Packages Scikit-learn (1.30 <= x <= 1.5), Tensorflow and Imbalanced-learn by searching those libraries:
-    ![Add Packages to ArcSDM Python Environment](./img/add_packages_arcsdm_py3_env.PNG)
-    - Sometimes packages do not install due to Proxy settings. Please retry, turn off your VPN or contact your organizations IT Help to enable the installation.
+3. **Install the dependencies**<br>
+    Required Python packages:
+    - TensorFlow
+    - Scikit-learn
+    - Imbalanced-learn
 
-4. **Install Required Packages**:
-    - Open the cloned Python environment in ArcGIS Pro.
-    - Use the Package Manager to search for and install the following packages:
-        - Scikit-learn (1.30 <= x <= 1.5)
-        - TensorFlow
-        - Imbalanced-learn
-    - If you encounter issues due to proxy settings, retry the installation or contact your IT support for assistance.
+    Some of the packages compatible with older ArcGIS Pro versions are not available through the Package Manager. In that case, it is recommended to install them through the Python Command Prompt that comes with ArcGIS Pro installation. You can find the correct versions of scikit-learn and TensorFlow for your ArcGIS Pro version from [the Deep Learning Libraries included packages section](https://github.com/Esri/deep-learning-frameworks?tab=readme-ov-file#manifest-of-included-packages). For imbalanced-learn, find the version that corresponds to your scikit-learn version on [the releases page](https://github.com/scikit-learn-contrib/imbalanced-learn/releases).
+    
+    **A. Install using ArcGIS Python Command Prompt**<br>
+        `conda install -n <env-name> tensorflow=2.13 scikit-learn=1.4.2 imbalanced-learn=0.12.3 -y` - an example for ArcGIS Pro 3.2.<br>
+    **B. Install using ArcGIS Package Manager**<br>
+        From the Package Manager, choose "Add Packages" and search for the correct packages<br>
+        ![Add Packages to ArcSDM Python Environment](./img/add_packages_arcsdm_py3_env.PNG)
+
+    Sometimes packages do not install due to Proxy settings. Please retry, turn off your VPN or contact your organizations IT Help to enable the installation.
+
+4. **Restart ArcGIS Pro**<br>
+    Close and reopen ArcGIS Pro to apply the changes.
+
+### Option B. Set up using ArcGIS Deep Learning Libraries Installer (easier)
+Keep in mind that the installer also contains packages not used by ArcSDM, so the download size will be larger than with the manual install.
+
+1. **Download ArcGIS Deep Learning Libraries**<br>
+    Download the [ArcGIS Deep Learning Libraries Installer](https://github.com/Esri/deep-learning-frameworks#download) for your current ArcGIS Pro version.
+2. **Follow the installation instructions**
+    - Unzip the file and run the `ProDeepLearning.msi` installer.
+    - [Complete instructions can be found here](https://github.com/Esri/deep-learning-frameworks#installation)
+3. **Restart ArcGIS Pro**<br>
+    Close and reopen ArcGIS Pro to apply the changes.
+
+If you encounter issues due to proxy settings, retry the installation or contact your IT support for assistance.
 
 By following these steps, you will have the necessary environment set up to use ArcSDM with ArcGIS Pro.
 
@@ -84,48 +103,19 @@ By following these steps, you will have the necessary environment set up to use 
 ## Troubleshooting
 
 ### Issue: Missing Dependencies
-If dependencies fail to install, verify that you are using the correct Python environment for ArcGIS Pro.
+If dependencies fail to install, verify that:
+- You are using the correct Python environment for ArcGIS Pro 
+- The dependencies you are installing are compatible with your ArcGIS Pro version
 
-### Issue: Toolbox Not Showing
+### Issue: Correct dependencies not showing in ArcGIS Package Manager
+Some versions for dependencies are not available through ArcGIS package manager.
+This means you will have to install the dependencies either using the `Python Command Prompt` that comes with your ArcGIS Pro download or the [ArcGIS Deep Learning Libraries Installer](https://github.com/Esri/deep-learning-frameworks)
+
+### Issue: Toolbox not showing
 Ensure that the toolbox file (`ArcSDM.pyt`) is in a folder accessible to ArcGIS Pro and that it’s properly added to the project.
+
+### Issue: Toolbox not opening or showing and error
+This is often caused by issues in the Python environment. Try installing the environment again and ensure the versions of packages are compatible with each other and your ArcGIS Pro version.
 
 ### Logs and Support
 For error messages or unexpected behavior, check the ArcGIS Pro **Geoprocessing > History** pane for details.
-
----
-
-## History:
-16.10.2020 5.03-1 merging fuzzy membership files into fuzzy overlay files rewritten<br> 
-7.10.2020 5.03 fixes to calculateweights, calculateresponse, logisticregression and grandwofe<br>
-14.8.2020 5.02.1 logisticregression works now on Pro 2.6 with file system workspace<br> 
-13.8.2020 5.02 arto-dev branch merged to master branch.<br> 
-23.7.2020 ArcSDM version 5.01.08 in the arto-dev branch.<br>
-2.6.2020 arto-dev branch added. There are updated tool versions for testing.<br>
-3.4.2020 New link to demodata and documentation how to run on Arcgis pro 2.5+<br>
-26.4.2018 5.01.01 Merged code by Tachyon-work to master-branch.<br>
-6.10.2017 5.00.22 GrandWofe and various fixes<br>
-2.10.2017 Updating wiki and this page, cleaning up. <br>
-4.9.2017 5.00.22 Updates, fixes and new demodata<br>
-17.5.2017 5.00.15 Updates and fixes <br>
-5.5.2017 5.00.14 Calculate weights error with nodata fixed <br>
-4.5.2017 5.00.13 Multiple fixes for minor UI errors <br>
-10.4.2017 5.00.11 Quickfix<br>
-24.2.2017 5.00.10 First release of experimental SOM toolbox.<br>
-28.3.2017 Update to demodata path<br>
-17.2.2017 5.00.07 Fixes <br>
-2.2.2017 5.00.03 First draft version of Rescale raster -tool added<br>
-29.12.2016 Area Frequency Table -tool added to toolbox and tmp toolbox removed<br>
-14.12.2016 Separation of demodata and toolbox started.<br>
-1.11.2016 Roc-tool included <br>
-1.11.2016 Calculate response and Logistic regression feature complete and ready for testing, not clean<br>
-27.9.2016 Calculate response update <br>
-20.9.2016 Testing started against Arcgis desktop 10.4.1 <br>
-7.9.2016 Calculate response (WIP) + New demo data <br>
-2.9.2016 Logistic regression (wip) Area frequency tool (wip)<br>
-26.8.2016 Some new tools - Calculate weights done, needs work.<br>
-8.8.2016  ArcGis desktop mxd, python toolbox - development branches <br>
-26.5.2016 AddBearings, calculatebends and logistic regression tools. Demodatafixes updates<br>
-28.4.2016 Logistic Regression tool (needs lots of work)<br>
-18.4.2016 WofE manual steps compile<br>
-13.4.2016 Demodata for tests added (from original files)<br>
-1.4.2016 Repository created <br>
