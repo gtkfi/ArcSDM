@@ -1406,7 +1406,7 @@ class TrainMLPClassifierTool(object):
             parameterType="Required",
             direction="Input")
         param_activation.filter.type = "ValueList"
-        param_activation.filter.list = ["relu", "linear", "sigmoid", "tanh"]
+        param_activation.filter.list = ["relu", "sigmoid", "tanh"]
         param_activation.value = "relu"
 
         param_output_neurons = arcpy.Parameter(
@@ -1424,7 +1424,7 @@ class TrainMLPClassifierTool(object):
             parameterType="Required",
             direction="Input")
         param_last_activation.filter.type = "ValueList"
-        param_last_activation.filter.list = ["sigmoid", "softmax"]
+        param_last_activation.filter.list = ["sigmoid"]
         param_last_activation.value = "sigmoid"
 
         param_epochs = arcpy.Parameter(
@@ -1450,7 +1450,7 @@ class TrainMLPClassifierTool(object):
             parameterType="Required",
             direction="Input")
         param_optimizer.filter.type = "ValueList"
-        param_optimizer.filter.list = ["adam", "adagrad", "rmsprop", "sdg"]
+        param_optimizer.filter.list = ["adam", "adagrad", "rmsprop", "sgd"]
         param_optimizer.value = "adam"
 
         param_learning_rate = arcpy.Parameter(
@@ -1585,6 +1585,7 @@ class TrainMLPRegressorTool(object):
             name="y",
             datatype=["GPRasterLayer", "GPFeatureLayer"],
             parameterType="Required",
+            multiValue=True,
             direction="Input")
         
         param_y_attribute = arcpy.Parameter(
@@ -1640,25 +1641,17 @@ class TrainMLPRegressorTool(object):
             parameterType="Required",
             direction="Input")
         param_activation.filter.type = "ValueList"
-        param_activation.filter.list = ["relu", "linear", "sigmoid", "tanh"]
+        param_activation.filter.list = ["relu", "sigmoid", "tanh"]
         param_activation.value = "relu"
-
-        param_output_neurons = arcpy.Parameter(
-            displayName="Output Neurons",
-            name="output_neurons",
-            datatype="GPLong",
-            parameterType="Required",
-            direction="Input")
-        param_output_neurons.value = 1
 
         param_last_activation = arcpy.Parameter(
             displayName="Last Layer Activation Function",
             name="last_activation",
             datatype="GPString",
-            parameterType="Required",
+            parameterType="Optional",
             direction="Input")
         param_last_activation.filter.type = "ValueList"
-        param_last_activation.filter.list = ["sigmoid", "softmax"]
+        param_last_activation.filter.list = ["sigmoid", "linear"]
         param_last_activation.value = "sigmoid"
 
         param_epochs = arcpy.Parameter(
@@ -1684,7 +1677,7 @@ class TrainMLPRegressorTool(object):
             parameterType="Required",
             direction="Input")
         param_optimizer.filter.type = "ValueList"
-        param_optimizer.filter.list = ["adam", "adagrad", "rmsprop", "sdg"]
+        param_optimizer.filter.list = ["adam", "adagrad", "rmsprop", "sgd"]
         param_optimizer.value = "adam"
 
         param_learning_rate = arcpy.Parameter(
@@ -1762,7 +1755,6 @@ class TrainMLPRegressorTool(object):
                   param_validation_split,
                   param_validation_data,
                   param_activation,
-                  param_output_neurons,
                   param_last_activation,
                   param_epochs,
                   param_batch_size,
