@@ -27,7 +27,7 @@ from arcsdm.floatingrasterarray import FloatRasterSearchcursor
 from arcsdm.wofe_common import get_area_size_sq_km
 
 
-def create_missing_data_variance_raster(gp, masked_weights_rasters, masked_post_probability_raster, output_raster_name):
+def create_missing_data_variance_raster(masked_weights_rasters, masked_post_probability_raster, output_raster_name):
     """
     Calculate a raster of the variance of the posterior probability due to missing predictor patterns.
 
@@ -70,24 +70,24 @@ def create_missing_data_variance_raster(gp, masked_weights_rasters, masked_post_
             if arcpy.Exists(pprb_where_pattern_is_missing_data):
                 arcpy.management.Delete(pprb_where_pattern_is_missing_data)
 
-            pprb_expression = "CON(%s == 0.0,%s,0.0)" % (Wts_Raster, masked_post_probability_raster)
-            arcpy.AddMessage(f"R1={pprb_expression}")
-            gp.SingleOutputMapAlgebra_sa(pprb_expression, pprb_where_pattern_is_missing_data)
+            raster = arcpy.sa.Con(arcpy.sa.Raster(Wts_Raster) == 0.0, arcpy.sa.Raster(masked_post_probability_raster), 0.0)
+            raster.save(pprb_where_pattern_is_missing_data)
 
             # Get PostODDs raster of MD cells
             post_odds_raster_r2 = os.path.join(arcpy.env.scratchWorkspace, "R2")
             if arcpy.Exists(post_odds_raster_r2):
                 arcpy.management.Delete(post_odds_raster_r2)
 
-            post_odds_expression = "%s / (1.0 - %s)" % (pprb_where_pattern_is_missing_data, pprb_where_pattern_is_missing_data)
-            arcpy.AddMessage(f"R2={post_odds_expression}")
-            gp.SingleOutputMapAlgebra_sa(post_odds_expression, post_odds_raster_r2)
-            arcpy.AddMessage(f"R2 exists: {arcpy.Exists(post_odds_raster_r2)}")
-            
+            arcpy.AddMessage(f"R2 exists: {arcpy.Exists(post_odds_raster_r2)}")            
+            pprob = arcpy.sa.Raster(pprb_where_pattern_is_missing_data)
+            post_odds_expression = arcpy.sa.Con(pprob == 1.0, 0, pprob / (1.0 - pprob))
+
+            post_odds_expression.save(post_odds_raster_r2)
+
             # Get Total Variance of MD cells
             # Create total class variances list
 
-            # Calculate the variance raster of each class (W+ & W-)
+            # Calculate the variance raster of each class (W+ & W   -)
             class_md_variances_for_pattern = []
 
             # FloatRasterSearchcursor will contain the frequencies of each unique value of the raster
@@ -99,20 +99,19 @@ def create_missing_data_variance_raster(gp, masked_weights_rasters, masked_post_
                 # NOTE: Assumes that previously, if weights could not be calculated for a class, its weights have been replaced with 0.0
                 if weight.value == 0.0:
                     continue
-                temp_variance_raster = str(os.path.join(arcpy.env.scratchWorkspace, "ClsVar%s%s" % (i, j)))
+                
+                temp_variance_raster = os.path.join(arcpy.env.scratchWorkspace, f"ClsVar{i}{j}")
                 j += 1
                 if arcpy.Exists(temp_variance_raster):
                     arcpy.management.Delete(temp_variance_raster)
                 
                 # Calculate posterior odds as if missing data in the pattern was known - compensate with weight value for the class
-                Exp1 = 'CON(%s == 0.0,0.0,EXP(LN(%s) + %s))' % (post_odds_raster_r2, post_odds_raster_r2, weight.value)
-                # Updated posterior probability
-                Exp2 = "%s / (1 + %s)" % (Exp1, Exp1)
-                # NOTE: Assumes meters as the map unit
+                Exp1 = arcpy.sa.Con(arcpy.sa.Raster(post_odds_raster_r2) == 0.0, 0.0, arcpy.sa.Exp(arcpy.sa.Ln(arcpy.sa.Raster(post_odds_raster_r2)) + weight.value))
+                Exp2 = Exp1 / (1 + Exp1)
                 class_area_sq_km = float(weight.Count) * cell_size_sq_m * 0.000001
-                Exp3 = "SQR(%s - %s) * (%s / %s)" % (Exp2, pprb_where_pattern_is_missing_data, class_area_sq_km, pattern_area_sq_km)
-                gp.SingleOutputMapAlgebra_sa(Exp3, temp_variance_raster)
-                class_md_variances_for_pattern.append(str(temp_variance_raster)) # Save the class variance raster
+                raster = arcpy.sa.Square(Exp2 - arcpy.sa.Raster(pprb_where_pattern_is_missing_data)) * (class_area_sq_km / pattern_area_sq_km)
+                raster.save(temp_variance_raster)
+                class_md_variances_for_pattern.append(str(temp_variance_raster))
 
             del pattern_weights
 
@@ -120,10 +119,10 @@ def create_missing_data_variance_raster(gp, masked_weights_rasters, masked_post_
             temp_total_pattern_MD_variance = os.path.join(arcpy.env.scratchWorkspace, "TotClsVar%s" % i)
             i += 1
             if arcpy.Exists(temp_total_pattern_MD_variance):
-                arcpy.Delete(temp_total_pattern_MD_variance)
+                arcpy.management.Delete(temp_total_pattern_MD_variance)
             
-            post_odds_expression = "SUM%s" % str(tuple(class_md_variances_for_pattern))
-            gp.SingleOutputMapAlgebra_sa(post_odds_expression, temp_total_pattern_MD_variance)
+            post_odds_expression = arcpy.sa.CellStatistics(class_md_variances_for_pattern, "SUM")
+            post_odds_expression.save(temp_total_pattern_MD_variance)
             md_variance_for_all_patterns.append(str(temp_total_pattern_MD_variance))
 
             for tmp_raster in class_md_variances_for_pattern:
@@ -133,8 +132,8 @@ def create_missing_data_variance_raster(gp, masked_weights_rasters, masked_post_
         else:
             if len(masked_weights_rasters) > 0:
                 TotVarMD = output_raster_name
-                post_odds_expression = "SUM%s" % str(tuple(md_variance_for_all_patterns))
-                gp.SingleOutputMapAlgebra_sa(post_odds_expression, TotVarMD)
+                post_odds_expression = arcpy.sa.CellStatistics(md_variance_for_all_patterns, "SUM")
+                post_odds_expression.save(TotVarMD)
 
         arcpy.management.Delete(arcpy.Describe(pprb_where_pattern_is_missing_data).catalogPath)
         arcpy.management.Delete(arcpy.Describe(post_odds_raster_r2).catalogPath)

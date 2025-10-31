@@ -29,7 +29,12 @@ import os
 import sys
 import traceback
 
-from arcsdm.common import log_arcsdm_details
+from arcsdm.common import (
+    log_arcsdm_details,
+    reset_workspace,
+    set_temporary_fgdb_workspace
+)
+from arcsdm.missingdatavar_func import create_missing_data_variance_raster
 from arcsdm.wofe_common import (
     apply_mask_to_raster,
     check_wofe_inputs,
@@ -144,7 +149,13 @@ def Execute(self, parameters, messages):
             if ("weight" not in fields) or ("w_std" not in fields):
                 raise WofeInputError(f"The weights table {weights_table} has not been generalized! Make sure each table has the columns 'WEIGHT' and 'W_STD'.")
 
-        evidence_cellsize = arcpy.Describe(input_rasters[0]).MeanCellWidth
+        workspace_type = arcpy.Describe(arcpy.env.workspace).workspaceType
+
+        temp_scratch_gdb_path, original_scratch_workspace = set_temporary_fgdb_workspace("wofe_scratch.gdb")
+        
+        temp_workspace_path = None
+        if workspace_type == "FileSystem":
+            temp_workspace_path, original_current_workspace = set_temporary_fgdb_workspace("wofe_workspace.gdb", is_scratch_workspace=False)
 
         log_arcsdm_details()
         total_area_sq_km_from_mask, training_point_count = get_study_area_parameters(unit_cell_area_sq_km, training_points_feature)
@@ -175,11 +186,15 @@ def Execute(self, parameters, messages):
             if workspace_type == "FileSystem":
                 if not weights_table.endswith(".dbf"):
                     weights_table += ".dbf"
+                weights_table_name = os.path.splitext(os.path.basename(weights_table))[0]
+                weight_field = f"{weights_table_name}.WEIGHT"
+                w_std_field = f"{weights_table_name}.W_STD"
             else:
                 wtsbase = os.path.basename(weights_table)
                 while len(wtsbase) > 0 and (wtsbase[:1] <= "9" or wtsbase[:1] == "_"):
                     wtsbase = wtsbase[1:]
-                weights_table = os.path.dirname(weights_table) + "\\" + wtsbase
+                weight_field = "WEIGHT"
+                w_std_field = "W_STD"
             
             # TODO: check if shortening the name is necessary
             # TODO: make sure these result in unique names if evidence rasters have similar names
@@ -212,11 +227,9 @@ def Execute(self, parameters, messages):
             output_tmp_w_raster = arcpy.CreateScratchName(w_raster_name, "", "RasterDataset", arcpy.env.scratchWorkspace)
             output_tmp_std_raster = arcpy.CreateScratchName(std_raster_name, "", "RasterDataset", arcpy.env.scratchWorkspace)
 
-            arcpy.management.CopyRaster(tmp_raster_layer, output_tmp_w_raster, "#", "#", nodata_value)
-            arcpy.management.CopyRaster(tmp_raster_layer, output_tmp_std_raster, "#", "#", nodata_value)
 
-            weight_lookup = arcpy.sa.Lookup(output_tmp_w_raster, "WEIGHT")
-            std_lookup = arcpy.sa.Lookup(output_tmp_std_raster, "W_STD")
+            weight_lookup = arcpy.sa.Lookup(tmp_raster_layer, weight_field)
+            std_lookup = arcpy.sa.Lookup(tmp_raster_layer, w_std_field)
 
             weight_lookup.save(output_tmp_w_raster)
             std_lookup.save(output_tmp_std_raster)
@@ -251,7 +264,6 @@ def Execute(self, parameters, messages):
         arcpy.AddMessage("Posterior logit expression: " + posterior_logit_expression)
 
         posterior_probability_expression = "Float(Exp(%s) / (1.0 + Exp(%s)))" % (posterior_logit_expression, posterior_logit_expression)
-        arcpy.AddMessage(f"Posterior probability expression: {posterior_probability_expression}")
 
         # NOTE: Conflicting info about the use of RasterCalculator in Esri's documentation
         # According to a how-to article on raster calculation, RasterCalculator isn't intended for use in scripting environments.
@@ -269,16 +281,15 @@ def Execute(self, parameters, messages):
         arcpy.AddMessage("\nCreating Post Probability STD Raster...\n" + "=" * 41)
         
         if len(tmp_std_rasters) == 1:
-            # TODO: Just save the Std raster as is
-            pass
+            tmp_std_rasters[0].save(output_std_raster)
         else:
             std_input_rasters = [arcpy.Describe(output_pprb_raster).catalogPath] + [arcpy.Describe(s).catalogPath for s in tmp_std_rasters]
 
             std_variable_names = [f'"e{i}"' for i in range(len(tmp_std_rasters))]
             variable_names = ['"pprob"'] + std_variable_names
-            std_sum_expression = " + ".join(f'SQR({i})' for i in std_variable_names)
+            std_sum_expression = " + ".join(f'Square({i})' for i in std_variable_names)
             constant = 1.0 / training_point_count
-            std_expression = 'SQRT(SQR("pprob") * (%s + SUM(%s)))' % (constant, std_sum_expression)
+            std_expression = f'SquareRoot(Square("pprob") * ({constant:.15g} + ({std_sum_expression})))'
             
             arcpy.AddMessage(f"Posterior probability STD expression: {std_expression}")
             arcpy.AddMessage(f"Input rasters: {std_input_rasters}")
@@ -291,13 +302,80 @@ def Execute(self, parameters, messages):
             std_result = arcpy.sa.RasterCalculator(std_input_rasters, variable_names, std_expression, extent_type="UnionOf", cellsize_type="MinOf")
             std_result.save(output_std_raster)
 
+        if not is_ignore_missing_data_selected:
+            if len(tmp_rasters_with_missing_data) > 0:
+                arcpy.AddMessage("Calculating Missing Data Variance...")
+                try:
+                    if arcpy.Exists(output_mdvar_raster):
+                        arcpy.management.Delete(output_mdvar_raster)
+
+                    arcpy.AddMessage(f"{output_mdvar_raster} will be created.")
+                    arcpy.AddMessage(f"Rasters with missing data:{len(tmp_rasters_with_missing_data)} {tmp_rasters_with_missing_data}")
+
+                    create_missing_data_variance_raster(tmp_rasters_with_missing_data, output_pprb_raster, output_mdvar_raster)
+
+                    # Mask NoData in both input rasters before combining
+                    mask = arcpy.sa.IsNull(output_std_raster) | arcpy.sa.IsNull(output_mdvar_raster)
+                    std_masked = arcpy.sa.SetNull(mask, output_std_raster)
+                    mdvar_masked = arcpy.sa.SetNull(mask, output_mdvar_raster)
+                    InExpression = arcpy.sa.SquareRoot(arcpy.sa.Square(std_masked) + mdvar_masked)
+
+                    arcpy.AddMessage("Calculating Total STD...")
+                    arcpy.AddMessage(f"InExpression: {InExpression}")
+                    InExpression.save(output_total_std_raster)
+
+                    arcpy.SetParameterAsText(9, output_total_std_raster)
+                except:
+                    arcpy.AddError(arcpy.GetMessages(2))
+                    raise
+            else:
+                arcpy.AddWarning("No evidence with missing data. Missing Data Variance not calculated.")
+                output_mdvar_raster = None
+                output_total_std_raster = output_std_raster
+        else:
+            arcpy.AddWarning("Missing Data Ignored. Missing Data Variance not calculated.")
+            output_mdvar_raster = None
+            output_total_std_raster = output_std_raster
+        
+        try: 
+            confidence_raster = arcpy.sa.Raster(output_pprb_raster) / arcpy.sa.Raster(output_std_raster)
+            confidence_raster.save(output_confidence_raster)
+        except:
+            arcpy.AddError(arcpy.GetMessages(2))
+            raise
+        else:
+            arcpy.AddWarning(arcpy.GetMessages(1))
+            arcpy.AddMessage(arcpy.GetMessages(0))
+
+        arcpy.SetParameterAsText(6, output_pprb_raster)
+        arcpy.SetParameterAsText(7, output_std_raster)
+
+        if output_mdvar_raster and (not is_ignore_missing_data_selected):
+            arcpy.SetParameterAsText(8, output_mdvar_raster)
+        else:
+            arcpy.AddWarning("No Missing Data Variance.")
+
+        if not (output_total_std_raster == output_std_raster):
+            arcpy.SetParameterAsText(9, output_total_std_raster)
+        else:
+            arcpy.AddWarning("Total STD same as Post Probability STD.")
+
+        arcpy.SetParameterAsText(10, output_confidence_raster)
+
         arcpy.AddMessage("Deleting tmp rasters...")
         for raster in tmp_weights_rasters:
             arcpy.management.Delete(raster)
         
         for raster in tmp_std_rasters:
             arcpy.management.Delete(raster)
-        
+
+        if temp_workspace_path is not None:
+            reset_workspace(temp_workspace_path, original_current_workspace, is_scratch_workspace=False)
+
+        reset_workspace(temp_scratch_gdb_path, original_scratch_workspace)
+
+        arcpy.AddMessage("Done\n" + "=" * 41)
+
     except arcpy.ExecuteError:
         arcpy.AddError(arcpy.GetMessages(2))
     except Exception:
