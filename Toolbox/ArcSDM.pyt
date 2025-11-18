@@ -932,7 +932,13 @@ class CosineSimilarityIndex(object):
             parameters[10].enabled = False
             parameters[6].enabled = False
             parameters[9].enabled = False
-            
+
+        p7 = parameters[7]  # out_centroid_matrix
+        p8 = parameters[8]  # out_evidence_table
+        if p7.value and not str(p7.value).lower().endswith(".csv"):
+            p7.value = str(p7.value) + ".csv"
+        if p8.value and not str(p8.value).lower().endswith(".csv"):
+            p8.value = str(p8.value) + ".csv"
 
     def execute(self, parameters, messages):
         execute_tool(arcsdm.cosine_similarity_index.execute, self, parameters, messages)
