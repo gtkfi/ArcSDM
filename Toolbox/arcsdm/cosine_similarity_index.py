@@ -208,56 +208,35 @@ def calculate_corner_csi(
     Calculate CSI between corner vectors A and B.
     Returns only upper diagonal of the matrix.
     """
+    # Focus only on labeled points
     F = _sanitize_features(labeled_df, feature_fields, csv_nodata)
     n = len(F)
     
     arcpy.AddMessage(f"Calculating corner CSI for {n} labeled points with vectors A and B")
     
     # Initialize results matrix (upper triangular only)
-    corner_csi = np.full((n, n), csv_nodata, dtype=np.float64)
+    corner_csi = np.full((n, n), None, dtype=float)
     
     # Convert to numpy for faster computation
-    features_array = F.to_numpy(dtype=np.float64)
-    
-    # Pre-compute valid masks to avoid repeated checks
-    valid_masks = []
-    for i in range(n):
-        mask = ~(np.isnan(features_array[i]) | (features_array[i] == csv_nodata))
-        valid_masks.append(mask)
-        if not np.any(mask):
-            arcpy.AddWarning(f"Point {i+1} has no valid features")
+    features_array = F.to_numpy(dtype=float)
     
     # Calculate only upper triangular matrix
-    total_comparisons = (n * (n + 1)) // 2
-    completed = 0
-    
     for i in range(n):
-        # Diagonal is always 1.0
-        corner_csi[i, i] = 1.0
-        completed += 1
-        
-        # Skip if point i has no valid features
-        if not np.any(valid_masks[i]):
-            continue
-        
-        for j in range(i + 1, n):  # Only upper diagonal (i < j)
-            # Skip if point j has no valid features
-            if not np.any(valid_masks[j]):
-                continue
-            
-            # Calculate CSI
-            csi_value = cosine_similarity(
-                features_array[i], 
-                features_array[j], 
-                csv_nodata
-            )
-            corner_csi[i, j] = float(csi_value)
-            completed += 1
-        
+        for j in range(i, n):  # Only upper diagonal (i <= j)
+            if i == j:
+                corner_csi[i, j] = 1.0  # Self-similarity
+            else:
+                # Calculate CSI between vector A (row i) and vector B (row j)
+                vector_a = features_array[i]
+                vector_b = features_array[j]
+                
+                # Calculate cosine similarity
+                csi_value = cosine_similarity(vector_a, vector_b, csv_nodata)
+                corner_csi[i, j] = csi_value
+                
         # Progress reporting
         if (i + 1) % 50 == 0 or i == n - 1:
-            pct = (completed / total_comparisons) * 100
-            arcpy.AddMessage(f"  Processed {completed}/{total_comparisons} comparisons ({pct:.1f}%)")
+            arcpy.AddMessage(f"  Processed corner {i + 1}/{n}")
     
     return corner_csi
 
@@ -750,14 +729,12 @@ def save_csv_results(
             if individual_results:
                 individual_df = pd.DataFrame(individual_results)
                 individual_df.index = [f"Point_{i+1}" for i in range(len(individual_df))]
-                individual_csv = out_evidence_table_csv.replace('.csv', '_individual.csv')
-                individual_df.to_csv(individual_csv)
-                arcpy.AddMessage(f"Saved individual evidence results: {individual_csv}")
-        
+                individual_df.to_csv(out_evidence_table_csv)
+                arcpy.AddMessage(f"Saved individual evidence results: {out_evidence_table_csv}")
+
         # Save class centroids
         if len(centroids_df) > 0 and out_centroids_csv:
             centroids_df.to_csv(out_centroids_csv, index=False)
-            arcpy.AddMessage(f"Saved class centroids: {out_centroids_csv}")
             
             # Save centroid-to-centroid CSI matrix if available
             if centroid_csi_matrix is not None and len(centroid_csi_matrix) > 0:
@@ -766,7 +743,6 @@ def save_csv_results(
                 centroid_csi_df.index = [f"Class_{c}" for c in class_labels]
                 centroid_csi_df.columns = [f"Class_{c}" for c in class_labels]
                 
-                centroid_csi_csv = out_centroids_csv.replace('.csv', '_csi.csv')
                 centroid_csi_df.to_csv(centroid_csi_csv)
                 arcpy.AddMessage(f"Saved centroid-to-centroid CSI matrix: {centroid_csi_csv}")
             
