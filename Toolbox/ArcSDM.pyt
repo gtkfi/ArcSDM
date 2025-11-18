@@ -66,7 +66,7 @@ class Toolbox(object):
             MLPRegressorTestTool,
             MLPClassifierTestTool,
             RegressorPredictTool,
-            ClassifierPredictTool
+            ClassifierPredictTool,
             CosineSimilarityIndex,
         ]
 
