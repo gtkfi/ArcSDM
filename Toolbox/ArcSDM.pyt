@@ -1565,7 +1565,7 @@ class TrainMLPClassifierTool(object):
             parameterType="Required",
             direction="Input")
         param_activation.filter.type = "ValueList"
-        param_activation.filter.list = ["relu", "linear", "sigmoid", "tanh"]
+        param_activation.filter.list = ["relu", "sigmoid", "tanh"]
         param_activation.value = "relu"
 
         param_output_neurons = arcpy.Parameter(
@@ -1583,7 +1583,7 @@ class TrainMLPClassifierTool(object):
             parameterType="Required",
             direction="Input")
         param_last_activation.filter.type = "ValueList"
-        param_last_activation.filter.list = ["sigmoid", "softmax"]
+        param_last_activation.filter.list = ["sigmoid"]
         param_last_activation.value = "sigmoid"
 
         param_epochs = arcpy.Parameter(
@@ -1609,7 +1609,7 @@ class TrainMLPClassifierTool(object):
             parameterType="Required",
             direction="Input")
         param_optimizer.filter.type = "ValueList"
-        param_optimizer.filter.list = ["adam", "adagrad", "rmsprop", "sdg"]
+        param_optimizer.filter.list = ["adam", "adagrad", "rmsprop", "sgd"]
         param_optimizer.value = "adam"
 
         param_learning_rate = arcpy.Parameter(
@@ -1744,6 +1744,7 @@ class TrainMLPRegressorTool(object):
             name="y",
             datatype=["GPRasterLayer", "GPFeatureLayer"],
             parameterType="Required",
+            multiValue=True,
             direction="Input")
         
         param_y_attribute = arcpy.Parameter(
@@ -1799,25 +1800,17 @@ class TrainMLPRegressorTool(object):
             parameterType="Required",
             direction="Input")
         param_activation.filter.type = "ValueList"
-        param_activation.filter.list = ["relu", "linear", "sigmoid", "tanh"]
+        param_activation.filter.list = ["relu", "sigmoid", "tanh"]
         param_activation.value = "relu"
-
-        param_output_neurons = arcpy.Parameter(
-            displayName="Output Neurons",
-            name="output_neurons",
-            datatype="GPLong",
-            parameterType="Required",
-            direction="Input")
-        param_output_neurons.value = 1
 
         param_last_activation = arcpy.Parameter(
             displayName="Last Layer Activation Function",
             name="last_activation",
             datatype="GPString",
-            parameterType="Required",
+            parameterType="Optional",
             direction="Input")
         param_last_activation.filter.type = "ValueList"
-        param_last_activation.filter.list = ["sigmoid", "softmax"]
+        param_last_activation.filter.list = ["sigmoid", "linear"]
         param_last_activation.value = "sigmoid"
 
         param_epochs = arcpy.Parameter(
@@ -1843,7 +1836,7 @@ class TrainMLPRegressorTool(object):
             parameterType="Required",
             direction="Input")
         param_optimizer.filter.type = "ValueList"
-        param_optimizer.filter.list = ["adam", "adagrad", "rmsprop", "sdg"]
+        param_optimizer.filter.list = ["adam", "adagrad", "rmsprop", "sgd"]
         param_optimizer.value = "adam"
 
         param_learning_rate = arcpy.Parameter(
@@ -1921,7 +1914,6 @@ class TrainMLPRegressorTool(object):
                   param_validation_split,
                   param_validation_data,
                   param_activation,
-                  param_output_neurons,
                   param_last_activation,
                   param_epochs,
                   param_batch_size,
@@ -2014,7 +2006,7 @@ class PCARaster(object):
             parameterType="Required",
             direction="Output"
         )
-        param_transformed_data.value = 'transformed_raster'
+        param_transformed_data.value = 'PCA_scores_raster'
 
         params = [param_input_rasters,
                 #   param_nodata_value,
@@ -2038,6 +2030,9 @@ class PCARaster(object):
         """Modify the values and properties of parameters before internal
         validation is performed. This method is called whenever a parameter
         has been changed."""
+        if not parameters[4].altered:
+            parameters[4].value = "PCA_scores_raster"
+
         return
 
     def updateMessages(self, parameters):
@@ -2125,7 +2120,7 @@ class PCAVector(object):
             parameterType="Required",
             direction="Output"
         )
-        param_transformed_data.value = 'transformed_raster'
+        param_transformed_data.value = 'PCA_scores_vector'
 
         params = [param_input_vectors,
                   param_input_fields,
@@ -2150,6 +2145,9 @@ class PCAVector(object):
         """Modify the values and properties of parameters before internal
         validation is performed. This method is called whenever a parameter
         has been changed."""
+        if not parameters[6].altered:
+            parameters[6].value = "PCA_scores_vector"
+        
         return
 
     def updateMessages(self, parameters):
@@ -2158,7 +2156,6 @@ class PCAVector(object):
 
         if parameters[1].value and parameters[1].value.rowCount < 2:
             parameters[1].setErrorMessage("Select Fields requires at least two fields.")
-        
         return
 
     def execute(self, parameters, messages):

@@ -18,7 +18,7 @@ def Calculate(self, parameters, messages):
         arcpy.MakeRasterLayer_management(result_raster, fm_categorical)
         arcpy.SetParameterAsText(3, fm_categorical)
         rasterLayerName = os.path.split(fm_categorical)[1]
-        addToDisplay(result_raster, rasterLayerName, "BOTTOM")
+        result_raster.save(rasterLayerName)
     except:
         tb = sys.exc_info()[2]
         errors = traceback.format_exc()
