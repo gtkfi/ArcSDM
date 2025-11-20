@@ -17,3 +17,5 @@ data/*
 Toolbox/arcsdm/DEBUG
 
 arcsdm-py3-env
+
+__pycache__/
