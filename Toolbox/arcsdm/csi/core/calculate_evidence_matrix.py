@@ -12,9 +12,11 @@ from arcsdm.csi.helpers.extract_raster_values import extract_raster_values
 
 
 def calculate_evidence_matrix(
+    points_df: pd.DataFrame,
     labeled_df: pd.DataFrame,
     feature_fields: List[str],
     rasters_list: List[str],
+    coords: List[str],
     has_geometry: bool,
     csv_nodata: float
 ) -> Dict[str, np.ndarray]:
@@ -43,7 +45,7 @@ def calculate_evidence_matrix(
         arcpy.AddMessage(f"Processing raster {raster_idx + 1}/{n_rasters}: {os.path.basename(raster_path)}")
 
         # Extract raster values at labeled point locations
-        raster_values = extract_raster_values(raster_path, labeled_df, has_geometry)
+        raster_values = extract_raster_values(raster_path, points_df, coords, has_geometry)
 
         # Calculate CSI between each labeled point and raster values
         for point_idx in range(n_points):

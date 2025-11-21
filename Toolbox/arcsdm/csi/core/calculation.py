@@ -8,7 +8,6 @@ from arcsdm.csi.analysis.class_centroids import calculate_class_centroids
 from arcsdm.csi.analysis.pixel_to_label_csi import pixel_to_label_csi
 
 from arcsdm.csi.helpers.save_results import save_csv_results
-from arcsdm.csi.helpers.detect_xy_columns import detect_xy_columns
 from arcsdm.csi.helpers.rows_with_labels import rows_with_labels
 from arcsdm.csi.helpers.load_data import (load_labeled_data, load_raster_data)
 
@@ -16,19 +15,22 @@ def calculation(
     selected_label_field: Optional[str],
     labelled_path: str,
     label_field_names: List[str],
+    coordinate_field_names: List[str],
     feature_field_names: List[str],
     rasters_list: List[str],
     evidence_type: Optional[str],
     csv_nodata: float,
     out_labelled_pairwise_csv: str,
-    out_class_centroid: Optional[str],
-    out_evidence_table_csv: Optional[str],
+    out_evidence_matrix_csv: Optional[str],
+    out_individual_evidence_csv: Optional[str],
     out_raster_folder: Optional[str],
+    out_class_centroid: Optional[str] = None,
+    out_centroid_csi_csv: Optional[str] = None,
 ):
     """Perform CSI calculation workflow."""
     # Load labeled data
     all_df, feature_fields, has_geometry = load_labeled_data(
-        labelled_path, label_field_names, feature_field_names
+        labelled_path, label_field_names, feature_field_names, coordinate_field_names
     )
 
     if all_df is None:
@@ -39,7 +41,7 @@ def calculation(
     label_mask = rows_with_labels(all_df, label_field_names, csv_nodata)
     labeled_df = all_df.loc[label_mask].reset_index(drop=True)
 
-    # Optional: Further filter by selected label field
+    # Further filter by selected label field
     if selected_label_field and selected_label_field in labeled_df.columns:
         selected_mask = labeled_df[selected_label_field].notna()
         labeled_df = labeled_df.loc[selected_mask].reset_index(drop=True)
@@ -67,10 +69,10 @@ def calculation(
             centroids_df, feature_fields, csv_nodata
         )
 
+    coord_1, coord_2 = coordinate_field_names
     # PART 2: Pixel-to-Label CSI (if rasters provided and output folder specified)
     if evidence_type == "Raster" and rasters_list and out_raster_folder:
         # Filter out coordinate columns from feature fields
-        coord_1, coord_2 = detect_xy_columns(labeled_df)
         feature_fields_only = [f for f in feature_fields if f not in (coord_1, coord_2, 'SHAPE@XY')]
 
         success = pixel_to_label_csi(
@@ -82,20 +84,33 @@ def calculation(
 
     # Calculate evidence matrix for CSV output (if needed)
     evidence_results = {}
-    if evidence_type == "Raster" and rasters_list and out_evidence_table_csv:
+    if evidence_type == "Raster" and rasters_list and out_evidence_matrix_csv:
         arcpy.AddMessage("\nCalculating evidence matrix for CSV output...")
         raster_data = load_raster_data(rasters_list)
         if raster_data:
             evidence_results = calculate_evidence_matrix(
-                labeled_df, feature_fields, raster_data, has_geometry, csv_nodata
+                all_df,
+                labeled_df,
+                feature_fields,
+                raster_data,
+                coordinate_field_names,
+                has_geometry,
+                csv_nodata
             )
 
     # Save CSV results
     arcpy.AddMessage("\nSaving CSV results...")
 
     save_csv_results(
-        corner_matrix, evidence_results, centroids_df, centroid_csi_matrix,
-        out_labelled_pairwise_csv, out_evidence_table_csv, out_class_centroid
+        corner_matrix,
+        evidence_results,
+        centroids_df,
+        centroid_csi_matrix,
+        out_labelled_pairwise_csv,
+        out_evidence_matrix_csv,
+        out_individual_evidence_csv,
+        out_class_centroid,
+        out_centroid_csi_csv
     )
 
     arcpy.AddMessage(f"\nCSI Analysis completed successfully!")

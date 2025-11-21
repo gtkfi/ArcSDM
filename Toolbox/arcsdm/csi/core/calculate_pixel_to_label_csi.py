@@ -53,7 +53,6 @@ def calculate_pixel_to_label_csi(
     # Process only valid pixels
     arcpy.AddMessage("Calculating CSI for valid pixels...")
     for label_idx in range(n_labeled):
-        arcpy.AddMessage(f"  Processing labeled point {label_idx + 1}/{n_labeled}...")
 
         labeled_vector = labeled_features[label_idx]
         csi_values_1d = np.full(n_pixels, csv_nodata, dtype=np.float64)
