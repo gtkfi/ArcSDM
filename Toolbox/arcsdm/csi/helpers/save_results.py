@@ -10,51 +10,69 @@ def save_csv_results(
     evidence_results: Dict[str, np.ndarray],
     centroids_df: pd.DataFrame,
     centroid_csi_matrix: np.ndarray,
-    out_labelled_pairwise_csv: str,
-    out_evidence_table_csv: Optional[str],
-    out_centroids_csv: Optional[str] = None
+    out_labelled_pairwise_csv: Optional[str],
+    out_evidence_matrix_csv: Optional[str],
+    out_individual_evidence_csv: Optional[str],
+    out_centroids_csv: Optional[str],
+    out_centroid_csi_csv: Optional[str]
 ) -> None:
     """Save results to CSV files"""
     try:
-        # Save corner CSI matrix (upper triangular only)
-        corner_df = pd.DataFrame(corner_matrix)
-        corner_df.index = [f"Point_{i+1}" for i in range(len(corner_matrix))]
-        corner_df.columns = [f"Point_{i+1}" for i in range(len(corner_matrix))]
-        corner_df.to_csv(out_labelled_pairwise_csv)
-        arcpy.AddMessage(f"Saved corner CSI matrix: {out_labelled_pairwise_csv}")
+        # Save corner CSI matrix
+        if out_labelled_pairwise_csv and corner_matrix is not None and len(corner_matrix) > 0:
+            outdir = os.path.dirname(out_labelled_pairwise_csv)
+            if outdir:
+                os.makedirs(outdir, exist_ok=True)
+            corner_df = pd.DataFrame(corner_matrix)
+            corner_df.index = [f"Point_{i+1}" for i in range(len(corner_matrix))]
+            corner_df.columns = [f"Point_{i+1}" for i in range(len(corner_matrix))]
+            corner_df.to_csv(out_labelled_pairwise_csv)
+            arcpy.AddMessage(f"Saved corner CSI matrix: {out_labelled_pairwise_csv}")
 
-        # Save evidence matrix and individual results
-        if evidence_results and out_evidence_table_csv:
-            # Save the full evidence matrix if it exists
-            if 'evidence_matrix' in evidence_results:
-                evidence_matrix = evidence_results['evidence_matrix']
-                evidence_df = pd.DataFrame(evidence_matrix)
-                evidence_df.index = [f"Point_{i+1}" for i in range(len(evidence_df))]
-                evidence_df.columns = [f"Raster_{i+1}" for i in range(evidence_df.shape[1])]
-                evidence_df.to_csv(out_evidence_table_csv)
-                arcpy.AddMessage(f"Saved evidence matrix ({evidence_df.shape}): {out_evidence_table_csv}")
+        # Save evidence matrix
+        if out_evidence_matrix_csv and evidence_results and 'evidence_matrix' in evidence_results:
+            outdir = os.path.dirname(out_evidence_matrix_csv)
+            if outdir:
+                os.makedirs(outdir, exist_ok=True)
+            evidence_matrix = evidence_results['evidence_matrix']
+            evidence_df = pd.DataFrame(evidence_matrix)
+            evidence_df.index = [f"Point_{i+1}" for i in range(len(evidence_df))]
+            evidence_df.columns = [f"Raster_{i+1}" for i in range(evidence_df.shape[1])]
+            evidence_df.to_csv(out_evidence_matrix_csv)
+            arcpy.AddMessage(f"Saved evidence matrix ({evidence_df.shape}): {out_evidence_matrix_csv}")
 
-            # Save individual raster results
+        # Save individual evidence results
+        if out_individual_evidence_csv and evidence_results:
             individual_results = {k: v for k, v in evidence_results.items() if k != 'evidence_matrix'}
             if individual_results:
+                outdir = os.path.dirname(out_individual_evidence_csv)
+                if outdir:
+                    os.makedirs(outdir, exist_ok=True)
                 individual_df = pd.DataFrame(individual_results)
                 individual_df.index = [f"Point_{i+1}" for i in range(len(individual_df))]
-                individual_df.to_csv(out_evidence_table_csv)
-                arcpy.AddMessage(f"Saved individual evidence results: {out_evidence_table_csv}")
+                individual_df.to_csv(out_individual_evidence_csv)
+                arcpy.AddMessage(f"Saved individual evidence results: {out_individual_evidence_csv}")
 
         # Save class centroids
-        if len(centroids_df) > 0 and out_centroids_csv:
+        if out_centroids_csv and centroids_df is not None and len(centroids_df) > 0:
+            outdir = os.path.dirname(out_centroids_csv)
+            if outdir:
+                os.makedirs(outdir, exist_ok=True)
             centroids_df.to_csv(out_centroids_csv, index=False)
+            arcpy.AddMessage(f"Saved class centroids: {out_centroids_csv}")
 
-            # Save centroid-to-centroid CSI matrix if available
-            if centroid_csi_matrix is not None and len(centroid_csi_matrix) > 0:
-                centroid_csi_df = pd.DataFrame(centroid_csi_matrix)
+        # Save centroid CSI matrix
+        if out_centroid_csi_csv and centroid_csi_matrix is not None and len(centroid_csi_matrix) > 0:
+            outdir = os.path.dirname(out_centroid_csi_csv)
+            if outdir:
+                os.makedirs(outdir, exist_ok=True)
+            centroid_csi_df = pd.DataFrame(centroid_csi_matrix)
+            if 'class' in centroids_df.columns:
                 class_labels = centroids_df['class'].values
                 centroid_csi_df.index = [f"Class_{c}" for c in class_labels]
                 centroid_csi_df.columns = [f"Class_{c}" for c in class_labels]
-
-                centroid_csi_df.to_csv(out_centroids_csv)
-                arcpy.AddMessage(f"Saved centroid-to-centroid CSI matrix: {out_centroids_csv}")
+            centroid_csi_df.to_csv(out_centroid_csi_csv)
+            arcpy.AddMessage(f"Saved centroid-to-centroid CSI matrix: {out_centroid_csi_csv}")
 
     except Exception as e:
         arcpy.AddError(f"Error saving CSV results: {e}")

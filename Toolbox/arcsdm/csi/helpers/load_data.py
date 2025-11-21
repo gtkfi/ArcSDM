@@ -2,12 +2,12 @@ import arcpy
 import numpy as np
 import pandas as pd
 from typing import List, Optional, Tuple
-from arcsdm.csi.helpers.detect_xy_columns import detect_xy_columns
 
 def load_labeled_data(
     labelled_path: str,
     label_field_names: Optional[List[str]],
-    feature_field_names: Optional[List[str]]
+    feature_field_names: Optional[List[str]],
+    coordinate_field_names: Optional[List[str]] = None
 ) -> Tuple[Optional[pd.DataFrame], Optional[List[str]], bool]:
 
     """Load labeled data from feature class or table"""
@@ -35,24 +35,14 @@ def load_labeled_data(
         desc = arcpy.Describe(labelled_path)
         has_geometry = hasattr(desc, 'shapeType')
 
-        # For non-geometry tables, try to detect coordinate fields
-        if not has_geometry:
-            sample_fields = [f.name for f in arcpy.ListFields(labelled_path)]
-            temp_data = []
-            with arcpy.da.SearchCursor(labelled_path, sample_fields[:10]) as cursor:
-                for i, row in enumerate(cursor):
-                    if i >= 5:
-                        break
-                    temp_data.append(row)
-
-            if temp_data:
-                temp_df = pd.DataFrame(temp_data, columns=sample_fields[:10])
-                xcol, ycol = detect_xy_columns(temp_df)
-                if xcol and ycol and xcol not in fields:
-                    fields.append(xcol)
-                if xcol and ycol and ycol not in fields:
-                    fields.append(ycol)
+        # For non-geometry tables, use provided coordinate_field_names
+        if has_geometry is False:
+            if coordinate_field_names:
+                for col in coordinate_field_names:
+                    if col not in fields:
+                        fields.append(col)
         else:
+            arcpy.AddWarning(f"SHAPE FOUND - using geometry for coordinates")
             fields.append('SHAPE@XY')
 
         data = []
