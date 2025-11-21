@@ -802,7 +802,7 @@ class CosineSimilarityIndex(object):
 
         # --- Labelled data ---
         param_labelled_data_path = arcpy.Parameter(
-            displayName="Labelled data path (CSV/TXT or Feature Class)",
+            displayName="Labelled data",
             name="labelled_path",
             datatype= ["DEFile", "DEFeatureClass"],
             parameterType="Required",
@@ -810,12 +810,13 @@ class CosineSimilarityIndex(object):
         )
         
         param_csv_no_data_sentinel = arcpy.Parameter(
-            displayName="CSV/TXT NoData sentinel (numeric, optional)",
+            displayName="CSV/TXT NoData value (numeric, optional)",
             name="csv_nodata",
             datatype="GPDouble",
             parameterType="Optional",
             direction="Input",
         )
+        param_csv_no_data_sentinel.value = -9999
         
         param_label_field_names = arcpy.Parameter(
             displayName="Label field names",
@@ -865,7 +866,7 @@ class CosineSimilarityIndex(object):
         )
 
         param_output_labelled_pairwise_csi = arcpy.Parameter(
-            displayName="CSV: Pairwise CSI matrix for labelled **samples**",
+            displayName="CSV: Pairwise CSI matrix for labelled samples",
             name="out_labelled_pairwise",
             datatype="DEFile",
             parameterType="Required",
@@ -873,7 +874,7 @@ class CosineSimilarityIndex(object):
         )
 
         param_output_centroid_csi_matrix = arcpy.Parameter(
-            displayName="CSV: CSI matrix for **class centroids**",
+            displayName="CSV: CSI matrix for class centroids",
             name="out_centroid_matrix",
             datatype="DEFile",
             parameterType="Required",
@@ -889,7 +890,7 @@ class CosineSimilarityIndex(object):
         )
 
         param_output_raster_directory = arcpy.Parameter(
-            displayName="Folder: Output CSI rasters (one per class; when evidence is rasters)",
+            displayName="Folder to save output CSI rasters",
             name="out_raster_folder",
             datatype="DEFolder",
             parameterType="Optional",
