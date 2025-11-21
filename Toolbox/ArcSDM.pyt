@@ -828,8 +828,18 @@ class CosineSimilarityIndex(object):
         )
         param_label_field_names.parameterDependencies = [param_labelled_data_path.name]
 
+        param_coordinate_field_names = arcpy.Parameter(
+            displayName="Coordinate field names (X;Y)",
+            name="coordinate_field_names",
+            datatype="Field",
+            parameterType="Required",
+            direction="Input",
+            multiValue=True,
+        )
+        param_coordinate_field_names.parameterDependencies = [param_labelled_data_path.name]
+
         param_feature_field_names = arcpy.Parameter(
-            displayName="Field names (include coordinates)",
+            displayName="Field names",
             name="feature_field_names",
             datatype="Field",
             parameterType="Optional",
@@ -845,7 +855,7 @@ class CosineSimilarityIndex(object):
             parameterType="Required",
             direction="Input",
         )
-        param_evidence_source_type.filter.list = ["Raster"]
+        param_evidence_source_type.filter.list = ["Raster", "None"]
         param_evidence_source_type.value = "Raster"
 
         param_evidence_rasters = arcpy.Parameter(
@@ -901,6 +911,7 @@ class CosineSimilarityIndex(object):
             param_labelled_data_path,
             param_csv_no_data_sentinel,
             param_label_field_names,
+            param_coordinate_field_names,
             param_feature_field_names,
             param_evidence_source_type,
             param_evidence_rasters,
@@ -917,29 +928,40 @@ class CosineSimilarityIndex(object):
 
     def updateParameters(self, parameters):
         # Toggle visibility based on evidence type
-        ev_type = parameters[4].valueAsText
+        ev_type = parameters[5].valueAsText  # evidence source type
+        # Indices:
+        # 6: evidence rasters
+        # 7: evidence vectors
+        # 10: output evidence table
+        # 9: evidence CSI table
+        # 11: output raster directory
         if ev_type == "Raster":
-            parameters[5].enabled = True
-            parameters[10].enabled = True
-            parameters[6].enabled = False
-            parameters[9].enabled = False
+            parameters[6].enabled = True   # evidence rasters
+            parameters[10].enabled = False  # output evidence table
+            parameters[7].enabled = False  # evidence vectors
+            parameters[9].enabled = True  # evidence CSI table
+            parameters[11].enabled = True  # output raster directory
         elif ev_type == "Vector":
-            parameters[5].enabled = False
+            parameters[6].enabled = False
             parameters[10].enabled = False
-            parameters[6].enabled = True
+            parameters[7].enabled = True
             parameters[9].enabled = True
         elif ev_type == "None":
-            parameters[5].enabled = False
-            parameters[10].enabled = False
             parameters[6].enabled = False
-            parameters[9].enabled = False
+            parameters[10].enabled = False
+            parameters[7].enabled = False
+            parameters[9].enabled = True
+            parameters[11].enabled = False
 
-        p7 = parameters[7]  # out_centroid_matrix
-        p8 = parameters[8]  # out_evidence_table
-        if p7.value and not str(p7.value).lower().endswith(".csv"):
-            p7.value = str(p7.value) + ".csv"
+        p8 = parameters[8]  # out_labelled_pairwise_csi
+        p9 = parameters[9]  # out_centroid_matrix
+        p10 = parameters[10]  # out_evidence_table
         if p8.value and not str(p8.value).lower().endswith(".csv"):
             p8.value = str(p8.value) + ".csv"
+        if p9.value and not str(p9.value).lower().endswith(".csv"):
+            p9.value = str(p9.value) + ".csv"
+        if p10.value and not str(p10.value).lower().endswith(".csv"):
+            p10.value = str(p10.value) + ".csv"
 
     def execute(self, parameters, messages):
         execute_tool(arcsdm.cosine_similarity_index.execute, self, parameters, messages)
