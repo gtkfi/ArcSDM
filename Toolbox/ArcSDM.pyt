@@ -919,34 +919,25 @@ class CosineSimilarityIndex(object):
 
     def updateParameters(self, parameters):
         # Toggle visibility based on evidence type
-        ev_type = parameters[5].valueAsText  # evidence source type
-        # Indices:
-        # 6: evidence rasters
-        # 7: evidence vectors
-        # 10: output evidence table
-        # 9: evidence CSI table
-        # 11: output raster directory
+        ev_type = parameters[5].valueAsText
+        ev_rasters = parameters[6]
+        ev_vectors = parameters[7]
+        out_labelled_pairwise = parameters[8]
+        out_centroid_matrix = parameters[9]
+        out_raster_dir = parameters[11]
         if ev_type == "Raster":
-            parameters[6].enabled = True   # evidence rasters
-            parameters[7].enabled = False  # evidence vectors
-            parameters[11].enabled = True  # output raster directory
-        elif ev_type == "Vector":
-            parameters[6].enabled = False
-            parameters[7].enabled = True
+            ev_rasters.enabled = True
+            ev_vectors.enabled = False
+            out_raster_dir.enabled = True
         elif ev_type == "None":
-            parameters[6].enabled = False
-            parameters[7].enabled = False
-            parameters[11].enabled = False
+            ev_rasters.enabled = False
+            ev_vectors.enabled = False
+            out_raster_dir.enabled = False
 
-        p8 = parameters[8]  # out_labelled_pairwise_csi
-        p9 = parameters[9]  # out_centroid_matrix
-        p10 = parameters[10]  # out_evidence_table
-        if p8.value and not str(p8.value).lower().endswith(".csv"):
-            p8.value = str(p8.value) + ".csv"
-        if p9.value and not str(p9.value).lower().endswith(".csv"):
-            p9.value = str(p9.value) + ".csv"
-        if p10.value and not str(p10.value).lower().endswith(".csv"):
-            p10.value = str(p10.value) + ".csv"
+        if out_labelled_pairwise.value and not str(out_labelled_pairwise.value).lower().endswith(".csv"):
+            out_labelled_pairwise.value = str(out_labelled_pairwise.value) + ".csv"
+        if out_centroid_matrix.value and not str(out_centroid_matrix.value).lower().endswith(".csv"):
+            out_centroid_matrix.value = str(out_centroid_matrix.value) + ".csv"
 
     def execute(self, parameters, messages):
         execute_tool(arcsdm.cosine_similarity_index.execute, self, parameters, messages)
