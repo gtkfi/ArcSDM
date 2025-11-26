@@ -829,7 +829,7 @@ class CosineSimilarityIndex(object):
         param_label_field_names.parameterDependencies = [param_labelled_data_path.name]
 
         param_coordinate_field_names = arcpy.Parameter(
-            displayName="Coordinate field names (X;Y)",
+            displayName="Coordinate field names",
             name="coordinate_field_names",
             datatype="Field",
             parameterType="Required",
@@ -927,13 +927,22 @@ class CosineSimilarityIndex(object):
 
 
     def updateParameters(self, parameters):
+        # Toggle visibility based on labelled data type
+        labelled_data_path = parameters[0].valueAsText
+        coord_fields_param = parameters[3]
+        if labelled_data_path is None:
+            coord_fields_param.enabled = False
+        elif labelled_data_path.lower().endswith(".csv") or labelled_data_path.lower().endswith(".txt"):
+            coord_fields_param.enabled = True
+        else:
+            coord_fields_param.enabled = False
         # Toggle visibility based on evidence type
         ev_type = parameters[5].valueAsText
         ev_rasters = parameters[6]
         ev_vectors = parameters[7]
         out_labelled_pairwise = parameters[8]
         out_centroid_matrix = parameters[9]
-        out_raster_dir = parameters[11]
+        out_raster_dir = parameters[10]
         if ev_type == "Raster":
             ev_rasters.enabled = True
             ev_vectors.enabled = False
