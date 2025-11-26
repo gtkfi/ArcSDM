@@ -9,8 +9,7 @@ from arcsdm.csi.analysis.cosine_similarity import cosine_similarity
 def calculate_pixel_to_label_csi(
     pixel_vectors: np.ndarray,
     labeled_features: np.ndarray,
-    csv_nodata: float,
-    progress_step: int = 10000
+    csv_nodata: float
 ) -> List[np.ndarray]:
     """
     Calculate CSI between each pixel vector and each labeled point vector.
