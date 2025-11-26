@@ -1,3 +1,4 @@
+import os
 import arcpy
 import numpy as np
 from typing import List, Optional
@@ -38,7 +39,8 @@ def calculation(
         return
 
     # Filter to only labeled points
-    label_mask = rows_with_labels(all_df, label_field_names, csv_nodata)
+    apply_nodata = os.path.splitext(csv_nodata)[1] in [".csv", ".txt"]
+    label_mask = rows_with_labels(all_df, label_field_names, apply_nodata, csv_nodata)
     labeled_df = all_df.loc[label_mask].reset_index(drop=True)
 
     # Further filter by selected label field
