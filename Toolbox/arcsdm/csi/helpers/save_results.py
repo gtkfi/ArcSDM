@@ -77,6 +77,13 @@ def save_csi_rasters(
     Save CSI arrays as raster files - one per labeled point.
     Direct array to raster conversion.
     """
+    # Always create rasters in the output folder, warn if label columns are missing or invalid
+    if not out_raster_folder or not isinstance(out_raster_folder, str) or not out_raster_folder.strip():
+        arcpy.AddWarning("Output raster folder is not specified or invalid. Attempting to save anyway.")
+
+    if labeled_df.empty or len(label_field_names) == 0 or not all(col in labeled_df.columns for col in label_field_names):
+        arcpy.AddWarning("Label columns are missing or invalid. Raster filenames may be generic.")
+
     os.makedirs(out_raster_folder, exist_ok=True)
 
     n_labeled = len(csi_arrays)
@@ -90,7 +97,6 @@ def save_csi_rasters(
 
     for label_idx, csi_array in enumerate(csi_arrays):
         try:
-
             # Create label identifier
             label_id = f"label_{label_idx + 1}"
 

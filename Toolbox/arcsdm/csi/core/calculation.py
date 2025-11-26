@@ -28,6 +28,11 @@ def calculation(
     out_centroid_csi_csv: Optional[str] = None,
 ):
     """Perform CSI calculation workflow."""
+
+    if coordinate_field_names is None or len(coordinate_field_names) != 2:
+        arcpy.AddError("Please provide exactly two coordinate field names")
+        return
+
     # Load labeled data
     all_df, feature_fields, has_geometry = load_labeled_data(
         labelled_path, label_field_names, feature_field_names, coordinate_field_names

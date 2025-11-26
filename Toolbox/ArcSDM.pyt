@@ -917,6 +917,15 @@ class CosineSimilarityIndex(object):
         """Set whether tool is licensed to execute."""
         return arcpy.CheckExtension("Spatial") == "Available"
 
+    def updateMessages(self, parameters):
+        # Allow only 2 coordinate fields
+        coord_fields_param = parameters[3]
+        if coord_fields_param.value:
+            coord_fields = coord_fields_param.valueAsText.split(";")
+            if len(coord_fields) > 2:
+                coord_fields_param.setErrorMessage("Please provide exactly two coordinate field names.")
+
+
     def updateParameters(self, parameters):
         # Toggle visibility based on evidence type
         ev_type = parameters[5].valueAsText
