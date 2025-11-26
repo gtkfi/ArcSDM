@@ -891,14 +891,6 @@ class CosineSimilarityIndex(object):
             direction="Output",
         )
 
-        param_evidence_csi_table = arcpy.Parameter(
-            displayName="CSV: CSI table for evidence vectors (when evidence is CSV/TXT)",
-            name="out_evidence_table",
-            datatype="DEFile",
-            parameterType="Optional",
-            direction="Output",
-        )
-
         param_output_raster_directory = arcpy.Parameter(
             displayName="Folder to save output CSI rasters",
             name="out_raster_folder",
@@ -918,7 +910,6 @@ class CosineSimilarityIndex(object):
             param_evidence_vectors,
             param_output_labelled_pairwise_csi,
             param_output_centroid_csi_matrix,
-            param_evidence_csi_table,
             param_output_raster_directory
         ]
 
@@ -937,20 +928,14 @@ class CosineSimilarityIndex(object):
         # 11: output raster directory
         if ev_type == "Raster":
             parameters[6].enabled = True   # evidence rasters
-            parameters[10].enabled = False  # output evidence table
             parameters[7].enabled = False  # evidence vectors
-            parameters[9].enabled = True  # evidence CSI table
             parameters[11].enabled = True  # output raster directory
         elif ev_type == "Vector":
             parameters[6].enabled = False
-            parameters[10].enabled = False
             parameters[7].enabled = True
-            parameters[9].enabled = True
         elif ev_type == "None":
             parameters[6].enabled = False
-            parameters[10].enabled = False
             parameters[7].enabled = False
-            parameters[9].enabled = True
             parameters[11].enabled = False
 
         p8 = parameters[8]  # out_labelled_pairwise_csi

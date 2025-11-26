@@ -23,7 +23,6 @@ def calculation(
     csv_nodata: float,
     out_labelled_pairwise_csv: str,
     out_evidence_matrix_csv: Optional[str],
-    out_individual_evidence_csv: Optional[str],
     out_raster_folder: Optional[str],
     out_class_centroid: Optional[str] = None,
     out_centroid_csi_csv: Optional[str] = None,
@@ -110,7 +109,6 @@ def calculation(
         centroid_csi_matrix,
         out_labelled_pairwise_csv,
         out_evidence_matrix_csv,
-        out_individual_evidence_csv,
         out_class_centroid,
         out_centroid_csi_csv
     )

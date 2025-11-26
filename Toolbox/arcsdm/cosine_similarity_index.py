@@ -16,12 +16,10 @@ def execute(self, parameters, messages):
         vector_list = parameters[7].valueAsText.split(';') if parameters[7].valueAsText else []
         out_labelled_pairwise_csv = parameters[8].valueAsText
         out_evidence_matrix_csv = parameters[9].valueAsText if parameters[9].value else None
-        out_individual_evidence_csv = parameters[10].valueAsText if parameters[10].value else None
-        out_raster_folder = parameters[11].valueAsText if parameters[11].value else None
-        out_class_centroid = parameters[12].valueAsText if len(parameters) > 12 and parameters[12].value else None
-        out_centroid_csi_csv = parameters[13].valueAsText if len(parameters) > 13 and parameters[13].value else None
-        selected_label_field = parameters[14].valueAsText if len(parameters) > 14 and parameters[14].value else None
-
+        out_raster_folder = parameters[10].valueAsText if parameters[10].value else None
+        out_class_centroid = parameters[11].valueAsText if len(parameters) > 11 and parameters[11].value else None
+        out_centroid_csi_csv = parameters[12].valueAsText if len(parameters) > 12 and parameters[12].value else None
+        selected_label_field = parameters[13].valueAsText if len(parameters) > 13 and parameters[13].value else None
         arcpy.AddMessage("Starting CSI Analysis...")
         arcpy.AddMessage("="*60)
 
@@ -36,7 +34,6 @@ def execute(self, parameters, messages):
             csv_nodata,
             out_labelled_pairwise_csv,
             out_evidence_matrix_csv,
-            out_individual_evidence_csv,
             out_raster_folder,
             out_class_centroid,
             out_centroid_csi_csv

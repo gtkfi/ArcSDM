@@ -12,7 +12,6 @@ def save_csv_results(
     centroid_csi_matrix: np.ndarray,
     out_labelled_pairwise_csv: Optional[str],
     out_evidence_matrix_csv: Optional[str],
-    out_individual_evidence_csv: Optional[str],
     out_centroids_csv: Optional[str],
     out_centroid_csi_csv: Optional[str]
 ) -> None:
@@ -40,18 +39,6 @@ def save_csv_results(
             evidence_df.columns = [f"Raster_{i+1}" for i in range(evidence_df.shape[1])]
             evidence_df.to_csv(out_evidence_matrix_csv)
             arcpy.AddMessage(f"Saved evidence matrix ({evidence_df.shape}): {out_evidence_matrix_csv}")
-
-        # Save individual evidence results
-        if out_individual_evidence_csv and evidence_results:
-            individual_results = {k: v for k, v in evidence_results.items() if k != 'evidence_matrix'}
-            if individual_results:
-                outdir = os.path.dirname(out_individual_evidence_csv)
-                if outdir:
-                    os.makedirs(outdir, exist_ok=True)
-                individual_df = pd.DataFrame(individual_results)
-                individual_df.index = [f"Point_{i+1}" for i in range(len(individual_df))]
-                individual_df.to_csv(out_individual_evidence_csv)
-                arcpy.AddMessage(f"Saved individual evidence results: {out_individual_evidence_csv}")
 
         # Save class centroids
         if out_centroids_csv and centroids_df is not None and len(centroids_df) > 0:
