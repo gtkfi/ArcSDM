@@ -43,7 +43,7 @@ def calculation(
         return
 
     # Filter to only labeled points
-    apply_nodata = os.path.splitext(csv_nodata)[1] in [".csv", ".txt"]
+    apply_nodata = os.path.splitext(labelled_path)[1] in [".csv", ".txt"]
     label_mask = rows_with_labels(all_df, label_field_names, apply_nodata, csv_nodata)
     labeled_df = all_df.loc[label_mask].reset_index(drop=True)
 
