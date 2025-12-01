@@ -32,7 +32,8 @@ def cosine_similarity_numba(vector_a, vector_b, nodata_value):
 def cosine_similarity(vector_a, vector_b, nodata_value=-9999.0):
     """
     Compute the cosine similarity between two vectors, ignoring nodata values.
-    Returns nodata_value if no valid comparison can be made.
+    Returns:
+        nodata_value if no valid comparison can be made.
     """
     if HAS_NUMBA:
         return cosine_similarity_numba(vector_a, vector_b, nodata_value)
