@@ -53,17 +53,18 @@ def create_pixel_vectors(
         try:
             arcpy.AddMessage(f"Applying mask from: {arcpy.env.mask}")
             mask_raster = arcpy.Raster(arcpy.env.mask)
-            mask_array = arcpy.RasterToNumPyArray(mask_raster, nodata_to_value=0).astype(bool)
+            mask_nodata = mask_raster.noDataValue
+            mask_array_raw = arcpy.RasterToNumPyArray(mask_raster)
+            mask_array = (mask_array_raw != mask_nodata)
 
             # Validate mask dimensions
             if mask_array.shape != (nrows, ncols):
                 arcpy.AddWarning(f"Mask dimensions {mask_array.shape} don't match raster dimensions {(nrows, ncols)}")
-                mask_array = None
-            else:
-                # Apply mask to all feature layers
-                for i in range(len(feature_fields)):
-                    pixel_vectors[:, :, i] = np.where(mask_array, pixel_vectors[:, :, i], np.nan)
+                # Apply mask to all feature layers at once (vectorized)
+                pixel_vectors[~mask_array] = np.nan
 
+                valid_pixels = np.sum(mask_array)
+                arcpy.AddMessage(f"Mask applied: {valid_pixels} valid pixels out of {nrows * ncols}")
                 valid_pixels = np.sum(mask_array)
                 arcpy.AddMessage(f"Mask applied: {valid_pixels} valid pixels out of {nrows * ncols}")
         except Exception as e:
