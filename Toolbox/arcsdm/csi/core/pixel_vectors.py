@@ -52,7 +52,14 @@ def create_pixel_vectors(
     if arcpy.env.mask:
         try:
             arcpy.AddMessage(f"Applying mask from: {arcpy.env.mask}")
-            mask_raster = arcpy.Raster(arcpy.env.mask)
+
+            mask = arcpy.Describe(arcpy.env.mask)
+            if mask.dataType != 'RasterDataset':
+                # create temporary raster from feature class
+                arcpy.AddMessage("Mask is not a raster dataset - creating temporary raster from feature class")
+                temp_mask_raster = arcpy.FeatureToRaster_conversion(arcpy.env.mask, mask.shapeFieldName, "in_memory\\temp_mask", reference_props['cell_size']).getOutput(0)
+
+            mask_raster = arcpy.Raster(temp_mask_raster if mask.dataType != 'RasterDataset' else arcpy.env.mask)
             mask_nodata = mask_raster.noDataValue
             mask_array_raw = arcpy.RasterToNumPyArray(mask_raster)
             mask_array = (mask_array_raw != mask_nodata)
