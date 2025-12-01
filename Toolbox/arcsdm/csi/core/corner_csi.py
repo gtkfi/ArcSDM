@@ -9,7 +9,8 @@ from arcsdm.csi.helpers.sanitize_features import sanitize_features
 def calculate_corner_csi(labeled_df: pd.DataFrame, feature_fields: List[str], csv_nodata: float) -> np.ndarray:
     """
     Compute the corner CSI matrix for all labeled points using selected features.
-    Returns a symmetric matrix with diagonal values set to 1.0.
+    Returns:
+        symmetric matrix with diagonal values set to 1.0.
     """
     F = sanitize_features(labeled_df, feature_fields, csv_nodata)
     n = len(F)

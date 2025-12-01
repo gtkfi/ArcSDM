@@ -10,7 +10,8 @@ def validate_feature_rasters(
 ) -> Optional[Dict[str, str]]:
     """
     Validate that rasters correspond to feature space variables.
-    Returns mapping of feature field to raster path.
+    Returns:
+        mapping of feature field to raster path.
     """
     if len(rasters_list) != len(feature_fields):
         arcpy.AddError(f"Number of rasters ({len(rasters_list)}) must match number of feature fields ({len(feature_fields)})")

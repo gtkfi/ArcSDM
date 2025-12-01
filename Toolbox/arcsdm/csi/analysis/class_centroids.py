@@ -6,6 +6,8 @@ from arcsdm.csi.helpers.sanitize_features import sanitize_features
 def calculate_class_centroids(labeled_df: pd.DataFrame, feature_fields: List[str], label_field_names: List[str], csv_nodata: float) -> pd.DataFrame:
     """
     Calculate class centroids for selected features.
+    Returns:
+        DataFrame with class centroids and number of points per class.
     """
 
     if not label_field_names:

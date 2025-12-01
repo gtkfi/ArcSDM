@@ -16,6 +16,8 @@ def extract_raster_values(
         points_df: DataFrame with point data
         coords: List of two column names [x_col, y_col] containing coordinates
         has_geometry: Whether DataFrame has SHAPE@XY geometry column
+    Returns:
+        array of raster values at point locations
     """
     ras = arcpy.Raster(raster_path)
     arr = arcpy.RasterToNumPyArray(ras, nodata_to_value=np.nan).astype("float32")

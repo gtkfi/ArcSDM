@@ -22,7 +22,8 @@ def calculate_evidence_matrix(
 ) -> Dict[str, np.ndarray]:
     """
     Calculate evidence matrix: labeled points vs raster values.
-    Returns matrix of shape (n_labeled_points, n_rasters).
+    Returns:
+        matrix of shape (n_labeled_points, n_rasters).
     """
     if not rasters_list:
         return {}

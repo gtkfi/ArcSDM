@@ -10,7 +10,11 @@ def load_labeled_data(
     coordinate_field_names: Optional[List[str]] = None
 ) -> Tuple[Optional[pd.DataFrame], Optional[List[str]], bool]:
 
-    """Load labeled data from feature class or table"""
+    """Load labeled data from feature class or table.
+    
+    Returns:
+        tuple of (DataFrame with labeled data, list of feature field names, bool indicating if geometry is present)
+    """
     try:
 
         if not feature_field_names:

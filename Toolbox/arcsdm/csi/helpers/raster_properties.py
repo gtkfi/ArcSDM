@@ -6,7 +6,10 @@ from typing import Dict, Any, Optional
 def get_raster_properties(
     raster_path: str
 ) -> Optional[Dict[str, Any]]:
-    """Get raster spatial properties for processing"""
+    """Get raster spatial properties for processing
+    Returns:
+        dictionary of raster properties including array, extent, cell size, spatial reference, and nodata value
+    """
     try:
         raster = arcpy.Raster(raster_path)
         extent = raster.extent

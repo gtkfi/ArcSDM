@@ -13,8 +13,8 @@ def calculate_pixel_to_label_csi(
 ) -> List[np.ndarray]:
     """
     Calculate CSI between each pixel vector and each labeled point vector.
-    Returns list of 2D arrays, one per labeled point.
-    Optimized with pre-filtering and vectorization.
+    Returns:
+        list of 2D arrays, one per labeled point.
     """
     nrows, ncols, n_features = pixel_vectors.shape
     n_labeled = len(labeled_features)

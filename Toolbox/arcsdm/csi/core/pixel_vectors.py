@@ -11,7 +11,9 @@ def create_pixel_vectors(
 ) -> Tuple[Optional[np.ndarray], Optional[Dict[str, Any]]]:
     """
     Create pixel vectors from feature rasters.
-    Returns 3D array: (nrows, ncols, n_features)
+    Returns:
+        pixel_vectors: 3D array of shape (nrows, ncols, n_features).
+        reference_props: Dictionary of raster properties. If a mask is applied, includes key 'mask_array' with the mask as a boolean numpy array.
     Uses mask if set in environment.
     """
     arcpy.AddMessage("Creating pixel vectors from feature rasters...")

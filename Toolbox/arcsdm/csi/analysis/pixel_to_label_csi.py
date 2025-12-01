@@ -19,10 +19,11 @@ def pixel_to_label_csi(
     csv_nodata: float
 ) -> bool:
     """
-    - Validate feature rasters match feature space
-    - Create pixel vectors from rasters
-    - Calculate CSI between each pixel and each labeled point
-    - Output p rasters (one per labeled point)
+    Validate feature rasters match feature space.
+    Create pixel vectors from rasters.
+    Calculate CSI between each pixel and each labeled point.
+    Returns:
+        True if successful, False otherwise.
     """
     arcpy.AddMessage("\n" + "="*60)
     arcpy.AddMessage("PART 2: Pixel-to-Label CSI Analysis")

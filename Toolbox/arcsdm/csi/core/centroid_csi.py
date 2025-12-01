@@ -7,7 +7,8 @@ from arcsdm.csi.analysis.cosine_similarity import cosine_similarity
 def calculate_centroid_to_centroid_csi(centroids_df: pd.DataFrame, feature_fields: List[str], csv_nodata: float) -> np.ndarray:
     """
     Compute pairwise CSI between class centroids for selected features.
-    Returns a symmetric similarity matrix with diagonal values set to 1.0.
+    Returns:
+        symmetric similarity matrix with diagonal values set to 1.0.
     """
     n_classes = len(centroids_df)
     if n_classes == 0:
