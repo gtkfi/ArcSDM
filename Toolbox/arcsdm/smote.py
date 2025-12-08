@@ -1,8 +1,10 @@
 
-import random
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 
+# TODO: Better printing for n synthetic
+# TODO: Check for loop
+# TODO: Label required on MLP Classifier and Regressor
 
 def smote(
     X,
@@ -57,19 +59,19 @@ def smote(
  
     # Generate synthetic samples by using sampling without replacement to select seed points
     # Sampling begins again with full list after all minority class samples are used.
-    synthetic_samples = []
-    sample_ids = list(range(n_minority))
-    for i in range(n_synthetic):
-        if len(sample_ids) == 0:
-                sample_ids = list(range(n_minority))
-        random_id = sample_ids.pop(random.randrange(len(sample_ids)))
-        chosen_sample = minority_X[random_id]
-        chosen_neighbor = minority_X[rng.choice(neighbor_list[random_id])]
-       
-        difference = chosen_neighbor - chosen_sample
-        gap = rng.random()
- 
-        synthetic_samples.append(chosen_sample + gap * difference)
+    # Vectorized synthetic sample generation
+    # 1. Select random minority samples (with replacement if needed)
+    sample_ids = np.arange(n_minority)
+    n_repeats = int(np.ceil(n_synthetic / n_minority))
+    all_seed_ids = np.tile(sample_ids, n_repeats)[:n_synthetic]
+    # 2. For each seed, select a random neighbor
+    neighbor_choices = [rng.choice(neighbor_list[idx]) for idx in all_seed_ids]
+    chosen_samples = minority_X[all_seed_ids]
+    chosen_neighbors = minority_X[neighbor_choices]
+    # 3. Generate all gap values
+    gaps = rng.random(n_synthetic)
+    # 4. Compute synthetic samples
+    synthetic_samples = chosen_samples + gaps[:, None] * (chosen_neighbors - chosen_samples)
  
     final_X = np.concatenate([X, np.array(synthetic_samples)])
     final_y = np.concatenate([y, np.repeat(minority_class, len(synthetic_samples))])
