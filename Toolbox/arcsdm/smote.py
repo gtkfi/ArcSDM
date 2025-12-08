@@ -2,9 +2,6 @@
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 
-# TODO: Better printing for n synthetic
-# TODO: Check for loop
-# TODO: Label required on MLP Classifier and Regressor
 
 def smote(
     X,
