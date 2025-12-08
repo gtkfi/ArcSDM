@@ -254,7 +254,9 @@ def train_MLP_classifier(
     if apply_smote:
         arcpy.AddMessage("Applying SMOTE to balance the classes...")
         X, y = smote(X, y, n_synthetic, minority_class, k_neighbors, random_state)
-        arcpy.AddMessage(f"After SMOTE, dataset has {np.unique(y, return_counts=True)} samples per class.")
+        unique_counts = np.unique(y, return_counts=True)
+        zipped_dict_unique_counts = dict(zip(*unique_counts))
+        arcpy.AddMessage(f"After SMOTE, dataset has {zipped_dict_unique_counts} samples per class.")
 
     # Train the model
     arcpy.AddMessage("Training the model...")
@@ -573,7 +575,9 @@ def train_MLP_regressor(
     if apply_smote:
         arcpy.AddMessage("Applying SMOTE to balance the classes...")
         X, y = smote(X, y, n_synthetic, minority_class, k_neighbors, random_state)
-        arcpy.AddMessage(f"After SMOTE, dataset has {np.unique(y, return_counts=True)} samples per class.")
+        unique_counts = np.unique(y, return_counts=True)
+        zipped_dict_unique_counts = dict(zip(*unique_counts))
+        arcpy.AddMessage(f"After SMOTE, dataset has {zipped_dict_unique_counts} samples per class.")
 
     history = model.fit(
         X,
