@@ -4,6 +4,7 @@ import sys
 import arcpy
 import numpy as np
 from typing import Literal, Optional, Sequence, Tuple
+from sklearn.model_selection import train_test_split
 from tensorflow import keras
 from tensorflow.keras.metrics import CategoricalCrossentropy, MeanAbsoluteError, MeanSquaredError, Precision, Recall
 from tensorflow.keras.layers import Flatten
@@ -252,23 +253,35 @@ def train_MLP_classifier(
     callbacks.append(ArcPyLoggingCallback(epochs))
 
     if apply_smote:
+        arcpy.AddMessage("Splitting data for SMOTE application...")
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=validation_split, random_state=random_state, shuffle=True)
         arcpy.AddMessage("Applying SMOTE to balance the classes...")
-        X, y = smote(X, y, n_synthetic, minority_class, k_neighbors, random_state)
-        unique_counts = np.unique(y, return_counts=True)
-        zipped_dict_unique_counts = dict(zip(*unique_counts))
-        arcpy.AddMessage(f"After SMOTE, dataset has {zipped_dict_unique_counts} samples per class.")
+        X_train_smote, y_train_smote = smote(X_train, y_train, n_synthetic, minority_class, k_neighbors, random_state)
+        arcpy.AddMessage(f"After SMOTE, dataset has {np.unique(y_train_smote, return_counts=True)} samples per class.")
 
-    # Train the model
-    arcpy.AddMessage("Training the model...")
-    history = model.fit(
-        X,
-        y,
-        epochs=epochs,
-        validation_split=validation_split if validation_split else 0.0,
-        validation_data=validation_data,
-        batch_size=batch_size,
-        callbacks=callbacks,
-    )
+        # Train the model with explicit train/test split
+        arcpy.AddMessage("Training the model...")
+        history = model.fit(
+            X_train_smote,
+            y_train_smote,
+            epochs=epochs,
+            validation_data=(X_test, y_test),
+            batch_size=batch_size,
+            callbacks=callbacks,
+        )
+    else:
+        arcpy.AddMessage("Splitting data...")
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=validation_split, random_state=random_state, shuffle=True)
+        # Train the model
+        arcpy.AddMessage("Training the model...")
+        history = model.fit(
+            X_train,
+            y_train,
+            epochs=epochs,
+            validation_data=(X_test, y_test),
+            batch_size=batch_size,
+            callbacks=callbacks,
+        )
 
     return model, history
 
@@ -573,21 +586,35 @@ def train_MLP_regressor(
     callbacks.append(ArcPyLoggingCallback(epochs))
 
     if apply_smote:
+        arcpy.AddMessage("Splitting data for SMOTE application...")
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=validation_split, random_state=random_state, shuffle=True)
         arcpy.AddMessage("Applying SMOTE to balance the classes...")
-        X, y = smote(X, y, n_synthetic, minority_class, k_neighbors, random_state)
-        unique_counts = np.unique(y, return_counts=True)
-        zipped_dict_unique_counts = dict(zip(*unique_counts))
-        arcpy.AddMessage(f"After SMOTE, dataset has {zipped_dict_unique_counts} samples per class.")
+        X_train_smote, y_train_smote = smote(X_train, y_train, n_synthetic, minority_class, k_neighbors, random_state)
+        arcpy.AddMessage(f"After SMOTE, dataset has {np.unique(y_train_smote, return_counts=True)} samples per class.")
 
-    history = model.fit(
-        X,
-        y,
-        epochs=epochs,
-        validation_split=validation_split if validation_split else 0.0,
-        validation_data=validation_data,
-        batch_size=batch_size,
-        callbacks=callbacks,
-    )
+        # Train the model with explicit train/test split
+        arcpy.AddMessage("Training the model...")
+        history = model.fit(
+            X_train_smote,
+            y_train_smote,
+            epochs=epochs,
+            validation_data=(X_test, y_test),
+            batch_size=batch_size,
+            callbacks=callbacks,
+        )
+    else:
+        arcpy.AddMessage("Splitting data...")
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=validation_split, random_state=random_state, shuffle=True)
+        # Train the model
+        arcpy.AddMessage("Training the model...")
+        history = model.fit(
+            X_train,
+            y_train,
+            epochs=epochs,
+            validation_data=(X_test, y_test),
+            batch_size=batch_size,
+            callbacks=callbacks,
+        )
 
     return model, history
 
