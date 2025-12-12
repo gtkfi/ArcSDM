@@ -1532,6 +1532,7 @@ class TrainMLPClassifierTool(object):
             datatype="GPLong",
             parameterType="Optional",
             direction="Input")
+        param_minority_class.value = 1
 
         param_k_neighbors = arcpy.Parameter(
             displayName="Number of Nearest Neighbors (k)",
@@ -1539,6 +1540,7 @@ class TrainMLPClassifierTool(object):
             datatype="GPLong",
             parameterType="Optional",
             direction="Input")
+        param_k_neighbors.value = 5
 
         param_output_file = arcpy.Parameter(
             displayName="Output Model File",
