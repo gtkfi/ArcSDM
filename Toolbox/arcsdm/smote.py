@@ -70,7 +70,7 @@ def smote(
     # 4. Compute synthetic samples
     synthetic_samples = chosen_samples + gaps[:, None] * (chosen_neighbors - chosen_samples)
  
-    final_X = np.concatenate([X, np.array(synthetic_samples)])
-    final_y = np.concatenate([y, np.repeat(minority_class, len(synthetic_samples))])
- 
+    # Only add synthetic samples to the specified minority class, keep all original data
+    final_X = np.concatenate([X, synthetic_samples])
+    final_y = np.concatenate([y, np.full(len(synthetic_samples), minority_class, dtype=y.dtype)])
     return final_X, final_y
