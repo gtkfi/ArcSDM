@@ -321,7 +321,7 @@ def Execute_MLP_classifier(self, parameters, messages):
         random_state = int(parameters[20].value) if parameters[20].value is not None else None
         apply_smote = bool(parameters[21].value)
         n_synthetic_samples = int(parameters[22].value) if parameters[22].value else None
-        minority_class = int(parameters[23].value) if parameters[23].value else 1
+        minority_class = int(parameters[23].value) if parameters[23].value is not None else 1
         k_neighbors = int(parameters[24].value) if parameters[24].value else 5
         output_file = parameters[25].valueAsText
 
@@ -418,7 +418,7 @@ def Execute_MLP_regressor(self, parameters, messages):
         random_state = int(parameters[19].value) if parameters[19].value else None
         apply_smote = bool(parameters[20].value)
         n_synthetic_samples = int(parameters[21].value) if parameters[21].value else None
-        minority_class = int(parameters[22].value) if parameters[22].value else 1
+        minority_class = int(parameters[22].value) if parameters[22].value is not None else 1
         k_neighbors = int(parameters[23].value) if parameters[23].value else 5
         output_file = parameters[24].valueAsText
         
