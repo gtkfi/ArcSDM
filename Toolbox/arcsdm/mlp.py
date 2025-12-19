@@ -4,6 +4,7 @@ import sys
 import arcpy
 import numpy as np
 from typing import Literal, Optional, Sequence, Tuple
+from sklearn.model_selection import train_test_split
 from tensorflow import keras
 from tensorflow.keras.metrics import CategoricalCrossentropy, MeanAbsoluteError, MeanSquaredError, Precision, Recall
 from tensorflow.keras.layers import Flatten
@@ -16,6 +17,7 @@ from arcsdm.machine_learning.general import prepare_data_for_ml, save_model
 from utils.arcpy_callback import ArcPyLoggingCallback
 from arcsdm.machine_learning.predict import predict_regressor
 from arcsdm.evaluation.scoring import score_predictions
+from arcsdm.smote import smote
 
 import json
 
@@ -143,6 +145,10 @@ def train_MLP_classifier(
     es_patience: int = 5,
     metrics: Optional[Sequence[Literal["accuracy", "precision", "recall"]]] = ["accuracy"],
     random_state: Optional[int] = None,
+    apply_smote: bool = False,
+    n_synthetic: Optional[int] = None,
+    minority_class: Optional[int] = 1,
+    k_neighbors: Optional[int] = 5,
 ) -> Tuple[keras.Model, dict]:
     """
     Train MLP (Multilayer Perceptron) classifier using Keras.
@@ -245,18 +251,37 @@ def train_MLP_classifier(
     # Early stopping callback
     callbacks = [keras.callbacks.EarlyStopping(monitor="val_loss", patience=es_patience)] if early_stopping else []
     callbacks.append(ArcPyLoggingCallback(epochs))
-    
-    # Train the model
-    arcpy.AddMessage("Training the model...")
-    history = model.fit(
-        X,
-        y,
-        epochs=epochs,
-        validation_split=validation_split if validation_split else 0.0,
-        validation_data=validation_data,
-        batch_size=batch_size,
-        callbacks=callbacks,
-    )
+
+    if apply_smote:
+        arcpy.AddMessage("Splitting data for SMOTE application...")
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=validation_split, random_state=random_state, shuffle=True)
+        arcpy.AddMessage("Applying SMOTE to balance the classes...")
+        X_train_smote, y_train_smote = smote(X_train, y_train, n_synthetic, minority_class, k_neighbors, random_state)
+        arcpy.AddMessage(f"After SMOTE, dataset has {np.unique(y_train_smote, return_counts=True)} samples per class.")
+
+        # Train the model with explicit train/test split
+        arcpy.AddMessage("Training the model...")
+        history = model.fit(
+            X_train_smote,
+            y_train_smote,
+            epochs=epochs,
+            validation_data=(X_test, y_test),
+            batch_size=batch_size,
+            callbacks=callbacks,
+        )
+    else:
+        arcpy.AddMessage("Splitting data...")
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=validation_split, random_state=random_state, shuffle=True)
+        # Train the model
+        arcpy.AddMessage("Training the model...")
+        history = model.fit(
+            X_train,
+            y_train,
+            epochs=epochs,
+            validation_data=(X_test, y_test),
+            batch_size=batch_size,
+            callbacks=callbacks,
+        )
 
     return model, history
 
@@ -294,7 +319,11 @@ def Execute_MLP_classifier(self, parameters, messages):
         es_patience = int(parameters[18].value) if parameters[18].value is not None else 5
         metrics = parameters[19].valueAsText.split(',') if parameters[19].valueAsText else ["accuracy"]
         random_state = int(parameters[20].value) if parameters[20].value is not None else None
-        output_file = parameters[21].valueAsText
+        apply_smote = bool(parameters[21].value)
+        n_synthetic_samples = int(parameters[22].value) if parameters[22].value else None
+        minority_class = int(parameters[23].value) if parameters[23].value is not None else 1
+        k_neighbors = int(parameters[24].value) if parameters[24].value else 5
+        output_file = parameters[25].valueAsText
 
         # Guard invalid attribute names
         if target_labels_attr and target_labels_attr.lower() in ("shape", "fid"):
@@ -337,6 +366,10 @@ def Execute_MLP_classifier(self, parameters, messages):
             es_patience=es_patience,
             metrics=metrics,
             random_state=random_state,
+            apply_smote=apply_smote,
+            n_synthetic=n_synthetic_samples,
+            minority_class=minority_class,
+            k_neighbors=k_neighbors
         )
         arcpy.AddMessage("===== Model training completed. =====")
 
@@ -383,7 +416,11 @@ def Execute_MLP_regressor(self, parameters, messages):
         es_patience = int(parameters[17].value)
         metrics = parameters[18].valueAsText.split(',')
         random_state = int(parameters[19].value) if parameters[19].value else None
-        output_file = parameters[20].valueAsText
+        apply_smote = bool(parameters[20].value)
+        n_synthetic_samples = int(parameters[21].value) if parameters[21].value else None
+        minority_class = int(parameters[22].value) if parameters[22].value is not None else 1
+        k_neighbors = int(parameters[23].value) if parameters[23].value else 5
+        output_file = parameters[24].valueAsText
         
         arcpy.AddMessage("Starting MLP regressor training...")
         
@@ -416,6 +453,10 @@ def Execute_MLP_regressor(self, parameters, messages):
             es_patience=es_patience,
             metrics=metrics,
             random_state=random_state,
+            apply_smote=apply_smote,
+            n_synthetic=n_synthetic_samples,
+            minority_class=minority_class,
+            k_neighbors=k_neighbors,
         )
         
         arcpy.AddMessage(f"Saving model to {output_file}.keras")
@@ -454,6 +495,10 @@ def train_MLP_regressor(
     es_patience: int = 5,
     metrics: Optional[Sequence[Literal["mse", "rmse", "mae", "r2"]]] = ["mse"],
     random_state: Optional[int] = None,
+    apply_smote: bool = False,
+    n_synthetic: Optional[int] = None,
+    minority_class: Optional[int] = 1,
+    k_neighbors: Optional[int] = 5,
 ) -> Tuple[keras.Model, dict]:
     """
     Train MLP (Multilayer Perceptron) regressor using Keras.
@@ -540,15 +585,36 @@ def train_MLP_regressor(
     callbacks = [keras.callbacks.EarlyStopping(monitor="val_loss", patience=es_patience)] if early_stopping else []
     callbacks.append(ArcPyLoggingCallback(epochs))
 
-    history = model.fit(
-        X,
-        y,
-        epochs=epochs,
-        validation_split=validation_split if validation_split else 0.0,
-        validation_data=validation_data,
-        batch_size=batch_size,
-        callbacks=callbacks,
-    )
+    if apply_smote:
+        arcpy.AddMessage("Splitting data for SMOTE application...")
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=validation_split, random_state=random_state, shuffle=True)
+        arcpy.AddMessage("Applying SMOTE to balance the classes...")
+        X_train_smote, y_train_smote = smote(X_train, y_train, n_synthetic, minority_class, k_neighbors, random_state)
+        arcpy.AddMessage(f"After SMOTE, dataset has {np.unique(y_train_smote, return_counts=True)} samples per class.")
+
+        # Train the model with explicit train/test split
+        arcpy.AddMessage("Training the model...")
+        history = model.fit(
+            X_train_smote,
+            y_train_smote,
+            epochs=epochs,
+            validation_data=(X_test, y_test),
+            batch_size=batch_size,
+            callbacks=callbacks,
+        )
+    else:
+        arcpy.AddMessage("Splitting data...")
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=validation_split, random_state=random_state, shuffle=True)
+        # Train the model
+        arcpy.AddMessage("Training the model...")
+        history = model.fit(
+            X_train,
+            y_train,
+            epochs=epochs,
+            validation_data=(X_test, y_test),
+            batch_size=batch_size,
+            callbacks=callbacks,
+        )
 
     return model, history
 

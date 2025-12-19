@@ -1510,7 +1510,38 @@ class TrainMLPClassifierTool(object):
             datatype="GPLong",
             parameterType="Optional",
             direction="Input")
-        
+
+        param_apply_smote = arcpy.Parameter(
+            displayName="Apply SMOTE",
+            name="apply_smote",
+            datatype="GPBoolean",
+            parameterType="Optional",
+            direction="Input")
+        param_apply_smote.value = False
+
+        param_n_synthetic_samples = arcpy.Parameter(
+            displayName="Number of Synthetic Samples",
+            name="n_synthetic_samples",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
+
+        param_minority_class = arcpy.Parameter(
+            displayName="Minority Class Label",
+            name="minority_class",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
+        param_minority_class.value = 1
+
+        param_k_neighbors = arcpy.Parameter(
+            displayName="Number of Nearest Neighbors (k)",
+            name="k_neighbors",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
+        param_k_neighbors.value = 5
+
         param_output_file = arcpy.Parameter(
             displayName="Output Model File",
             name="output_file",
@@ -1540,6 +1571,10 @@ class TrainMLPClassifierTool(object):
                   param_es_patience,
                   param_metrics,
                   param_random_state,
+                  param_apply_smote,
+                  param_n_synthetic_samples,
+                  param_minority_class,
+                  param_k_neighbors,
                   param_output_file
                 ]
         return params
@@ -1550,6 +1585,21 @@ class TrainMLPClassifierTool(object):
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal validation is performed. This method is called whenever a parameter has been changed."""
+        
+        apply_smote = parameters[21]
+        n_synthetic_samples = parameters[22]
+        minority_class = parameters[23]
+        k_neighbors = parameters[24]
+
+        if apply_smote.value:
+            n_synthetic_samples.enabled = True
+            minority_class.enabled = True
+            k_neighbors.enabled = True
+        else:
+            n_synthetic_samples.enabled = False
+            minority_class.enabled = False
+            k_neighbors.enabled = False
+        
         return
 
     def updateMessages(self, parameters):
@@ -1737,7 +1787,38 @@ class TrainMLPRegressorTool(object):
             datatype="GPLong",
             parameterType="Optional",
             direction="Input")
-        
+
+        param_apply_smote = arcpy.Parameter(
+            displayName="Apply SMOTE",
+            name="apply_smote",
+            datatype="GPBoolean",
+            parameterType="Optional",
+            direction="Input")
+        param_apply_smote.value = False
+
+        param_n_synthetic_samples = arcpy.Parameter(
+            displayName="Number of Synthetic Samples",
+            name="n_synthetic_samples",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
+
+        param_minority_class = arcpy.Parameter(
+            displayName="Minority Class Label",
+            name="minority_class",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
+        param_minority_class.value = 1
+
+        param_k_neighbors = arcpy.Parameter(
+            displayName="Number of Nearest Neighbors (k)",
+            name="k_neighbors",
+            datatype="GPLong",
+            parameterType="Optional",
+            direction="Input")
+        param_k_neighbors.value = 5
+
         param_output_file = arcpy.Parameter(
             displayName="Output Model File",
             name="output_file",
@@ -1766,6 +1847,10 @@ class TrainMLPRegressorTool(object):
                   param_es_patience,
                   param_metrics,
                   param_random_state,
+                  param_apply_smote,
+                  param_n_synthetic_samples,
+                  param_minority_class,
+                  param_k_neighbors,
                   param_output_file
                 ]
         return params
@@ -1781,6 +1866,21 @@ class TrainMLPRegressorTool(object):
 
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal validation is performed. This method is called whenever a parameter has been changed."""
+
+        apply_smote = parameters[20]
+        n_synthetic_samples = parameters[21]
+        minority_class = parameters[22]
+        k_neighbors = parameters[23]
+
+        if apply_smote.value:
+            n_synthetic_samples.enabled = True
+            minority_class.enabled = True
+            k_neighbors.enabled = True
+        else:
+            n_synthetic_samples.enabled = False
+            minority_class.enabled = False
+            k_neighbors.enabled = False
+        return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool parameter. This method is called after internal validation."""
