@@ -11,15 +11,9 @@ import os
 import sys
 import traceback
 
+import importlib
+
 import arcsdm.config as cfg
-
-PY2 = sys.version_info[0] == 2
-PY34 = sys.version_info[0:2] >= (3, 4)
-
-if PY2:
-    from imp import reload
-if PY34:
-    import importlib
 
     
 def testandwarn_arcgispro():
@@ -58,17 +52,10 @@ def reload_arcsdm_modules(messages):
     arcsdm_modules = [m.__name__ for m in sys.modules.values() if m and m.__name__.startswith(__package__)]
     for m in arcsdm_modules:
         try:
-            reload_module(sys.modules[m])
+            importlib.reload(sys.modules[m])
         except Exception as e:
-            messages.AddMessage("Failed to reload module %s. Reason:%s" %(m, e.message))
+            messages.AddMessage("Failed to reload module %s. Reason:%s" %(m, e))
     messages.AddMessage("Reloaded %s modules" % __package__)
-
-
-def reload_module(name):
-    if PY2:
-        reload(name)
-    if PY34:
-        importlib.reload(name)
 
 
 def execute_tool(func, self, parameters, messages):
