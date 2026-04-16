@@ -10,20 +10,11 @@ import arcpy
 import traceback
 import arcsdm.config as cfg
 
-PY2 = sys.version_info[0] == 2
-PY34 = sys.version_info[0:2] >= (3, 4)
+import importlib
 
-# Change the importing behaviour depending in the version of python
-if PY2:
-    from imp import reload
 
-    def _reload_module(name):
-        reload(name)
-if PY34:
-    import importlib
-
-    def _reload_module(name):
-        importlib.reload(name)
+def _reload_module(name):
+    importlib.reload(name)
 
 # TODO: This is repeated in all tools, better link them to this function
 # Verbose prints to give more information about the execution *In development*

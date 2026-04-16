@@ -1,8 +1,5 @@
 import arcpy
-import importlib
 import os
-
-from imp import reload
 
 import arcsdm.agterbergchengci
 import arcsdm.areafrequency
@@ -127,12 +124,7 @@ class GetSDMValues(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        try:
-            importlib.reload(arcsdm.wofe_common)
-        except:
-            pass
-
-        arcsdm.wofe_common.execute(self, parameters, messages)
+        execute_tool(arcsdm.wofe_common.execute, self, parameters, messages)
         return
         
         
@@ -269,12 +261,7 @@ class ROCTool(object):
         return True
 
     def execute(self, parameters, messages):        
-        #execute_tool(arcsdm.roctool.execute, self, parameters, messages)
-        try:
-            importlib.reload(arcsdm.roctool)
-        except:
-            reload(arcsdm.roctool)
-        arcsdm.roctool.execute(self, parameters, messages)
+        execute_tool(arcsdm.roctool.execute, self, parameters, messages)
         return
 
 
