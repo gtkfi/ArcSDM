@@ -43,19 +43,19 @@ class Toolbox(object):
             AreaFrequencyTable,
             CalculateResponse,
             CalculateWeights,
-            CategoricalAndReclassTool,
+            CategoricalAndReclass,
             GetSDMValues,
             PCARaster,
             PCAVector,
             ROCTool,
             SplitPoints,
             ThinPoints,
-            TrainMLPClassifierTool,
-            TrainMLPRegressorTool,
-            MLPRegressorTestTool,
-            MLPClassifierTestTool,
-            RegressorPredictTool,
-            ClassifierPredictTool
+            TrainMLPClassifier,
+            TrainMLPRegressor,
+            MLPRegressorTest,
+            MLPClassifierTest,
+            RegressorPredict,
+            ClassifierPredict
         ]
 
 
@@ -846,7 +846,7 @@ class ThinPoints(object):
         return
 
 
-class CategoricalAndReclassTool(object):
+class CategoricalAndReclass(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Categorical & Reclass"
@@ -1016,7 +1016,7 @@ class AgterbergChengCITest(object):
         return
 
 
-class TrainMLPClassifierTool(object):
+class TrainMLPClassifier(object):
     def __init__(self):
         """Train a Multi-Layer Perceptron (MLP) classifier with the given parameters."""
         self.label = "Train MLP Classifier"
@@ -1300,7 +1300,7 @@ class TrainMLPClassifierTool(object):
         execute_tool(arcsdm.mlp.Execute_MLP_classifier, self, parameters, messages)
 
 
-class TrainMLPRegressorTool(object):
+class TrainMLPRegressor(object):
     def __init__(self):
         """Train a Multi-Layer Perceptron (MLP) regressor with the given parameters."""
         self.label = "Train MLP Regressor"
@@ -1794,8 +1794,7 @@ class PCAVector(object):
         return
 
 
-
-class MLPRegressorTestTool(object):
+class MLPRegressorTest(object):
     def __init__(self):
         """Test trained machine learning regressor model by predicting and scoring."""
         self.label = "Test MLP Regressor"
@@ -1906,8 +1905,7 @@ class MLPRegressorTestTool(object):
         execute_tool(arcsdm.mlp.Execute_MLP_regressor_test, self, parameters, messages)
 
 
-
-class MLPClassifierTestTool(object):
+class MLPClassifierTest(object):
     def __init__(self):
         """Test trained machine learning classifier model by predicting and scoring."""
         self.label = "Test MLP Classifier"
@@ -2039,7 +2037,7 @@ class MLPClassifierTestTool(object):
         execute_tool(arcsdm.mlp.Execute_MLP_classifier_test, self, parameters, messages)
 
 
-class RegressorPredictTool(object):
+class RegressorPredict(object):
     def __init__(self):
         """Predict with a trained machine learning regressor model."""
         self.label = "Predict Regressor"
@@ -2119,7 +2117,7 @@ class RegressorPredictTool(object):
         execute_tool(arcsdm.mlp.Execute_regressor_predict, self, parameters, messages)
 
 
-class ClassifierPredictTool(object):
+class ClassifierPredict(object):
     def __init__(self):
         """Predict with a trained machine learning classifier model."""
         self.label = "Predict Classifier"
