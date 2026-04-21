@@ -7,14 +7,12 @@ import arcsdm.calculateresponse_arcpy_wip
 import arcsdm.calculateresponse
 import arcsdm.calculateweights
 import arcsdm.categoricalreclass
-import arcsdm.fuzzyroc2
 import arcsdm.mlp
 import arcsdm.pca
 import arcsdm.roctool
 import arcsdm.symbolize
 import arcsdm.splitting
 import arcsdm.thinning
-import arcsdm.tocfuzzification
 import arcsdm.wofe_common
 
 from arcsdm.common import execute_tool
@@ -47,15 +45,13 @@ class Toolbox(object):
             CalculateResponse,
             CalculateWeights,
             CategoricalAndReclassTool,
-            # FuzzyROC2,
             GetSDMValues,
             PCARaster,
             PCAVector,
             ROCTool,
-            SplittingTool,
-            ThinningTool,
+            SplitPoints,
+            ThinPoints,
             # Symbolize,
-            # TOCFuzzificationTool,
             TrainMLPClassifierTool,
             TrainMLPRegressorTool,
             MLPRegressorTestTool,
@@ -770,7 +766,7 @@ class CalculateWeights(object):
         return
 
 
-class SplittingTool(object):
+class SplitPoints(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Split Points"
@@ -835,7 +831,7 @@ class SplittingTool(object):
         return
 
 
-class ThinningTool(object):
+class ThinPoints(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Thin Points"
@@ -847,14 +843,14 @@ class ThinningTool(object):
         """Define parameter definitions"""
         param_input_layer = arcpy.Parameter(
             displayName="Input points",
-            name="Training_Sites_layer",
+            name="input_point_layer",
             datatype="GPFeatureLayer",
             parameterType="Required",
             direction="Input")
 
         param_unit_area = arcpy.Parameter(
             displayName="Unit area",
-            name="Unit_Area",
+            name="unit_area_size",
             datatype="GPDouble",
             parameterType="Optional",
             direction="Input")
@@ -862,7 +858,7 @@ class ThinningTool(object):
 
         param_area_unit = arcpy.Parameter(
             displayName="Area Unit",
-            name="Area_Unit",
+            name="area_unit",
             datatype="GPString",
             parameterType="Required",
             direction="Input")
@@ -880,14 +876,14 @@ class ThinningTool(object):
 
         param_min_distance = arcpy.Parameter(
             displayName="Minimum Distance (Meters)",
-            name="Min_Distance",
+            name="min_distance_meters",
             datatype="GPDouble",
             parameterType="Optional",
             direction="Input")
 
         param_output = arcpy.Parameter(
             displayName="Output layer",
-            name="layerSelection",
+            name="output_layer",
             datatype="GPFeatureLayer",
             parameterType="Required",
             direction="Output")
@@ -1000,103 +996,6 @@ class CategoricalAndReclassTool(object):
         return
 
 
-class TOCFuzzificationTool(object):
-    def __init__(self):
-        """Define the tool (tool name is the name of the class)."""
-        self.label = "TOC Fuzzification"
-        self.description = "This fuzzification method utilized the symbolization of the input raster that has been applied in the map document table of contents (TOC). The symbolization in the TOC defines the number of classes and this tool rescales those classes (1...N) to the range [0,1] by (C - 1)/(N-1) where C is the class value and N is the number of classes."
-        self.canRunInBackground = False
-        self.category = f"{TS_PREPROCESSING}\\{TS_RASTER_PROCESSING}\\{TS_FUZZY}"
-
-    def getParameterInfo(self):
-        """Define parameter definitions"""
-        param_input_raster = arcpy.Parameter(
-        displayName="Input Raster",
-        name="input_raster",
-        datatype="GPRasterLayer",
-        parameterType="Required",
-        direction="Input")
-
-        param_reclass_field = arcpy.Parameter(
-        displayName="Reclass Field",
-        name="reclass_field",
-        datatype="Field",
-        parameterType="Required",
-        direction="Input")
-
-        param_reclassification = arcpy.Parameter(
-        displayName="Reclassification",
-        name="reclassification",
-        datatype="remap",
-        parameterType="Required",
-        direction="Input")
-
-        param_num_classes = arcpy.Parameter(
-        displayName="Number of Classes",
-        name="classes",
-        datatype="GPLong",
-        parameterType="Required",
-        direction="Input")
-
-        param_output_raster = arcpy.Parameter(
-        displayName="Output Fuzzy Membership Raster",
-        name="fmtoc",
-        datatype="DERasterDataset",
-        parameterType="Required",
-        direction="Output")
-        param_output_raster.value = "%Workspace%\FMTOC"
-
-        param_reclass_field.value = "VALUE"
-        param_reclass_field.enabled = False
-        param_reclassification.enabled = False
-
-        param_reclass_field.parameterDependencies = [param_input_raster.name]
-        param_reclassification.parameterDependencies = [param_input_raster.name,param_reclass_field.name]
-        params = [param_input_raster,param_reclass_field,param_reclassification,param_num_classes,param_output_raster]
-        return params
-
-    def isLicensed(self):
-        """Set whether tool is licensed to execute."""
-        try:
-            if arcpy.CheckExtension("Spatial") != "Available":
-                raise Exception
-        except Exception:
-            return False
-        return True
-
-    def updateParameters(self, parameters):
-        """Modify the values and properties of parameters before internal
-        validation is performed. This method is called whenever a parameter
-        has been changed."""
-        if parameters[0].value:
-            parameters[1].enabled = True
-            parameters[2].enabled = True
-        else:
-            parameters[1].enabled = False
-            parameters[2].enabled = False
-
-        input_file_type = os.path.splitext(parameters[0].valueAsText.lower())[1]
-        output_path = parameters[4].valueAsText.lower()
-
-        if ".gdb" not in output_path:
-            parameters[4].value = os.path.join(os.path.dirname(output_path), "FMTOC" + input_file_type)
-
-        return
-
-    def updateMessages(self, parameters):
-        """Modify the messages created by internal validation for each tool
-        parameter. This method is called after internal validation."""
-
-        if parameters[3].value and parameters[3].value < 1:
-            parameters[3].setErrorMessage("'Classes' must be greater than 1.")
-        return
-
-    def execute(self, parameters, messages):
-        """The source code of the tool."""
-        execute_tool(arcsdm.tocfuzzification.Calculate, self, parameters, messages)
-        return
-
-
 class AgterbergChengCITest(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
@@ -1178,138 +1077,6 @@ class AgterbergChengCITest(object):
     def execute(self, parameters, messages):
         """The source code of the tool."""
         execute_tool(arcsdm.agterbergchengci.Calculate, self, parameters, messages)
-        return
-
-
-class FuzzyROC2(object):
-    def __init__(self):
-        """Define the tool (tool name is the name of the class)."""
-        self.label = "Fuzzy ROC"
-        self.description = "Fuzzy Membership + Fuzzy Overlay + ROC (Receiver Operator Characteristic)"
-        self.canRunInBackground = False
-        self.category = TS_PREDICTIVE_MODELING
-
-    def getParameterInfo(self):
-        """Define parameter definitions"""
-
-        param_inputs = arcpy.Parameter(
-        displayName="Input rasters, Fuzzy Membership functions and parameters",
-            name="inputrasters",
-            datatype="DETable",
-            multiValue=1,
-            parameterType="Required",
-            direction="Input")
-        param_inputs.columns = [['GPRasterLayer', 'Input raster name'], ['String', 'Membership type'], ['String', 'Midpoint Min'], ['String', 'Midpoint Max'], ['String', 'Midpoint Count'], ['String', 'Spread Min'], ['String', 'Spread Max'], ['String', 'Spread Count']]
-        param_inputs.filters[1].type = 'ValueList'
-        param_inputs.filters[1].list = ['Small', 'Large']
-
-        param_draw = arcpy.Parameter(
-            displayName="Draw only Fuzzy Membership plots",
-            name="plots",
-            datatype="GPBoolean",
-            parameterType="Optional",
-            direction="Input")
-        param_draw.value = False
-
-        param_true_positives = arcpy.Parameter(
-            displayName="\nTrue Positives Feature Class",
-            name="truepositives",
-            datatype="DEFeatureClass",
-            parameterType="Required",
-            direction="Input")
-
-        param_output_folder = arcpy.Parameter(
-            displayName="Output Folder",
-            name="output_folder",
-            datatype="DEFolder",
-            parameterType="Required",
-            direction="Input")
-        param_output_folder.filter.list = ["File System"]
-
-        if arcpy.env.workspace:
-            param_output_folder.value = os.path.join(os.path.dirname(arcpy.env.workspace), "FuzzyROC")
-
-        param_overlay_type = arcpy.Parameter(
-            displayName="Fuzzy Overlay Type",
-            name="overlay_type",
-            datatype="GPString",
-            parameterType="Required",
-            direction="Input"
-        )
-        param_overlay_type.filter.type = "ValueList"
-        param_overlay_type.filter.list = ['And', 'Or', 'Product', 'Sum', 'Gamma']
-        param_overlay_type.value = 'And'
-
-        param_overlay_parameter = arcpy.Parameter(
-            displayName="Fuzzy Overlay Parameter",
-            name="overlay_param",
-            datatype="GPDouble",
-            parameterType="Required",
-            direction="Input"
-        )
-
-        param_overlay_parameter.value = 0.0
-        param_overlay_parameter.filter.type = "Range"
-        param_overlay_parameter.filter.list = [0.0, 1.0]
-
-        param_display_method = arcpy.Parameter(
-        displayName="Plot display method",
-        name="display_method",
-        datatype="GPString",
-        parameterType="Required",
-        direction="Input",
-        enabled=False,
-        category='Plotting')
-        param_display_method.filter.type = "ValueList"
-        param_display_method.filter.list = ["To PDF file(s)", "To PNG file(s)"]
-        param_display_method.value = "To PDF file(s)"
-
-        params = [param_inputs, param_draw, param_true_positives, param_output_folder, param_overlay_type, param_overlay_parameter, param_display_method]
-        return params
-
-    def isLicensed(self):
-        """Set whether tool is licensed to execute."""
-        try:
-            if arcpy.CheckExtension("Spatial") != "Available":
-                raise Exception
-        except Exception:
-            return False
-        return True
-
-    def updateParameters(self, parameters):
-        """Modify the values and properties of parameters before internal
-        validation is performed. This method is called whenever a parameter
-        has been changed."""
-        if (parameters[1].value):
-            parameters[4].enabled = False
-            parameters[6].enabled = True
-        else:
-            parameters[4].enabled = True
-            parameters[6].enabled = False
-
-        if parameters[4].value == "Gamma" and parameters[4].enabled:
-            parameters[5].enabled = True
-        else:
-            parameters[5].enabled = False
-
-        return
-
-    def updateMessages(self, parameters):
-        """Modify the messages created by internal validation for each tool
-        parameter. This method is called after internal validation."""
-        default_folder = os.path.join(os.path.dirname(arcpy.env.workspace), "FuzzyROC")
-        if default_folder and os.path.normpath(parameters[3].valueAsText) == os.path.normpath(default_folder):
-            parameters[3].clearMessage()
-
-        return
-
-    def execute(self, parameters, messages):
-        """The source code of the tool."""
-        default_folder = os.path.join(os.path.dirname(arcpy.env.workspace), "FuzzyROC")
-        if default_folder and os.path.normpath(parameters[3].valueAsText) == os.path.normpath(default_folder):
-            if not os.path.exists(default_folder):
-                os.makedirs(default_folder)
-        execute_tool(arcsdm.fuzzyroc2.Execute, self, parameters, messages)
         return
 
 
