@@ -664,7 +664,7 @@ def Execute_MLP_regressor_test(self, parameters, messages):
         arcpy.AddMessage("Metrics:")
         arcpy.AddMessage(metrics_dict)
 
-        arcpy.AddMessage(f"Finnish")
+        arcpy.AddMessage(f"Finished")
 
     # Return geoprocessing specific errors
     except arcpy.ExecuteError:
@@ -754,13 +754,12 @@ def Execute_regressor_predict(self, parameters, messages):
     try:
         input_rasters = parameters[0].valueAsText.split(';')
         X_nodata_value = parameters[1].value
-        y_nodata_value = parameters[2].value
-        model_file = parameters[3].valueAsText
-        output_raster_classified_name = parameters[4].valueAsText
+        model_file = parameters[2].valueAsText
+        output_raster_classified_name = parameters[3].valueAsText
 
         arcpy.AddMessage("Starting Regressor predict...")
 
-        X, y, reference_profile = prepare_data_for_ml(input_rasters, None, None, X_nodata_value, y_nodata_value)
+        X, _, reference_profile = prepare_data_for_ml(feature_raster_files=input_rasters, feature_raster_nodata_value=X_nodata_value)
         nodata_mask = reference_profile["nodata_mask"]
 
         # load trained model
@@ -801,15 +800,14 @@ def Execute_classifier_predict(self, parameters, messages):
     try:
         input_rasters = parameters[0].valueAsText.split(';')
         X_nodata_value = parameters[1].value
-        y_nodata_value = parameters[2].value
-        model_file = parameters[3].valueAsText
-        classification_threshold = parameters[4].value
-        output_raster_probability_name = parameters[5].valueAsText
-        output_raster_classified_name = parameters[6].valueAsText
+        model_file = parameters[2].valueAsText
+        classification_threshold = parameters[3].value
+        output_raster_probability_name = parameters[4].valueAsText
+        output_raster_classified_name = parameters[5].valueAsText
 
         arcpy.AddMessage("Starting Classifier predict...")
 
-        X, y, reference_profile = prepare_data_for_ml(input_rasters, None, None, X_nodata_value, y_nodata_value)
+        X, _, reference_profile = prepare_data_for_ml(feature_raster_files=input_rasters, feature_raster_nodata_value=X_nodata_value)
         nodata_mask = reference_profile["nodata_mask"]
 
         # load trained model

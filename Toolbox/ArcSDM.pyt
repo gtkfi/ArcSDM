@@ -2064,13 +2064,6 @@ class RegressorPredict(object):
             direction="Input")
         param_X_nodata_value.value = -99
 
-        param_y_nodata_value = arcpy.Parameter(
-            displayName="Label NoData Value",
-            name="y_nodata_value",
-            datatype="GPLong",
-            parameterType="Optional",
-            direction="Input")
-
         param_model_file = arcpy.Parameter(
             displayName="Input Model File",
             name="model_file",
@@ -2085,11 +2078,10 @@ class RegressorPredict(object):
             parameterType="Required",
             direction="Output"
         )
-        param_pred_probability_raster_output.value = "classifier_probability_test_result"
+        param_pred_probability_raster_output.value = "regressor_probability_test_result"
 
         params = [param_X,
                   param_X_nodata_value,
-                  param_y_nodata_value,
                   param_model_file,
                   param_pred_probability_raster_output
                 ]
@@ -2144,13 +2136,6 @@ class ClassifierPredict(object):
             direction="Input")
         param_X_nodata_value.value = -99
 
-        param_y_nodata_value = arcpy.Parameter(
-            displayName="Label NoData Value",
-            name="y_nodata_value",
-            datatype="GPLong",
-            parameterType="Optional",
-            direction="Input")
-
         param_model_file = arcpy.Parameter(
             displayName="Input Model File",
             name="model_file",
@@ -2187,7 +2172,6 @@ class ClassifierPredict(object):
 
         params = [param_X,
                   param_X_nodata_value,
-                  param_y_nodata_value,
                   param_model_file,
                   param_classification_threshold,
                   param_pred_probability_raster_output,
