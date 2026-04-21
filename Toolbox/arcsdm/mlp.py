@@ -83,7 +83,7 @@ def _check_MLP_inputs(
         arcpy.AddError("Learning rate must be greater than 0.")
         raise arcpy.ExecuteError
 
-    if dropout_rate and not (0.0 <= dropout_rate <= 1.0):
+    if dropout_rate and not (0.0 <= dropout_rate < 1.0):
         arcpy.AddError("Dropout rate must be between 0 and 1, inclusive.")
         raise arcpy.ExecuteError
 
@@ -247,7 +247,7 @@ def train_MLP_classifier(
         loss=loss_function,
         metrics=[_keras_metric(m) for m in metrics],
     )
-    
+
     # Early stopping callback
     callbacks = [keras.callbacks.EarlyStopping(monitor="val_loss", patience=es_patience)] if early_stopping else []
     callbacks.append(ArcPyLoggingCallback(epochs))
@@ -288,7 +288,7 @@ def train_MLP_classifier(
 
 def Execute_MLP_classifier(self, parameters, messages):
 
-    try:        
+    try:
         arcpy.AddMessage("Starting MLP classifier training...")
 
         input_rasters = parameters[0].valueAsText.split(';') if parameters[0].valueAsText else []
@@ -297,7 +297,7 @@ def Execute_MLP_classifier(self, parameters, messages):
 
         # Explicit NoData values for features & labels
         X_nodata_value = parameters[3].value
-        y_nodata_value = parameters[4].value 
+        y_nodata_value = parameters[4].value
 
         neurons = [int(n) for n in parameters[5].valueAsText.split(',')] if parameters[5].valueAsText else [64, 32]
 
@@ -381,10 +381,10 @@ def Execute_MLP_classifier(self, parameters, messages):
             arcpy.AddMessage(f"Training history: {hdict}")
         except Exception:
             return arcpy.ExecuteError("Failed to retrieve training history.")
-    
+
     # Return geoprocessing specific errors
-    except arcpy.ExecuteError:    
-        arcpy.AddError(arcpy.GetMessages(2))    
+    except arcpy.ExecuteError:
+        arcpy.AddError(arcpy.GetMessages(2))
 
     # Return any other type of error
     except:
@@ -394,7 +394,7 @@ def Execute_MLP_classifier(self, parameters, messages):
 
 
 def Execute_MLP_regressor(self, parameters, messages):
-    
+
     try:
         input_rasters = parameters[0].valueAsText.split(';')
         target_labels = parameters[1].valueAsText.split(';')
@@ -421,9 +421,9 @@ def Execute_MLP_regressor(self, parameters, messages):
         minority_class = int(parameters[22].value) if parameters[22].value is not None else 1
         k_neighbors = int(parameters[23].value) if parameters[23].value else 5
         output_file = parameters[24].valueAsText
-        
+
         arcpy.AddMessage("Starting MLP regressor training...")
-        
+
         if (target_labels_attr != None and (target_labels_attr.lower() == "shape" or target_labels_attr.lower() == "fid")):
             arcpy.AddError("Invalid 'Target labels attribute' field name")
             return
@@ -458,16 +458,16 @@ def Execute_MLP_regressor(self, parameters, messages):
             minority_class=minority_class,
             k_neighbors=k_neighbors,
         )
-        
+
         arcpy.AddMessage(f"Saving model to {output_file}.keras")
         arcpy.AddMessage(f"Model training history:")
         arcpy.AddMessage(f"{history.history}")
-        
+
         save_model(model, output_file)
 
     # Return geoprocessing specific errors
-    except arcpy.ExecuteError:    
-        arcpy.AddError(arcpy.GetMessages(2))    
+    except arcpy.ExecuteError:
+        arcpy.AddError(arcpy.GetMessages(2))
 
     # Return any other type of error
     except:
@@ -579,7 +579,7 @@ def train_MLP_regressor(
         loss=loss_function,
         metrics=[_keras_metric(metric) for metric in metrics],
     )
-    
+
     # 3. Train the model
     # Early stopping callback
     callbacks = [keras.callbacks.EarlyStopping(monitor="val_loss", patience=es_patience)] if early_stopping else []
@@ -631,9 +631,9 @@ def Execute_MLP_regressor_test(self, parameters, messages):
 
         output_raster = parameters[6].valueAsText
         test_metrics = parameters[7].valueAsText.split(';')
-        
+
         arcpy.AddMessage("Starting MLP regressor test...")
-    
+
         model = load_model(model_file)
 
         X, y, reference_profile = prepare_data_for_ml(input_rasters, target_labels, target_labels_attr, X_nodata_value, y_nodata_value)
@@ -667,8 +667,8 @@ def Execute_MLP_regressor_test(self, parameters, messages):
         arcpy.AddMessage(f"Finnish")
 
     # Return geoprocessing specific errors
-    except arcpy.ExecuteError:    
-        arcpy.AddError(arcpy.GetMessages(2))    
+    except arcpy.ExecuteError:
+        arcpy.AddError(arcpy.GetMessages(2))
 
     # Return any other type of error
     except:
@@ -709,7 +709,7 @@ def Execute_MLP_classifier_test(self, parameters, messages):
         raster = arcpy.Raster(input_rasters[0])
         desc = arcpy.Describe(raster)
         predictions, probabilities = predict_classifier(X, model, classification_threshold, True)
-        
+
         probabilities_reshaped = reshape_predictions(
             probabilities, raster.height, raster.width, nodata_mask
         )
@@ -741,8 +741,8 @@ def Execute_MLP_classifier_test(self, parameters, messages):
             arcpy.AddMessage(f"Metrics: {metrics_dict}")
 
     # Return geoprocessing specific errors
-    except arcpy.ExecuteError:    
-        arcpy.AddError(arcpy.GetMessages(2))    
+    except arcpy.ExecuteError:
+        arcpy.AddError(arcpy.GetMessages(2))
     # Return any other type of error
     except:
         # By default any other errors will be caught here
@@ -788,8 +788,8 @@ def Execute_regressor_predict(self, parameters, messages):
         arcpy.AddMessage("Regressor predict completed.")
 
     # Return geoprocessing specific errors
-    except arcpy.ExecuteError:    
-        arcpy.AddError(arcpy.GetMessages(2))    
+    except arcpy.ExecuteError:
+        arcpy.AddError(arcpy.GetMessages(2))
     # Return any other type of error
     except:
         # By default any other errors will be caught here
@@ -817,7 +817,7 @@ def Execute_classifier_predict(self, parameters, messages):
         raster = arcpy.Raster(input_rasters[0])
         desc = arcpy.Describe(raster)
         predictions, probabilities = predict_classifier(X, model, classification_threshold, True)
-        
+
         probabilities_reshaped = reshape_predictions(
             probabilities, raster.height, raster.width, nodata_mask
         )
@@ -845,8 +845,8 @@ def Execute_classifier_predict(self, parameters, messages):
         arcpy.AddMessage("Classifier predict completed.")
 
     # Return geoprocessing specific errors
-    except arcpy.ExecuteError:    
-        arcpy.AddError(arcpy.GetMessages(2))    
+    except arcpy.ExecuteError:
+        arcpy.AddError(arcpy.GetMessages(2))
     # Return any other type of error
     except:
         # By default any other errors will be caught here
