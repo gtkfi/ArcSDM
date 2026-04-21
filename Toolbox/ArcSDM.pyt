@@ -1434,7 +1434,7 @@ class TrainMLPRegressor(object):
             parameterType="Required",
             direction="Input")
         param_loss_function.filter.type = "ValueList"
-        param_loss_function.filter.list = ["mse", "mae", "hinge", "huber"]
+        param_loss_function.filter.list = ["mse", "mae", "huber"]
         param_loss_function.value = "mse"
 
         param_dropout_rate = arcpy.Parameter(

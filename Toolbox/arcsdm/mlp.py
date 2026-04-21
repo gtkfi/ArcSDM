@@ -489,7 +489,7 @@ def train_MLP_regressor(
     batch_size: int = 32,
     optimizer: Literal["adam", "adagrad", "rmsprop", "sgd"] = "adam",
     learning_rate: Number = 0.001,
-    loss_function: Literal["mse", "mae", "hinge", "huber"] = "mse",
+    loss_function: Literal["mse", "mae", "huber"] = "mse",
     dropout_rate: Optional[Number] = None,
     early_stopping: bool = True,
     es_patience: int = 5,
