@@ -1390,8 +1390,8 @@ class TrainMLPRegressor(object):
             parameterType="Optional",
             direction="Input")
         param_last_activation.filter.type = "ValueList"
-        param_last_activation.filter.list = ["sigmoid", "linear"]
-        param_last_activation.value = "sigmoid"
+        param_last_activation.filter.list = ["linear", "sigmoid"]
+        param_last_activation.value = "linear"
 
         param_epochs = arcpy.Parameter(
             displayName="Epochs",
