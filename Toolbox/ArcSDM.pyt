@@ -10,7 +10,6 @@ import arcsdm.categoricalreclass
 import arcsdm.mlp
 import arcsdm.pca
 import arcsdm.roctool
-import arcsdm.symbolize
 import arcsdm.splitting
 import arcsdm.thinning
 import arcsdm.wofe_common
@@ -51,7 +50,6 @@ class Toolbox(object):
             ROCTool,
             SplitPoints,
             ThinPoints,
-            # Symbolize,
             TrainMLPClassifierTool,
             TrainMLPRegressorTool,
             MLPRegressorTestTool,
@@ -257,68 +255,6 @@ class ROCTool(object):
 
     def execute(self, parameters, messages):
         execute_tool(arcsdm.roctool.execute, self, parameters, messages)
-        return
-
-
-class Symbolize(object):
-    def __init__(self):
-        """Define the tool (tool name is the name of the class)."""
-        self.label = "Symbolize Raster with Prior Probability (Classified Values)"
-        self.description = "This tool allows symbolizing prior probablity raster with predefined colorscheme from local raster_classified.lyr file"
-        self.canRunInBackground = False
-        self.category = "Utilities"
-
-    def getParameterInfo(self):
-        """Define parameter definitions"""
-        param0 = arcpy.Parameter(
-        displayName="Raster Layer to symbolize",
-        name="evidence_raster_layer",
-        datatype="GPRasterLayer",
-        parameterType="Required",
-        direction="Input")
-
-        param2 = arcpy.Parameter(
-        displayName="Training sites (for prior prob)",
-        name="training_sites",
-        #datatype="DEFeatureClass",
-        datatype="GPFeatureLayer",
-        parameterType="Required",
-        direction="Input")
-
-        param5 = arcpy.Parameter(
-        displayName="Unit area (km2)",
-        name="Unit_Area__sq_km_",
-        datatype="GPDouble",
-        parameterType="Required",
-        direction="Input")
-        param5.value = "1"
-
-        params = [param0, param2, param5]
-        return params
-
-    def isLicensed(self):
-        """Set whether tool is licensed to execute."""
-        try:
-            if arcpy.CheckExtension("Spatial") != "Available":
-                raise Exception
-        except Exception:
-            return False
-        return True
-
-    def updateParameters(self, parameters):
-        """Modify the values and properties of parameters before internal
-        validation is performed. This method is called whenever a parameter
-        has been changed."""
-        return
-
-    def updateMessages(self, parameters):
-        """Modify the messages created by internal validation for each tool
-        parameter. This method is called after internal validation."""
-        return
-
-    def execute(self, parameters, messages):
-        """The source code of the tool."""
-        execute_tool(arcsdm.symbolize.execute, self, parameters, messages)
         return
 
 
