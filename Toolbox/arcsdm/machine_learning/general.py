@@ -324,11 +324,11 @@ def prepare_data_for_ml(
     # --- Labels ---
     y = None
     if label_files is not None:
-        if isinstance(label_files, str): 
+        if isinstance(label_files, str):
             label_files = [label_files]
         else:
             label_files = list(label_files)
-        
+
         y_arrs = []
         for label_file in label_files:
             if not arcpy.Exists(label_file):
@@ -368,7 +368,7 @@ def prepare_data_for_ml(
             y_arrs.append(y_arr.reshape(-1))
 
         y_stacked = np.stack(y_arrs, axis=1)
-        
+
         # Any NaN in labels is excluded from training/eval
         label_mask = np.isnan(y_stacked).any(axis=1)
         nodata_mask = nodata_mask | label_mask

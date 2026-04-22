@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<metadata xml:lang="en">
+	<Esri>
+		<CreaDate>20260421</CreaDate>
+		<CreaTime>15450800</CreaTime>
+		<ArcGISFormat>1.0</ArcGISFormat>
+		<SyncOnce>TRUE</SyncOnce>
+		<ModDate>20260421</ModDate>
+		<ModTime>17034700</ModTime>
+		<scaleRange>
+			<minScale>150000000</minScale>
+			<maxScale>5000</maxScale>
+		</scaleRange>
+		<ArcGISProfile>ItemDescription</ArcGISProfile>
+	</Esri>
+	<tool name="SplitPoints" displayname="Split Points" toolboxalias="ArcSDM">
+		<arcToolboxHelpPath>c:\program files\arcgis\pro\Resources\Help\gp</arcToolboxHelpPath>
+		<parameters>
+			<param name="training_sites_layer" displayname="Input points" type="Required" direction="Input" datatype="Feature Layer" expression="training_sites_layer">
+			</param>
+			<param name="random_percentage" displayname="Training fraction" type="Required" direction="Input" datatype="Long" expression="random_percentage">
+				<dialogReference>&lt;DIV STYLE="text-align:Left;"&gt;&lt;DIV&gt;&lt;P&gt;&lt;SPAN&gt;Proportion of dataset used for training&lt;/SPAN&gt;&lt;SPAN&gt;. R&lt;/SPAN&gt;&lt;SPAN&gt;emaining data is used for testing&lt;/SPAN&gt;&lt;SPAN&gt; if a testing output layer is specified.&lt;/SPAN&gt;&lt;/P&gt;&lt;/DIV&gt;&lt;/DIV&gt;</dialogReference>
+			</param>
+			<param name="output_training_layer" displayname="Output training layer" type="Required" direction="Output" datatype="Feature Layer" expression="output_training_layer">
+			</param>
+			<param name="output_testing_layer" displayname="Output testing layer (optional)" type="Optional" direction="Output" datatype="Feature Layer" expression="{output_testing_layer}">
+			</param>
+		</parameters>
+	</tool>
+	<dataIdInfo>
+		<idCitation>
+			<resTitle>Split Points</resTitle>
+		</idCitation>
+	</dataIdInfo>
+	<distInfo>
+		<distributor>
+			<distorFormat>
+				<formatName>ArcToolbox Tool</formatName>
+			</distorFormat>
+		</distributor>
+	</distInfo>
+	<mdHrLv>
+		<ScopeCd value="005">
+		</ScopeCd>
+	</mdHrLv>
+	<mdDateSt Sync="TRUE">20260421</mdDateSt>
+</metadata>
