@@ -20,7 +20,6 @@ from arcsdm.common import execute_tool
 # Toolsets and sub-toolsets within ArcSDM toolbox
 TS_EXPLORATORY_DATA_ANALYSIS = "Exploratory Data Analysis"
 TS_PREPROCESSING = "Preprocessing"
-TS_FUZZY = "Fuzzy Membership"
 TS_PREDICTIVE_MODELING = "Predictive Modeling"
 TS_MLP = "Multilayer Perceptron"
 TS_CLASSIFIER_TESTING = "Classifier Testing"
@@ -43,7 +42,7 @@ class Toolbox(object):
             AreaFrequencyTable,
             CalculateResponse,
             CalculateWeights,
-            CategoricalAndReclass,
+            ReclassAndFuzzify,
             GetSDMValues,
             PCARaster,
             PCAVector,
@@ -846,13 +845,13 @@ class ThinPoints(object):
         return
 
 
-class CategoricalAndReclass(object):
+class ReclassAndFuzzify(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
-        self.label = "Categorical & Reclass"
+        self.label = "Reclass & Fuzzify"
         self.description = "Create fuzzy memberships for categorical data by first reclassification to integers and then division by an appropriate value."
         self.canRunInBackground = False
-        self.category = f"{TS_PREPROCESSING}\\{TS_RASTER_PROCESSING}\\{TS_FUZZY}"
+        self.category = f"{TS_PREPROCESSING}\\{TS_RASTER_PROCESSING}"
 
     def getParameterInfo(self):
         """Define parameter definitions"""
