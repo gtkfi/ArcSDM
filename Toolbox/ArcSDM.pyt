@@ -1019,7 +1019,7 @@ class TrainMLPClassifier(object):
     def __init__(self):
         """Train a Multi-Layer Perceptron (MLP) classifier with the given parameters."""
         self.label = "Train MLP Classifier"
-        self.description = "Train a Multi-Layer Perceptron (MLP) classifier with the given parameters."
+        self.description = "Train a binary Multi-Layer Perceptron (MLP) classifier with the given parameters."
         self.canRunInBackground = False
         self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MLP}"
 
@@ -1066,7 +1066,7 @@ class TrainMLPClassifier(object):
             direction="Input")
 
         param_neurons = arcpy.Parameter(
-            displayName="Neurons per Layer. A comma separeted list of integers: e.g. 10,5,10",
+            displayName="Neurons per layer. A comma separeted list of integers: e.g. 10,5,10",
             name="neurons",
             datatype="GPString",
             parameterType="Required",
@@ -1096,24 +1096,6 @@ class TrainMLPClassifier(object):
         param_activation.filter.type = "ValueList"
         param_activation.filter.list = ["relu", "sigmoid", "tanh"]
         param_activation.value = "relu"
-
-        param_output_neurons = arcpy.Parameter(
-            displayName="Output Neurons",
-            name="output_neurons",
-            datatype="GPLong",
-            parameterType="Required",
-            direction="Input")
-        param_output_neurons.value = 1
-
-        param_last_activation = arcpy.Parameter(
-            displayName="Last Layer Activation Function",
-            name="last_activation",
-            datatype="GPString",
-            parameterType="Required",
-            direction="Input")
-        param_last_activation.filter.type = "ValueList"
-        param_last_activation.filter.list = ["sigmoid"]
-        param_last_activation.value = "sigmoid"
 
         param_epochs = arcpy.Parameter(
             displayName="Epochs",
@@ -1148,16 +1130,6 @@ class TrainMLPClassifier(object):
             parameterType="Required",
             direction="Input")
         param_learning_rate.value = 0.001
-
-        param_loss_function = arcpy.Parameter(
-            displayName="Loss Function",
-            name="loss_function",
-            datatype="GPString",
-            parameterType="Required",
-            direction="Input")
-        param_loss_function.filter.type = "ValueList"
-        param_loss_function.filter.list = ["binary_crossentropy", "categorical_crossentropy"]
-        param_loss_function.value = "binary_crossentropy"
 
         param_dropout_rate = arcpy.Parameter(
             displayName="Dropout Rate",
@@ -1238,32 +1210,29 @@ class TrainMLPClassifier(object):
             direction="Output")
         param_output_file.value = "model"
 
-        params = [param_X,
-                  param_y,
-                  param_y_attribute,
-                  param_X_nodata_value,
-                  param_y_nodata_value,
-                  param_neurons,
-                  param_validation_split,
-                  param_validation_data,
-                  param_activation,
-                  param_output_neurons,
-                  param_last_activation,
-                  param_epochs,
-                  param_batch_size,
-                  param_optimizer,
-                  param_learning_rate,
-                  param_loss_function,
-                  param_dropout_rate,
-                  param_early_stopping,
-                  param_es_patience,
-                  param_metrics,
-                  param_random_state,
-                  param_apply_smote,
-                  param_n_synthetic_samples,
-                  param_minority_class,
-                  param_k_neighbors,
-                  param_output_file
+        params = [param_X, # 0
+                  param_y, # 1
+                  param_y_attribute, # 2
+                  param_X_nodata_value, # 3
+                  param_y_nodata_value, # 4
+                  param_neurons, # 5
+                  param_validation_split, # 6
+                  param_validation_data, # 7
+                  param_activation, # 8
+                  param_epochs, # 9
+                  param_batch_size, # 10
+                  param_optimizer, # 11
+                  param_learning_rate, # 12
+                  param_dropout_rate, # 13
+                  param_early_stopping, # 14
+                  param_es_patience, # 15
+                  param_metrics, # 16
+                  param_random_state, # 17
+                  param_apply_smote, # 18
+                  param_n_synthetic_samples, # 19
+                  param_minority_class, # 20
+                  param_k_neighbors, # 21
+                  param_output_file # 22
                 ]
         return params
 
@@ -1274,10 +1243,10 @@ class TrainMLPClassifier(object):
     def updateParameters(self, parameters):
         """Modify the values and properties of parameters before internal validation is performed. This method is called whenever a parameter has been changed."""
 
-        apply_smote = parameters[21]
-        n_synthetic_samples = parameters[22]
-        minority_class = parameters[23]
-        k_neighbors = parameters[24]
+        apply_smote = parameters[18]
+        n_synthetic_samples = parameters[19]
+        minority_class = parameters[20]
+        k_neighbors = parameters[21]
 
         if apply_smote.value:
             n_synthetic_samples.enabled = True

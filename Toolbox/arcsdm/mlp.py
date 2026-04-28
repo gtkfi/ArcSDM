@@ -181,7 +181,7 @@ def train_MLP_classifier(
         optimizer: Optimizer to be used. Defaults to 'adam'.
         learning_rate: Learning rate to be used in training. Value must be > 0. Defalts to 0.001.
         loss_function: Loss function to be used. Defaults to 'binary_crossentropy'.
-        dropout_rate: Fraction of the input units to drop. Value must be >= 0 and <= 1. Defaults to None.
+        dropout_rate: Fraction of the input units to drop. Value must be >= 0 and < 1. Defaults to None.
         early_stopping: Whether or not to use early stopping in training. Defaults to True.
         es_patience: Number of epochs with no improvement after which training will be stopped. Defaults to 5.
         metrics: Metrics to be evaluated by the model during training and testing. Defaults to ['accuracy'].
@@ -307,23 +307,22 @@ def Execute_MLP_classifier(self, parameters, messages):
             validation_split = 0.0  # explicit validation overrides split
 
         activation = parameters[8].valueAsText or "relu"
-        output_neurons = int(parameters[9].value) if parameters[9].value is not None else None
-        last_activation = parameters[10].valueAsText or "sigmoid"
-        epochs = int(parameters[11].value) if parameters[11].value is not None else 50
-        batch_size = int(parameters[12].value) if parameters[12].value is not None else 32
-        optimizer = parameters[13].valueAsText or "adam"
-        learning_rate = float(parameters[14].value) if parameters[14].value is not None else 1e-3
-        loss_function = parameters[15].valueAsText or "binary_crossentropy"
-        dropout_rate = float(parameters[16].value) if parameters[16].value is not None else None
-        early_stopping = bool(parameters[17].value)
-        es_patience = int(parameters[18].value) if parameters[18].value is not None else 5
-        metrics = parameters[19].valueAsText.split(',') if parameters[19].valueAsText else ["accuracy"]
-        random_state = int(parameters[20].value) if parameters[20].value is not None else None
-        apply_smote = bool(parameters[21].value)
-        n_synthetic_samples = int(parameters[22].value) if parameters[22].value else None
-        minority_class = int(parameters[23].value) if parameters[23].value is not None else 1
-        k_neighbors = int(parameters[24].value) if parameters[24].value else 5
-        output_file = parameters[25].valueAsText
+        output_neurons = 1
+        # output_neurons = int(parameters[9].value) if parameters[9].value is not None else None
+        epochs = int(parameters[9].value) if parameters[9].value is not None else 50
+        batch_size = int(parameters[10].value) if parameters[10].value is not None else 32
+        optimizer = parameters[11].valueAsText or "adam"
+        learning_rate = float(parameters[12].value) if parameters[12].value is not None else 1e-3
+        dropout_rate = float(parameters[13].value) if parameters[13].value is not None else None
+        early_stopping = bool(parameters[14].value)
+        es_patience = int(parameters[15].value) if parameters[15].value is not None else 5
+        metrics = parameters[16].valueAsText.split(',') if parameters[16].valueAsText else ["accuracy"]
+        random_state = int(parameters[17].value) if parameters[17].value is not None else None
+        apply_smote = bool(parameters[18].value)
+        n_synthetic_samples = int(parameters[19].value) if parameters[19].value else None
+        minority_class = int(parameters[20].value) if parameters[20].value is not None else 1
+        k_neighbors = int(parameters[21].value) if parameters[21].value else 5
+        output_file = parameters[22].valueAsText
 
         # Guard invalid attribute names
         if target_labels_attr and target_labels_attr.lower() in ("shape", "fid"):
@@ -355,12 +354,10 @@ def Execute_MLP_classifier(self, parameters, messages):
             validation_data=validation_data,
             activation=activation,
             output_neurons=output_neurons,
-            last_activation=last_activation,
             epochs=epochs,
             batch_size=batch_size,
             optimizer=optimizer,
             learning_rate=learning_rate,
-            loss_function=loss_function,
             dropout_rate=dropout_rate,
             early_stopping=early_stopping,
             es_patience=es_patience,
