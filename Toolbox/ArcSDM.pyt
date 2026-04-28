@@ -210,7 +210,7 @@ class ROCTool(object):
 
     def getParameterInfo(self):
         positives_param = arcpy.Parameter(
-            displayName="True Positives",
+            displayName="Presence locations",
             name="positive_points",
             datatype="GPFeatureLayer",
             parameterType="Required",
@@ -218,7 +218,7 @@ class ROCTool(object):
         positives_param.filter.list = ["Point", "Multipoint"]
 
         negatives_param = arcpy.Parameter(
-            displayName="True Negatives",
+            displayName="Absence locations",
             name="negative_points",
             datatype="GPFeatureLayer",
             parameterType="Optional",
@@ -226,7 +226,7 @@ class ROCTool(object):
         negatives_param.filter.list = ["Point", "Multipoint"]
 
         models_param = arcpy.Parameter(
-            displayName="Classification Models",
+            displayName="Prediction raster(s)",
             name="model_rasters",
             datatype="GPRasterLayer",
             parameterType="Required",
