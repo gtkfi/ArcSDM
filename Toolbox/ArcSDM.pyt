@@ -2071,13 +2071,13 @@ class RegressorPredict(object):
             direction="input")
 
         param_pred_probability_raster_output = arcpy.Parameter(
-            displayName="Output predicted values probability raster",
+            displayName="Output predicted values raster",
             name="Output_Predicted_values_probability_raster",
             datatype="DERasterDataset",
             parameterType="Required",
             direction="Output"
         )
-        param_pred_probability_raster_output.value = "regressor_probability_test_result"
+        param_pred_probability_raster_output.value = "predicted_values"
 
         params = [param_X,
                   param_X_nodata_value,
@@ -2158,7 +2158,7 @@ class ClassifierPredict(object):
             parameterType="Required",
             direction="Output"
         )
-        param_pred_probability_raster_output.value = "classifier_probability_test_result"
+        param_pred_probability_raster_output.value = "predicted_probabilities"
 
         param_pred_classified_raster_output = arcpy.Parameter(
             displayName="Output predicted values classified raster",
@@ -2167,7 +2167,7 @@ class ClassifierPredict(object):
             parameterType="Required",
             direction="Output"
         )
-        param_pred_classified_raster_output.value = "classifier_classified_test_result"
+        param_pred_classified_raster_output.value = "predicted_class"
 
         params = [param_X,
                   param_X_nodata_value,
