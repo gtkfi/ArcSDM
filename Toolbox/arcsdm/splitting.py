@@ -49,9 +49,7 @@ def SplitSites(self, parameters, messages):
         # Create inverse (testing) layer if specified
         if inverse_output_layer:
             create_output_layer([f[0] for f in testing_features], input_features, inverse_output_layer, identifier)
-        else:
-            create_output_layer([f[0] for f in training_features], input_features, output_layer, identifier)
-
+        create_output_layer([f[0] for f in training_features], input_features, output_layer, identifier)
 
         arcpy.AddMessage("Splitting completed successfully.")
 
