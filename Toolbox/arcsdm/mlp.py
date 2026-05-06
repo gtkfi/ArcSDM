@@ -1,29 +1,127 @@
-from numbers import Number
-
+import json
+import os
 import sys
+from numbers import Number
+from typing import Literal, Optional, Sequence, Tuple
+
 import arcpy
 import numpy as np
-from typing import Literal, Optional, Sequence, Tuple
 from sklearn.model_selection import train_test_split
-from tensorflow import keras
-from tensorflow.keras.metrics import CategoricalCrossentropy, MeanAbsoluteError, MeanSquaredError, Precision, Recall
-from tensorflow.keras.layers import Flatten
-from tensorflow.keras.optimizers import SGD, Adagrad, Adam, RMSprop
 
 from arcsdm.evaluation.scoring import score_predictions
-from arcsdm.machine_learning.general import load_model, reshape_predictions
-from arcsdm.machine_learning.predict import predict_classifier
-from arcsdm.machine_learning.general import prepare_data_for_ml, save_model
-from utils.arcpy_callback import ArcPyLoggingCallback
-from arcsdm.machine_learning.predict import predict_regressor
-from arcsdm.evaluation.scoring import score_predictions
+from arcsdm.machine_learning.general import (
+    prepare_data_for_ml,
+    reshape_predictions,
+    save_model,
+)
 from arcsdm.smote import smote
 
-import json
+
+def _lazy_load_model(path):
+    """Lazy wrapper for load_model to avoid top-level TF import."""
+    from arcsdm.machine_learning.general import load_model
+
+    return load_model(path)
+
+
+def _lazy_predict_classifier(X, model, threshold, include_probs):
+    """Lazy wrapper for predict_classifier to avoid top-level TF import."""
+    from arcsdm.machine_learning.predict import predict_classifier
+
+    return predict_classifier(X, model, threshold, include_probs)
+
+
+def _lazy_predict_regressor(X, model):
+    """Lazy wrapper for predict_regressor to avoid top-level TF import."""
+    from arcsdm.machine_learning.predict import predict_regressor
+
+    return predict_regressor(X, model)
+
+
+def _init_tensorflow():
+    """
+    Lazily initialize TensorFlow with CPU-only configuration.
+    Must be called before any TensorFlow/Keras usage to avoid GPU conflicts
+    with ArcGIS Pro's rendering engine (especially in ModelBuilder context).
+    """
+    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+    os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+
+    import tensorflow as tf
+
+    tf.config.set_visible_devices([], "GPU")
+
+    from tensorflow import keras
+    from tensorflow.keras.metrics import (
+        CategoricalCrossentropy,
+        MeanAbsoluteError,
+        MeanSquaredError,
+        Precision,
+        Recall,
+    )
+    from tensorflow.keras.optimizers import SGD, Adagrad, Adam, RMSprop
+    from utils.arcpy_callback import ArcPyLoggingCallback
+
+    return (
+        keras,
+        tf,
+        CategoricalCrossentropy,
+        MeanAbsoluteError,
+        MeanSquaredError,
+        Precision,
+        Recall,
+        SGD,
+        Adagrad,
+        Adam,
+        RMSprop,
+        ArcPyLoggingCallback,
+    )
+
+
+# Module-level cache so TF is only initialized once per process
+_tf_cache = {}
+
+
+def _get_tf():
+    """Get cached TensorFlow objects, initializing on first call."""
+    if not _tf_cache:
+        (
+            keras,
+            tf,
+            CategoricalCrossentropy,
+            MeanAbsoluteError,
+            MeanSquaredError,
+            Precision,
+            Recall,
+            SGD,
+            Adagrad,
+            Adam,
+            RMSprop,
+            ArcPyLoggingCallback,
+        ) = _init_tensorflow()
+        _tf_cache["keras"] = keras
+        _tf_cache["tf"] = tf
+        _tf_cache["CategoricalCrossentropy"] = CategoricalCrossentropy
+        _tf_cache["MeanAbsoluteError"] = MeanAbsoluteError
+        _tf_cache["MeanSquaredError"] = MeanSquaredError
+        _tf_cache["Precision"] = Precision
+        _tf_cache["Recall"] = Recall
+        _tf_cache["SGD"] = SGD
+        _tf_cache["Adagrad"] = Adagrad
+        _tf_cache["Adam"] = Adam
+        _tf_cache["RMSprop"] = RMSprop
+        _tf_cache["ArcPyLoggingCallback"] = ArcPyLoggingCallback
+    return _tf_cache
 
 
 def _keras_optimizer(optimizer: str, **kwargs):
     """Create a Keras optimizer from given name and parameters."""
+    tf_objs = _get_tf()
+    Adam = tf_objs["Adam"]
+    Adagrad = tf_objs["Adagrad"]
+    RMSprop = tf_objs["RMSprop"]
+    SGD = tf_objs["SGD"]
+
     if optimizer == "adam":
         return Adam(**kwargs)
     elif optimizer == "adagrad":
@@ -38,6 +136,13 @@ def _keras_optimizer(optimizer: str, **kwargs):
 
 
 def _keras_metric(metric_name: str):
+    tf_objs = _get_tf()
+    Precision = tf_objs["Precision"]
+    Recall = tf_objs["Recall"]
+    CategoricalCrossentropy = tf_objs["CategoricalCrossentropy"]
+    MeanSquaredError = tf_objs["MeanSquaredError"]
+    MeanAbsoluteError = tf_objs["MeanAbsoluteError"]
+
     if metric_name.lower() == "accuracy":
         return "accuracy"
     elif metric_name.lower() == "precision":
@@ -104,25 +209,33 @@ def _check_MLP_inputs(
         raise arcpy.ExecuteError
 
     if output_neurons > 1 and loss_function == "binary_crossentropy":
-        arcpy.AddError("Number of output neurons must be 1 when used loss function is binary crossentropy.")
+        arcpy.AddError(
+            "Number of output neurons must be 1 when used loss function is binary crossentropy."
+        )
         raise arcpy.ExecuteError
 
     if output_neurons <= 2 and loss_function == "categorical_crossentropy":
-        arcpy.AddError("Number of output neurons must be greater than 2 when used loss function is categorical crossentropy.")
+        arcpy.AddError(
+            "Number of output neurons must be greater than 2 when used loss function is categorical crossentropy."
+        )
         raise arcpy.ExecuteError
 
 
 def _check_ML_model_data_input(X: np.ndarray, y: np.ndarray):
     """Check if the input data for the ML model is in the correct shape."""
     if X.ndim != 2:
-        arcpy.AddError(f"X must be a 2-dimensional array, but is an array with shape {X.shape}.")
+        arcpy.AddError(
+            f"X must be a 2-dimensional array, but is an array with shape {X.shape}."
+        )
         raise arcpy.ExecuteError
 
     n_samples_X = X.shape[0]
     n_samples_y = y.shape[0]
 
     if n_samples_X != n_samples_y:
-        arcpy.AddError(f"The number of samples in X and y must be equal, but got {n_samples_X} in X and {n_samples_y} in y.")
+        arcpy.AddError(
+            f"The number of samples in X and y must be equal, but got {n_samples_X} in X and {n_samples_y} in y."
+        )
         raise arcpy.ExecuteError
 
 
@@ -139,17 +252,21 @@ def train_MLP_classifier(
     batch_size: int = 32,
     optimizer: Literal["adam", "adagrad", "rmsprop", "sgd"] = "adam",
     learning_rate: Number = 0.001,
-    loss_function: Literal["binary_crossentropy", "categorical_crossentropy"] = "binary_crossentropy",
+    loss_function: Literal[
+        "binary_crossentropy", "categorical_crossentropy"
+    ] = "binary_crossentropy",
     dropout_rate: Optional[Number] = None,
     early_stopping: Optional[bool] = True,
     es_patience: int = 5,
-    metrics: Optional[Sequence[Literal["accuracy", "precision", "recall"]]] = ["accuracy"],
+    metrics: Optional[Sequence[Literal["accuracy", "precision", "recall"]]] = [
+        "accuracy"
+    ],
     random_state: Optional[int] = None,
     apply_smote: bool = False,
     n_synthetic: Optional[int] = None,
     minority_class: Optional[int] = 1,
     k_neighbors: Optional[int] = 5,
-) -> Tuple[keras.Model, dict]:
+) -> Tuple:
     """
     Train MLP (Multilayer Perceptron) classifier using Keras.
 
@@ -210,6 +327,11 @@ def train_MLP_classifier(
         loss_function=loss_function,
     )
 
+    # Lazy-load TensorFlow/Keras to avoid crash in ModelBuilder context
+    tf_objs = _get_tf()
+    keras = tf_objs["keras"]
+    ArcPyLoggingCallback = tf_objs["ArcPyLoggingCallback"]
+
     # Seed for reproducibility
     if random_state is not None:
         keras.utils.set_random_seed(int(random_state))
@@ -223,7 +345,9 @@ def train_MLP_classifier(
         num_classes = int(output_neurons)
         if num_classes <= 1:
             num_classes = int(np.max(y)) + 1
-        y = keras.utils.to_categorical(y.astype("int32", copy=False), num_classes=num_classes)
+        y = keras.utils.to_categorical(
+            y.astype("int32", copy=False), num_classes=num_classes
+        )
     elif loss_function == "binary_crossentropy" and y.ndim == 1:
         y = y.astype("float32", copy=False)
 
@@ -240,7 +364,7 @@ def train_MLP_classifier(
 
     model.add(keras.layers.Dense(units=int(output_neurons), activation=last_activation))
 
-    #Compile
+    # Compile
     metrics = list(metrics) if metrics is not None else ["accuracy"]
     model.compile(
         optimizer=_keras_optimizer(optimizer, learning_rate=learning_rate),
@@ -249,15 +373,25 @@ def train_MLP_classifier(
     )
 
     # Early stopping callback
-    callbacks = [keras.callbacks.EarlyStopping(monitor="val_loss", patience=es_patience)] if early_stopping else []
+    callbacks = (
+        [keras.callbacks.EarlyStopping(monitor="val_loss", patience=es_patience)]
+        if early_stopping
+        else []
+    )
     callbacks.append(ArcPyLoggingCallback(epochs))
 
     if apply_smote:
         arcpy.AddMessage("Splitting data for SMOTE application...")
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=validation_split, random_state=random_state, shuffle=True)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=validation_split, random_state=random_state, shuffle=True
+        )
         arcpy.AddMessage("Applying SMOTE to balance the classes...")
-        X_train_smote, y_train_smote = smote(X_train, y_train, n_synthetic, minority_class, k_neighbors, random_state)
-        arcpy.AddMessage(f"After SMOTE, dataset has {np.unique(y_train_smote, return_counts=True)} samples per class.")
+        X_train_smote, y_train_smote = smote(
+            X_train, y_train, n_synthetic, minority_class, k_neighbors, random_state
+        )
+        arcpy.AddMessage(
+            f"After SMOTE, dataset has {np.unique(y_train_smote, return_counts=True)} samples per class."
+        )
 
         # Train the model with explicit train/test split
         arcpy.AddMessage("Training the model...")
@@ -271,7 +405,9 @@ def train_MLP_classifier(
         )
     else:
         arcpy.AddMessage("Splitting data...")
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=validation_split, random_state=random_state, shuffle=True)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=validation_split, random_state=random_state, shuffle=True
+        )
         # Train the model
         arcpy.AddMessage("Training the model...")
         history = model.fit(
@@ -291,7 +427,9 @@ def Execute_MLP_classifier(self, parameters, messages):
     try:
         arcpy.AddMessage("Starting MLP classifier training...")
 
-        input_rasters = parameters[0].valueAsText.split(';') if parameters[0].valueAsText else []
+        input_rasters = (
+            parameters[0].valueAsText.split(";") if parameters[0].valueAsText else []
+        )
         target_labels = parameters[1].valueAsText
         target_labels_attr = parameters[2].valueAsText
 
@@ -299,10 +437,18 @@ def Execute_MLP_classifier(self, parameters, messages):
         X_nodata_value = parameters[3].value
         y_nodata_value = parameters[4].value
 
-        neurons = [int(n) for n in parameters[5].valueAsText.split(',')] if parameters[5].valueAsText else [64, 32]
+        neurons = (
+            [int(n) for n in parameters[5].valueAsText.split(",")]
+            if parameters[5].valueAsText
+            else [64, 32]
+        )
 
-        validation_split = float(parameters[6].value) if parameters[6].value is not None else 0.2
-        validation_data = parameters[7].valueAsText if parameters[7].valueAsText else None
+        validation_split = (
+            float(parameters[6].value) if parameters[6].value is not None else 0.2
+        )
+        validation_data = (
+            parameters[7].valueAsText if parameters[7].valueAsText else None
+        )
         if validation_data:
             validation_split = 0.0  # explicit validation overrides split
 
@@ -310,17 +456,35 @@ def Execute_MLP_classifier(self, parameters, messages):
         output_neurons = 1
         # output_neurons = int(parameters[9].value) if parameters[9].value is not None else None
         epochs = int(parameters[9].value) if parameters[9].value is not None else 50
-        batch_size = int(parameters[10].value) if parameters[10].value is not None else 32
+        batch_size = (
+            int(parameters[10].value) if parameters[10].value is not None else 32
+        )
         optimizer = parameters[11].valueAsText or "adam"
-        learning_rate = float(parameters[12].value) if parameters[12].value is not None else 1e-3
-        dropout_rate = float(parameters[13].value) if parameters[13].value is not None else None
+        learning_rate = (
+            float(parameters[12].value) if parameters[12].value is not None else 1e-3
+        )
+        dropout_rate = (
+            float(parameters[13].value) if parameters[13].value is not None else None
+        )
         early_stopping = bool(parameters[14].value)
-        es_patience = int(parameters[15].value) if parameters[15].value is not None else 5
-        metrics = parameters[16].valueAsText.split(',') if parameters[16].valueAsText else ["accuracy"]
-        random_state = int(parameters[17].value) if parameters[17].value is not None else None
+        es_patience = (
+            int(parameters[15].value) if parameters[15].value is not None else 5
+        )
+        metrics = (
+            parameters[16].valueAsText.split(",")
+            if parameters[16].valueAsText
+            else ["accuracy"]
+        )
+        random_state = (
+            int(parameters[17].value) if parameters[17].value is not None else None
+        )
         apply_smote = bool(parameters[18].value)
-        n_synthetic_samples = int(parameters[19].value) if parameters[19].value else None
-        minority_class = int(parameters[20].value) if parameters[20].value is not None else 1
+        n_synthetic_samples = (
+            int(parameters[19].value) if parameters[19].value else None
+        )
+        minority_class = (
+            int(parameters[20].value) if parameters[20].value is not None else 1
+        )
         k_neighbors = int(parameters[21].value) if parameters[21].value else 5
         output_file = parameters[22].valueAsText
 
@@ -338,7 +502,9 @@ def Execute_MLP_classifier(self, parameters, messages):
             label_nodata_value=y_nodata_value,
         )
         if y is None or y.size == 0:
-            arcpy.AddError("No training labels were produced. Check the target labels and attribute.")
+            arcpy.AddError(
+                "No training labels were produced. Check the target labels and attribute."
+            )
             return
 
         # Infer output_neurons for binary/multiclass if not provided
@@ -366,7 +532,7 @@ def Execute_MLP_classifier(self, parameters, messages):
             apply_smote=apply_smote,
             n_synthetic=n_synthetic_samples,
             minority_class=minority_class,
-            k_neighbors=k_neighbors
+            k_neighbors=k_neighbors,
         )
         arcpy.AddMessage("===== Model training completed. =====")
 
@@ -393,14 +559,16 @@ def Execute_MLP_classifier(self, parameters, messages):
 def Execute_MLP_regressor(self, parameters, messages):
 
     try:
-        input_rasters = parameters[0].valueAsText.split(';')
-        target_labels = parameters[1].valueAsText.split(';')
+        input_rasters = parameters[0].valueAsText.split(";")
+        target_labels = parameters[1].valueAsText.split(";")
         target_labels_attr = parameters[2].valueAsText
         X_nodata_value = parameters[3].value
         y_nodata_value = parameters[4].value
-        neurons = [int(n) for n in parameters[5].valueAsText.split(',')]
+        neurons = [int(n) for n in parameters[5].valueAsText.split(",")]
         validation_split = float(parameters[6].value) if parameters[6].value else 0.2
-        validation_data = parameters[7].valueAsText if parameters[7].valueAsText else None
+        validation_data = (
+            parameters[7].valueAsText if parameters[7].valueAsText else None
+        )
         activation = parameters[8].valueAsText
         last_activation = parameters[9].valueAsText
         epochs = parameters[10].value
@@ -411,21 +579,33 @@ def Execute_MLP_regressor(self, parameters, messages):
         dropout_rate = float(parameters[15].value) if parameters[15].value else None
         early_stopping = parameters[16].value
         es_patience = int(parameters[17].value)
-        metrics = parameters[18].valueAsText.split(',')
+        metrics = parameters[18].valueAsText.split(",")
         random_state = int(parameters[19].value) if parameters[19].value else None
         apply_smote = bool(parameters[20].value)
-        n_synthetic_samples = int(parameters[21].value) if parameters[21].value else None
-        minority_class = int(parameters[22].value) if parameters[22].value is not None else 1
+        n_synthetic_samples = (
+            int(parameters[21].value) if parameters[21].value else None
+        )
+        minority_class = (
+            int(parameters[22].value) if parameters[22].value is not None else 1
+        )
         k_neighbors = int(parameters[23].value) if parameters[23].value else 5
         output_file = parameters[24].valueAsText
 
         arcpy.AddMessage("Starting MLP regressor training...")
 
-        if (target_labels_attr != None and (target_labels_attr.lower() == "shape" or target_labels_attr.lower() == "fid")):
+        if target_labels_attr != None and (
+            target_labels_attr.lower() == "shape" or target_labels_attr.lower() == "fid"
+        ):
             arcpy.AddError("Invalid 'Target labels attribute' field name")
             return
 
-        X, y, nodata_mask = prepare_data_for_ml(input_rasters, target_labels, target_labels_attr, X_nodata_value, y_nodata_value)
+        X, y, nodata_mask = prepare_data_for_ml(
+            input_rasters,
+            target_labels,
+            target_labels_attr,
+            X_nodata_value,
+            y_nodata_value,
+        )
         arcpy.AddMessage("Data preparation completed.")
 
         output_neurons = y.shape[1] if y.ndim > 1 else 1
@@ -457,7 +637,7 @@ def Execute_MLP_regressor(self, parameters, messages):
         )
 
         arcpy.AddMessage(f"Saving model to {output_file}.keras")
-        arcpy.AddMessage(f"Model training history:")
+        arcpy.AddMessage("Model training history:")
         arcpy.AddMessage(f"{history.history}")
 
         save_model(model, output_file)
@@ -496,7 +676,7 @@ def train_MLP_regressor(
     n_synthetic: Optional[int] = None,
     minority_class: Optional[int] = 1,
     k_neighbors: Optional[int] = 5,
-) -> Tuple[keras.Model, dict]:
+) -> Tuple:
     """
     Train MLP (Multilayer Perceptron) regressor using Keras.
 
@@ -552,6 +732,11 @@ def train_MLP_regressor(
         loss_function=loss_function,
     )
 
+    # Lazy-load TensorFlow/Keras to avoid crash in ModelBuilder context
+    tf_objs = _get_tf()
+    keras = tf_objs["keras"]
+    ArcPyLoggingCallback = tf_objs["ArcPyLoggingCallback"]
+
     if random_state is not None:
         keras.utils.set_random_seed(random_state)
 
@@ -579,15 +764,25 @@ def train_MLP_regressor(
 
     # 3. Train the model
     # Early stopping callback
-    callbacks = [keras.callbacks.EarlyStopping(monitor="val_loss", patience=es_patience)] if early_stopping else []
+    callbacks = (
+        [keras.callbacks.EarlyStopping(monitor="val_loss", patience=es_patience)]
+        if early_stopping
+        else []
+    )
     callbacks.append(ArcPyLoggingCallback(epochs))
 
     if apply_smote:
         arcpy.AddMessage("Splitting data for SMOTE application...")
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=validation_split, random_state=random_state, shuffle=True)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=validation_split, random_state=random_state, shuffle=True
+        )
         arcpy.AddMessage("Applying SMOTE to balance the classes...")
-        X_train_smote, y_train_smote = smote(X_train, y_train, n_synthetic, minority_class, k_neighbors, random_state)
-        arcpy.AddMessage(f"After SMOTE, dataset has {np.unique(y_train_smote, return_counts=True)} samples per class.")
+        X_train_smote, y_train_smote = smote(
+            X_train, y_train, n_synthetic, minority_class, k_neighbors, random_state
+        )
+        arcpy.AddMessage(
+            f"After SMOTE, dataset has {np.unique(y_train_smote, return_counts=True)} samples per class."
+        )
 
         # Train the model with explicit train/test split
         arcpy.AddMessage("Training the model...")
@@ -601,7 +796,9 @@ def train_MLP_regressor(
         )
     else:
         arcpy.AddMessage("Splitting data...")
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=validation_split, random_state=random_state, shuffle=True)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=validation_split, random_state=random_state, shuffle=True
+        )
         # Train the model
         arcpy.AddMessage("Training the model...")
         history = model.fit(
@@ -618,7 +815,7 @@ def train_MLP_regressor(
 
 def Execute_MLP_regressor_test(self, parameters, messages):
     try:
-        input_rasters = parameters[0].valueAsText.split(';')
+        input_rasters = parameters[0].valueAsText.split(";")
         target_labels = parameters[1].valueAsText
         target_labels_attr = parameters[2].valueAsText
 
@@ -627,16 +824,22 @@ def Execute_MLP_regressor_test(self, parameters, messages):
         model_file = parameters[5].valueAsText
 
         output_raster = parameters[6].valueAsText
-        test_metrics = parameters[7].valueAsText.split(';')
+        test_metrics = parameters[7].valueAsText.split(";")
 
         arcpy.AddMessage("Starting MLP regressor test...")
 
-        model = load_model(model_file)
+        model = _lazy_load_model(model_file)
 
-        X, y, reference_profile = prepare_data_for_ml(input_rasters, target_labels, target_labels_attr, X_nodata_value, y_nodata_value)
+        X, y, reference_profile = prepare_data_for_ml(
+            input_rasters,
+            target_labels,
+            target_labels_attr,
+            X_nodata_value,
+            y_nodata_value,
+        )
         arcpy.AddMessage("Data preparation completed.")
 
-        predictions = predict_regressor(X, model)
+        predictions = _lazy_predict_regressor(X, model)
 
         raster = arcpy.Raster(input_rasters[0])
         desc = arcpy.Describe(raster)
@@ -649,8 +852,13 @@ def Execute_MLP_regressor_test(self, parameters, messages):
         x_cell_size = raster.meanCellWidth
         y_cell_size = raster.meanCellHeight
 
-        out_predictions_raster = arcpy.NumPyArrayToRaster(predictions_reshaped, lower_left_corner=lower_left_corner,
-                                               x_cell_size=x_cell_size, y_cell_size=y_cell_size, value_to_nodata=-9)
+        out_predictions_raster = arcpy.NumPyArrayToRaster(
+            predictions_reshaped,
+            lower_left_corner=lower_left_corner,
+            x_cell_size=x_cell_size,
+            y_cell_size=y_cell_size,
+            value_to_nodata=-9,
+        )
 
         out_predictions_raster.save(output_raster)
         arcpy.DefineProjection_management(out_predictions_raster, desc.spatialReference)
@@ -661,7 +869,7 @@ def Execute_MLP_regressor_test(self, parameters, messages):
         arcpy.AddMessage("Metrics:")
         arcpy.AddMessage(metrics_dict)
 
-        arcpy.AddMessage(f"Finished")
+        arcpy.AddMessage("Finished")
 
     # Return geoprocessing specific errors
     except arcpy.ExecuteError:
@@ -673,6 +881,7 @@ def Execute_MLP_regressor_test(self, parameters, messages):
         e = sys.exc_info()[1]
         arcpy.AddError(e.args[0])
 
+
 class ResultSender:
     @staticmethod
     def send_dict_as_json(dictionary: dict):
@@ -681,7 +890,7 @@ class ResultSender:
 
 def Execute_MLP_classifier_test(self, parameters, messages):
     try:
-        input_rasters = parameters[0].valueAsText.split(';')
+        input_rasters = parameters[0].valueAsText.split(";")
         target_labels = parameters[1].valueAsText
         target_labels_attr = parameters[2].valueAsText
         X_nodata_value = parameters[3].value
@@ -690,22 +899,32 @@ def Execute_MLP_classifier_test(self, parameters, messages):
         classification_threshold = parameters[6].value
         output_raster_probability_name = parameters[7].valueAsText
         output_raster_classified_name = parameters[8].valueAsText
-        test_metrics = parameters[9].valueAsText.split(';')
+        test_metrics = parameters[9].valueAsText.split(";")
 
         arcpy.AddMessage("Starting MLP classifier test...")
 
-        if (target_labels_attr != None and (target_labels_attr.lower() == "shape" or target_labels_attr.lower() == "fid")):
+        if target_labels_attr != None and (
+            target_labels_attr.lower() == "shape" or target_labels_attr.lower() == "fid"
+        ):
             arcpy.AddError("Invalid 'Target labels attribute' field name")
             return
 
-        X, y, reference_profile = prepare_data_for_ml(input_rasters, target_labels, target_labels_attr, X_nodata_value, y_nodata_value)
+        X, y, reference_profile = prepare_data_for_ml(
+            input_rasters,
+            target_labels,
+            target_labels_attr,
+            X_nodata_value,
+            y_nodata_value,
+        )
         nodata_mask = reference_profile["nodata_mask"]
 
         # load trained model
-        model = load_model(model_file)
+        model = _lazy_load_model(model_file)
         raster = arcpy.Raster(input_rasters[0])
         desc = arcpy.Describe(raster)
-        predictions, probabilities = predict_classifier(X, model, classification_threshold, True)
+        predictions, probabilities = _lazy_predict_classifier(
+            X, model, classification_threshold, True
+        )
 
         probabilities_reshaped = reshape_predictions(
             probabilities, raster.height, raster.width, nodata_mask
@@ -721,16 +940,28 @@ def Execute_MLP_classifier_test(self, parameters, messages):
         x_cell_size = raster.meanCellWidth
         y_cell_size = raster.meanCellHeight
 
-        out_probabilities_raster = arcpy.NumPyArrayToRaster(probabilities_reshaped, lower_left_corner=lower_left_corner,
-                                                    x_cell_size=x_cell_size, y_cell_size=y_cell_size, value_to_nodata=-9)
+        out_probabilities_raster = arcpy.NumPyArrayToRaster(
+            probabilities_reshaped,
+            lower_left_corner=lower_left_corner,
+            x_cell_size=x_cell_size,
+            y_cell_size=y_cell_size,
+            value_to_nodata=-9,
+        )
 
-        out_predictions_raster = arcpy.NumPyArrayToRaster(predictions_reshaped, lower_left_corner=lower_left_corner,
-                                               x_cell_size=x_cell_size, y_cell_size=y_cell_size, value_to_nodata=-9)
+        out_predictions_raster = arcpy.NumPyArrayToRaster(
+            predictions_reshaped,
+            lower_left_corner=lower_left_corner,
+            x_cell_size=x_cell_size,
+            y_cell_size=y_cell_size,
+            value_to_nodata=-9,
+        )
 
         out_probabilities_raster.save(output_raster_probability_name)
         out_predictions_raster.save(output_raster_classified_name)
 
-        arcpy.DefineProjection_management(out_probabilities_raster, desc.spatialReference)
+        arcpy.DefineProjection_management(
+            out_probabilities_raster, desc.spatialReference
+        )
         arcpy.DefineProjection_management(out_predictions_raster, desc.spatialReference)
 
         arcpy.AddMessage("Classifier test completed.")
@@ -749,21 +980,24 @@ def Execute_MLP_classifier_test(self, parameters, messages):
 
 def Execute_regressor_predict(self, parameters, messages):
     try:
-        input_rasters = parameters[0].valueAsText.split(';')
+        input_rasters = parameters[0].valueAsText.split(";")
         X_nodata_value = parameters[1].value
         model_file = parameters[2].valueAsText
         output_raster_classified_name = parameters[3].valueAsText
 
         arcpy.AddMessage("Starting Regressor predict...")
 
-        X, _, reference_profile = prepare_data_for_ml(feature_raster_files=input_rasters, feature_raster_nodata_value=X_nodata_value)
+        X, _, reference_profile = prepare_data_for_ml(
+            feature_raster_files=input_rasters,
+            feature_raster_nodata_value=X_nodata_value,
+        )
         nodata_mask = reference_profile["nodata_mask"]
 
         # load trained model
-        model = load_model(model_file)
+        model = _lazy_load_model(model_file)
         raster = arcpy.Raster(input_rasters[0])
         desc = arcpy.Describe(raster)
-        predictions = predict_regressor(X, model)
+        predictions = _lazy_predict_regressor(X, model)
 
         predictions_reshaped = reshape_predictions(
             predictions, raster.height, raster.width, nodata_mask
@@ -774,8 +1008,13 @@ def Execute_regressor_predict(self, parameters, messages):
         x_cell_size = raster.meanCellWidth
         y_cell_size = raster.meanCellHeight
 
-        out_predictions_raster = arcpy.NumPyArrayToRaster(predictions_reshaped, lower_left_corner=lower_left_corner,
-                                               x_cell_size=x_cell_size, y_cell_size=y_cell_size, value_to_nodata=-9)
+        out_predictions_raster = arcpy.NumPyArrayToRaster(
+            predictions_reshaped,
+            lower_left_corner=lower_left_corner,
+            x_cell_size=x_cell_size,
+            y_cell_size=y_cell_size,
+            value_to_nodata=-9,
+        )
 
         out_predictions_raster.save(output_raster_classified_name)
 
@@ -795,7 +1034,7 @@ def Execute_regressor_predict(self, parameters, messages):
 
 def Execute_classifier_predict(self, parameters, messages):
     try:
-        input_rasters = parameters[0].valueAsText.split(';')
+        input_rasters = parameters[0].valueAsText.split(";")
         X_nodata_value = parameters[1].value
         model_file = parameters[2].valueAsText
         classification_threshold = parameters[3].value
@@ -804,14 +1043,19 @@ def Execute_classifier_predict(self, parameters, messages):
 
         arcpy.AddMessage("Starting Classifier predict...")
 
-        X, _, reference_profile = prepare_data_for_ml(feature_raster_files=input_rasters, feature_raster_nodata_value=X_nodata_value)
+        X, _, reference_profile = prepare_data_for_ml(
+            feature_raster_files=input_rasters,
+            feature_raster_nodata_value=X_nodata_value,
+        )
         nodata_mask = reference_profile["nodata_mask"]
 
         # load trained model
-        model = load_model(model_file)
+        model = _lazy_load_model(model_file)
         raster = arcpy.Raster(input_rasters[0])
         desc = arcpy.Describe(raster)
-        predictions, probabilities = predict_classifier(X, model, classification_threshold, True)
+        predictions, probabilities = _lazy_predict_classifier(
+            X, model, classification_threshold, True
+        )
 
         probabilities_reshaped = reshape_predictions(
             probabilities, raster.height, raster.width, nodata_mask
@@ -825,16 +1069,28 @@ def Execute_classifier_predict(self, parameters, messages):
         x_cell_size = raster.meanCellWidth
         y_cell_size = raster.meanCellHeight
 
-        out_probabilities_raster = arcpy.NumPyArrayToRaster(probabilities_reshaped, lower_left_corner=lower_left_corner,
-                                                    x_cell_size=x_cell_size, y_cell_size=y_cell_size, value_to_nodata=-9)
+        out_probabilities_raster = arcpy.NumPyArrayToRaster(
+            probabilities_reshaped,
+            lower_left_corner=lower_left_corner,
+            x_cell_size=x_cell_size,
+            y_cell_size=y_cell_size,
+            value_to_nodata=-9,
+        )
 
-        out_predictions_raster = arcpy.NumPyArrayToRaster(predictions_reshaped, lower_left_corner=lower_left_corner,
-                                               x_cell_size=x_cell_size, y_cell_size=y_cell_size, value_to_nodata=-9)
+        out_predictions_raster = arcpy.NumPyArrayToRaster(
+            predictions_reshaped,
+            lower_left_corner=lower_left_corner,
+            x_cell_size=x_cell_size,
+            y_cell_size=y_cell_size,
+            value_to_nodata=-9,
+        )
 
         out_probabilities_raster.save(output_raster_probability_name)
         out_predictions_raster.save(output_raster_classified_name)
 
-        arcpy.DefineProjection_management(out_probabilities_raster, desc.spatialReference)
+        arcpy.DefineProjection_management(
+            out_probabilities_raster, desc.spatialReference
+        )
         arcpy.DefineProjection_management(out_predictions_raster, desc.spatialReference)
 
         arcpy.AddMessage("Classifier predict completed.")
@@ -847,4 +1103,3 @@ def Execute_classifier_predict(self, parameters, messages):
         # By default any other errors will be caught here
         e = sys.exc_info()[1]
         arcpy.AddError(e.args[0])
-

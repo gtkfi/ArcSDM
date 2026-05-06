@@ -1,5 +1,8 @@
 import arcpy
-from keras.callbacks import Callback
+from tensorflow.keras.callbacks import (
+    Callback,  # noqa: E402 - imported lazily via _init_tensorflow
+)
+
 
 class ArcPyLoggingCallback(Callback):
     def __init__(self, epochs):
