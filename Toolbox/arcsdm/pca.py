@@ -12,12 +12,15 @@ Original implementation is included in EIS Toolkit (https://github.com/GispoCodi
 """
 
 import sys
+from pathlib import Path
+
 import arcpy
 import numpy as np
-from arcsdm.exceptions import SDMError
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 from utils.input_to_numpy_array import read_and_stack_rasters
+
+from arcsdm.exceptions import SDMError
 
 SCALERS = {"standard": StandardScaler, "min_max": MinMaxScaler, "robust": RobustScaler}
 
@@ -84,6 +87,25 @@ def Execute(self, parameters, messages):
         desc_input = arcpy.Describe(input_data[0])
         is_multiband = hasattr(desc_input, "bandCount") and desc_input.bandCount > 1
         stacked_arrays = read_and_stack_rasters(input_data, nodata_value, nodata_handling = "convert_to_nan")
+
+        # Collect variable names for loadings table, derived after stacking to match actual band count
+        if is_vector:
+            variable_names = input_fields
+        else:
+            original_input_paths = parameters[0].valueAsText.split(';')
+            band_counts = [arcpy.Raster(p).bandCount for p in original_input_paths]
+            if sum(band_counts) != stacked_arrays.shape[0]:
+                arcpy.AddWarning("Variable name count does not match stacked band count. Using generic names.")
+                variable_names = [f"band_{i + 1}" for i in range(stacked_arrays.shape[0])]
+            else:
+                variable_names = []
+                for p, band_count in zip(original_input_paths, band_counts):
+                    base = Path(p).stem
+                    if band_count > 1:
+                        for b in range(1, band_count + 1):
+                            variable_names.append(f"{base}_band{b}")
+                    else:
+                        variable_names.append(base)
         
         if len(stacked_arrays) == 1:
             arcpy.AddError("Only one band found in input data. PCA requires at least two bands.")
@@ -131,11 +153,40 @@ def Execute(self, parameters, messages):
             arcpy.da.NumPyArrayToTable(transformed_data, transformed_data_output)
             arcpy.AddMessage(f'Transformed data is saved as a table in {transformed_data_output}')
 
-        arcpy.AddMessage(f'Principal components {principal_components}')
-            
-        arcpy.AddMessage(f'Explained variances {explained_variances}')
-        
-        arcpy.AddMessage(f'Explained variance ratio {explained_variance_ratios}')
+        # Compute scaled loadings: eigenvector * sqrt(eigenvalue), shape: n_features x n_components
+        loadings = principal_components.T * np.sqrt(explained_variances)
+        n_features, n_components = loadings.shape
+        dominant_pc = np.argmax(np.abs(loadings), axis=1)
+        dominant_abs = np.array([abs(loadings[i, dominant_pc[i]]) for i in range(n_features)])
+        sort_order = np.lexsort((-dominant_abs, dominant_pc))
+
+        arcpy.AddMessage("\nVariance explained:")
+        pc_w, ev_w, vp_w, cp_w = 6, 14, 12, 14
+        var_header = f"{'PC':<{pc_w}}{'Eigenvalue':>{ev_w}}{'Variance %':>{vp_w}}{'Cumulative %':>{cp_w}}"
+        var_sep = "-" * (pc_w + ev_w + vp_w + cp_w)
+        arcpy.AddMessage(var_header)
+        arcpy.AddMessage(var_sep)
+        cumulative = 0.0
+        for i in range(n_components):
+            cumulative += explained_variance_ratios[i]
+            arcpy.AddMessage(f"{'PC' + str(i + 1):<{pc_w}}{explained_variances[i]:>{ev_w}.4f}{explained_variance_ratios[i] * 100:>{vp_w}.1f}{cumulative * 100:>{cp_w}.1f}")
+        arcpy.AddMessage(var_sep)
+
+        col_w = 10
+        var_w = max(12, max(len(n) for n in variable_names) + 2)
+        header = f"{'Variable':<{var_w}}" + "".join(f"{'PC' + str(i + 1):>{col_w}}" for i in range(n_components))
+        separator = "-" * (var_w + col_w * n_components)
+        arcpy.AddMessage("\nLoadings table:")
+        arcpy.AddMessage(header)
+        arcpy.AddMessage(separator)
+        for idx in sort_order:
+            name = variable_names[idx]
+            row_str = f"{name:<{var_w}}"
+            for j in range(n_components):
+                val = loadings[idx, j]
+                row_str += f"{f'{val:+.4f}':>{col_w}}"
+            arcpy.AddMessage(row_str)
+        arcpy.AddMessage(separator)
         return
 
     except arcpy.ExecuteError:
