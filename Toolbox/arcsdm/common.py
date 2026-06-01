@@ -15,7 +15,9 @@ import importlib
 
 import arcsdm.config as cfg
 
-    
+from functools import wraps
+
+
 def testandwarn_arcgispro():
     installinfo = arcpy.GetInstallInfo()
 
@@ -39,7 +41,7 @@ def testandwarn_filegeodatabase_environment():
 
 def testandwarn_filegeodatabase_source(resourcename):
     desc = arcpy.Describe(resourcename)
-    workspace = os.path.dirname(desc.catalogpath)  
+    workspace = os.path.dirname(desc.catalogpath)
     if [any(ext) for ext in ('.gdb', '.mdb', '.sde') if ext in os.path.splitext(workspace)]:
         workspace = workspace;
         arcpy.AddWarning("For this tool the source data cannot be in geodatabase format!")
@@ -142,3 +144,31 @@ def select_features_by_mask(input_feature):
     else:
         # Just select all features
         arcpy.management.SelectLayerByAttribute(input_feature)
+
+
+def gp_tool(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except arcpy.ExecuteError:
+            arcpy.AddError(arcpy.GetMessages(2))
+            raise
+        except Exception as exc:
+            frames = traceback.extract_tb(exc.__traceback__)
+            if frames:
+                failing_frame = frames[-1]
+                arcpy.AddError(
+                    "PYTHON ERROR (origin): "
+                    f"{failing_frame.filename}:{failing_frame.lineno} in {failing_frame.name}"
+                )
+                if failing_frame.line:
+                    arcpy.AddError(f"Failing code: {failing_frame.line.strip()}")
+
+            full_tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+            arcpy.AddError("PYTHON ERROR (full traceback):")
+            arcpy.AddError(full_tb)
+
+            raise
+
+    return wrapper

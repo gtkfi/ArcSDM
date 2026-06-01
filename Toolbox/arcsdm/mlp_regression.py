@@ -7,20 +7,18 @@ import os
 import torch
 import torch.nn as nn
 
-
 from collections import OrderedDict
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
-
 
 import arcsdm.common
 import arcsdm.machine_learning.general
 import arcsdm.machine_learning.pytorch_utils
 
 
-class MLPClassifierModel(nn.Module):
+class MLPRegressorModel(nn.Module):
     def __init__(self, input_dims, hidden_layers, last_layer):
-        super(MLPClassifierModel, self).__init__()
+        super(MLPRegressorModel, self).__init__()
 
         all_layers = hidden_layers + [last_layer]
 
@@ -32,23 +30,22 @@ class MLPClassifierModel(nn.Module):
 
             if (activation_func is not None) and (self.get_activation_function(activation_func) is not None):
                 layers.append((f"a_{i}", self.get_activation_function(activation_func)))
-            if (dropout_rate is not None) and (dropout_rate is not 0):
+            if (dropout_rate is not None) and (dropout_rate != 0):
                 layers.append((f"do_{i}", nn.Dropout(dropout_rate)))
 
             layers.append((f"l_{i}", nn.Linear(in_features=neurons, out_features=next_layer_neurons)))
 
-        # Last activation & dropout
         idx = len(all_layers)
-        neurons, activation_func, dropout_rate = tuple(all_layers[-1])
+        _, activation_func, dropout_rate = tuple(all_layers[-1])
         if (activation_func is not None) and (self.get_activation_function(activation_func) is not None):
             layers.append((f"a_{idx}", self.get_activation_function(activation_func)))
-        if (dropout_rate is not None) and (dropout_rate is not 0):
+        if (dropout_rate is not None) and (dropout_rate != 0):
             layers.append((f"do_{idx}", nn.Dropout(dropout_rate)))
 
         self.layers = nn.Sequential(OrderedDict(layers))
 
     def forward(self, x):
-        return self.layers(x)#.squeeze()
+        return self.layers(x)
 
     def get_activation_function(self, name):
         name = name.lower().strip()
@@ -58,14 +55,14 @@ class MLPClassifierModel(nn.Module):
             return nn.Tanh()
         elif name == "sigmoid":
             return nn.Sigmoid()
-        elif name == "softmax":
-            return nn.Softmax(dim=1)
+        elif name == "linear":
+            return None
         else:
             return None
 
 
 @arcsdm.common.gp_tool
-def train_MLP_classifier(
+def train_MLP_regressor(
     input_rasters,
     X_nodata_value,
     standardize,
@@ -78,6 +75,7 @@ def train_MLP_classifier(
     batch_size,
     optimizer,
     learning_rate,
+    loss_function,
     is_early_stopping,  # TODO: implement early stopping
     early_stopping_patience,
     validation_split,
@@ -88,7 +86,7 @@ def train_MLP_classifier(
     smote_params,
     output_model_file
 ):
-    arcpy.AddMessage("Starting MLP classifier training...")
+    arcpy.AddMessage("Starting MLP regressor training...")
     device = arcsdm.machine_learning.pytorch_utils.get_device()
     arcpy.AddMessage(f"Device is: {device}")
 
@@ -102,61 +100,21 @@ def train_MLP_classifier(
     ref_raster = grids[0]["path"]
 
     # Read label data
-
-    # If more than one vector, multilabel
-    if len(target_labels) > 1:
-        # Can assume files are vectors, since it's checked in the tool UI
-        mapping = dict()
-        label_arrays = []
-
-        for i in range(len(target_labels)):
-            label_array = arcsdm.machine_learning.general.rasterize_vector_to_array(
-                vector_path=target_labels[i],
-                ref_path=ref_raster,
-                value_field=None,
-                const=i + 1
-            )
-
-            mapping[str(int(i))] = str(target_labels[i])
-            label_arrays.append(label_array)
-
-        # Combine the encoded arrays into one of size reference raster
-        y = arcsdm.machine_learning.general.pick_value(label_arrays, prefer="first")
-
-        # Save label mapping in case user wants to
-        unique_json = arcpy.CreateUniqueName("mapping.json", arcpy.env.scratchFolder)
-        with open(unique_json, "w") as f:
-            json.dump(mapping, f, indent=2)
-            json_str = json.dumps(mapping, indent=2)
-
-            arcpy.AddMessage(f"Encoded label features and saved mapping to {unique_json}. Mapping: {json_str}")
-
-        del label_arrays
-    else:
-        # If the label data is a vector, rasterize it and read as array
-        if arcpy.Describe(target_labels[0]).dataType in ["FeatureLayer", "FeatureClass", "ShapeFile"]:
-            y = arcsdm.machine_learning.general.rasterize_vector_to_array(
-                vector_path=target_labels[0],
-                ref_path=ref_raster,
-                value_field=target_labels_attr,
-                const=1
-            )
-        elif arcpy.Describe(target_labels[0]).dataType in ["RasterLayer", "RasterDataset", "RasterBand"]:
-            # If label file is raster, check the nodata value
-            # TODO: handle raster label data
-            arcpy.AddMessage("Raster data not yet supported.")
+    # If the label data is a vector, rasterize it and read as array
+    if arcpy.Describe(target_labels[0]).dataType in ["FeatureLayer", "FeatureClass", "ShapeFile"]:
+        y = arcsdm.machine_learning.general.rasterize_vector_to_array(
+            vector_path=target_labels[0],
+            ref_path=ref_raster,
+            value_field=target_labels_attr,
+            const=1,
+            classification=False
+        )
+    elif arcpy.Describe(target_labels[0]).dataType in ["RasterLayer", "RasterDataset", "RasterBand"]:
+        # If label file is raster, check the nodata value
+        # TODO: handle raster label data
+        arcpy.AddMessage("Raster data not yet supported.")
 
     y_mask = np.isnan(y)
-
-    # Check label counts
-    unique_labels = np.unique(y[~y_mask])
-    if (len(unique_labels) < 2):
-        msg = "At least two classes are required for classification."
-        arcpy.AddError(msg)
-        raise arcsdm.machine_learning.general.MLPInputError(msg)
-
-    # TODO: Verify that target labels are contiguous from 0, ..., K-1
-    # (otherwise CrossEntropyLoss can fail)
 
     # Read input feature rasters
     raster_arrays = arcsdm.machine_learning.general.read_raster_bands(
@@ -199,46 +157,25 @@ def train_MLP_classifier(
     testing_loader = DataLoader(testing_dataset, batch_size=batch_size)
 
     last_layer_activation, last_layer_dropout = last_layer
+    last_layer = (1, last_layer_activation, last_layer_dropout)
 
-    # Create last layer: get number of output classes
-    if (len(unique_labels) == 2) and (last_layer_activation == "sigmoid"):
-        # Binary classifier
-        target_label_count = 1
-    else:
-        target_label_count = len(unique_labels)
-
-    # TODO: add warnings if sigmoid used with more classes than what's allowed
-
-    last_layer = (target_label_count, last_layer_activation, last_layer_dropout)
-
-    model = MLPClassifierModel(
+    model = MLPRegressorModel(
         input_dims=X_train.shape[1],
         hidden_layers=hidden_layers,
         last_layer=last_layer
     )
     model.to(device)
 
-    # TODO: remove
-    arcpy.AddMessage(f"Initialized MLP classifier model: {model}")
+    arcpy.AddMessage(f"Initialized MLP regressor model: {model}")
 
-    optimizer = arcsdm.machine_learning.pytorch_utils.get_pytorch_optimizer(optimizer, model.parameters(), learning_rate)
+    pytorch_optimizer = arcsdm.machine_learning.pytorch_utils.get_pytorch_optimizer(optimizer, model.parameters(), learning_rate)
+    try:
+        criterion = arcsdm.machine_learning.pytorch_utils.get_pytorch_regression_loss(loss_function)
+    except arcpy.ExecuteError:
+        msg = f"Unsupported loss function: {loss_function}"
+        raise arcsdm.machine_learning.general.MLPInputError(msg)
 
-    # TODO: consider adding better check for binary classification.
-    # (currently just tried to keep the number of various states that are checked minimal)
-
-    if target_label_count == 1:
-        # Binary crossentropy for binary classification
-        # criterion = nn.BCEWithLogitsLoss() # This combines a Sigmoid layer and BCELoss - no need to have a Sigmoid final layer in the model
-        # (according to docs, it would be preferable)
-        criterion = nn.BCELoss()
-        target_dtype = torch.float32
-    else:
-        criterion = nn.CrossEntropyLoss()
-        target_dtype = torch.long
-
-    # Training and validation
-
-    # TODO: implement early stopping
+    arcpy.AddMessage(f"Using loss function: {loss_function}")
 
     best_val_loss = None
     best_model_wts = None
@@ -246,41 +183,19 @@ def train_MLP_classifier(
     val_loss_dict = {}
 
     for epoch in range(epochs):
-        train_ret = arcsdm.machine_learning.pytorch_utils.train_classifier_epoch(
-            device,
-            training_loader,
-            model,
-            criterion,
-            optimizer,
-            target_dtype=target_dtype,
-            binary_classifier=target_label_count == 1
-        )
-        val_ret = arcsdm.machine_learning.pytorch_utils.evaluate_classifier_epoch(
-            device,
-            testing_loader,
-            model,
-            criterion,
-            target_dtype=target_dtype,
-            binary_classifier=target_label_count == 1
-        )
+        train_loss = arcsdm.machine_learning.pytorch_utils.train_regression_epoch(device, training_loader, model, criterion, pytorch_optimizer)
+        val_loss = arcsdm.machine_learning.pytorch_utils.evaluate_regression_epoch(device, testing_loader, model, criterion)
 
-        current_loss = train_ret['loss'].item()
-        current_val_loss = val_ret['loss']
+        train_loss_dict[epoch + 1] = train_loss
+        val_loss_dict[epoch + 1] = val_loss
 
-        train_loss_dict[epoch + 1] = current_loss
-        val_loss_dict[epoch + 1] = current_val_loss
-
-        if (best_val_loss is None) or (current_val_loss < best_val_loss):
-            best_val_loss = current_val_loss
+        if (best_val_loss is None) or (val_loss < best_val_loss):
+            best_val_loss = val_loss
             best_model_wts = copy.deepcopy(model.state_dict())
 
-        print(f"Epoch {epoch + 1}: "
-            f"train loss: {train_ret['loss']:.6f}, "
-            f"train accuracy: {train_ret['accuracy']:.2%}, "
-            f"val loss: {val_ret['loss']:.6f}, "
-            f"val accuracy: {val_ret['accuracy']:.2%}")
-
-    # TODO: Add metrics selected by user to messages
+        arcpy.AddMessage(
+            f"Epoch {epoch + 1}: train loss: {train_loss:.6f}, val loss: {val_loss:.6f}"
+        )
 
     # Plot loss curve & save to file
     output_dir = arcpy.mp.ArcGISProject("CURRENT").homeFolder
@@ -290,24 +205,18 @@ def train_MLP_classifier(
     if not output_dir:
         raise arcsdm.machine_learning.general.MLPError("Could not determine output folder for saving plot output.")
 
-    png_path = arcpy.CreateUniqueName("training_vs_validation_loss.png", output_dir)
-    fig, ax = plt.subplots(figsize=(8, 5))  # TODO: calculate a good ratio for figsize
+    png_path = arcpy.CreateUniqueName("training_vs_validation_loss_regressor.png", output_dir)
+    fig, ax = plt.subplots(figsize=(8, 5))
     arcsdm.machine_learning.general.plot_loss_curves(
         ax=ax,
-        epochs=epochs,  # TODO: remember to use updated value for epochs once early stopping is implemented
+        epochs=epochs,
         train_loss_dict=train_loss_dict,
         val_loss_dict=val_loss_dict
     )
+    ax.set_title(f"Training vs Validation Loss ({loss_function})")
     fig.savefig(png_path)
     arcpy.AddMessage(f"Loss curve saved to {png_path}")
 
-    epoch_with_min_loss = min(train_loss_dict, key=train_loss_dict.get)
-
-    arcpy.AddMessage(f"Epoch with smallest loss: {epoch_with_min_loss}")
-
-    # Save best model weights and metadata
-
-    arcpy.AddMessage("Saving best model...")
     if best_model_wts is not None:
         model.load_state_dict(best_model_wts)
 
@@ -317,12 +226,11 @@ def train_MLP_classifier(
 
     metadata = {
         "schema_version": 1,
-        "model_type": "mlp_classifier",
+        "model_type": "mlp_regressor",
         "input_dims": int(X_train.shape[1]),
         "hidden_layers": hidden_layers,
         "last_layer": last_layer,
-        "target_label_count": int(target_label_count),
-        "unique_labels": [float(x) for x in unique_labels.tolist()],
+        "loss_function": loss_function,
         "standardize": bool(standardize),
         "scaler_mean": scaler.mean_.tolist() if scaler is not None else None,
         "scaler_scale": scaler.scale_.tolist() if scaler is not None else None,
@@ -338,9 +246,11 @@ def train_MLP_classifier(
     arcpy.AddMessage(f"Saved model weights to {output_model_file}")
     arcpy.AddMessage(f"Saved model metadata to {metadata_file}")
 
+    return None
+
 
 @arcsdm.common.gp_tool
-def test_MLP_classifier(
+def test_MLP_regressor(
     input_rasters,
     X_nodata_value,
     standardize,
@@ -348,28 +258,24 @@ def test_MLP_classifier(
     target_labels_attr,
     y_nodata_value,
     model_file,
-    classification_threshold,
-    output_raster_prob,
-    output_raster_classified,
+    output_raster,
     test_metrics
 ):
-    arcpy.AddMessage("Starting MLP classifier test...")
+    arcpy.AddMessage("Starting MLP regressor test...")
     device = arcsdm.machine_learning.pytorch_utils.get_device()
     arcpy.AddMessage(f"Device is: {device}")
     return None
 
 
 @arcsdm.common.gp_tool
-def predict_with_MLP_classifier(
+def predict_with_MLP_regressor(
     input_rasters,
     X_nodata_value,
     standardize,
     model_file,
-    classification_threshold,
-    output_raster_prob,
-    output_raster_classified
+    output_raster
 ):
-    arcpy.AddMessage("Starting prediction with classifier...")
+    arcpy.AddMessage("Starting prediction with regressor...")
     device = arcsdm.machine_learning.pytorch_utils.get_device()
     arcpy.AddMessage(f"Device is: {device}")
 
@@ -394,7 +300,6 @@ def predict_with_MLP_classifier(
     input_dims = int(metadata["input_dims"])
     hidden_layers = metadata["hidden_layers"]
     last_layer = metadata["last_layer"]
-    target_label_count = int(metadata["target_label_count"])
     model_standardize = bool(metadata.get("standardize", False))
 
     if bool(standardize) != model_standardize:
@@ -403,7 +308,7 @@ def predict_with_MLP_classifier(
             "using training metadata settings."
         )
 
-    model = MLPClassifierModel(
+    model = MLPRegressorModel(
         input_dims=input_dims,
         hidden_layers=hidden_layers,
         last_layer=last_layer
@@ -422,10 +327,7 @@ def predict_with_MLP_classifier(
     mask_2D = arcsdm.machine_learning.general.get_nodata_mask(raster_arrays)
     valid = ~mask_2D.ravel()
 
-    # Form X data from the rasters
     X = np.column_stack([arr.ravel() for arr in raster_arrays])
-
-    # Apply mask - drop nan values
     X = X[valid]
 
     if model_standardize:
@@ -453,46 +355,18 @@ def predict_with_MLP_classifier(
         arcpy.AddError(msg)
         raise arcsdm.machine_learning.general.MLPInputError(msg)
 
-    dummy_labels = torch.zeros(X.shape[0], 1) # Not used, but required by DataLoader
-
+    dummy_labels = torch.zeros(X.shape[0], 1)
     pred_dataset = TensorDataset(torch.from_numpy(X), dummy_labels)
-    # TODO: consider adding batch_size as UI parameter, default batch size is 1
-    # pred_loader = DataLoader(pred_dataset, batch_size=batch_size)
     pred_loader = DataLoader(pred_dataset, batch_size=1024)
 
     predicted = arcsdm.machine_learning.pytorch_utils.predict(device, pred_loader, model)
-    predicted_raw = torch.cat(predicted)
-
-    last_layer_activation = str(last_layer[1]).lower().strip() if last_layer and len(last_layer) > 1 and last_layer[1] is not None else None
-
-    if target_label_count == 1:
-        if last_layer_activation == "sigmoid":
-            predicted_probs = predicted_raw.reshape(-1).cpu().numpy()
-        else:
-            predicted_probs = torch.sigmoid(predicted_raw).reshape(-1).cpu().numpy()
-
-        class_labels = (predicted_probs >= classification_threshold).astype(np.uint8)
-    else:
-        if last_layer_activation == "softmax":
-            class_prob_matrix = predicted_raw
-        else:
-            class_prob_matrix = torch.softmax(predicted_raw, dim=1)
-
-        class_prob_np = class_prob_matrix.cpu().numpy()
-        predicted_probs = class_prob_np.max(axis=1)
-        class_labels = class_prob_np.argmax(axis=1).astype(np.int32)
+    predicted_values = torch.cat(predicted).reshape(-1).cpu().numpy()
 
     height = int(grids[0]["rows"])
     width = int(grids[0]["cols"])
 
-    prob_raster_array = arcsdm.machine_learning.general.reshape_predictions(
-        predictions=predicted_probs,
-        height=height,
-        width=width,
-        nodata_mask=mask_2D
-    )
-    class_raster_array = arcsdm.machine_learning.general.reshape_predictions(
-        predictions=class_labels,
+    pred_raster_array = arcsdm.machine_learning.general.reshape_predictions(
+        predictions=predicted_values,
         height=height,
         width=width,
         nodata_mask=mask_2D
@@ -503,14 +377,8 @@ def predict_with_MLP_classifier(
     x_cell_size = desc.meanCellWidth
     y_cell_size = desc.meanCellHeight
 
-    if output_raster_prob:
-        out_prob = arcpy.NumPyArrayToRaster(prob_raster_array, lower_left, x_cell_size, y_cell_size)
-        out_prob.save(output_raster_prob)
-        arcpy.AddMessage(f"Saved probability raster to {output_raster_prob}")
-
-    if output_raster_classified:
-        out_cls = arcpy.NumPyArrayToRaster(class_raster_array, lower_left, x_cell_size, y_cell_size)
-        out_cls.save(output_raster_classified)
-        arcpy.AddMessage(f"Saved classified raster to {output_raster_classified}")
+    out_ras = arcpy.NumPyArrayToRaster(pred_raster_array, lower_left, x_cell_size, y_cell_size)
+    out_ras.save(output_raster)
+    arcpy.AddMessage(f"Saved predicted values raster to {output_raster}")
 
     return None

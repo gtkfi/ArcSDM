@@ -7,6 +7,8 @@ import arcsdm.calculateresponse_arcpy_wip
 import arcsdm.calculateresponse
 import arcsdm.calculateweights
 import arcsdm.categoricalreclass
+import arcsdm.mlp_classification
+import arcsdm.mlp_regression
 import arcsdm.pca
 import arcsdm.roctool
 import arcsdm.splitting
@@ -14,6 +16,29 @@ import arcsdm.thinning
 import arcsdm.wofe_common
 
 from arcsdm.common import execute_tool
+
+from arcsdm.machine_learning.mlp_common import (
+    ACTIVATION_LINEAR,
+    ACTIVATION_RELU,
+    ACTIVATION_SIGMOID,
+    ACTIVATION_SOFTMAX,
+    ACTIVATION_TANH,
+    LOSS_HUBER,
+    LOSS_L1,
+    LOSS_MSE,
+    OPTIMIZER_ADAGRAD,
+    OPTIMIZER_ADAM,
+    OPTIMIZER_RMSPROP,
+    OPTIMIZER_SGD,
+    VALIDATION_ACCURACY,
+    VALIDATION_F1,
+    VALIDATION_L1,
+    VALIDATION_MSE,
+    VALIDATION_PRECISION,
+    VALIDATION_R2,
+    VALIDATION_RECALL,
+    VALIDATION_RMSE
+)
 
 
 # Toolsets and sub-toolsets within ArcSDM toolbox
@@ -45,9 +70,15 @@ class Toolbox(object):
             GetSDMValues,
             PCARaster,
             PCAVector,
+            PredictMLPClassifier,
+            PredictMLPRegressor,
             ROCTool,
             SplitPoints,
             ThinPoints,
+            TrainMLPClassifier,
+            TrainMLPRegressor,
+            ValidateMLPClassifier,
+            ValidateMLPRegressor,
         ]
 
 
@@ -1220,3 +1251,1316 @@ class PCAVector(object):
         """The source code of the tool."""
         execute_tool(arcsdm.pca.Execute, self, parameters, messages)
         return
+
+
+
+class TrainMLPClassifier:
+    def __init__(self):
+        self.label = "Train MLP Classifier"
+        self.description = ""
+        self.canRunInBackground = False
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MLP}"
+        # Store parameter indices in order to have just one place to edit them if they ever change
+        self.idx_X = 0
+        self.idx_X_nodata_value = 1
+        self.idx_X_standardize = 2
+        self.idx_y = 3
+        self.idx_y_attribute = 4
+        self.idx_y_nodata_value = 5
+        self.idx_hidden_layers = 6
+        self.idx_last_activation = 7
+        self.idx_last_dropout_rate = 8
+        self.idx_epochs = 9
+        self.idx_batch_size = 10
+        self.idx_optimizer = 11
+        self.idx_learning_rate = 12
+        self.idx_is_early_stopping = 13
+        self.idx_early_stopping_patience = 14
+        self.idx_validation_split = 15
+        self.idx_validation_data = 16
+        self.idx_metrics = 17
+        self.idx_random_state = 18
+        self.idx_apply_smote = 19
+        self.idx_n_synthetic_samples = 20
+        self.idx_minority_class_label = 21
+        self.idx_k_neighbors = 22
+        self.idxs_hidden_smote_params = [
+            self.idx_n_synthetic_samples,
+            self.idx_minority_class_label,
+            self.idx_k_neighbors
+        ]
+        self.idx_output_file = 23
+
+    def getParameterInfo(self):
+        (param_X,
+            param_X_nodata_value,
+            param_X_standardize,
+            param_y,
+            param_y_attribute,
+            param_y_nodata_value
+        ) = make_mlp_X_y_params()
+
+        param_hidden_layers = make_mlp_hidden_layers_params()
+
+        param_last_layer_activation = arcpy.Parameter(
+            displayName="Last Layer Activation Function",
+            name="last_layer_activation",
+            datatype="GPString",
+            parameterType="Required",
+            direction="Input"
+        )
+        param_last_layer_activation.filter.type = "ValueList"
+        param_last_layer_activation.filter.list = [ACTIVATION_LINEAR, ACTIVATION_SIGMOID, ACTIVATION_SOFTMAX]
+        param_last_layer_activation.value = ACTIVATION_SIGMOID
+
+        param_last_layer_dropout_rate = arcpy.Parameter(
+            displayName="Last Layer Dropout Rate",
+            name="last_layer_dropout_rate",
+            datatype="GPDouble",
+            parameterType="Optional",
+            direction="Input"
+        )
+
+        (param_validation_split,
+            param_validation_data,
+            param_epochs,
+            param_batch_size,
+            param_optimizer,
+            param_learning_rate,
+            param_is_early_stopping,
+            param_early_stopping_patience,
+            param_random_state,
+            param_apply_smote,
+            param_n_synthetic_samples,
+            param_minority_class_label,
+            param_k_neighbors
+        ) = make_mlp_training_params()
+
+        param_metrics = arcpy.Parameter(
+            displayName="Validation Metrics",
+            name="validation_metrics",
+            datatype="GPString",
+            parameterType="Optional",
+            direction="Input")
+        param_metrics.filter.type = "ValueList"
+        param_metrics.filter.list = [VALIDATION_ACCURACY, VALIDATION_PRECISION, VALIDATION_RECALL]  # TODO: should F1 also be here?
+        param_metrics.value = VALIDATION_ACCURACY
+
+        param_output_model_filepath = arcpy.Parameter(
+            displayName="Output Model File",
+            name="output_file",
+            datatype="DEFile",
+            parameterType="Required",
+            direction="Output")
+        param_output_model_filepath.value = "classifier_model.pth"
+
+        params = [
+            param_X,  # 0
+            param_X_nodata_value,  # 1
+            param_X_standardize,  # 2
+            param_y,  # 3
+            param_y_attribute,  # 4
+            param_y_nodata_value,  # 5
+            param_hidden_layers,  # 6
+            param_last_layer_activation,  # 7
+            param_last_layer_dropout_rate,  # 8
+            param_epochs,  # 9
+            param_batch_size,  # 10
+            param_optimizer,  # 11
+            param_learning_rate,  # 12
+            param_is_early_stopping,  # 13
+            param_early_stopping_patience,  # 14
+            param_validation_split,  # 15
+            param_validation_data,  # 16
+            param_metrics,  # 17
+            param_random_state,  # 18
+            param_apply_smote,  # 19
+            param_n_synthetic_samples,  # 20
+            param_minority_class_label,  # 21
+            param_k_neighbors,  # 22
+            param_output_model_filepath  # 23
+        ]
+        return params
+
+    def isLicensed(self):
+        return True
+
+    def updateParameters(self, parameters):
+        # Enable y nodata field if any of the y layers is a raster
+        # Enable y attribute field if any of the y layers has an attribute table
+        y = parameters[self.idx_y]
+        if y.value and not y.hasBeenValidated:
+            try:
+                contains_raster, has_attribute_table, more_than_one = check_mlp_y_conditionals(y)
+
+                # Classifier allows more than one label file, but in that case they are all expected
+                # to be feature layers, so nodata param is not applicable. Each feature will be considered
+                # to be one target class, so no need for attribute param either.
+                if more_than_one:
+                    parameters[self.idx_y_nodata_value].enabled = False
+                    parameters[self.idx_y_attribute].enabled = False
+                else:
+                    parameters[self.idx_y_nodata_value].enabled = contains_raster
+                    parameters[self.idx_y_attribute].enabled = has_attribute_table
+            except Exception:
+                pass
+        if not y.value:
+            parameters[self.idx_y_nodata_value].enabled = False
+            parameters[self.idx_y_attribute].enabled = False
+
+        # Enable early stopping patience field if early stopping is selected
+        parameters[self.idx_early_stopping_patience].enabled = parameters[self.idx_is_early_stopping].value
+
+        # Enable SMOTE related params when SMOTE is selected
+        apply_smote = parameters[self.idx_apply_smote]
+        if apply_smote.value:
+            for idx in self.idxs_hidden_smote_params:
+                parameters[idx].enabled = True
+        else:
+            for idx in self.idxs_hidden_smote_params:
+                parameters[idx].enabled = False
+
+        # Properly initialize output path (cannot be done in getParameterInfo() because ArcGIS Pro doesn't
+        # have access to the current project yet)
+        output_file = parameters[self.idx_output_file]
+        if output_file.value and not any(x in str(output_file.value) for x in ["\\", "/"]):
+            try:
+                home_folder = arcpy.mp.ArcGISProject("CURRENT").homeFolder
+                filename = str(output_file.value)
+
+                output_file.value = os.path.join(home_folder, filename)
+
+            except Exception:
+                pass
+
+        return
+
+    def updateMessages(self, parameters):
+        # Validate geometry & amount of rasters of y
+        param_y = parameters[self.idx_y]
+        param_y.clearMessage()
+        if param_y.value and not param_y.hasBeenValidated:
+            try:
+                y_text = param_y.valueAsText
+                y_paths = y_text.split(";")
+                y_paths_clean = [path.strip("'") for path in y_paths if path]
+
+                contains_raster = False
+
+                for path in y_paths_clean:
+                    desc = arcpy.Describe(path)
+                    data_type = desc.dataType
+                    if data_type in ["RasterLayer", "RasterDataset", "RasterBand"] and not (contains_raster):
+                        contains_raster = True
+                    elif data_type in ["FeatureLayer", "FeatureClass", "ShapeFile"]:
+                        if desc.shapeType != "Point":
+                            param_y.setErrorMessage("At least one of the target label layers has non-point geometry, which is not supported.")
+                            break
+
+                if (len(y_paths_clean) > 1) and contains_raster:
+                    param_y.setErrorMessage("Only one raster file is supported. If multiple target label layers are provided, they must be feature layers.")
+            except Exception:
+                pass
+
+        # Validate dropout rate(s)
+        param_hidden_layers = parameters[self.idx_hidden_layers]
+        param_hidden_layers.clearMessage()
+
+        for layer in param_hidden_layers.value:
+            dropout_rate = layer[2]
+            if (dropout_rate < 0) or (dropout_rate >= 1):
+                param_hidden_layers.setErrorMessage(f"Invalid dropout rate {dropout_rate}. Must be between 0 and 1.")
+
+        param_last_layer_dropout = parameters[self.idx_last_dropout_rate]
+        param_last_layer_dropout.clearMessage()
+        dropout = param_last_layer_dropout.value
+        if dropout and ((dropout < 0) or (dropout >= 1)):
+            param_last_layer_dropout.setErrorMessage(f"Invalid dropout rate {dropout}. Must be between 0 and 1.")
+
+        # Validate number of epochs
+        param_epochs = parameters[self.idx_epochs]
+        param_epochs.clearMessage()
+
+        if param_epochs.value < 1:
+            param_epochs.setErrorMessage(f"Invalid number of epochs {param_epochs.value}. Must be at least one.")
+
+        # Validate validation split
+        # TODO: make this conditional based on whether validation data is provided
+        param_validation_split = parameters[self.idx_validation_split]
+        param_validation_split.clearMessage()
+        validation_split = param_validation_split.value
+
+        if (validation_split <= 0) or (validation_split >= 1):
+            param_validation_split.setErrorMessage(f"Invalid validation split {validation_split}. Must be between 0 and 1.")
+
+        # Warn if output file already exists
+        param_output_file = parameters[self.idx_output_file]
+        param_output_file.clearMessage()
+        output_file = param_output_file.valueAsText
+        if output_file:
+            if os.path.exists(output_file):
+                param_output_file.setWarningMessage("Output model file already exists and will be overwritten.")
+
+        return
+
+    def execute(self, parameters, messages):
+        input_rasters = parameters[self.idx_X].valueAsText.split(";")
+        target_labels = parameters[self.idx_y].valueAsText.split(";")
+        last_layer = (parameters[self.idx_last_activation].valueAsText, parameters[self.idx_last_dropout_rate].value)
+        validation_data = parameters[self.idx_validation_data].valueAsText if parameters[self.idx_validation_data].value is not None else None
+        apply_smote = parameters[self.idx_apply_smote].value
+        smote_params = None
+        if apply_smote:
+            smote_params = (
+                parameters[self.idx_n_synthetic_samples].value,
+                parameters[self.idx_minority_class_label].value,
+                parameters[self.idx_k_neighbors].value
+            )
+
+        arcsdm.mlp_classification.train_MLP_classifier(
+            input_rasters=input_rasters,
+            X_nodata_value=parameters[self.idx_X_nodata_value].value,
+            standardize=parameters[self.idx_X_standardize].value,
+            target_labels=target_labels,
+            target_labels_attr=get_valueAsText_if_enabled(parameters[self.idx_y_attribute]),
+            y_nodata_value=get_value_if_enabled(parameters[self.idx_y_nodata_value]),
+            hidden_layers=parameters[self.idx_hidden_layers].value,
+            last_layer=last_layer,
+            epochs=parameters[self.idx_epochs].value,
+            batch_size=parameters[self.idx_batch_size].value,
+            optimizer=parameters[self.idx_optimizer].valueAsText,
+            learning_rate=parameters[self.idx_learning_rate].value,
+            is_early_stopping=parameters[self.idx_is_early_stopping].value,
+            early_stopping_patience=get_value_if_enabled(parameters[self.idx_early_stopping_patience]),
+            validation_split=parameters[self.idx_validation_split].value,
+            validation_data=validation_data,
+            validation_metrics=parameters[self.idx_metrics].valueAsText,
+            random_state=parameters[self.idx_random_state].value,
+            apply_smote=apply_smote,
+            smote_params=smote_params,
+            output_model_file=parameters[self.idx_output_file].valueAsText
+        )
+
+    def postExecute(self, parameters):
+        return
+
+
+class TrainMLPRegressor:
+    def __init__(self):
+        self.label = "Train MLP Regressor"
+        self.description = "Train a Multi-Layer Perceptron (MLP) regressor with the given parameters."
+        self.canRunInBackground = False
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MLP}"
+        self.idx_X = 0
+        self.idx_X_nodata_value = 1
+        self.idx_X_standardize = 2
+        self.idx_y = 3
+        self.idx_y_attribute = 4
+        self.idx_y_nodata_value = 5
+        self.idx_hidden_layers = 6
+        self.idx_last_layer_activation = 7
+        self.idx_dropout_rate = 8
+        self.idx_epochs = 9
+        self.idx_batch_size = 10
+        self.idx_optimizer = 11
+        self.idx_learning_rate = 12
+        self.idx_loss_function = 13
+        self.idx_is_early_stopping = 14
+        self.idx_early_stopping_patience = 15
+        self.idx_validation_split = 16
+        self.idx_validation_data = 17
+        self.idx_metrics = 18
+        self.idx_random_state = 19
+        self.idx_apply_smote = 20
+        self.idx_n_synthetic_samples = 21
+        self.idx_minority_class_label = 22
+        self.idx_k_neighbors = 23
+        self.idxs_hidden_smote_params = [
+            self.idx_n_synthetic_samples,
+            self.idx_minority_class_label,
+            self.idx_k_neighbors
+        ]
+        self.idx_output_file = 24
+
+    def getParameterInfo(self):
+        (param_X,
+            param_X_nodata_value,
+            param_X_standardize,
+            param_y,
+            param_y_attribute,
+            param_y_nodata_value
+        ) = make_mlp_X_y_params(multiple_y_supported=False)
+
+        param_hidden_layers = make_mlp_hidden_layers_params()
+
+        param_last_layer_activation = arcpy.Parameter(
+            displayName="Last Layer Activation Function",
+            name="last_layer_activation",
+            datatype="GPString",
+            parameterType="Required",
+            direction="Input"
+        )
+        param_last_layer_activation.filter.type = "ValueList"
+        param_last_layer_activation.filter.list = [ACTIVATION_LINEAR, ACTIVATION_SIGMOID]
+        param_last_layer_activation.value = ACTIVATION_LINEAR
+
+        param_last_layer_dropout_rate = arcpy.Parameter(
+            displayName="Last Layer Dropout Rate",
+            name="last_layer_dropout_rate",
+            datatype="GPDouble",
+            parameterType="Optional",
+            direction="Input"
+        )
+
+        (param_validation_split,
+            param_validation_data,
+            param_epochs,
+            param_batch_size,
+            param_optimizer,
+            param_learning_rate,
+            param_is_early_stopping,
+            param_early_stopping_patience,
+            param_random_state,
+            param_apply_smote,
+            param_n_synthetic_samples,
+            param_minority_class_label,
+            param_k_neighbors
+        ) = make_mlp_training_params()
+
+        param_loss_function = arcpy.Parameter(
+            displayName="Loss Function",
+            name="loss_function",
+            datatype="GPString",
+            parameterType="Required",
+            direction="Input"
+        )
+        param_loss_function.filter.type = "ValueList"
+        param_loss_function.filter.list = [LOSS_MSE, LOSS_L1, LOSS_HUBER]
+        param_loss_function.value = LOSS_MSE
+
+        param_metrics = arcpy.Parameter(
+            displayName="Validation Metrics",
+            name="validation_metrics",
+            datatype="GPString",
+            parameterType="Optional",
+            direction="Input"
+        )
+        param_metrics.filter.type = "ValueList"
+        param_metrics.filter.list = [VALIDATION_MSE, VALIDATION_RMSE, VALIDATION_L1, VALIDATION_R2]
+        param_metrics.value = VALIDATION_MSE
+
+        param_output_model_filepath = arcpy.Parameter(
+            displayName="Output Model File",
+            name="output_file",
+            datatype="DEFile",
+            parameterType="Required",
+            direction="Output"
+        )
+        param_output_model_filepath.value = "regressor_model.pth"
+
+        params = [
+            param_X,  # 0
+            param_X_nodata_value,  # 1
+            param_X_standardize,  # 2
+            param_y,  # 3
+            param_y_attribute,  # 4
+            param_y_nodata_value,  # 5
+            param_hidden_layers,  # 6
+            param_last_layer_activation,  # 7
+            param_last_layer_dropout_rate,  # 8
+            param_epochs,  # 9
+            param_batch_size,  # 10
+            param_optimizer,  # 11
+            param_learning_rate,  # 12
+            param_loss_function,  # 13
+            param_is_early_stopping,  # 14
+            param_early_stopping_patience,  # 15
+            param_validation_split,  # 16
+            param_validation_data,  # 17
+            param_metrics,  # 18
+            param_random_state,  # 19
+            param_apply_smote,  # 20
+            param_n_synthetic_samples,  # 21
+            param_minority_class_label,  # 22
+            param_k_neighbors,  # 23
+            param_output_model_filepath,  # 24
+        ]
+        return params
+
+    def isLicensed(self):
+        return True
+
+    def updateParameters(self, parameters):
+        # Enable y nodata field if any of the y layers is a raster
+        # Enable y attribute field if any of the y layers has an attribute table
+        y = parameters[self.idx_y]
+        if y.value and not y.hasBeenValidated:
+            try:
+                contains_raster, has_attribute_table, _ = check_mlp_y_conditionals(y)
+
+                parameters[self.idx_y_nodata_value].enabled = contains_raster
+                parameters[self.idx_y_attribute].enabled = has_attribute_table
+            except Exception:
+                pass
+        if not y.value:
+            parameters[self.idx_y_nodata_value].enabled = False
+            parameters[self.idx_y_attribute].enabled = False
+
+        # Enable early stopping patience field if early stopping is selected
+        parameters[self.idx_early_stopping_patience].enabled = parameters[self.idx_is_early_stopping].value
+
+        # Enable SMOTE related params when SMOTE is selected
+        apply_smote = parameters[self.idx_apply_smote]
+        if apply_smote.value:
+            for idx in self.idxs_hidden_smote_params:
+                parameters[idx].enabled = True
+        else:
+            for idx in self.idxs_hidden_smote_params:
+                parameters[idx].enabled = False
+
+        # Properly initialize output path (cannot be done in getParameterInfo() because ArcGIS Pro doesn't
+        # have access to the current project yet)
+        output_file = parameters[self.idx_output_file]
+        if output_file.value and not any(x in str(output_file.value) for x in ["\\", "/"]):
+            try:
+                home_folder = arcpy.mp.ArcGISProject("CURRENT").homeFolder
+                filename = str(output_file.value)
+
+                output_file.value = os.path.join(home_folder, filename)
+
+            except Exception:
+                pass
+
+        return
+
+    def updateMessages(self, parameters):
+        # Validate geometry of y
+        param_y = parameters[self.idx_y]
+        param_y.clearMessage()
+        if param_y.value and not param_y.hasBeenValidated:
+            try:
+                y_text = param_y.valueAsText
+                y_paths = y_text.split(";")
+                y_paths_clean = [path.strip("'") for path in y_paths if path]
+
+                for path in y_paths_clean:
+                    desc = arcpy.Describe(path)
+                    data_type = desc.dataType
+                    if data_type in ["FeatureLayer", "FeatureClass", "ShapeFile"]:
+                        if desc.shapeType != "Point":
+                            param_y.setErrorMessage("At least one of the target label layers has non-point geometry, which is not supported.")
+                            break
+            except Exception:
+                pass
+
+        # Validate dropout rate(s)
+        param_hidden_layers = parameters[self.idx_hidden_layers]
+        param_hidden_layers.clearMessage()
+
+        for layer in param_hidden_layers.value:
+            dropout_rate = layer[2]
+            if (dropout_rate < 0) or (dropout_rate >= 1):
+                param_hidden_layers.setErrorMessage(f"Invalid dropout rate {dropout_rate}. Must be between 0 and 1.")
+
+        param_last_layer_dropout = parameters[self.idx_dropout_rate]
+        param_last_layer_dropout.clearMessage()
+        dropout = param_last_layer_dropout.value
+        if dropout and ((dropout < 0) or (dropout >= 1)):
+            param_last_layer_dropout.setErrorMessage(f"Invalid dropout rate {dropout}. Must be between 0 and 1.")
+
+        # Validate number of epochs
+        param_epochs = parameters[self.idx_epochs]
+        param_epochs.clearMessage()
+
+        if param_epochs.value < 1:
+            param_epochs.setErrorMessage(f"Invalid number of epochs {param_epochs.value}. Must be at least one.")
+
+        # Validate validation split
+        # TODO: make this conditional based on whether validation data is provided
+        param_validation_split = parameters[self.idx_validation_split]
+        param_validation_split.clearMessage()
+        validation_split = param_validation_split.value
+
+        if (validation_split <= 0) or (validation_split >= 1):
+            param_validation_split.setErrorMessage(f"Invalid validation split {validation_split}. Must be between 0 and 1.")
+
+        # Warn if output file already exists
+        param_output_file = parameters[self.idx_output_file]
+        param_output_file.clearMessage()
+        output_file = param_output_file.valueAsText
+        if output_file:
+            if os.path.exists(output_file):
+                param_output_file.setWarningMessage("Output model file already exists and will be overwritten.")
+
+        return
+
+    def execute(self, parameters, messages):
+        input_rasters = parameters[self.idx_X].valueAsText.split(";")
+        target_labels = parameters[self.idx_y].valueAsText.split(";")
+        last_layer = (parameters[self.idx_last_layer_activation].valueAsText, parameters[self.idx_dropout_rate].value)
+        validation_data = parameters[self.idx_validation_data].valueAsText if parameters[self.idx_validation_data].value is not None else None
+        apply_smote = parameters[self.idx_apply_smote].value
+        smote_params = None
+        if apply_smote:
+            smote_params = (
+                parameters[self.idx_n_synthetic_samples].value,
+                parameters[self.idx_minority_class_label].value,
+                parameters[self.idx_k_neighbors].value
+            )
+
+        arcsdm.mlp_regression.train_MLP_regressor(
+            input_rasters=input_rasters,
+            X_nodata_value=parameters[self.idx_X_nodata_value].value,
+            standardize=parameters[self.idx_X_standardize].value,
+            target_labels=target_labels,
+            target_labels_attr=get_valueAsText_if_enabled(parameters[self.idx_y_attribute]),
+            y_nodata_value=get_value_if_enabled(parameters[self.idx_y_nodata_value]),
+            hidden_layers=parameters[self.idx_hidden_layers].value,
+            last_layer=last_layer,
+            epochs=parameters[self.idx_epochs].value,
+            batch_size=parameters[self.idx_batch_size].value,
+            optimizer=parameters[self.idx_optimizer].valueAsText,
+            learning_rate=parameters[self.idx_learning_rate].value,
+            loss_function=parameters[self.idx_loss_function].valueAsText,
+            is_early_stopping=parameters[self.idx_is_early_stopping].value,
+            early_stopping_patience=get_value_if_enabled(parameters[self.idx_early_stopping_patience]),
+            validation_split=parameters[self.idx_validation_split].value,
+            validation_data=validation_data,
+            validation_metrics=parameters[self.idx_metrics].valueAsText,
+            random_state=parameters[self.idx_random_state].value,
+            apply_smote=apply_smote,
+            smote_params=smote_params,
+            output_model_file=parameters[self.idx_output_file].valueAsText
+        )
+
+    def postExecute(self, parameters):
+        return
+
+
+class ValidateMLPClassifier:
+    def __init__(self):
+        self.label = "Validate MLP Classifier"
+        self.description = ""
+        self.canRunInBackground = False
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MLP}"
+        self.idx_X = 0
+        self.idx_X_nodata_value = 1
+        self.idx_X_standardize = 2
+        self.idx_y = 3
+        self.idx_y_attribute = 4
+        self.idx_y_nodata_value = 5
+        self.idx_model_file = 6
+        self.idx_threshold = 7
+        self.idx_output_prob_raster = 8
+        self.idx_output_classified_raster = 9
+        self.idx_metrics = 10
+
+    def getParameterInfo(self):
+        (param_X,
+            param_X_nodata_value,
+            param_X_standardize,
+            param_y,
+            param_y_attribute,
+            param_y_nodata_value
+        ) = make_mlp_X_y_params()
+
+        param_model_file = make_mlp_input_model_file_param()
+
+        param_test_metrics = arcpy.Parameter(
+            displayName="Test metrics",
+            name="test_metrics",
+            datatype="String",
+            parameterType="Required",
+            direction="Input",
+            multiValue=True
+        )
+        param_test_metrics.filter.type = "ValueList"
+        param_test_metrics.filter.list = [VALIDATION_ACCURACY, VALIDATION_PRECISION, VALIDATION_RECALL, VALIDATION_F1]
+        param_test_metrics.value = VALIDATION_ACCURACY
+
+        param_classification_threshold, param_output_prob_raster, param_output_classification_result_raster = make_mlp_classifier_prediction_params()
+
+        params = [
+            param_X,  # 0
+            param_X_nodata_value,  # 1
+            param_X_standardize,  # 2
+            param_y,  # 3
+            param_y_attribute,  # 4
+            param_y_nodata_value,  # 5
+            param_model_file,  # 6
+            param_classification_threshold,  # 7
+            param_output_prob_raster,  # 8
+            param_output_classification_result_raster,  # 9
+            param_test_metrics  # 10
+        ]
+        return params
+
+    def isLicensed(self):
+        return True
+
+    def updateParameters(self, parameters):
+        # Enable y nodata field if any of the y layers is a raster
+        # Enable y attribute field if any of the y layers has an attribute table
+        y = parameters[self.idx_y]
+        if y.value and not y.hasBeenValidated:
+            try:
+                contains_raster, has_attribute_table, more_than_one = check_mlp_y_conditionals(y)
+
+                # Classifier allows more than one label file, but in that case they are all expected
+                # to be feature layers, so nodata param is not applicable. Each feature will be considered
+                # to be one target class, so no need for attribute param either.
+                if more_than_one:
+                    parameters[self.idx_y_nodata_value].enabled = False
+                    parameters[self.idx_y_attribute].enabled = False
+                else:
+                    parameters[self.idx_y_nodata_value].enabled = contains_raster
+                    parameters[self.idx_y_attribute].enabled = has_attribute_table
+            except Exception:
+                pass
+        if not y.value:
+            parameters[self.idx_y_nodata_value].enabled = False
+            parameters[self.idx_y_attribute].enabled = False
+
+        return
+
+    def updateMessages(self, parameters):
+        # Validate geometry & amount of rasters of y
+        param_y = parameters[self.idx_y]
+        param_y.clearMessage()
+        if param_y.value and not param_y.hasBeenValidated:
+            try:
+                y_text = param_y.valueAsText
+                y_paths = y_text.split(";")
+                y_paths_clean = [path.strip("'") for path in y_paths if path]
+
+                contains_raster = False
+
+                for path in y_paths_clean:
+                    desc = arcpy.Describe(path)
+                    data_type = desc.dataType
+                    if data_type in ["RasterLayer", "RasterDataset", "RasterBand"] and not (contains_raster):
+                        contains_raster = True
+                    elif data_type in ["FeatureLayer", "FeatureClass", "ShapeFile"]:
+                        if desc.shapeType != "Point":
+                            param_y.setErrorMessage("At least one of the target label layers has non-point geometry, which is not supported.")
+                            break
+
+                if (len(y_paths_clean) > 1) and contains_raster:
+                    param_y.setErrorMessage("Only one raster file is supported. If multiple target label layers are provided, they must be feature layers.")
+            except Exception:
+                pass
+
+        return
+
+    def execute(self, parameters, messages):
+        input_rasters = parameters[self.idx_X].valueAsText.split(";")
+        target_labels = parameters[self.idx_y].valueAsText.split(";")
+
+        arcsdm.mlp_classification.test_MLP_classifier(
+            input_rasters=input_rasters,
+            X_nodata_value=parameters[self.idx_X_nodata_value].value,
+            standardize=parameters[self.idx_X_standardize].value,
+            target_labels=target_labels,
+            target_labels_attr=get_valueAsText_if_enabled(parameters[self.idx_y_attribute]),
+            y_nodata_value=get_value_if_enabled(parameters[self.idx_y_nodata_value]),
+            model_file=parameters[self.idx_model_file].valueAsText,
+            classification_threshold=parameters[self.idx_threshold].value,
+            output_raster_prob=parameters[self.idx_output_prob_raster].valueAsText,
+            output_raster_classified=parameters[self.idx_output_classified_raster].valueAsText,
+            test_metrics=parameters[self.idx_metrics].valueAsText
+        )
+
+    def postExecute(self, parameters):
+        return
+
+
+class ValidateMLPRegressor:
+    def __init__(self):
+        self.label = "Validate MLP Regressor"
+        self.description = ""
+        self.canRunInBackground = False
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MLP}"
+        self.idx_X = 0
+        self.idx_X_nodata_value = 1
+        self.idx_X_standardize = 2
+        self.idx_y = 3
+        self.idx_y_attribute = 4
+        self.idx_y_nodata_value = 5
+        self.idx_model_file = 6
+        self.idx_output_result_raster = 7
+        self.idx_metrics = 8
+
+    def getParameterInfo(self):
+        (param_X,
+            param_X_nodata_value,
+            param_X_standardize,
+            param_y,
+            param_y_attribute,
+            param_y_nodata_value
+        ) = make_mlp_X_y_params(multiple_y_supported=False)
+
+        param_model_file = make_mlp_input_model_file_param()
+
+        param_output_regression_result_raster = make_mlp_regressor_prediction_output_params(filename="predicted_values_test_result")
+
+        param_test_metrics = arcpy.Parameter(
+            displayName="Test metrics",
+            name="test_metrics",
+            datatype="String",
+            parameterType="Required",
+            direction="Input",
+            multiValue=True
+        )
+        param_test_metrics.filter.type = "ValueList"
+        param_test_metrics.filter.list = [VALIDATION_MSE, VALIDATION_RMSE, VALIDATION_L1, VALIDATION_R2]
+        param_test_metrics.value = VALIDATION_MSE
+
+        params = [
+            param_X,  # 0
+            param_X_nodata_value,  # 1
+            param_X_standardize,  # 2
+            param_y,  # 3
+            param_y_attribute,  # 4
+            param_y_nodata_value,  # 5
+            param_model_file,  # 6
+            param_output_regression_result_raster,  # 7
+            param_test_metrics  # 8
+        ]
+        return params
+
+    def isLicensed(self):
+        return True
+
+    def updateParameters(self, parameters):
+        # Enable y nodata field if any of the y layers is a raster
+        # Enable y attribute field if any of the y layers has an attribute table
+        y = parameters[self.idx_y]
+        if y.value and not y.hasBeenValidated:
+            try:
+                contains_raster, has_attribute_table, _ = check_mlp_y_conditionals(y)
+
+                parameters[self.idx_y_nodata_value].enabled = contains_raster
+                parameters[self.idx_y_attribute].enabled = has_attribute_table
+            except Exception:
+                pass
+        if not y.value:
+            parameters[self.idx_y_nodata_value].enabled = False
+            parameters[self.idx_y_attribute].enabled = False
+
+        return
+
+    def updateMessages(self, parameters):
+        # Validate geometry of y
+        param_y = parameters[self.idx_y]
+        param_y.clearMessage()
+        if param_y.value and not param_y.hasBeenValidated:
+            try:
+                y_text = param_y.valueAsText
+                y_paths = y_text.split(";")
+                y_paths_clean = [path.strip("'") for path in y_paths if path]
+
+                contains_raster = False
+
+                for path in y_paths_clean:
+                    desc = arcpy.Describe(path)
+                    data_type = desc.dataType
+                    if data_type in ["RasterLayer", "RasterDataset", "RasterBand"] and not (contains_raster):
+                        contains_raster = True
+                    elif data_type in ["FeatureLayer", "FeatureClass", "ShapeFile"]:
+                        if desc.shapeType != "Point":
+                            param_y.setErrorMessage("At least one of the target label layers has non-point geometry, which is not supported.")
+                            break
+
+                if (len(y_paths_clean) > 1) and contains_raster:
+                    param_y.setErrorMessage("Only one raster file is supported. If multiple target label layers are provided, they must be feature layers.")
+            except Exception:
+                pass
+
+        return
+
+    def execute(self, parameters, messages):
+        input_rasters = parameters[self.idx_X].valueAsText.split(";")
+        target_labels = parameters[self.idx_y].valueAsText.split(";")
+
+        arcsdm.mlp_regression.test_MLP_regressor(
+            input_rasters=input_rasters,
+            X_nodata_value=parameters[self.idx_X_nodata_value].value,
+            standardize=parameters[self.idx_X_standardize].value,
+            target_labels=target_labels,
+            target_labels_attr=get_valueAsText_if_enabled(parameters[self.idx_y_attribute]),
+            y_nodata_value=get_value_if_enabled(parameters[self.idx_y_nodata_value]),
+            model_file=parameters[self.idx_model_file].valueAsText,
+            output_raster=parameters[self.idx_output_result_raster].valueAsText,
+            test_metrics=parameters[self.idx_metrics].valueAsText
+        )
+
+    def postExecute(self, parameters):
+        return
+
+
+class PredictMLPClassifier:
+    def __init__(self):
+        self.label = "Predict with MLP Classifier"
+        self.description = "Predict with a trained machine learning classifier model."
+        self.canRunInBackground = False
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MLP}"
+        self.idx_param_X = 0
+        self.idx_param_X_nodata_value = 1
+
+    def getParameterInfo(self):
+        (param_X,
+            param_X_nodata_value,
+            param_X_standardize,
+            param_model_file
+        ) = make_mlp_prediction_input_params()
+
+        param_classification_threshold, param_output_prob_raster, param_output_classification_result_raster = make_mlp_classifier_prediction_params(
+            filename_prod="predicted_probabilities_test_result",
+            filename_classified="predicted_class_test_result"
+        )
+
+        params = [
+            param_X,  # 0
+            param_X_nodata_value,  # 1
+            param_X_standardize,  # 2
+            param_model_file,  # 3
+            param_classification_threshold,  # 4
+            param_output_prob_raster,  # 5
+            param_output_classification_result_raster  # 6
+        ]
+        return params
+
+    def isLicensed(self):
+        return True
+
+    def updateParameters(self, parameters):
+        return
+
+    def updateMessages(self, parameters):
+        return
+
+    def execute(self, parameters, messages):
+        input_rasters = parameters[self.idx_param_X].valueAsText.split(";")
+
+        arcsdm.mlp_classification.predict_with_MLP_classifier(
+            input_rasters=input_rasters,
+            X_nodata_value=parameters[self.idx_param_X_nodata_value].value,
+            standardize=parameters[2].value,
+            model_file=parameters[3].valueAsText,
+            classification_threshold=parameters[4].value,
+            output_raster_prob=parameters[5].valueAsText,
+            output_raster_classified=parameters[6].valueAsText
+        )
+
+    def postExecute(self, parameters):
+        return
+
+
+class PredictMLPRegressor:
+    def __init__(self):
+        self.label = "Predict with MLP Regressor"
+        self.description = "Predict with a trained machine learning regressor model."
+        self.canRunInBackground = False
+        self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MLP}"
+        self.idx_param_X = 0
+        self.idx_param_X_nodata_value = 1
+
+    def getParameterInfo(self):
+        (param_X,
+            param_X_nodata_value,
+            param_X_standardize,
+            param_model_file
+        ) = make_mlp_prediction_input_params()
+
+        param_output_regression_result_raster = make_mlp_regressor_prediction_output_params()
+
+        params = [
+            param_X,  # 0
+            param_X_nodata_value,  # 1
+            param_X_standardize,  # 2
+            param_model_file,  # 3
+            param_output_regression_result_raster  # 4
+        ]
+        return params
+
+    def isLicensed(self):
+        return True
+
+    def updateParameters(self, parameters):
+        return
+
+    def updateMessages(self, parameters):
+        return
+
+    def execute(self, parameters, messages):
+        input_rasters = parameters[self.idx_param_X].valueAsText.split(";")
+
+        arcsdm.mlp_regression.predict_with_MLP_regressor(
+            input_rasters=input_rasters,
+            X_nodata_value=parameters[self.idx_param_X_nodata_value].value,
+            standardize=parameters[2].value,
+            model_file=parameters[3].valueAsText,
+            output_raster=parameters[4].valueAsText
+        )
+
+    def postExecute(self, parameters):
+        return
+
+
+def make_mlp_X_params():
+    param_X = arcpy.Parameter(
+        displayName="Input Features",
+        name="X",
+        datatype=["GPRasterLayer", "DERasterDataset"],
+        parameterType="Required",
+        multiValue=True,
+        direction="Input"
+    )
+
+    param_X_nodata_value = arcpy.Parameter(
+        displayName="Input Feature NoData Value",
+        name="X_nodata_value",
+        datatype="GPLong",  # TODO: should this be GPDouble?
+        parameterType="Optional",
+        direction="Input"
+    )
+    param_X_nodata_value.value = -99   # TODO: remove default value?
+
+    param_X_standardize = arcpy.Parameter(
+        displayName="Standardize Features",
+        name="standardize_X",
+        datatype="GPBoolean",
+        parameterType="Optional",
+        direction="Input"
+    )
+    param_X_standardize.value = False
+
+    return (
+        param_X,
+        param_X_nodata_value,
+        param_X_standardize,
+    )
+
+
+def make_mlp_X_y_params(multiple_y_supported=True):
+    """Construct parameter objects for the parameters shared by MLP training tools."""
+    param_X, param_X_nodata_value, param_X_standardize = make_mlp_X_params()
+
+    param_y = arcpy.Parameter(
+        displayName="Target Labels",
+        name="y",
+        datatype=["GPRasterLayer", "DERasterDataset", "GPFeatureLayer", "DEFeatureClass"],
+        parameterType="Required",
+        multiValue=multiple_y_supported,
+        direction="Input"
+    )
+
+    param_y_attribute = arcpy.Parameter(
+        displayName="Target Labels Attribute",
+        name="y_attribute",
+        datatype="Field",
+        parameterType="Optional",
+        multiValue=False,
+        direction="Input"
+    )
+    param_y_attribute.parameterDependencies = [param_y.name]
+    param_y_attribute.enabled = False
+
+    param_y_nodata_value = arcpy.Parameter(
+        displayName="Label NoData Value",
+        name="y_nodata_value",
+        datatype="GPLong",  # TODO: should this be GPDouble?
+        parameterType="Optional",
+        direction="Input"
+    )
+    param_y_nodata_value.enabled = False
+
+    return (
+        param_X,
+        param_X_nodata_value,
+        param_X_standardize,
+        param_y,
+        param_y_attribute,
+        param_y_nodata_value,
+    )
+
+
+def make_mlp_hidden_layers_params():
+    param_hidden_layers = arcpy.Parameter(
+        displayName="Hidden Layers",
+        name="hidden_layers",
+        datatype="GPValueTable",
+        parameterType="Required",
+        direction="Input"
+    )
+
+    param_hidden_layers.columns = [
+        ["GPLong", "Neurons in Layer"],
+        ["GPString", "Activation Function"],
+        ["GPDouble", "Dropout Rate"]
+    ]
+    param_hidden_layers.filters[1].type = "ValueList"
+    param_hidden_layers.filters[1].list = [ACTIVATION_RELU, ACTIVATION_SIGMOID, ACTIVATION_TANH]
+    # Note: Because of how GPValueTable gets handled by ArcGIS Pro,
+    # if "Dropout Rate" is None, it will get evaluated to 0.0.
+    # Something to be aware of
+    param_hidden_layers.values = [[5, ACTIVATION_RELU, None]]
+    # For horizontal display of 3 columns:
+    param_hidden_layers.controlCLSID = "{1AA9A769-D3F3-4EB0-85CB-CC07C79313C8}"
+
+    return param_hidden_layers
+
+
+def make_mlp_training_params():
+    param_validation_split = arcpy.Parameter(
+        displayName="Validation Split",
+        name="validation_split",
+        datatype="GPDouble",
+        parameterType="Optional",
+        direction="Input"
+    )
+    param_validation_split.value = 0.2
+
+    # TODO: consider leaving out
+    param_validation_data = arcpy.Parameter(
+        displayName="Validation Data",
+        name="validation_data",
+        datatype="GPTableView",
+        parameterType="Optional",
+        direction="Input"
+    )
+
+    param_epochs = arcpy.Parameter(
+        displayName="Epochs",
+        name="epochs",
+        datatype="GPLong",
+        parameterType="Required",
+        direction="Input"
+    )
+    param_epochs.value = 50
+
+    param_batch_size = arcpy.Parameter(
+        displayName="Batch Size",
+        name="batch_size",
+        datatype="GPLong",
+        parameterType="Required",
+        direction="Input"
+    )
+    param_batch_size.value = 32
+
+    param_optimizer = arcpy.Parameter(
+        displayName="Optimizer",
+        name="optimizer",
+        datatype="GPString",
+        parameterType="Required",
+        direction="Input"
+    )
+    param_optimizer.filter.type = "ValueList"
+    param_optimizer.filter.list = [OPTIMIZER_ADAM, OPTIMIZER_ADAGRAD, OPTIMIZER_RMSPROP, OPTIMIZER_SGD]
+    param_optimizer.value = OPTIMIZER_ADAM
+
+    param_learning_rate = arcpy.Parameter(
+        displayName="Learning Rate",
+        name="learning_rate",
+        datatype="GPDouble",
+        parameterType="Required",
+        direction="Input"
+    )
+    param_learning_rate.value = 0.001
+
+    param_is_early_stopping = arcpy.Parameter(
+        displayName="Early Stopping",
+        name="early_stopping",
+        datatype="GPBoolean",
+        parameterType="Optional",
+        direction="Input"
+    )
+    param_is_early_stopping.value = True
+
+    param_early_stopping_patience = arcpy.Parameter(
+        displayName="Early Stopping Patience",
+        name="es_patience",
+        datatype="GPLong",
+        parameterType="Optional",
+        direction="Input"
+    )
+    param_early_stopping_patience.value = 5
+
+    param_random_state = arcpy.Parameter(
+        displayName="Random State",
+        name="random_state",
+        datatype="GPLong",
+        parameterType="Optional",
+        direction="Input"
+    )
+
+    (param_apply_smote,
+        param_n_synthetic_samples,
+        param_minority_class_label,
+        param_k_neighbors
+    ) = make_mlp_smote_params()
+
+    return (
+        param_validation_split,
+        param_validation_data,
+        param_epochs,
+        param_batch_size,
+        param_optimizer,
+        param_learning_rate,
+        param_is_early_stopping,
+        param_early_stopping_patience,
+        param_random_state,
+        param_apply_smote,
+        param_n_synthetic_samples,
+        param_minority_class_label,
+        param_k_neighbors
+    )
+
+
+def make_mlp_smote_params():
+    param_apply_smote = arcpy.Parameter(
+        displayName="Apply SMOTE",
+        name="apply_smote",
+        datatype="GPBoolean",
+        parameterType="Optional",
+        direction="Input"
+    )
+    param_apply_smote.value = False
+
+    param_n_synthetic_samples = arcpy.Parameter(
+        displayName="Number of Synthetic Samples",
+        name="n_synthetic_samples",
+        datatype="GPLong",
+        parameterType="Optional",
+        direction="Input"
+    )
+
+    param_minority_class_label = arcpy.Parameter(
+        displayName="Minority Class Label",
+        name="minority_class",
+        datatype="GPLong",
+        parameterType="Optional",
+        direction="Input"
+    )
+    param_minority_class_label.value = 1
+
+    param_k_neighbors = arcpy.Parameter(
+        displayName="Number of Nearest Neighbors (k)",
+        name="k_neighbors",
+        datatype="GPLong",
+        parameterType="Optional",
+        direction="Input"
+    )
+    param_k_neighbors.value = 5
+
+    return (
+        param_apply_smote,
+        param_n_synthetic_samples,
+        param_minority_class_label,
+        param_k_neighbors
+    )
+
+
+def make_mlp_input_model_file_param():
+    return arcpy.Parameter(
+        displayName="Input Model File",
+        name="model_file",
+        datatype="DEFile",
+        parameterType="Required",
+        direction="input"
+    )
+
+
+def make_mlp_prediction_input_params():
+    """Construct parameter objects for the parameters shared by MLP prediction tools."""
+    param_X, param_X_nodata_value, param_X_standardize = make_mlp_X_params()
+
+    param_model_file = make_mlp_input_model_file_param()
+
+    return (
+        param_X,
+        param_X_nodata_value,
+        param_X_standardize,
+        param_model_file
+    )
+
+
+def make_mlp_classifier_prediction_params(
+    filename_prod="predicted_probabilities",
+    filename_classified="predicted_class"
+):
+    param_classification_threshold = arcpy.Parameter(
+        displayName="Classification threshold",
+        name="classification_threshold",
+        datatype="GPDouble",
+        parameterType="Required",
+        direction="Output"
+    )
+    param_classification_threshold.value = 0.5
+
+    param_output_prob_raster = arcpy.Parameter(
+        displayName="Output predicted values probability raster",
+        name="output_prob_raster",
+        datatype="DERasterDataset",
+        parameterType="Required",
+        direction="Output"
+    )
+    param_output_prob_raster.value = f"%workspace%\\{filename_prod}"
+
+    param_output_classification_result_raster = arcpy.Parameter(
+        displayName="Output predicted values classified raster",
+        name="output_classification_result_raster",
+        datatype="DERasterDataset",
+        parameterType="Required",
+        direction="Output"
+    )
+    param_output_classification_result_raster.value = f"%workspace%\\{filename_classified}"
+
+    return (
+        param_classification_threshold,
+        param_output_prob_raster,
+        param_output_classification_result_raster
+    )
+
+
+def make_mlp_regressor_prediction_output_params(filename="predicted_values"):
+    param_output_regression_result_raster = arcpy.Parameter(
+        displayName="Output predicted values raster",
+        name="output_regression_result_raster",
+        datatype="DERasterDataset",
+        parameterType="Required",
+        direction="Output"
+    )
+    param_output_regression_result_raster.value = f"%workspace%\\{filename}"
+
+    return param_output_regression_result_raster
+
+
+def get_value_if_enabled(parameter):
+    return parameter.value if parameter.enabled else None
+
+
+def get_valueAsText_if_enabled(parameter):
+    return parameter.valueAsText if parameter.enabled else None
+
+
+def check_mlp_y_conditionals(y_param):
+    y_text = y_param.valueAsText
+    y_paths = y_text.split(";")
+    y_paths_clean = [path.strip("'") for path in y_paths if path]
+
+    contains_raster = False
+    has_attribute_table = False
+
+    for path in y_paths_clean:
+        desc = arcpy.Describe(path)
+        data_type = desc.dataType
+        if data_type in ["RasterLayer", "RasterDataset", "RasterBand"] and not (contains_raster):
+            contains_raster = True
+            raster = arcpy.Raster(path)
+            if raster.hasRAT:
+                has_attribute_table = True
+        elif data_type in ["FeatureLayer", "FeatureClass", "ShapeFile"]:
+            has_attribute_table = True
+
+    return contains_raster, has_attribute_table, len(y_paths_clean) > 1

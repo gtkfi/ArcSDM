@@ -121,7 +121,7 @@ def train_MLP_classifier(
             label_arrays.append(label_array)
 
         # Combine the encoded arrays into one of size reference raster
-        y = arcsdm.machine_learning.generalpick_value(label_arrays, prefer="first")
+        y = arcsdm.machine_learning.general.pick_value(label_arrays, prefer="first")
 
         # Save label mapping in case user wants to
         unique_json = arcpy.CreateUniqueName("mapping.json", arcpy.env.scratchFolder)
