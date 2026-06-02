@@ -19,6 +19,8 @@ import arcsdm.machine_learning.general
 import arcsdm.machine_learning.pytorch_utils
 import arcsdm.smote
 
+from utils.arcpy_callback import ArcPyLoggingCallback
+
 
 HiddenLayerSpec = Tuple[int, Optional[str], Optional[float]]
 LastLayerConfig = Tuple[Optional[str], Optional[float]]
@@ -297,49 +299,58 @@ def train_MLP_classifier(
     trained_epochs = 0
     patience = max(1, int(early_stopping_patience) if early_stopping_patience is not None else 5)
     stale_epochs = 0
+    callback = ArcPyLoggingCallback(epochs)
 
-    for epoch in range(epochs):
-        train_ret = arcsdm.machine_learning.pytorch_utils.train_classifier_epoch(
-            device,
-            training_loader,
-            model,
-            criterion,
-            optimizer,
-            target_dtype=target_dtype,
-            binary_classifier=target_label_count == 1
-        )
-        val_ret = arcsdm.machine_learning.pytorch_utils.evaluate_classifier_epoch(
-            device,
-            testing_loader,
-            model,
-            criterion,
-            target_dtype=target_dtype,
-            binary_classifier=target_label_count == 1
-        )
+    callback.on_train_begin()
+    try:
+        for epoch in range(epochs):
+            train_ret = arcsdm.machine_learning.pytorch_utils.train_classifier_epoch(
+                device,
+                training_loader,
+                model,
+                criterion,
+                optimizer,
+                target_dtype=target_dtype,
+                binary_classifier=target_label_count == 1
+            )
+            val_ret = arcsdm.machine_learning.pytorch_utils.evaluate_classifier_epoch(
+                device,
+                testing_loader,
+                model,
+                criterion,
+                target_dtype=target_dtype,
+                binary_classifier=target_label_count == 1
+            )
 
-        current_loss = train_ret['loss'].item()
-        current_val_loss = val_ret['loss']
+            current_loss = train_ret['loss'].item()
+            current_val_loss = val_ret['loss']
 
-        train_loss_dict[epoch + 1] = current_loss
-        val_loss_dict[epoch + 1] = current_val_loss
-        trained_epochs = epoch + 1
+            train_loss_dict[epoch + 1] = current_loss
+            val_loss_dict[epoch + 1] = current_val_loss
+            trained_epochs = epoch + 1
 
-        if (best_val_loss is None) or (current_val_loss < best_val_loss):
-            best_val_loss = current_val_loss
-            best_model_wts = copy.deepcopy(model.state_dict())
-            stale_epochs = 0
-        else:
-            stale_epochs += 1
+            if (best_val_loss is None) or (current_val_loss < best_val_loss):
+                best_val_loss = current_val_loss
+                best_model_wts = copy.deepcopy(model.state_dict())
+                stale_epochs = 0
+            else:
+                stale_epochs += 1
 
-        print(f"Epoch {epoch + 1}: "
-            f"train loss: {train_ret['loss']:.6f}, "
-            f"train accuracy: {train_ret['accuracy']:.2%}, "
-            f"val loss: {val_ret['loss']:.6f}, "
-            f"val accuracy: {val_ret['accuracy']:.2%}")
+            callback.on_epoch_end(
+                epoch,
+                {
+                    "train_loss": f"{current_loss:.6f}",
+                    "train_accuracy": f"{train_ret['accuracy']:.2%}",
+                    "val_loss": f"{current_val_loss:.6f}",
+                    "val_accuracy": f"{val_ret['accuracy']:.2%}",
+                }
+            )
 
-        if is_early_stopping and stale_epochs >= patience:
-            arcpy.AddMessage(f"Early stopping at epoch {epoch + 1}.")
-            break
+            if is_early_stopping and stale_epochs >= patience:
+                arcpy.AddMessage(f"Early stopping at epoch {epoch + 1}.")
+                break
+    finally:
+        callback.on_train_end({"epochs_ran": trained_epochs})
 
     if best_model_wts is not None:
         model.load_state_dict(best_model_wts)

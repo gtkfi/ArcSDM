@@ -15,6 +15,8 @@ import arcsdm.common
 import arcsdm.machine_learning.general
 import arcsdm.machine_learning.pytorch_utils
 
+from utils.arcpy_callback import ArcPyLoggingCallback
+
 
 class MLPRegressorModel(nn.Module):
     def __init__(self, input_dims, hidden_layers, last_layer):
@@ -227,29 +229,38 @@ def train_MLP_regressor(
     trained_epochs = 0
     patience = max(1, int(early_stopping_patience) if early_stopping_patience is not None else 5)
     stale_epochs = 0
+    callback = ArcPyLoggingCallback(epochs)
 
-    for epoch in range(epochs):
-        train_loss = arcsdm.machine_learning.pytorch_utils.train_regression_epoch(device, training_loader, model, criterion, pytorch_optimizer)
-        val_loss = arcsdm.machine_learning.pytorch_utils.evaluate_regression_epoch(device, testing_loader, model, criterion)
+    callback.on_train_begin()
+    try:
+        for epoch in range(epochs):
+            train_loss = arcsdm.machine_learning.pytorch_utils.train_regression_epoch(device, training_loader, model, criterion, pytorch_optimizer)
+            val_loss = arcsdm.machine_learning.pytorch_utils.evaluate_regression_epoch(device, testing_loader, model, criterion)
 
-        train_loss_dict[epoch + 1] = train_loss
-        val_loss_dict[epoch + 1] = val_loss
-        trained_epochs = epoch + 1
+            train_loss_dict[epoch + 1] = train_loss
+            val_loss_dict[epoch + 1] = val_loss
+            trained_epochs = epoch + 1
 
-        if (best_val_loss is None) or (val_loss < best_val_loss):
-            best_val_loss = val_loss
-            best_model_wts = copy.deepcopy(model.state_dict())
-            stale_epochs = 0
-        else:
-            stale_epochs += 1
+            if (best_val_loss is None) or (val_loss < best_val_loss):
+                best_val_loss = val_loss
+                best_model_wts = copy.deepcopy(model.state_dict())
+                stale_epochs = 0
+            else:
+                stale_epochs += 1
 
-        arcpy.AddMessage(
-            f"Epoch {epoch + 1}: train loss: {train_loss:.6f}, val loss: {val_loss:.6f}"
-        )
+            callback.on_epoch_end(
+                epoch,
+                {
+                    "train_loss": f"{train_loss:.6f}",
+                    "val_loss": f"{val_loss:.6f}",
+                }
+            )
 
-        if is_early_stopping and stale_epochs >= patience:
-            arcpy.AddMessage(f"Early stopping at epoch {epoch + 1}.")
-            break
+            if is_early_stopping and stale_epochs >= patience:
+                arcpy.AddMessage(f"Early stopping at epoch {epoch + 1}.")
+                break
+    finally:
+        callback.on_train_end({"epochs_ran": trained_epochs})
 
     if validation_metrics:
         model.eval()

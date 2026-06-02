@@ -1,10 +1,8 @@
 import arcpy
-from keras.callbacks import Callback
 
-class ArcPyLoggingCallback(Callback):
+class ArcPyLoggingCallback:
     def __init__(self, epochs):
-        super().__init__()
-        self.epochs = epochs
+        self.epochs = max(1, int(epochs))
 
     def on_train_begin(self, logs=None):
         arcpy.SetProgressor("step", "Training the model...", 0, self.epochs, 1)
@@ -25,5 +23,8 @@ class ArcPyLoggingCallback(Callback):
         pass
 
     def on_train_end(self, logs=None):
+        logs = logs or {}
+        for key, value in logs.items():
+            arcpy.AddMessage(f"{key}: {value}")
         arcpy.AddMessage("Training completed.")
         arcpy.ResetProgressor()
