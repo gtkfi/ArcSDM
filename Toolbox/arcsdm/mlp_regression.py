@@ -76,13 +76,13 @@ def train_MLP_regressor(
     optimizer,
     learning_rate,
     loss_function,
-    is_early_stopping,  # TODO: implement early stopping
+    is_early_stopping,
     early_stopping_patience,
     validation_split,
-    validation_data,  # TODO: use validation_data as alternative to validation_split
-    validation_metrics,  # TODO: utilize validation metrics selection
+    validation_data,
+    validation_metrics,
     random_state,
-    apply_smote,  # TODO: apply smote
+    apply_smote,
     smote_params,
     output_model_file
 ):
@@ -110,11 +110,15 @@ def train_MLP_regressor(
             classification=False
         )
     elif arcpy.Describe(target_labels[0]).dataType in ["RasterLayer", "RasterDataset", "RasterBand"]:
-        # If label file is raster, check the nodata value
-        # TODO: handle raster label data
-        arcpy.AddMessage("Raster data not yet supported.")
+        label_bands = arcsdm.machine_learning.general.raster_to_band_arrays(target_labels[0])
+        if len(label_bands) != 1:
+            msg = "Target label raster must have exactly one band."
+            arcpy.AddError(msg)
+            raise arcsdm.machine_learning.general.MLPInputError(msg)
 
-    y_mask = np.isnan(y)
+        y = label_bands[0]
+        if y_nodata_value is not None and not arcsdm.machine_learning.general.is_nan_like(y_nodata_value):
+            arcsdm.machine_learning.general.apply_explicit_nodata_inplace(y, y_nodata_value, np.float32)
 
     # Read input feature rasters
     raster_arrays = arcsdm.machine_learning.general.read_raster_bands(
@@ -134,15 +138,56 @@ def train_MLP_regressor(
     y = y[valid]
 
     # Prepare validation data and final training dataset
-    if validation_split != 0:
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=validation_split, random_state=random_state, shuffle=True)
-    elif validation_data is not None:
-        # TODO: handle reading X_test and y_test from validation data and remove message below
-        X_test = X_train.copy()  # TODO: remove once validation data is read from file
-        y_test = y_test.copy()  # TODO: remove once validation data is read from file
-        arcpy.AddMessage("Validation data is not supported")
+    if validation_data is not None:
+        fields = [f.name for f in arcpy.ListFields(validation_data) if f.type in ["SmallInteger", "Integer", "Single", "Double"]]
+        if len(fields) < 2:
+            msg = "Validation table must contain at least one feature field and one target field."
+            arcpy.AddError(msg)
+            raise arcsdm.machine_learning.general.MLPInputError(msg)
+
+        y_field = None
+        lower_fields = [f.lower() for f in fields]
+        for candidate in ["label", "labels", "target", "value", "y"]:
+            if candidate in lower_fields:
+                y_field = fields[lower_fields.index(candidate)]
+                break
+        if y_field is None:
+            y_field = fields[-1]
+
+        x_fields = [f for f in fields if f != y_field]
+        if len(x_fields) != X.shape[1]:
+            msg = f"Validation table must contain {X.shape[1]} feature fields, found {len(x_fields)}."
+            arcpy.AddError(msg)
+            raise arcsdm.machine_learning.general.MLPInputError(msg)
+
+        table_arr = arcpy.da.TableToNumPyArray(validation_data, x_fields + [y_field], skip_nulls=True)
+        if len(table_arr) == 0:
+            msg = "Validation table has no usable rows."
+            arcpy.AddError(msg)
+            raise arcsdm.machine_learning.general.MLPInputError(msg)
+
+        X_test = np.column_stack([table_arr[field] for field in x_fields]).astype(np.float32)
+        y_test = np.asarray(table_arr[y_field], dtype=np.float32)
+
         X_train = X
         y_train = y
+    elif validation_split and validation_split > 0:
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=validation_split, random_state=random_state, shuffle=True)
+    else:
+        arcpy.AddWarning("Validation split was not provided; using default validation_split=0.2")
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=random_state, shuffle=True)
+
+    if apply_smote:
+        n_synthetic, minority_class_label, k_neighbors = smote_params if smote_params else (None, 1, 5)
+        X_train, y_train = arcsdm.smote.smote(
+            X_train,
+            y_train,
+            n_synthetic=n_synthetic,
+            minority_class=minority_class_label,
+            k_neighbors=int(k_neighbors),
+            random_state=random_state
+        )
+        arcpy.AddMessage("Applied SMOTE to training data.")
 
     scaler = None
     if standardize:
@@ -181,6 +226,9 @@ def train_MLP_regressor(
     best_model_wts = None
     train_loss_dict = {}
     val_loss_dict = {}
+    trained_epochs = 0
+    patience = max(1, int(early_stopping_patience) if early_stopping_patience is not None else 5)
+    stale_epochs = 0
 
     for epoch in range(epochs):
         train_loss = arcsdm.machine_learning.pytorch_utils.train_regression_epoch(device, training_loader, model, criterion, pytorch_optimizer)
@@ -188,14 +236,53 @@ def train_MLP_regressor(
 
         train_loss_dict[epoch + 1] = train_loss
         val_loss_dict[epoch + 1] = val_loss
+        trained_epochs = epoch + 1
 
         if (best_val_loss is None) or (val_loss < best_val_loss):
             best_val_loss = val_loss
             best_model_wts = copy.deepcopy(model.state_dict())
+            stale_epochs = 0
+        else:
+            stale_epochs += 1
 
         arcpy.AddMessage(
             f"Epoch {epoch + 1}: train loss: {train_loss:.6f}, val loss: {val_loss:.6f}"
         )
+
+        if is_early_stopping and stale_epochs >= patience:
+            arcpy.AddMessage(f"Early stopping at epoch {epoch + 1}.")
+            break
+
+    if validation_metrics:
+        model.eval()
+        y_pred = []
+        y_true = []
+        with torch.no_grad():
+            for data, target in testing_loader:
+                data = data.to(device).to(torch.float32)
+                pred = model(data).reshape(-1).cpu().numpy()
+                y_pred.append(pred)
+                y_true.append(target.cpu().numpy().reshape(-1))
+
+        y_true = np.concatenate(y_true)
+        y_pred = np.concatenate(y_pred)
+        metric = validation_metrics.strip().lower()
+
+        if metric == "mse":
+            value = float(np.mean((y_true - y_pred) ** 2))
+            arcpy.AddMessage(f"Validation MSE: {value:.6f}")
+        elif metric == "rmse":
+            value = float(np.sqrt(np.mean((y_true - y_pred) ** 2)))
+            arcpy.AddMessage(f"Validation RMSE: {value:.6f}")
+        elif metric in ["mae", "l1"]:
+            value = float(np.mean(np.abs(y_true - y_pred)))
+            arcpy.AddMessage(f"Validation MAE: {value:.6f}")
+        elif metric in ["r-squared", "r2", "r^2"]:
+            y_mean = float(np.mean(y_true))
+            ss_tot = float(np.sum((y_true - y_mean) ** 2))
+            ss_res = float(np.sum((y_true - y_pred) ** 2))
+            value = 1.0 - (ss_res / ss_tot) if ss_tot != 0 else 0.0
+            arcpy.AddMessage(f"Validation R-squared: {value:.6f}")
 
     # Plot loss curve & save to file
     output_dir = arcpy.mp.ArcGISProject("CURRENT").homeFolder
@@ -209,7 +296,7 @@ def train_MLP_regressor(
     fig, ax = plt.subplots(figsize=(8, 5))
     arcsdm.machine_learning.general.plot_loss_curves(
         ax=ax,
-        epochs=epochs,
+        epochs=trained_epochs,
         train_loss_dict=train_loss_dict,
         val_loss_dict=val_loss_dict
     )
@@ -231,10 +318,12 @@ def train_MLP_regressor(
         "hidden_layers": hidden_layers,
         "last_layer": last_layer,
         "loss_function": loss_function,
+        "batch_size": int(batch_size),
         "standardize": bool(standardize),
         "scaler_mean": scaler.mean_.tolist() if scaler is not None else None,
         "scaler_scale": scaler.scale_.tolist() if scaler is not None else None,
         "best_val_loss": float(best_val_loss) if best_val_loss is not None else None,
+        "trained_epochs": int(trained_epochs),
     }
 
     torch.save(model.state_dict(), output_model_file)
@@ -249,7 +338,7 @@ def train_MLP_regressor(
     return None
 
 
-@arcsdm.common.gp_tool
+@GP_TOOL
 def test_MLP_regressor(
     input_rasters,
     X_nodata_value,
@@ -267,7 +356,7 @@ def test_MLP_regressor(
     return None
 
 
-@arcsdm.common.gp_tool
+@GP_TOOL
 def predict_with_MLP_regressor(
     input_rasters,
     X_nodata_value,
@@ -357,7 +446,10 @@ def predict_with_MLP_regressor(
 
     dummy_labels = torch.zeros(X.shape[0], 1)
     pred_dataset = TensorDataset(torch.from_numpy(X), dummy_labels)
-    pred_loader = DataLoader(pred_dataset, batch_size=1024)
+    pred_batch_size = int(metadata.get("batch_size", 1024))
+    if pred_batch_size < 1:
+        pred_batch_size = 1024
+    pred_loader = DataLoader(pred_dataset, batch_size=pred_batch_size)
 
     predicted = arcsdm.machine_learning.pytorch_utils.predict(device, pred_loader, model)
     predicted_values = torch.cat(predicted).reshape(-1).cpu().numpy()
