@@ -211,8 +211,6 @@ def train_MLP_regressor(
     )
     model.to(device)
 
-    arcpy.AddMessage(f"Initialized MLP regressor model: {model}")
-
     pytorch_optimizer = arcsdm.machine_learning.pytorch_utils.get_pytorch_optimizer(optimizer, model.parameters(), learning_rate)
     try:
         criterion = arcsdm.machine_learning.pytorch_utils.get_pytorch_regression_loss(loss_function)
