@@ -16,6 +16,14 @@ from torch.utils.data import DataLoader, TensorDataset
 import arcsdm.common
 import arcsdm.machine_learning.general
 import arcsdm.machine_learning.pytorch_utils
+import arcsdm.smote
+
+
+def _fallback_gp_tool(func):
+    return func
+
+
+GP_TOOL = getattr(arcsdm.common, "gp_tool", _fallback_gp_tool)
 
 
 class MLPClassifierModel(nn.Module):
@@ -64,7 +72,7 @@ class MLPClassifierModel(nn.Module):
             return None
 
 
-@arcsdm.common.gp_tool
+@GP_TOOL
 def train_MLP_classifier(
     input_rasters,
     X_nodata_value,
@@ -78,13 +86,13 @@ def train_MLP_classifier(
     batch_size,
     optimizer,
     learning_rate,
-    is_early_stopping,  # TODO: implement early stopping
+    is_early_stopping,
     early_stopping_patience,
     validation_split,
-    validation_data,  # TODO: use validation_data as alternative to validation_split
-    validation_metrics,  # TODO: utilize validation metrics selection
+    validation_data,
+    validation_metrics,
     random_state,
-    apply_smote,  # TODO: apply smote
+    apply_smote,
     smote_params,
     output_model_file
 ):
@@ -142,21 +150,15 @@ def train_MLP_classifier(
                 const=1
             )
         elif arcpy.Describe(target_labels[0]).dataType in ["RasterLayer", "RasterDataset", "RasterBand"]:
-            # If label file is raster, check the nodata value
-            # TODO: handle raster label data
-            arcpy.AddMessage("Raster data not yet supported.")
+            label_bands = arcsdm.machine_learning.general.raster_to_band_arrays(target_labels[0])
+            if len(label_bands) != 1:
+                msg = "Target label raster must have exactly one band."
+                arcpy.AddError(msg)
+                raise arcsdm.machine_learning.general.MLPInputError(msg)
 
-    y_mask = np.isnan(y)
-
-    # Check label counts
-    unique_labels = np.unique(y[~y_mask])
-    if (len(unique_labels) < 2):
-        msg = "At least two classes are required for classification."
-        arcpy.AddError(msg)
-        raise arcsdm.machine_learning.general.MLPInputError(msg)
-
-    # TODO: Verify that target labels are contiguous from 0, ..., K-1
-    # (otherwise CrossEntropyLoss can fail)
+            y = label_bands[0]
+            if y_nodata_value is not None and not arcsdm.machine_learning.general.is_nan_like(y_nodata_value):
+                arcsdm.machine_learning.general.apply_explicit_nodata_inplace(y, y_nodata_value, np.float32)
 
     # Read input feature rasters
     raster_arrays = arcsdm.machine_learning.general.read_raster_bands(
@@ -175,16 +177,73 @@ def train_MLP_classifier(
     X = X[valid]
     y = y[valid]
 
+    # Remap labels to contiguous integers [0..K-1].
+    unique_labels = np.unique(y)
+    if len(unique_labels) < 2:
+        msg = "At least two classes are required for classification."
+        arcpy.AddError(msg)
+        raise arcsdm.machine_learning.general.MLPInputError(msg)
+
+    label_to_index = {float(label): idx for idx, label in enumerate(np.sort(unique_labels).tolist())}
+    y = np.asarray([label_to_index[float(label)] for label in y], dtype=np.int64)
+
     # Prepare validation data and final training dataset
-    if validation_split != 0:
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=validation_split, random_state=random_state, shuffle=True)
-    elif validation_data is not None:
-        # TODO: handle reading X_test and y_test from validation data and remove message below
-        X_test = X_train.copy()  # TODO: remove once validation data is read from file
-        y_test = y_test.copy()  # TODO: remove once validation data is read from file
-        arcpy.AddMessage("Validation data is not supported")
+    if validation_data is not None:
+        fields = [f.name for f in arcpy.ListFields(validation_data) if f.type in ["SmallInteger", "Integer", "Single", "Double"]]
+        if len(fields) < 2:
+            msg = "Validation table must contain at least one feature field and one target field."
+            arcpy.AddError(msg)
+            raise arcsdm.machine_learning.general.MLPInputError(msg)
+
+        y_field = None
+        for candidate in ["label", "labels", "target", "class", "y"]:
+            if candidate in [f.lower() for f in fields]:
+                y_field = fields[[f.lower() for f in fields].index(candidate)]
+                break
+        if y_field is None:
+            y_field = fields[-1]
+
+        x_fields = [f for f in fields if f != y_field]
+        if len(x_fields) != X.shape[1]:
+            msg = f"Validation table must contain {X.shape[1]} feature fields, found {len(x_fields)}."
+            arcpy.AddError(msg)
+            raise arcsdm.machine_learning.general.MLPInputError(msg)
+
+        table_arr = arcpy.da.TableToNumPyArray(validation_data, x_fields + [y_field], skip_nulls=True)
+        if len(table_arr) == 0:
+            msg = "Validation table has no usable rows."
+            arcpy.AddError(msg)
+            raise arcsdm.machine_learning.general.MLPInputError(msg)
+
+        X_test = np.column_stack([table_arr[field] for field in x_fields]).astype(np.float32)
+        y_test_raw = np.asarray(table_arr[y_field], dtype=np.float64)
+        try:
+            y_test = np.asarray([label_to_index[float(label)] for label in y_test_raw], dtype=np.int64)
+        except KeyError as exc:
+            msg = f"Validation labels contain unseen class: {exc}."
+            arcpy.AddError(msg)
+            raise arcsdm.machine_learning.general.MLPInputError(msg)
+
         X_train = X
         y_train = y
+    elif validation_split and validation_split > 0:
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=validation_split, random_state=random_state, shuffle=True)
+    else:
+        arcpy.AddWarning("Validation split was not provided; using default validation_split=0.2")
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=random_state, shuffle=True)
+
+    if apply_smote:
+        n_synthetic, minority_class_label, k_neighbors = smote_params if smote_params else (None, 1, 5)
+        mapped_minority = label_to_index.get(float(minority_class_label), int(minority_class_label))
+        X_train, y_train = arcsdm.smote.smote(
+            X_train,
+            y_train,
+            n_synthetic=n_synthetic,
+            minority_class=mapped_minority,
+            k_neighbors=int(k_neighbors),
+            random_state=random_state
+        )
+        arcpy.AddMessage("Applied SMOTE to training data.")
 
     scaler = None
     if standardize:
@@ -207,7 +266,8 @@ def train_MLP_classifier(
     else:
         target_label_count = len(unique_labels)
 
-    # TODO: add warnings if sigmoid used with more classes than what's allowed
+    if (last_layer_activation == "sigmoid") and (target_label_count > 1):
+        arcpy.AddWarning("Sigmoid is recommended for binary classification. Consider Softmax for multiclass.")
 
     last_layer = (target_label_count, last_layer_activation, last_layer_dropout)
 
@@ -218,13 +278,7 @@ def train_MLP_classifier(
     )
     model.to(device)
 
-    # TODO: remove
-    arcpy.AddMessage(f"Initialized MLP classifier model: {model}")
-
     optimizer = arcsdm.machine_learning.pytorch_utils.get_pytorch_optimizer(optimizer, model.parameters(), learning_rate)
-
-    # TODO: consider adding better check for binary classification.
-    # (currently just tried to keep the number of various states that are checked minimal)
 
     if target_label_count == 1:
         # Binary crossentropy for binary classification
@@ -238,12 +292,13 @@ def train_MLP_classifier(
 
     # Training and validation
 
-    # TODO: implement early stopping
-
     best_val_loss = None
     best_model_wts = None
     train_loss_dict = {}
     val_loss_dict = {}
+    trained_epochs = 0
+    patience = max(1, int(early_stopping_patience) if early_stopping_patience is not None else 5)
+    stale_epochs = 0
 
     for epoch in range(epochs):
         train_ret = arcsdm.machine_learning.pytorch_utils.train_classifier_epoch(
@@ -269,10 +324,14 @@ def train_MLP_classifier(
 
         train_loss_dict[epoch + 1] = current_loss
         val_loss_dict[epoch + 1] = current_val_loss
+        trained_epochs = epoch + 1
 
         if (best_val_loss is None) or (current_val_loss < best_val_loss):
             best_val_loss = current_val_loss
             best_model_wts = copy.deepcopy(model.state_dict())
+            stale_epochs = 0
+        else:
+            stale_epochs += 1
 
         print(f"Epoch {epoch + 1}: "
             f"train loss: {train_ret['loss']:.6f}, "
@@ -280,7 +339,46 @@ def train_MLP_classifier(
             f"val loss: {val_ret['loss']:.6f}, "
             f"val accuracy: {val_ret['accuracy']:.2%}")
 
-    # TODO: Add metrics selected by user to messages
+        if is_early_stopping and stale_epochs >= patience:
+            arcpy.AddMessage(f"Early stopping at epoch {epoch + 1}.")
+            break
+
+    if best_model_wts is not None:
+        model.load_state_dict(best_model_wts)
+
+    if validation_metrics:
+        metric = validation_metrics.strip().lower()
+        y_true_all = []
+        y_pred_all = []
+        model.eval()
+        with torch.no_grad():
+            for data, target in testing_loader:
+                data = data.to(device).to(torch.float32)
+                output = model(data)
+                if target_label_count == 1:
+                    pred = output.reshape(-1).round().cpu().numpy().astype(np.int64)
+                    true = target.reshape(-1).cpu().numpy().astype(np.int64)
+                else:
+                    pred = output.argmax(dim=1).cpu().numpy().astype(np.int64)
+                    true = target.cpu().numpy().astype(np.int64)
+                y_true_all.append(true)
+                y_pred_all.append(pred)
+
+        y_true = np.concatenate(y_true_all)
+        y_pred = np.concatenate(y_pred_all)
+        if metric == "accuracy":
+            val_metric = float((y_true == y_pred).mean())
+            arcpy.AddMessage(f"Validation accuracy: {val_metric:.4f}")
+        elif metric == "precision":
+            tp = np.sum((y_pred == 1) & (y_true == 1))
+            fp = np.sum((y_pred == 1) & (y_true != 1))
+            val_metric = float(tp / (tp + fp)) if (tp + fp) > 0 else 0.0
+            arcpy.AddMessage(f"Validation precision: {val_metric:.4f}")
+        elif metric == "recall":
+            tp = np.sum((y_pred == 1) & (y_true == 1))
+            fn = np.sum((y_pred != 1) & (y_true == 1))
+            val_metric = float(tp / (tp + fn)) if (tp + fn) > 0 else 0.0
+            arcpy.AddMessage(f"Validation recall: {val_metric:.4f}")
 
     # Plot loss curve & save to file
     output_dir = arcpy.mp.ArcGISProject("CURRENT").homeFolder
@@ -291,10 +389,11 @@ def train_MLP_classifier(
         raise arcsdm.machine_learning.general.MLPError("Could not determine output folder for saving plot output.")
 
     png_path = arcpy.CreateUniqueName("training_vs_validation_loss.png", output_dir)
-    fig, ax = plt.subplots(figsize=(8, 5))  # TODO: calculate a good ratio for figsize
+    fig_width = max(8.0, min(16.0, 8.0 + trained_epochs / 25.0))
+    fig, ax = plt.subplots(figsize=(fig_width, 5))
     arcsdm.machine_learning.general.plot_loss_curves(
         ax=ax,
-        epochs=epochs,  # TODO: remember to use updated value for epochs once early stopping is implemented
+        epochs=trained_epochs,
         train_loss_dict=train_loss_dict,
         val_loss_dict=val_loss_dict
     )
@@ -308,8 +407,6 @@ def train_MLP_classifier(
     # Save best model weights and metadata
 
     arcpy.AddMessage("Saving best model...")
-    if best_model_wts is not None:
-        model.load_state_dict(best_model_wts)
 
     output_dirname = os.path.dirname(output_model_file)
     if output_dirname and not os.path.exists(output_dirname):
@@ -323,10 +420,12 @@ def train_MLP_classifier(
         "last_layer": last_layer,
         "target_label_count": int(target_label_count),
         "unique_labels": [float(x) for x in unique_labels.tolist()],
+        "batch_size": int(batch_size),
         "standardize": bool(standardize),
         "scaler_mean": scaler.mean_.tolist() if scaler is not None else None,
         "scaler_scale": scaler.scale_.tolist() if scaler is not None else None,
         "best_val_loss": float(best_val_loss) if best_val_loss is not None else None,
+        "trained_epochs": int(trained_epochs),
     }
 
     torch.save(model.state_dict(), output_model_file)
@@ -339,7 +438,7 @@ def train_MLP_classifier(
     arcpy.AddMessage(f"Saved model metadata to {metadata_file}")
 
 
-@arcsdm.common.gp_tool
+@GP_TOOL
 def test_MLP_classifier(
     input_rasters,
     X_nodata_value,
@@ -359,7 +458,7 @@ def test_MLP_classifier(
     return None
 
 
-@arcsdm.common.gp_tool
+@GP_TOOL
 def predict_with_MLP_classifier(
     input_rasters,
     X_nodata_value,
@@ -456,9 +555,10 @@ def predict_with_MLP_classifier(
     dummy_labels = torch.zeros(X.shape[0], 1) # Not used, but required by DataLoader
 
     pred_dataset = TensorDataset(torch.from_numpy(X), dummy_labels)
-    # TODO: consider adding batch_size as UI parameter, default batch size is 1
-    # pred_loader = DataLoader(pred_dataset, batch_size=batch_size)
-    pred_loader = DataLoader(pred_dataset, batch_size=1024)
+    pred_batch_size = int(metadata.get("batch_size", 1024))
+    if pred_batch_size < 1:
+        pred_batch_size = 1024
+    pred_loader = DataLoader(pred_dataset, batch_size=pred_batch_size)
 
     predicted = arcsdm.machine_learning.pytorch_utils.predict(device, pred_loader, model)
     predicted_raw = torch.cat(predicted)
