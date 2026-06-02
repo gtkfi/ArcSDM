@@ -336,7 +336,7 @@ def train_MLP_regressor(
     return None
 
 
-@GP_TOOL
+@arcsdm.common.gp_tool
 def test_MLP_regressor(
     input_rasters,
     X_nodata_value,
@@ -354,7 +354,7 @@ def test_MLP_regressor(
     return None
 
 
-@GP_TOOL
+@arcsdm.common.gp_tool
 def predict_with_MLP_regressor(
     input_rasters,
     X_nodata_value,
