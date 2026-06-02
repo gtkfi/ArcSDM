@@ -9,6 +9,7 @@ import torch.nn as nn
 
 
 from collections import OrderedDict
+from typing import Optional, Sequence, Tuple
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -19,15 +20,12 @@ import arcsdm.machine_learning.pytorch_utils
 import arcsdm.smote
 
 
-def _fallback_gp_tool(func):
-    return func
-
-
-GP_TOOL = getattr(arcsdm.common, "gp_tool", _fallback_gp_tool)
+HiddenLayerSpec = Tuple[int, Optional[str], Optional[float]]
+LastLayerConfig = Tuple[Optional[str], Optional[float]]
 
 
 class MLPClassifierModel(nn.Module):
-    def __init__(self, input_dims, hidden_layers, last_layer):
+    def __init__(self, input_dims: int, hidden_layers: Sequence[HiddenLayerSpec], last_layer: HiddenLayerSpec) -> None:
         super(MLPClassifierModel, self).__init__()
 
         all_layers = hidden_layers + [last_layer]
@@ -55,10 +53,10 @@ class MLPClassifierModel(nn.Module):
 
         self.layers = nn.Sequential(OrderedDict(layers))
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.layers(x)#.squeeze()
 
-    def get_activation_function(self, name):
+    def get_activation_function(self, name: str) -> Optional[nn.Module]:
         name = name.lower().strip()
         if name == "relu":
             return nn.ReLU()
@@ -72,30 +70,30 @@ class MLPClassifierModel(nn.Module):
             return None
 
 
-@GP_TOOL
+@arcsdm.common.gp_tool
 def train_MLP_classifier(
-    input_rasters,
-    X_nodata_value,
-    standardize,
-    target_labels,
-    target_labels_attr,
-    y_nodata_value,
-    hidden_layers,
-    last_layer,
-    epochs,
-    batch_size,
-    optimizer,
-    learning_rate,
-    is_early_stopping,
-    early_stopping_patience,
-    validation_split,
-    validation_data,
-    validation_metrics,
-    random_state,
-    apply_smote,
-    smote_params,
-    output_model_file
-):
+    input_rasters: Sequence[str],
+    X_nodata_value: Optional[float],
+    standardize: bool,
+    target_labels: Sequence[str],
+    target_labels_attr: Optional[str],
+    y_nodata_value: Optional[float],
+    hidden_layers: Sequence[HiddenLayerSpec],
+    last_layer: LastLayerConfig,
+    epochs: int,
+    batch_size: int,
+    optimizer: str,
+    learning_rate: float,
+    is_early_stopping: bool,
+    early_stopping_patience: Optional[int],
+    validation_split: Optional[float],
+    validation_data: Optional[str],
+    validation_metrics: Optional[str],
+    random_state: Optional[int],
+    apply_smote: bool,
+    smote_params: Optional[Tuple[Optional[int], int, int]],
+    output_model_file: str
+) -> None:
     arcpy.AddMessage("Starting MLP classifier training...")
     device = arcsdm.machine_learning.pytorch_utils.get_device()
     arcpy.AddMessage(f"Device is: {device}")
@@ -438,36 +436,36 @@ def train_MLP_classifier(
     arcpy.AddMessage(f"Saved model metadata to {metadata_file}")
 
 
-@GP_TOOL
+@arcsdm.common.arcsdm.common.gp_tool
 def test_MLP_classifier(
-    input_rasters,
-    X_nodata_value,
-    standardize,
-    target_labels,
-    target_labels_attr,
-    y_nodata_value,
-    model_file,
-    classification_threshold,
-    output_raster_prob,
-    output_raster_classified,
-    test_metrics
-):
+    input_rasters: Sequence[str],
+    X_nodata_value: Optional[float],
+    standardize: bool,
+    target_labels: Sequence[str],
+    target_labels_attr: Optional[str],
+    y_nodata_value: Optional[float],
+    model_file: str,
+    classification_threshold: float,
+    output_raster_prob: Optional[str],
+    output_raster_classified: Optional[str],
+    test_metrics: Optional[str]
+) -> None:
     arcpy.AddMessage("Starting MLP classifier test...")
     device = arcsdm.machine_learning.pytorch_utils.get_device()
     arcpy.AddMessage(f"Device is: {device}")
     return None
 
 
-@GP_TOOL
+@arcsdm.common.arcsdm.common.gp_tool
 def predict_with_MLP_classifier(
-    input_rasters,
-    X_nodata_value,
-    standardize,
-    model_file,
-    classification_threshold,
-    output_raster_prob,
-    output_raster_classified
-):
+    input_rasters: Sequence[str],
+    X_nodata_value: Optional[float],
+    standardize: bool,
+    model_file: str,
+    classification_threshold: float,
+    output_raster_prob: Optional[str],
+    output_raster_classified: Optional[str]
+) -> None:
     arcpy.AddMessage("Starting prediction with classifier...")
     device = arcsdm.machine_learning.pytorch_utils.get_device()
     arcpy.AddMessage(f"Device is: {device}")
