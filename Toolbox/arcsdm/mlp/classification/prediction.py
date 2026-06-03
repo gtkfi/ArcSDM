@@ -1,0 +1,209 @@
+from typing import Any, Mapping, Optional, Sequence, Tuple
+
+import arcpy
+import numpy as np
+import torch
+
+import arcsdm.common
+import arcsdm.machine_learning.pytorch_utils
+
+from arcsdm.mlp.classification.data import (
+    classifier_prediction_rasters,
+    load_classifier_metadata,
+    make_classifier_prediction_loader,
+    prepare_classifier_prediction_features,
+    read_classifier_target_array,
+    save_classifier_prediction_result,
+    validate_classifier_input_rasters,
+    warn_if_standardization_setting_differs,
+)
+from arcsdm.mlp.classification.metrics import log_classifier_test_metrics
+from arcsdm.mlp.classification.model import MLPClassifierModel
+from arcsdm.mlp.classification.types import MLPClassifierPredictionResult
+
+
+def load_classifier_model(
+    model_file: str,
+    metadata: Mapping[str, Any],
+    device: torch.device
+) -> MLPClassifierModel:
+    model = MLPClassifierModel(
+        input_dims=int(metadata["input_dims"]),
+        hidden_layers=metadata["hidden_layers"],
+        last_layer=metadata["last_layer"]
+    )
+
+    state_dict = torch.load(model_file, map_location=device)
+    model.load_state_dict(state_dict)
+    model.to(device)
+    model.eval()
+    return model
+
+
+def last_layer_activation(last_layer: Sequence[Any]) -> Optional[str]:
+    if last_layer and len(last_layer) > 1 and last_layer[1] is not None:
+        return str(last_layer[1]).lower().strip()
+
+    return None
+
+
+def classification_predictions_from_raw_output(
+    predicted_raw: torch.Tensor,
+    target_label_count: int,
+    last_layer: Sequence[Any],
+    classification_threshold: float
+) -> Tuple[np.ndarray, np.ndarray]:
+    activation = last_layer_activation(last_layer)
+
+    if target_label_count == 1:
+        if activation == "sigmoid":
+            predicted_probabilities = predicted_raw.reshape(-1).cpu().numpy()
+        else:
+            predicted_probabilities = torch.sigmoid(predicted_raw).reshape(-1).cpu().numpy()
+        y_pred = (predicted_probabilities >= classification_threshold).astype(np.int64)
+    else:
+        if activation == "softmax":
+            class_probabilities = predicted_raw
+        else:
+            class_probabilities = torch.softmax(predicted_raw, dim=1)
+
+        class_probability_array = class_probabilities.cpu().numpy()
+        predicted_probabilities = class_probability_array.max(axis=1)
+        y_pred = class_probability_array.argmax(axis=1).astype(np.int64)
+
+    return y_pred, predicted_probabilities
+
+
+def _predict_MLP_classifier(
+    input_rasters: Sequence[str],
+    X_nodata_value: Optional[float],
+    standardize: bool,
+    model_file: str,
+    classification_threshold: float,
+    target_array: Optional[np.ndarray] = None,
+    mode_label: str = "Prediction",
+    grids: Optional[Sequence[Mapping[str, Any]]] = None
+) -> MLPClassifierPredictionResult:
+    device = arcsdm.machine_learning.pytorch_utils.get_device()
+    arcpy.AddMessage(f"Device is: {device}")
+
+    if grids is None:
+        grids = validate_classifier_input_rasters(input_rasters)
+
+    ref_raster_path = grids[0]["path"]
+    metadata = load_classifier_metadata(model_file)
+
+    last_layer = metadata["last_layer"]
+    target_label_count = int(metadata["target_label_count"])
+    warn_if_standardization_setting_differs(standardize, metadata, mode_label)
+    model = load_classifier_model(model_file, metadata, device)
+
+    X, y_true, mask_2D = prepare_classifier_prediction_features(
+        input_rasters=input_rasters,
+        X_nodata_value=X_nodata_value,
+        target_array=target_array,
+        metadata=metadata
+    )
+    pred_loader = make_classifier_prediction_loader(X, metadata)
+    predicted = arcsdm.machine_learning.pytorch_utils.predict(device, pred_loader, model)
+    predicted_raw = torch.cat(predicted)
+    y_pred, predicted_probs = classification_predictions_from_raw_output(
+        predicted_raw=predicted_raw,
+        target_label_count=target_label_count,
+        last_layer=last_layer,
+        classification_threshold=classification_threshold
+    )
+
+    height = int(grids[0]["rows"])
+    width = int(grids[0]["cols"])
+    prob_raster_array, class_raster_array = classifier_prediction_rasters(
+        predicted_probabilities=predicted_probs,
+        y_pred=y_pred,
+        height=height,
+        width=width,
+        nodata_mask=mask_2D
+    )
+
+    return {
+        "y_true": y_true,
+        "y_pred": y_pred,
+        "predicted_probabilities": predicted_probs,
+        "prob_raster_array": prob_raster_array,
+        "class_raster_array": class_raster_array,
+        "ref_raster_path": ref_raster_path,
+    }
+
+
+@arcsdm.common.gp_tool
+def test_MLP_classifier(
+    input_rasters: Sequence[str],
+    X_nodata_value: Optional[float],
+    standardize: bool,
+    target_labels: Sequence[str],
+    target_labels_attr: Optional[str],
+    y_nodata_value: Optional[float],
+    model_file: str,
+    classification_threshold: float,
+    output_raster_prob: Optional[str],
+    output_raster_classified: Optional[str],
+    test_metrics: Optional[str]
+) -> None:
+    arcpy.AddMessage("Starting MLP classifier test...")
+    grids = validate_classifier_input_rasters(input_rasters)
+
+    target_array = read_classifier_target_array(
+        target_labels=target_labels,
+        target_labels_attr=target_labels_attr,
+        y_nodata_value=y_nodata_value,
+        ref_raster_path=grids[0]["path"]
+    )
+    prediction_ret = _predict_MLP_classifier(
+        input_rasters=input_rasters,
+        X_nodata_value=X_nodata_value,
+        standardize=standardize,
+        model_file=model_file,
+        classification_threshold=classification_threshold,
+        target_array=target_array,
+        mode_label="Test",
+        grids=grids
+    )
+
+    log_classifier_test_metrics(test_metrics, prediction_ret["y_true"], prediction_ret["y_pred"])
+    save_classifier_prediction_result(
+        prediction_result=prediction_ret,
+        output_raster_prob=output_raster_prob,
+        output_raster_classified=output_raster_classified
+    )
+
+    return None
+
+
+@arcsdm.common.gp_tool
+def predict_MLP_classifier(
+    input_rasters: Sequence[str],
+    X_nodata_value: Optional[float],
+    standardize: bool,
+    model_file: str,
+    classification_threshold: float,
+    output_raster_prob: Optional[str],
+    output_raster_classified: Optional[str]
+) -> None:
+    arcpy.AddMessage("Starting prediction with classifier...")
+    prediction_ret = _predict_MLP_classifier(
+        input_rasters=input_rasters,
+        X_nodata_value=X_nodata_value,
+        standardize=standardize,
+        model_file=model_file,
+        classification_threshold=classification_threshold,
+        mode_label="Prediction"
+    )
+    save_classifier_prediction_result(
+        prediction_result=prediction_ret,
+        output_raster_prob=output_raster_prob,
+        output_raster_classified=output_raster_classified
+    )
+
+    return None
+
+
+predict_with_MLP_classifier = predict_MLP_classifier
