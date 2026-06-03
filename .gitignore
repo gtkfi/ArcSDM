@@ -14,6 +14,8 @@ data/*
 *.idea/*
 .vscode/
 
+__pycache__/
+
 Toolbox/arcsdm/DEBUG
 
 arcsdm-py3-env
