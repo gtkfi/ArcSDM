@@ -1,4 +1,5 @@
 import arcpy
+import json
 import os
 
 import arcsdm.agterbergchengci
@@ -1903,6 +1904,11 @@ class ValidateMLPClassifier:
             parameters[self.idx_y_nodata_value].enabled = False
             parameters[self.idx_y_attribute].enabled = False
 
+        update_mlp_classifier_threshold_parameter(
+            model_file_param=parameters[self.idx_model_file],
+            threshold_param=parameters[self.idx_threshold]
+        )
+
         return
 
     def updateMessages(self, parameters):
@@ -2121,6 +2127,10 @@ class PredictMLPClassifier:
         return True
 
     def updateParameters(self, parameters):
+        update_mlp_classifier_threshold_parameter(
+            model_file_param=parameters[self.idx_param_model_file],
+            threshold_param=parameters[self.idx_param_classification_threshold]
+        )
         return
 
     def updateMessages(self, parameters):
@@ -2488,6 +2498,26 @@ def make_mlp_input_model_file_param():
     )
 
 
+def is_mlp_classifier_multiclass_model(model_file):
+    if not model_file:
+        return False
+
+    metadata_file = f"{os.path.splitext(str(model_file))[0]}.meta.json"
+    if not os.path.exists(metadata_file):
+        return False
+
+    try:
+        with open(metadata_file, "r", encoding="utf-8") as metadata_stream:
+            metadata = json.load(metadata_stream)
+        return int(metadata.get("target_label_count", 1)) > 1
+    except Exception:
+        return False
+
+
+def update_mlp_classifier_threshold_parameter(model_file_param, threshold_param):
+    threshold_param.enabled = not is_mlp_classifier_multiclass_model(model_file_param.valueAsText)
+
+
 def make_mlp_prediction_input_params():
     """Construct parameter objects for the parameters shared by MLP prediction tools."""
     param_X, param_X_nodata_value, param_X_standardize = make_mlp_X_params()
@@ -2510,8 +2540,8 @@ def make_mlp_classifier_prediction_params(
         displayName="Classification threshold",
         name="classification_threshold",
         datatype="GPDouble",
-        parameterType="Required",
-        direction="Output"
+        parameterType="Optional",
+        direction="Input"
     )
     param_classification_threshold.value = 0.5
 

@@ -51,16 +51,17 @@ def classification_predictions_from_raw_output(
     predicted_raw: torch.Tensor,
     target_label_count: int,
     last_layer: Sequence[Any],
-    classification_threshold: float
+    classification_threshold: Optional[float]
 ) -> Tuple[np.ndarray, np.ndarray]:
     activation = last_layer_activation(last_layer)
 
     if target_label_count == 1:
+        threshold = 0.5 if classification_threshold is None else classification_threshold
         if activation == "sigmoid":
             predicted_probabilities = predicted_raw.reshape(-1).cpu().numpy()
         else:
             predicted_probabilities = torch.sigmoid(predicted_raw).reshape(-1).cpu().numpy()
-        y_pred = (predicted_probabilities >= classification_threshold).astype(np.int64)
+        y_pred = (predicted_probabilities >= threshold).astype(np.int64)
     else:
         if activation == "softmax":
             class_probabilities = predicted_raw
@@ -79,7 +80,7 @@ def _predict_MLP_classifier(
     X_nodata_value: Optional[float],
     standardize: bool,
     model_file: str,
-    classification_threshold: float,
+    classification_threshold: Optional[float],
     target_array: Optional[np.ndarray] = None,
     mode_label: str = "Prediction",
     grids: Optional[Sequence[Mapping[str, Any]]] = None
@@ -143,7 +144,7 @@ def test_MLP_classifier(
     target_labels_attr: Optional[str],
     y_nodata_value: Optional[float],
     model_file: str,
-    classification_threshold: float,
+    classification_threshold: Optional[float],
     output_raster_prob: Optional[str],
     output_raster_classified: Optional[str],
     test_metrics: Optional[str]
@@ -199,7 +200,7 @@ def predict_MLP_classifier(
     X_nodata_value: Optional[float],
     standardize: bool,
     model_file: str,
-    classification_threshold: float,
+    classification_threshold: Optional[float],
     output_raster_prob: Optional[str],
     output_raster_classified: Optional[str]
 ) -> None:
