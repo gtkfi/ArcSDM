@@ -27,11 +27,9 @@ class MLPRegressorModel(nn.Module):
             layers.append((f"l_{i}", nn.Linear(in_features=neurons, out_features=next_layer_neurons)))
 
         idx = len(all_layers)
-        _, activation_func, dropout_rate = tuple(all_layers[-1])
+        _, activation_func, _ = tuple(all_layers[-1])
         if (activation_func is not None) and (self.get_activation_function(activation_func) is not None):
             layers.append((f"a_{idx}", self.get_activation_function(activation_func)))
-        if (dropout_rate is not None) and (dropout_rate != 0):
-            layers.append((f"do_{idx}", nn.Dropout(dropout_rate)))
 
         self.layers = nn.Sequential(OrderedDict(layers))
 

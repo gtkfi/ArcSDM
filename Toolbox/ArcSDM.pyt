@@ -7,8 +7,8 @@ import arcsdm.calculateresponse_arcpy_wip
 import arcsdm.calculateresponse
 import arcsdm.calculateweights
 import arcsdm.categoricalreclass
-import arcsdm.mlp_classification
-import arcsdm.mlp_regression
+from arcsdm.mlp import mlp_classification
+from arcsdm.mlp import mlp_regression
 import arcsdm.pca
 import arcsdm.roctool
 import arcsdm.splitting
@@ -1268,8 +1268,8 @@ class TrainMLPClassifier:
         self.idx_y_attribute = 4
         self.idx_y_nodata_value = 5
         self.idx_hidden_layers = 6
-        self.idx_last_activation = 7
-        self.idx_last_dropout_rate = 8
+        self.idx_hidden_activation = 7
+        self.idx_last_activation = 8
         self.idx_epochs = 9
         self.idx_batch_size = 10
         self.idx_optimizer = 11
@@ -1301,6 +1301,7 @@ class TrainMLPClassifier:
         ) = make_mlp_X_y_params()
 
         param_hidden_layers = make_mlp_hidden_layers_params()
+        param_hidden_layer_activation = make_mlp_hidden_layer_activation_param()
 
         param_last_layer_activation = arcpy.Parameter(
             displayName="Last Layer Activation Function",
@@ -1312,14 +1313,6 @@ class TrainMLPClassifier:
         param_last_layer_activation.filter.type = "ValueList"
         param_last_layer_activation.filter.list = [ACTIVATION_LINEAR, ACTIVATION_SIGMOID, ACTIVATION_SOFTMAX]
         param_last_layer_activation.value = ACTIVATION_SIGMOID
-
-        param_last_layer_dropout_rate = arcpy.Parameter(
-            displayName="Last Layer Dropout Rate",
-            name="last_layer_dropout_rate",
-            datatype="GPDouble",
-            parameterType="Optional",
-            direction="Input"
-        )
 
         (param_validation_split,
             param_validation_data,
@@ -1343,7 +1336,7 @@ class TrainMLPClassifier:
             parameterType="Optional",
             direction="Input")
         param_metrics.filter.type = "ValueList"
-        param_metrics.filter.list = [VALIDATION_ACCURACY, VALIDATION_PRECISION, VALIDATION_RECALL]  # TODO: should F1 also be here?
+        param_metrics.filter.list = [VALIDATION_ACCURACY, VALIDATION_PRECISION, VALIDATION_RECALL, VALIDATION_F1]
         param_metrics.value = VALIDATION_ACCURACY
 
         param_output_model_filepath = arcpy.Parameter(
@@ -1362,8 +1355,8 @@ class TrainMLPClassifier:
             param_y_attribute,  # 4
             param_y_nodata_value,  # 5
             param_hidden_layers,  # 6
-            param_last_layer_activation,  # 7
-            param_last_layer_dropout_rate,  # 8
+            param_hidden_layer_activation,  # 7
+            param_last_layer_activation,  # 8
             param_epochs,  # 9
             param_batch_size,  # 10
             param_optimizer,  # 11
@@ -1467,15 +1460,9 @@ class TrainMLPClassifier:
         param_hidden_layers.clearMessage()
 
         for layer in param_hidden_layers.value:
-            dropout_rate = layer[2]
-            if (dropout_rate < 0) or (dropout_rate >= 1):
+            dropout_rate = get_mlp_hidden_layer_dropout_rate(layer)
+            if dropout_rate is not None and ((dropout_rate < 0) or (dropout_rate >= 1)):
                 param_hidden_layers.setErrorMessage(f"Invalid dropout rate {dropout_rate}. Must be between 0 and 1.")
-
-        param_last_layer_dropout = parameters[self.idx_last_dropout_rate]
-        param_last_layer_dropout.clearMessage()
-        dropout = param_last_layer_dropout.value
-        if dropout and ((dropout < 0) or (dropout >= 1)):
-            param_last_layer_dropout.setErrorMessage(f"Invalid dropout rate {dropout}. Must be between 0 and 1.")
 
         # Validate number of epochs
         param_epochs = parameters[self.idx_epochs]
@@ -1506,7 +1493,11 @@ class TrainMLPClassifier:
     def execute(self, parameters, messages):
         input_rasters = parameters[self.idx_X].valueAsText.split(";")
         target_labels = parameters[self.idx_y].valueAsText.split(";")
-        last_layer = (parameters[self.idx_last_activation].valueAsText, parameters[self.idx_last_dropout_rate].value)
+        hidden_layers = make_mlp_hidden_layer_specs(
+            parameters[self.idx_hidden_layers].value,
+            parameters[self.idx_hidden_activation].valueAsText
+        )
+        last_layer = parameters[self.idx_last_activation].valueAsText
         validation_data = parameters[self.idx_validation_data].valueAsText if parameters[self.idx_validation_data].value is not None else None
         apply_smote = parameters[self.idx_apply_smote].value
         smote_params = None
@@ -1517,14 +1508,14 @@ class TrainMLPClassifier:
                 parameters[self.idx_k_neighbors].value
             )
 
-        arcsdm.mlp_classification.train_MLP_classifier(
+        mlp_classification.train_MLP_classifier(
             input_rasters=input_rasters,
             X_nodata_value=parameters[self.idx_X_nodata_value].value,
             standardize=parameters[self.idx_X_standardize].value,
             target_labels=target_labels,
             target_labels_attr=get_valueAsText_if_enabled(parameters[self.idx_y_attribute]),
             y_nodata_value=get_value_if_enabled(parameters[self.idx_y_nodata_value]),
-            hidden_layers=parameters[self.idx_hidden_layers].value,
+            hidden_layers=hidden_layers,
             last_layer=last_layer,
             epochs=parameters[self.idx_epochs].value,
             batch_size=parameters[self.idx_batch_size].value,
@@ -1558,8 +1549,8 @@ class TrainMLPRegressor:
         self.idx_y_attribute = 4
         self.idx_y_nodata_value = 5
         self.idx_hidden_layers = 6
-        self.idx_last_layer_activation = 7
-        self.idx_dropout_rate = 8
+        self.idx_hidden_activation = 7
+        self.idx_last_layer_activation = 8
         self.idx_epochs = 9
         self.idx_batch_size = 10
         self.idx_optimizer = 11
@@ -1592,6 +1583,7 @@ class TrainMLPRegressor:
         ) = make_mlp_X_y_params(multiple_y_supported=False)
 
         param_hidden_layers = make_mlp_hidden_layers_params()
+        param_hidden_layer_activation = make_mlp_hidden_layer_activation_param()
 
         param_last_layer_activation = arcpy.Parameter(
             displayName="Last Layer Activation Function",
@@ -1603,14 +1595,6 @@ class TrainMLPRegressor:
         param_last_layer_activation.filter.type = "ValueList"
         param_last_layer_activation.filter.list = [ACTIVATION_LINEAR, ACTIVATION_SIGMOID]
         param_last_layer_activation.value = ACTIVATION_LINEAR
-
-        param_last_layer_dropout_rate = arcpy.Parameter(
-            displayName="Last Layer Dropout Rate",
-            name="last_layer_dropout_rate",
-            datatype="GPDouble",
-            parameterType="Optional",
-            direction="Input"
-        )
 
         (param_validation_split,
             param_validation_data,
@@ -1666,8 +1650,8 @@ class TrainMLPRegressor:
             param_y_attribute,  # 4
             param_y_nodata_value,  # 5
             param_hidden_layers,  # 6
-            param_last_layer_activation,  # 7
-            param_last_layer_dropout_rate,  # 8
+            param_hidden_layer_activation,  # 7
+            param_last_layer_activation,  # 8
             param_epochs,  # 9
             param_batch_size,  # 10
             param_optimizer,  # 11
@@ -1758,15 +1742,9 @@ class TrainMLPRegressor:
         param_hidden_layers.clearMessage()
 
         for layer in param_hidden_layers.value:
-            dropout_rate = layer[2]
-            if (dropout_rate < 0) or (dropout_rate >= 1):
+            dropout_rate = get_mlp_hidden_layer_dropout_rate(layer)
+            if dropout_rate is not None and ((dropout_rate < 0) or (dropout_rate >= 1)):
                 param_hidden_layers.setErrorMessage(f"Invalid dropout rate {dropout_rate}. Must be between 0 and 1.")
-
-        param_last_layer_dropout = parameters[self.idx_dropout_rate]
-        param_last_layer_dropout.clearMessage()
-        dropout = param_last_layer_dropout.value
-        if dropout and ((dropout < 0) or (dropout >= 1)):
-            param_last_layer_dropout.setErrorMessage(f"Invalid dropout rate {dropout}. Must be between 0 and 1.")
 
         # Validate number of epochs
         param_epochs = parameters[self.idx_epochs]
@@ -1797,7 +1775,11 @@ class TrainMLPRegressor:
     def execute(self, parameters, messages):
         input_rasters = parameters[self.idx_X].valueAsText.split(";")
         target_labels = parameters[self.idx_y].valueAsText.split(";")
-        last_layer = (parameters[self.idx_last_layer_activation].valueAsText, parameters[self.idx_dropout_rate].value)
+        hidden_layers = make_mlp_hidden_layer_specs(
+            parameters[self.idx_hidden_layers].value,
+            parameters[self.idx_hidden_activation].valueAsText
+        )
+        last_layer = parameters[self.idx_last_layer_activation].valueAsText
         validation_data = parameters[self.idx_validation_data].valueAsText if parameters[self.idx_validation_data].value is not None else None
         apply_smote = parameters[self.idx_apply_smote].value
         smote_params = None
@@ -1808,14 +1790,14 @@ class TrainMLPRegressor:
                 parameters[self.idx_k_neighbors].value
             )
 
-        arcsdm.mlp_regression.train_MLP_regressor(
+        mlp_regression.train_MLP_regressor(
             input_rasters=input_rasters,
             X_nodata_value=parameters[self.idx_X_nodata_value].value,
             standardize=parameters[self.idx_X_standardize].value,
             target_labels=target_labels,
             target_labels_attr=get_valueAsText_if_enabled(parameters[self.idx_y_attribute]),
             y_nodata_value=get_value_if_enabled(parameters[self.idx_y_nodata_value]),
-            hidden_layers=parameters[self.idx_hidden_layers].value,
+            hidden_layers=hidden_layers,
             last_layer=last_layer,
             epochs=parameters[self.idx_epochs].value,
             batch_size=parameters[self.idx_batch_size].value,
@@ -1956,7 +1938,7 @@ class ValidateMLPClassifier:
         input_rasters = parameters[self.idx_X].valueAsText.split(";")
         target_labels = parameters[self.idx_y].valueAsText.split(";")
 
-        arcsdm.mlp_classification.test_MLP_classifier(
+        mlp_classification.test_MLP_classifier(
             input_rasters=input_rasters,
             X_nodata_value=parameters[self.idx_X_nodata_value].value,
             standardize=parameters[self.idx_X_standardize].value,
@@ -2082,7 +2064,7 @@ class ValidateMLPRegressor:
         input_rasters = parameters[self.idx_X].valueAsText.split(";")
         target_labels = parameters[self.idx_y].valueAsText.split(";")
 
-        arcsdm.mlp_regression.test_MLP_regressor(
+        mlp_regression.test_MLP_regressor(
             input_rasters=input_rasters,
             X_nodata_value=parameters[self.idx_X_nodata_value].value,
             standardize=parameters[self.idx_X_standardize].value,
@@ -2106,6 +2088,11 @@ class PredictMLPClassifier:
         self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MLP}"
         self.idx_param_X = 0
         self.idx_param_X_nodata_value = 1
+        self.idx_param_X_standardize = 2
+        self.idx_param_model_file = 3
+        self.idx_param_classification_threshold = 4
+        self.idx_param_output_prob_raster = 5
+        self.idx_param_output_classification_result_raster = 6
 
     def getParameterInfo(self):
         (param_X,
@@ -2142,14 +2129,14 @@ class PredictMLPClassifier:
     def execute(self, parameters, messages):
         input_rasters = parameters[self.idx_param_X].valueAsText.split(";")
 
-        arcsdm.mlp_classification.predict_with_MLP_classifier(
+        mlp_classification.predict_with_MLP_classifier(
             input_rasters=input_rasters,
             X_nodata_value=parameters[self.idx_param_X_nodata_value].value,
-            standardize=parameters[2].value,
-            model_file=parameters[3].valueAsText,
-            classification_threshold=parameters[4].value,
-            output_raster_prob=parameters[5].valueAsText,
-            output_raster_classified=parameters[6].valueAsText
+            standardize=parameters[self.idx_param_X_standardize].value,
+            model_file=parameters[self.idx_param_model_file].valueAsText,
+            classification_threshold=parameters[self.idx_param_classification_threshold].value,
+            output_raster_prob=parameters[self.idx_param_output_prob_raster].valueAsText,
+            output_raster_classified=parameters[self.idx_param_output_classification_result_raster].valueAsText
         )
 
     def postExecute(self, parameters):
@@ -2164,6 +2151,9 @@ class PredictMLPRegressor:
         self.category = f"{TS_PREDICTIVE_MODELING}\\{TS_MLP}"
         self.idx_param_X = 0
         self.idx_param_X_nodata_value = 1
+        self.idx_param_X_standardize = 2
+        self.idx_param_model_file = 3
+        self.idx_param_output_regression_result_raster = 4
 
     def getParameterInfo(self):
         (param_X,
@@ -2195,12 +2185,12 @@ class PredictMLPRegressor:
     def execute(self, parameters, messages):
         input_rasters = parameters[self.idx_param_X].valueAsText.split(";")
 
-        arcsdm.mlp_regression.predict_with_MLP_regressor(
+        mlp_regression.predict_with_MLP_regressor(
             input_rasters=input_rasters,
             X_nodata_value=parameters[self.idx_param_X_nodata_value].value,
-            standardize=parameters[2].value,
-            model_file=parameters[3].valueAsText,
-            output_raster=parameters[4].valueAsText
+            standardize=parameters[self.idx_param_X_standardize].value,
+            model_file=parameters[self.idx_param_model_file].valueAsText,
+            output_raster=parameters[self.idx_param_output_regression_result_raster].valueAsText
         )
 
     def postExecute(self, parameters):
@@ -2296,19 +2286,46 @@ def make_mlp_hidden_layers_params():
 
     param_hidden_layers.columns = [
         ["GPLong", "Neurons in Layer"],
-        ["GPString", "Activation Function"],
         ["GPDouble", "Dropout Rate"]
     ]
-    param_hidden_layers.filters[1].type = "ValueList"
-    param_hidden_layers.filters[1].list = [ACTIVATION_RELU, ACTIVATION_SIGMOID, ACTIVATION_TANH]
     # Note: Because of how GPValueTable gets handled by ArcGIS Pro,
     # if "Dropout Rate" is None, it will get evaluated to 0.0.
     # Something to be aware of
-    param_hidden_layers.values = [[5, ACTIVATION_RELU, None]]
-    # For horizontal display of 3 columns:
+    param_hidden_layers.values = [[5, None]]
+    # For horizontal display of 2 columns:
     param_hidden_layers.controlCLSID = "{1AA9A769-D3F3-4EB0-85CB-CC07C79313C8}"
 
     return param_hidden_layers
+
+
+def make_mlp_hidden_layer_activation_param():
+    param_hidden_layer_activation = arcpy.Parameter(
+        displayName="Hidden Layer Activation Function",
+        name="hidden_layer_activation",
+        datatype="GPString",
+        parameterType="Required",
+        direction="Input"
+    )
+    param_hidden_layer_activation.filter.type = "ValueList"
+    param_hidden_layer_activation.filter.list = [ACTIVATION_RELU, ACTIVATION_SIGMOID, ACTIVATION_TANH]
+    param_hidden_layer_activation.value = ACTIVATION_RELU
+
+    return param_hidden_layer_activation
+
+
+def get_mlp_hidden_layer_dropout_rate(layer):
+    if len(layer) > 2:
+        return layer[2]
+    if len(layer) > 1:
+        return layer[1]
+    return None
+
+
+def make_mlp_hidden_layer_specs(hidden_layers, hidden_layer_activation):
+    return [
+        (layer[0], hidden_layer_activation, get_mlp_hidden_layer_dropout_rate(layer))
+        for layer in hidden_layers
+    ]
 
 
 def make_mlp_training_params():

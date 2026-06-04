@@ -1,10 +1,10 @@
-from typing import Optional, Tuple, TypedDict
+from typing import Optional, Tuple, TypedDict, Union
 
 import numpy as np
 
 
 HiddenLayerSpec = Tuple[int, Optional[str], Optional[float]]
-LastLayerConfig = Tuple[Optional[str], Optional[float]]
+LastLayerConfig = Union[str, Tuple[Optional[str], Optional[float]], None]
 
 
 class MLPClassifierPredictionResult(TypedDict):

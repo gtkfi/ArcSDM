@@ -138,8 +138,8 @@ def train_MLP_regressor(
     training_loader = DataLoader(training_dataset, batch_size=batch_size)
     testing_loader = DataLoader(testing_dataset, batch_size=batch_size)
 
-    last_layer_activation, last_layer_dropout = last_layer
-    last_layer = (1, last_layer_activation, last_layer_dropout)
+    last_layer_activation = last_layer[0] if isinstance(last_layer, (list, tuple)) else last_layer
+    last_layer = (1, last_layer_activation, None)
 
     model = MLPRegressorModel(
         input_dims=X_train.shape[1],

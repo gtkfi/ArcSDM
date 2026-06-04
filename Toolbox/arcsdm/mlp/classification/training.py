@@ -121,8 +121,8 @@ def train_MLP_classifier(
         target_labels: List of file paths to target label rasters or vectors, or a single path for binary classification.
         target_labels_attr: If target_labels contains vector data, the attribute field to use for labels
         y_nodata_value: NoData value to apply to target labels, or None to use existing NoData.
-        hidden_layers: Specification of hidden layers (units and activation).
-        last_layer: Specification of last layer (units, activation, dropout).
+        hidden_layers: Specification of hidden layers (units, activation, dropout).
+        last_layer: Activation function of the last layer.
         epochs: Maximum number of training epochs.
         batch_size: Training batch size.
         optimizer: Optimizer to use (e.g. "adam", "sgd").
@@ -293,7 +293,7 @@ def train_MLP_classifier(
     training_loader = DataLoader(training_dataset, batch_size=batch_size)
     testing_loader = DataLoader(testing_dataset, batch_size=batch_size)
 
-    last_layer_activation, last_layer_dropout = last_layer
+    last_layer_activation = last_layer[0] if isinstance(last_layer, (list, tuple)) else last_layer
     last_layer_activation = _validate_classifier_last_layer(last_layer_activation, len(unique_labels))
 
     if (len(unique_labels) == 2) and (last_layer_activation == "sigmoid"):
@@ -301,7 +301,7 @@ def train_MLP_classifier(
     else:
         target_label_count = len(unique_labels)
 
-    last_layer = (target_label_count, last_layer_activation, last_layer_dropout)
+    last_layer = (target_label_count, last_layer_activation, None)
 
     model = MLPClassifierModel(
         input_dims=X_train.shape[1],
