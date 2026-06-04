@@ -148,6 +148,21 @@ def test_MLP_classifier(
     output_raster_classified: Optional[str],
     test_metrics: Optional[str]
 ) -> None:
+    """Test MLP classifier on input rasters with known target labels, and optionally save prediction rasters and log test metrics.
+    
+    Parameters:
+        input_rasters: List of input raster paths to be used as features for prediction.
+        X_nodata_value: NoData value to use for input features. If not provided, it will be inferred from the rasters.
+        standardize: Whether to standardize input features using the same settings as during training. Must match the standardization setting used during training.
+        target_labels: List of target label values corresponding to each pixel, used for testing. Must be provided if test_metrics is specified.
+        target_labels_attr: Optional attribute name to read target labels from, if target_labels are stored in an attribute table of a raster. If not provided, target_labels are expected to be provided as a separate array.
+        y_nodata_value: NoData value to use for target labels. If not provided, it will be inferred from the target_labels or target_labels_attr.
+        model_file: Path to the trained MLP classifier model file.
+        classification_threshold: Threshold to use for converting predicted probabilities to class labels. Only used for binary classification.
+        output_raster_prob: Optional path to save the predicted probabilities raster. If not provided, the probabilities raster will not be saved.
+        output_raster_classified: Optional path to save the classified raster. If not provided, the classified raster will not be saved.
+        test_metrics: Optional string specifying which test metrics to log. If not provided, no metrics will be logged. If specified, target_labels must also be provided. Supported metrics include "accuracy", "precision", "recall", "f1", and "confusion_matrix".
+    """
     arcpy.AddMessage("Starting MLP classifier test...")
     grids = validate_classifier_input_rasters(input_rasters)
 
@@ -188,6 +203,16 @@ def predict_MLP_classifier(
     output_raster_prob: Optional[str],
     output_raster_classified: Optional[str]
 ) -> None:
+    """Predict with MLP classifier on input rasters, and optionally save prediction rasters.
+    
+    Parameters:
+        input_rasters: List of input raster paths to be used as features for prediction.
+        X_nodata_value: NoData value to use for input features. If not provided, it will be inferred from the rasters.
+        standardize: Whether to standardize input features using the same settings as during training. Must match the standardization setting used during training.
+        model_file: Path to the trained MLP classifier model file.
+        classification_threshold: Threshold to use for converting predicted probabilities to class labels. Only used for binary classification.
+        output_raster_prob: Optional path to save the predicted probabilities raster. If not provided, the probabilities raster will not be saved.
+        output_raster_classified: Optional path to save the classified raster. If not provided, the classified raster will not be saved."""
     arcpy.AddMessage("Starting prediction with classifier...")
     prediction_ret = _predict_MLP_classifier(
         input_rasters=input_rasters,

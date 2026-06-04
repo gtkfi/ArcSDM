@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
 from torch.utils.data import DataLoader, TensorDataset
 
 import arcsdm.common
@@ -17,8 +18,74 @@ import arcsdm.machine_learning.pytorch_utils
 import arcsdm.smote
 
 from arcsdm.mlp.classification.model import MLPClassifierModel
+from arcsdm.mlp.classification.metrics import classification_metric_value
 from arcsdm.mlp.classification.types import HiddenLayerSpec, LastLayerConfig
 from utils.arcpy_callback import ArcPyLoggingCallback
+
+
+NUMERIC_FIELD_TYPES = ["SmallInteger", "Integer", "Single", "Double"]
+CLASSIFIER_LAST_LAYER_ACTIVATIONS = ["linear", "sigmoid", "softmax"]
+
+
+def _source_label_mapping(target_labels: Sequence[str], target_labels_attr: Optional[str]) -> Optional[dict]:
+    if len(target_labels) > 1:
+        return {str(i): str(target_labels[i]) for i in range(len(target_labels))}
+
+    if target_labels_attr is None:
+        return None
+
+    target_desc = arcpy.Describe(target_labels[0]).dataType
+    if target_desc not in ["FeatureLayer", "FeatureClass", "ShapeFile"]:
+        return None
+
+    fields = arcpy.ListFields(target_labels[0], target_labels_attr)
+    if not fields or fields[0].type in ["Integer", "SmallInteger", "Float", "Double"]:
+        return None
+
+    values = [row[0] for row in arcpy.da.SearchCursor(target_labels[0], [target_labels_attr])]
+    encoder = LabelEncoder()
+    encoder.fit(values)
+    return {
+        str(int(code)): str(label)
+        for code, label in zip(encoder.transform(encoder.classes_), encoder.classes_)
+    }
+
+
+def _metadata_label_mapping(unique_labels: np.ndarray, label_to_index: dict, source_mapping: Optional[dict]) -> dict:
+    metadata_mapping = {}
+    for label in unique_labels.tolist():
+        model_index = label_to_index[float(label)]
+        label_key = str(int(label)) if float(label).is_integer() else str(float(label))
+        metadata_mapping[str(model_index)] = str(source_mapping.get(label_key, label_key)) if source_mapping else label_key
+    return metadata_mapping
+
+
+def _validation_label_to_index(label, label_to_index: dict, source_label_to_index: dict) -> int:
+    try:
+        return label_to_index[float(label)]
+    except (KeyError, TypeError, ValueError):
+        label_key = str(label)
+        if label_key in source_label_to_index:
+            return source_label_to_index[label_key]
+        raise KeyError(label)
+
+
+def _validate_classifier_last_layer(last_layer_activation: Optional[str], class_count: int) -> str:
+    activation = str(last_layer_activation or "linear").lower().strip()
+    if activation not in CLASSIFIER_LAST_LAYER_ACTIVATIONS:
+        msg = f"Unsupported classifier last-layer activation: {last_layer_activation}."
+        arcpy.AddError(msg)
+        raise arcsdm.machine_learning.general.MLPInputError(msg)
+
+    if class_count > 2 and activation == "sigmoid":
+        msg = "Sigmoid output is only supported for binary classification. Use Linear or Softmax for multiclass classification."
+        arcpy.AddError(msg)
+        raise arcsdm.machine_learning.general.MLPInputError(msg)
+
+    if class_count > 1 and activation == "softmax":
+        arcpy.AddWarning("PyTorch CrossEntropyLoss expects raw logits; Linear is recommended over Softmax for multiclass output.")
+
+    return activation
 
 
 @arcsdm.common.gp_tool
@@ -45,6 +112,31 @@ def train_MLP_classifier(
     smote_params: Optional[Tuple[Optional[int], int, int]],
     output_model_file: str
 ) -> None:
+    """Train a multi-layer perceptron (MLP) classifier using PyTorch.
+    
+    Parameters:
+        input_rasters: List of file paths to input feature rasters.
+        X_nodata_value: NoData value to apply to input features, or None to use existing NoData.
+        standardize: Whether to standardize features to zero mean and unit variance.
+        target_labels: List of file paths to target label rasters or vectors, or a single path for binary classification.
+        target_labels_attr: If target_labels contains vector data, the attribute field to use for labels
+        y_nodata_value: NoData value to apply to target labels, or None to use existing NoData.
+        hidden_layers: Specification of hidden layers (units and activation).
+        last_layer: Specification of last layer (units, activation, dropout).
+        epochs: Maximum number of training epochs.
+        batch_size: Training batch size.
+        optimizer: Optimizer to use (e.g. "adam", "sgd").
+        learning_rate: Learning rate for the optimizer.
+        is_early_stopping: Whether to use early stopping.
+        early_stopping_patience: Number of epochs with no improvement to wait before stopping.
+        validation_split: Fraction of training data to use for validation.
+        validation_data: Path to validation data.
+        validation_metrics: Metrics to evaluate on validation data.
+        random_state: Random seed for reproducibility.
+        apply_smote: Whether to apply SMOTE for imbalanced data.
+        smote_params: Parameters for SMOTE (k_neighbors, sampling_strategy, random_state).
+        output_model_file: Path to save the trained model.
+    """
     arcpy.AddMessage("Starting MLP classifier training...")
     device = arcsdm.machine_learning.pytorch_utils.get_device()
     arcpy.AddMessage(f"Device is: {device}")
@@ -56,6 +148,7 @@ def train_MLP_classifier(
         raise arcsdm.machine_learning.general.MLPInputError(msg)
 
     ref_raster = grids[0]["path"]
+    source_mapping = _source_label_mapping(target_labels, target_labels_attr)
 
     if len(target_labels) > 1:
         mapping = dict()
@@ -122,10 +215,14 @@ def train_MLP_classifier(
         raise arcsdm.machine_learning.general.MLPInputError(msg)
 
     label_to_index = {float(label): idx for idx, label in enumerate(np.sort(unique_labels).tolist())}
+    label_mapping = _metadata_label_mapping(unique_labels, label_to_index, source_mapping)
+    source_label_to_index = {label: int(idx) for idx, label in label_mapping.items()}
     y = np.asarray([label_to_index[float(label)] for label in y], dtype=np.int64)
 
     if validation_data is not None:
-        fields = [f.name for f in arcpy.ListFields(validation_data) if f.type in ["SmallInteger", "Integer", "Single", "Double"]]
+        usable_fields = [f for f in arcpy.ListFields(validation_data) if f.type in NUMERIC_FIELD_TYPES + ["String"]]
+        fields = [f.name for f in usable_fields]
+        numeric_fields = [f.name for f in usable_fields if f.type in NUMERIC_FIELD_TYPES]
         if len(fields) < 2:
             msg = "Validation table must contain at least one feature field and one target field."
             arcpy.AddError(msg)
@@ -139,7 +236,7 @@ def train_MLP_classifier(
         if y_field is None:
             y_field = fields[-1]
 
-        x_fields = [f for f in fields if f != y_field]
+        x_fields = [f for f in numeric_fields if f != y_field]
         if len(x_fields) != X.shape[1]:
             msg = f"Validation table must contain {X.shape[1]} feature fields, found {len(x_fields)}."
             arcpy.AddError(msg)
@@ -152,9 +249,12 @@ def train_MLP_classifier(
             raise arcsdm.machine_learning.general.MLPInputError(msg)
 
         X_test = np.column_stack([table_arr[field] for field in x_fields]).astype(np.float32)
-        y_test_raw = np.asarray(table_arr[y_field], dtype=np.float64)
+        y_test_raw = np.asarray(table_arr[y_field])
         try:
-            y_test = np.asarray([label_to_index[float(label)] for label in y_test_raw], dtype=np.int64)
+            y_test = np.asarray([
+                _validation_label_to_index(label, label_to_index, source_label_to_index)
+                for label in y_test_raw
+            ], dtype=np.int64)
         except KeyError as exc:
             msg = f"Validation labels contain unseen class: {exc}."
             arcpy.AddError(msg)
@@ -194,14 +294,12 @@ def train_MLP_classifier(
     testing_loader = DataLoader(testing_dataset, batch_size=batch_size)
 
     last_layer_activation, last_layer_dropout = last_layer
+    last_layer_activation = _validate_classifier_last_layer(last_layer_activation, len(unique_labels))
 
     if (len(unique_labels) == 2) and (last_layer_activation == "sigmoid"):
         target_label_count = 1
     else:
         target_label_count = len(unique_labels)
-
-    if (last_layer_activation == "sigmoid") and (target_label_count > 1):
-        arcpy.AddWarning("Sigmoid is recommended for binary classification. Consider Softmax for multiclass.")
 
     last_layer = (target_label_count, last_layer_activation, last_layer_dropout)
 
@@ -304,19 +402,15 @@ def train_MLP_classifier(
 
         y_true = np.concatenate(y_true_all)
         y_pred = np.concatenate(y_pred_all)
-        if metric == "accuracy":
-            val_metric = float((y_true == y_pred).mean())
-            arcpy.AddMessage(f"Validation accuracy: {val_metric:.4f}")
-        elif metric == "precision":
-            tp = np.sum((y_pred == 1) & (y_true == 1))
-            fp = np.sum((y_pred == 1) & (y_true != 1))
-            val_metric = float(tp / (tp + fp)) if (tp + fp) > 0 else 0.0
-            arcpy.AddMessage(f"Validation precision: {val_metric:.4f}")
-        elif metric == "recall":
-            tp = np.sum((y_pred == 1) & (y_true == 1))
-            fn = np.sum((y_pred != 1) & (y_true == 1))
-            val_metric = float(tp / (tp + fn)) if (tp + fn) > 0 else 0.0
-            arcpy.AddMessage(f"Validation recall: {val_metric:.4f}")
+        val_metric = classification_metric_value(metric, y_true, y_pred)
+        metric_labels = {
+            "accuracy": "accuracy",
+            "precision": "precision",
+            "recall": "recall",
+            "f1": "F1",
+        }
+        if val_metric is not None:
+            arcpy.AddMessage(f"Validation {metric_labels[metric]}: {val_metric:.4f}")
 
     output_dir = arcpy.mp.ArcGISProject("CURRENT").homeFolder
     if output_dir and output_dir.lower().endswith(".gdb"):
@@ -354,6 +448,7 @@ def train_MLP_classifier(
         "last_layer": last_layer,
         "target_label_count": int(target_label_count),
         "unique_labels": [float(x) for x in unique_labels.tolist()],
+        "label_mapping": label_mapping,
         "batch_size": int(batch_size),
         "standardize": bool(standardize),
         "scaler_mean": scaler.mean_.tolist() if scaler is not None else None,
