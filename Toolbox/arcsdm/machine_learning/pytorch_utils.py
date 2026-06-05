@@ -89,6 +89,8 @@ def train_classifier_epoch(
 
             # Target dtype depends on loss function
             target = target.to(device).to(target_dtype)
+            if binary_classifier and target.dim() == 1:
+                target = target.view(-1, 1)
 
             # Do a forward pass
             output = model(data)
@@ -161,6 +163,8 @@ def evaluate_classifier_epoch(
 
                 # Target dtype depends on loss function
                 target = target.to(device).to(target_dtype)
+                if binary_classifier and target.dim() == 1:
+                    target = target.view(-1, 1)
 
                 # Do a forward pass
                 output = model(data)
