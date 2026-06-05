@@ -1,3 +1,5 @@
+"""Shared typing definitions for MLP regression modules."""
+
 from typing import Optional, Sequence, Tuple, TypedDict, Union
 
 import numpy as np

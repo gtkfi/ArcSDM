@@ -1,3 +1,5 @@
+"""Metric parsing and evaluation helpers for MLP classification."""
+
 from typing import Optional, Sequence
 
 import arcpy
@@ -5,10 +7,12 @@ import numpy as np
 
 
 def parse_classifier_metric_names(metric_names: Optional[str]) -> Sequence[str]:
+    """Parse semicolon-separated metric names into normalized tokens."""
     return [metric.strip().lower() for metric in str(metric_names or "").split(";") if metric.strip()]
 
 
 def classification_metric_value(metric: str, y_true: np.ndarray, y_pred: np.ndarray) -> Optional[float]:
+    """Compute a supported classification metric value from predictions."""
     if metric == "accuracy":
         return float((y_true == y_pred).mean())
 
@@ -35,6 +39,7 @@ def classification_metric_value(metric: str, y_true: np.ndarray, y_pred: np.ndar
 
 
 def log_classifier_test_metrics(metric_names: Optional[str], y_true: Optional[np.ndarray], y_pred: np.ndarray) -> None:
+    """Compute and log selected classifier test metrics via ArcPy messages."""
     if y_true is None:
         return
 

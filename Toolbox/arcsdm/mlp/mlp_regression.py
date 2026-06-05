@@ -1,3 +1,5 @@
+"""Public exports for MLP regression tools."""
+
 from arcsdm.mlp.regression.model import MLPRegressorModel
 from arcsdm.mlp.regression.prediction import (
     _predict_MLP_regressor,

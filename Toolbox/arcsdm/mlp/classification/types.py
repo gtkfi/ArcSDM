@@ -1,3 +1,5 @@
+"""Shared typing definitions for MLP classification modules."""
+
 from typing import Optional, Tuple, TypedDict, Union
 
 import numpy as np

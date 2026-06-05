@@ -1,3 +1,5 @@
+"""Training entry point and workflow helpers for MLP regression."""
+
 import copy
 import json
 import os
@@ -18,7 +20,7 @@ import arcsdm.smote
 from arcsdm.mlp.regression.data import read_regressor_target_array, validate_regressor_input_rasters
 from arcsdm.mlp.regression.metrics import log_regression_validation_metric
 from arcsdm.mlp.regression.model import MLPRegressorModel
-from arcsdm.mlp.regression.types import HiddenLayerSpec, LastLayerConfig
+from arcsdm.mlp.regression.types import HiddenLayerSpec
 from utils.arcpy_callback import ArcPyLoggingCallback
 
 
@@ -31,7 +33,6 @@ def train_MLP_regressor(
     target_labels_attr: Optional[str],
     y_nodata_value: Optional[float],
     hidden_layers: Sequence[HiddenLayerSpec],
-    last_layer: LastLayerConfig,
     epochs: int,
     batch_size: int,
     optimizer: str,
@@ -57,7 +58,6 @@ def train_MLP_regressor(
         target_labels_attr: If target_labels contains vector data, the attribute field to use for labels
         y_nodata_value: NoData value to apply to target labels, or None to use existing NoData.
         hidden_layers: Specification of hidden layers (units, activation, dropout).
-        last_layer: Activation function of the last layer.
         epochs: Maximum number of training epochs.
         batch_size: Training batch size.
         optimizer: Optimizer to use (e.g. "adam", "sgd").
@@ -164,8 +164,8 @@ def train_MLP_regressor(
     training_loader = DataLoader(training_dataset, batch_size=batch_size)
     testing_loader = DataLoader(testing_dataset, batch_size=batch_size)
 
-    last_layer_activation = last_layer[0] if isinstance(last_layer, (list, tuple)) else last_layer
-    last_layer = (1, last_layer_activation, None)
+    # Regression head is always linear; loss functions operate directly on raw values.
+    last_layer = (1, None, None)
 
     model = MLPRegressorModel(
         input_dims=X_train.shape[1],

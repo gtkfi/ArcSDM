@@ -1,3 +1,5 @@
+"""Public exports for MLP classification tools."""
+
 from arcsdm.mlp.classification.model import MLPClassifierModel
 from arcsdm.mlp.classification.prediction import (
     predict_MLP_classifier,

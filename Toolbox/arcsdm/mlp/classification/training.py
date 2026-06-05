@@ -1,3 +1,5 @@
+"""Training entry point and workflow helpers for MLP classification."""
+
 import copy
 import json
 import os
@@ -7,7 +9,6 @@ import arcpy
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import torch.nn as nn
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from torch.utils.data import DataLoader, TensorDataset
@@ -19,12 +20,11 @@ import arcsdm.smote
 
 from arcsdm.mlp.classification.model import MLPClassifierModel
 from arcsdm.mlp.classification.metrics import classification_metric_value
-from arcsdm.mlp.classification.types import HiddenLayerSpec, LastLayerConfig
+from arcsdm.mlp.classification.types import HiddenLayerSpec
 from utils.arcpy_callback import ArcPyLoggingCallback
 
 
 NUMERIC_FIELD_TYPES = ["SmallInteger", "Integer", "Single", "Double"]
-CLASSIFIER_LAST_LAYER_ACTIVATIONS = ["linear", "sigmoid", "softmax"]
 
 
 def _source_label_mapping(target_labels: Sequence[str], target_labels_attr: Optional[str]) -> Optional[dict]:
@@ -70,24 +70,6 @@ def _validation_label_to_index(label, label_to_index: dict, source_label_to_inde
         raise KeyError(label)
 
 
-def _validate_classifier_last_layer(last_layer_activation: Optional[str], class_count: int) -> str:
-    activation = str(last_layer_activation or "linear").lower().strip()
-    if activation not in CLASSIFIER_LAST_LAYER_ACTIVATIONS:
-        msg = f"Unsupported classifier last-layer activation: {last_layer_activation}."
-        arcpy.AddError(msg)
-        raise arcsdm.machine_learning.general.MLPInputError(msg)
-
-    if class_count > 2 and activation == "sigmoid":
-        msg = "Sigmoid output is only supported for binary classification. Use Linear or Softmax for multiclass classification."
-        arcpy.AddError(msg)
-        raise arcsdm.machine_learning.general.MLPInputError(msg)
-
-    if class_count > 1 and activation == "softmax":
-        arcpy.AddWarning("PyTorch CrossEntropyLoss expects raw logits; Linear is recommended over Softmax for multiclass output.")
-
-    return activation
-
-
 @arcsdm.common.gp_tool
 def train_MLP_classifier(
     input_rasters: Sequence[str],
@@ -97,7 +79,6 @@ def train_MLP_classifier(
     target_labels_attr: Optional[str],
     y_nodata_value: Optional[float],
     hidden_layers: Sequence[HiddenLayerSpec],
-    last_layer: LastLayerConfig,
     epochs: int,
     batch_size: int,
     optimizer: str,
@@ -122,7 +103,6 @@ def train_MLP_classifier(
         target_labels_attr: If target_labels contains vector data, the attribute field to use for labels
         y_nodata_value: NoData value to apply to target labels, or None to use existing NoData.
         hidden_layers: Specification of hidden layers (units, activation, dropout).
-        last_layer: Activation function of the last layer.
         epochs: Maximum number of training epochs.
         batch_size: Training batch size.
         optimizer: Optimizer to use (e.g. "adam", "sgd").
@@ -269,6 +249,11 @@ def train_MLP_classifier(
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=random_state, shuffle=True)
 
     if apply_smote:
+        if len(unique_labels) > 2:
+            msg = "SMOTE is only supported for binary classification in this tool. Disable SMOTE for multiclass training."
+            arcpy.AddError(msg)
+            raise arcsdm.machine_learning.general.MLPInputError(msg)
+
         n_synthetic, minority_class_label, k_neighbors = smote_params if smote_params else (None, 1, 5)
         mapped_minority = label_to_index.get(float(minority_class_label), int(minority_class_label))
         X_train, y_train = arcsdm.smote.smote(
@@ -293,15 +278,8 @@ def train_MLP_classifier(
     training_loader = DataLoader(training_dataset, batch_size=batch_size)
     testing_loader = DataLoader(testing_dataset, batch_size=batch_size)
 
-    last_layer_activation = last_layer[0] if isinstance(last_layer, (list, tuple)) else last_layer
-    last_layer_activation = _validate_classifier_last_layer(last_layer_activation, len(unique_labels))
-
-    if (len(unique_labels) == 2) and (last_layer_activation == "sigmoid"):
-        target_label_count = 1
-    else:
-        target_label_count = len(unique_labels)
-
-    last_layer = (target_label_count, last_layer_activation, None)
+    target_label_count = 1 if len(unique_labels) == 2 else len(unique_labels)
+    last_layer = (target_label_count, None, None)
 
     model = MLPClassifierModel(
         input_dims=X_train.shape[1],
@@ -313,10 +291,10 @@ def train_MLP_classifier(
     optimizer = arcsdm.machine_learning.pytorch_utils.get_pytorch_optimizer(optimizer, model.parameters(), learning_rate)
 
     if target_label_count == 1:
-        criterion = nn.BCELoss()
+        criterion = torch.nn.BCEWithLogitsLoss()
         target_dtype = torch.float32
     else:
-        criterion = nn.CrossEntropyLoss()
+        criterion = torch.nn.CrossEntropyLoss()
         target_dtype = torch.long
 
     best_val_loss = None
@@ -392,7 +370,7 @@ def train_MLP_classifier(
                 data = data.to(device).to(torch.float32)
                 output = model(data)
                 if target_label_count == 1:
-                    pred = output.reshape(-1).round().cpu().numpy().astype(np.int64)
+                    pred = (torch.sigmoid(output).reshape(-1) >= 0.5).cpu().numpy().astype(np.int64)
                     true = target.reshape(-1).cpu().numpy().astype(np.int64)
                 else:
                     pred = output.argmax(dim=1).cpu().numpy().astype(np.int64)

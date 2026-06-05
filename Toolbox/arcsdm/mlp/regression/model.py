@@ -1,3 +1,5 @@
+"""PyTorch model definition for MLP regression."""
+
 from collections import OrderedDict
 from typing import Optional, Sequence
 

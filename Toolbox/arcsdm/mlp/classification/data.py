@@ -1,13 +1,19 @@
-import json
-import os
+"""Data I/O, preprocessing, and raster output helpers for MLP classification."""
+
 from typing import Any, Mapping, Optional, Sequence, Tuple
 
 import arcpy
 import numpy as np
-import torch
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader
 
 import arcsdm.machine_learning.general
+from arcsdm.mlp.common.data import (
+    load_mlp_metadata,
+    make_mlp_prediction_loader,
+    standardize_from_mlp_metadata,
+    validate_mlp_input_rasters,
+    warn_if_standardization_setting_differs as warn_if_standardization_setting_differs_common,
+)
 
 from arcsdm.mlp.classification.types import MLPClassifierPredictionResult
 
@@ -18,6 +24,7 @@ def read_classifier_target_array(
     y_nodata_value: Optional[float],
     ref_raster_path: str
 ) -> np.ndarray:
+    """Read and rasterize classifier targets into a single 2D label array."""
     if len(target_labels) > 1:
         label_arrays = []
         for i in range(len(target_labels)):
@@ -62,6 +69,7 @@ def save_classifier_output_rasters(
     output_raster_prob: Optional[str],
     output_raster_classified: Optional[str]
 ) -> None:
+    """Write probability and classified output rasters using a reference raster grid."""
     desc = arcpy.Describe(ref_raster_path)
     lower_left = arcpy.Point(desc.extent.XMin, desc.extent.YMin)
     x_cell_size = desc.meanCellWidth
@@ -79,24 +87,13 @@ def save_classifier_output_rasters(
 
 
 def validate_classifier_input_rasters(input_rasters: Sequence[str]) -> Sequence[Mapping[str, Any]]:
-    grids = [arcsdm.machine_learning.general.describe_raster_grid(path) for path in input_rasters]
-    if not arcsdm.machine_learning.general.check_raster_grids(grids, same_extent=True):
-        msg = "Input feature rasters should have same grid properties."
-        arcpy.AddError(msg)
-        raise arcsdm.machine_learning.general.MLPInputError(msg)
-
-    return grids
+    """Validate classifier input rasters share a compatible grid."""
+    return validate_mlp_input_rasters(input_rasters)
 
 
 def load_classifier_metadata(model_file: str) -> Mapping[str, Any]:
-    metadata_file = f"{os.path.splitext(model_file)[0]}.meta.json"
-    if not os.path.exists(metadata_file):
-        msg = f"Model metadata file not found: {metadata_file}"
-        arcpy.AddError(msg)
-        raise arcsdm.machine_learning.general.MLPInputError(msg)
-
-    with open(metadata_file, "r", encoding="utf-8") as metadata_stream:
-        return json.load(metadata_stream)
+    """Load classifier model metadata from sidecar JSON."""
+    return load_mlp_metadata(model_file)
 
 
 def warn_if_standardization_setting_differs(
@@ -104,34 +101,13 @@ def warn_if_standardization_setting_differs(
     metadata: Mapping[str, Any],
     mode_label: str
 ) -> None:
-    if bool(requested_standardize) != bool(metadata.get("standardize", False)):
-        arcpy.AddWarning(
-            f"{mode_label} standardize parameter differs from training metadata; using training metadata settings."
-        )
+    """Warn if prediction-time standardization setting differs from training."""
+    warn_if_standardization_setting_differs_common(requested_standardize, metadata, mode_label)
 
 
 def standardize_from_classifier_metadata(X: np.ndarray, metadata: Mapping[str, Any]) -> np.ndarray:
-    if not bool(metadata.get("standardize", False)):
-        return X
-
-    scaler_mean = metadata.get("scaler_mean")
-    scaler_scale = metadata.get("scaler_scale")
-
-    if (scaler_mean is None) or (scaler_scale is None):
-        msg = "Model metadata indicates standardization, but scaler statistics are missing."
-        arcpy.AddError(msg)
-        raise arcsdm.machine_learning.general.MLPInputError(msg)
-
-    scaler_mean = np.asarray(scaler_mean, dtype=np.float32)
-    scaler_scale = np.asarray(scaler_scale, dtype=np.float32)
-
-    if X.shape[1] != scaler_mean.shape[0] or X.shape[1] != scaler_scale.shape[0]:
-        msg = "Input feature count does not match scaler statistics in model metadata."
-        arcpy.AddError(msg)
-        raise arcsdm.machine_learning.general.MLPInputError(msg)
-
-    arcpy.AddMessage("Data was standardized using saved training scaler metadata.")
-    return (X - scaler_mean) / scaler_scale
+    """Standardize classifier features using scaler stats stored in metadata."""
+    return standardize_from_mlp_metadata(X, metadata)
 
 
 def get_classifier_targets(
@@ -139,6 +115,7 @@ def get_classifier_targets(
     valid_mask: np.ndarray,
     metadata: Mapping[str, Any]
 ) -> Optional[np.ndarray]:
+    """Map raw target values to model class indices using metadata labels."""
     if target_array is None:
         return None
 
@@ -154,13 +131,8 @@ def get_classifier_targets(
 
 
 def make_classifier_prediction_loader(X: np.ndarray, metadata: Mapping[str, Any]) -> DataLoader:
-    dummy_labels = torch.zeros(X.shape[0], 1)
-    prediction_dataset = TensorDataset(torch.from_numpy(X), dummy_labels)
-    prediction_batch_size = int(metadata.get("batch_size", 1024))
-    if prediction_batch_size < 1:
-        prediction_batch_size = 1024
-
-    return DataLoader(prediction_dataset, batch_size=prediction_batch_size)
+    """Create classifier prediction loader with metadata-driven batch size."""
+    return make_mlp_prediction_loader(X, metadata)
 
 
 def prepare_classifier_prediction_features(
@@ -169,6 +141,7 @@ def prepare_classifier_prediction_features(
     target_array: Optional[np.ndarray],
     metadata: Mapping[str, Any]
 ) -> Tuple[np.ndarray, Optional[np.ndarray], np.ndarray]:
+    """Prepare flattened features, optional mapped targets, and nodata mask for prediction."""
     raster_arrays = arcsdm.machine_learning.general.read_raster_bands(
         raster_files=input_rasters,
         nodata_value=X_nodata_value
@@ -199,12 +172,24 @@ def classifier_prediction_rasters(
     width: int,
     nodata_mask: np.ndarray
 ) -> Tuple[np.ndarray, np.ndarray]:
-    prob_raster_array = arcsdm.machine_learning.general.reshape_predictions(
-        predictions=predicted_probabilities,
-        height=height,
-        width=width,
-        nodata_mask=nodata_mask
-    )
+    """Reconstruct probability and class outputs back to raster-shaped arrays."""
+    if predicted_probabilities.ndim == 1:
+        prob_raster_array = arcsdm.machine_learning.general.reshape_predictions(
+            predictions=predicted_probabilities,
+            height=height,
+            width=width,
+            nodata_mask=nodata_mask
+        )
+    elif predicted_probabilities.ndim == 2:
+        class_count = predicted_probabilities.shape[1]
+        full_predictions = np.full((class_count, width * height), np.nan, dtype=predicted_probabilities.dtype)
+        full_predictions[:, ~nodata_mask.ravel()] = predicted_probabilities.T
+        prob_raster_array = full_predictions.reshape((class_count, height, width))
+    else:
+        msg = f"Unexpected prediction probability shape: {predicted_probabilities.shape}"
+        arcpy.AddError(msg)
+        raise arcsdm.machine_learning.general.MLPInputError(msg)
+
     class_raster_array = arcsdm.machine_learning.general.reshape_predictions(
         predictions=y_pred.astype(np.float32),
         height=height,
@@ -219,6 +204,7 @@ def save_classifier_prediction_result(
     output_raster_prob: Optional[str],
     output_raster_classified: Optional[str]
 ) -> None:
+    """Persist classifier prediction outputs to raster datasets."""
     save_classifier_output_rasters(
         prob_raster_array=prediction_result["prob_raster_array"],
         class_raster_array=prediction_result["class_raster_array"],

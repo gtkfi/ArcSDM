@@ -1,3 +1,5 @@
+"""Metric evaluation and logging helpers for MLP regression."""
+
 from typing import Optional, Sequence
 
 import arcpy
@@ -5,6 +7,7 @@ import numpy as np
 
 
 def regression_metric_value(metric: str, y_true: np.ndarray, y_pred: np.ndarray) -> Optional[float]:
+    """Compute a supported regression metric value from predictions."""
     if metric == "mse":
         return float(np.mean((y_true - y_pred) ** 2))
     if metric == "rmse":
@@ -21,10 +24,12 @@ def regression_metric_value(metric: str, y_true: np.ndarray, y_pred: np.ndarray)
 
 
 def parse_regression_metric_names(metric_names: Optional[str]) -> Sequence[str]:
+    """Parse semicolon-separated metric names into normalized tokens."""
     return [metric.strip().lower() for metric in str(metric_names or "").split(";") if metric.strip()]
 
 
 def log_regression_metric(metric: str, y_true: np.ndarray, y_pred: np.ndarray, label_prefix: str) -> None:
+    """Log one regression metric value with a display label prefix."""
     value = regression_metric_value(metric, y_true, y_pred)
     if value is None:
         return
@@ -40,10 +45,12 @@ def log_regression_metric(metric: str, y_true: np.ndarray, y_pred: np.ndarray, l
 
 
 def log_regression_validation_metric(metric_name: Optional[str], y_true: np.ndarray, y_pred: np.ndarray) -> None:
+    """Log the selected validation metric for regression."""
     metric = str(metric_name or "").strip().lower()
     log_regression_metric(metric, y_true, y_pred, "Validation")
 
 
 def log_regression_test_metrics(metric_names: Optional[str], y_true: np.ndarray, y_pred: np.ndarray) -> None:
+    """Log all selected test metrics for regression."""
     for metric in parse_regression_metric_names(metric_names):
         log_regression_metric(metric, y_true, y_pred, "Test")

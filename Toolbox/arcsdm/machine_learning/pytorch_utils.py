@@ -57,7 +57,7 @@ def get_pytorch_regression_loss(loss_function: str):
 
 def correct(output, target, is_binary_classifier=True):
     if is_binary_classifier:
-        class_pred = output.round().int()          # set to 0 for <0.5, 1 for >0.5
+        class_pred = torch.sigmoid(output).round().int()  # logits -> probabilities -> labels
         correct_ones = class_pred == target.int()  # 1 for correct, 0 for incorrect
         return correct_ones.sum().item()           # count number of correct ones
     else:

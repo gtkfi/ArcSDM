@@ -1,3 +1,5 @@
+"""Prediction and testing entry points for MLP classification."""
+
 from typing import Any, Mapping, Optional, Sequence, Tuple
 
 import arcpy
@@ -40,36 +42,19 @@ def load_classifier_model(
     return model
 
 
-def last_layer_activation(last_layer: Sequence[Any]) -> Optional[str]:
-    if last_layer and len(last_layer) > 1 and last_layer[1] is not None:
-        return str(last_layer[1]).lower().strip()
-
-    return None
-
-
 def classification_predictions_from_raw_output(
     predicted_raw: torch.Tensor,
     target_label_count: int,
-    last_layer: Sequence[Any],
     classification_threshold: Optional[float]
 ) -> Tuple[np.ndarray, np.ndarray]:
-    activation = last_layer_activation(last_layer)
 
     if target_label_count == 1:
         threshold = 0.5 if classification_threshold is None else classification_threshold
-        if activation == "sigmoid":
-            predicted_probabilities = predicted_raw.reshape(-1).cpu().numpy()
-        else:
-            predicted_probabilities = torch.sigmoid(predicted_raw).reshape(-1).cpu().numpy()
+        predicted_probabilities = torch.sigmoid(predicted_raw).reshape(-1).cpu().numpy()
         y_pred = (predicted_probabilities >= threshold).astype(np.int64)
     else:
-        if activation == "softmax":
-            class_probabilities = predicted_raw
-        else:
-            class_probabilities = torch.softmax(predicted_raw, dim=1)
-
-        class_probability_array = class_probabilities.cpu().numpy()
-        predicted_probabilities = class_probability_array.max(axis=1)
+        class_probability_array = torch.softmax(predicted_raw, dim=1).cpu().numpy()
+        predicted_probabilities = class_probability_array
         y_pred = class_probability_array.argmax(axis=1).astype(np.int64)
 
     return y_pred, predicted_probabilities
@@ -94,7 +79,6 @@ def _predict_MLP_classifier(
     ref_raster_path = grids[0]["path"]
     metadata = load_classifier_metadata(model_file)
 
-    last_layer = metadata["last_layer"]
     target_label_count = int(metadata["target_label_count"])
     warn_if_standardization_setting_differs(standardize, metadata, mode_label)
     model = load_classifier_model(model_file, metadata, device)
@@ -111,7 +95,6 @@ def _predict_MLP_classifier(
     y_pred, predicted_probs = classification_predictions_from_raw_output(
         predicted_raw=predicted_raw,
         target_label_count=target_label_count,
-        last_layer=last_layer,
         classification_threshold=classification_threshold
     )
 

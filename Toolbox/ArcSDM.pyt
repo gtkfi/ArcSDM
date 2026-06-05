@@ -1270,27 +1270,26 @@ class TrainMLPClassifier:
         self.idx_y_nodata_value = 5
         self.idx_hidden_layers = 6
         self.idx_hidden_activation = 7
-        self.idx_last_activation = 8
-        self.idx_epochs = 9
-        self.idx_batch_size = 10
-        self.idx_optimizer = 11
-        self.idx_learning_rate = 12
-        self.idx_is_early_stopping = 13
-        self.idx_early_stopping_patience = 14
-        self.idx_validation_split = 15
-        self.idx_validation_data = 16
-        self.idx_metrics = 17
-        self.idx_random_state = 18
-        self.idx_apply_smote = 19
-        self.idx_n_synthetic_samples = 20
-        self.idx_minority_class_label = 21
-        self.idx_k_neighbors = 22
+        self.idx_epochs = 8
+        self.idx_batch_size = 9
+        self.idx_optimizer = 10
+        self.idx_learning_rate = 11
+        self.idx_is_early_stopping = 12
+        self.idx_early_stopping_patience = 13
+        self.idx_validation_split = 14
+        self.idx_validation_data = 15
+        self.idx_metrics = 16
+        self.idx_random_state = 17
+        self.idx_apply_smote = 18
+        self.idx_n_synthetic_samples = 19
+        self.idx_minority_class_label = 20
+        self.idx_k_neighbors = 21
         self.idxs_hidden_smote_params = [
             self.idx_n_synthetic_samples,
             self.idx_minority_class_label,
             self.idx_k_neighbors
         ]
-        self.idx_output_file = 23
+        self.idx_output_file = 22
 
     def getParameterInfo(self):
         (param_X,
@@ -1303,17 +1302,6 @@ class TrainMLPClassifier:
 
         param_hidden_layers = make_mlp_hidden_layers_params()
         param_hidden_layer_activation = make_mlp_hidden_layer_activation_param()
-
-        param_last_layer_activation = arcpy.Parameter(
-            displayName="Last Layer Activation Function",
-            name="last_layer_activation",
-            datatype="GPString",
-            parameterType="Required",
-            direction="Input"
-        )
-        param_last_layer_activation.filter.type = "ValueList"
-        param_last_layer_activation.filter.list = [ACTIVATION_LINEAR, ACTIVATION_SIGMOID, ACTIVATION_SOFTMAX]
-        param_last_layer_activation.value = ACTIVATION_SIGMOID
 
         (param_validation_split,
             param_validation_data,
@@ -1357,22 +1345,21 @@ class TrainMLPClassifier:
             param_y_nodata_value,  # 5
             param_hidden_layers,  # 6
             param_hidden_layer_activation,  # 7
-            param_last_layer_activation,  # 8
-            param_epochs,  # 9
-            param_batch_size,  # 10
-            param_optimizer,  # 11
-            param_learning_rate,  # 12
-            param_is_early_stopping,  # 13
-            param_early_stopping_patience,  # 14
-            param_validation_split,  # 15
-            param_validation_data,  # 16
-            param_metrics,  # 17
-            param_random_state,  # 18
-            param_apply_smote,  # 19
-            param_n_synthetic_samples,  # 20
-            param_minority_class_label,  # 21
-            param_k_neighbors,  # 22
-            param_output_model_filepath  # 23
+            param_epochs,  # 8
+            param_batch_size,  # 9
+            param_optimizer,  # 10
+            param_learning_rate,  # 11
+            param_is_early_stopping,  # 12
+            param_early_stopping_patience,  # 13
+            param_validation_split,  # 14
+            param_validation_data,  # 15
+            param_metrics,  # 16
+            param_random_state,  # 17
+            param_apply_smote,  # 18
+            param_n_synthetic_samples,  # 19
+            param_minority_class_label,  # 20
+            param_k_neighbors,  # 21
+            param_output_model_filepath  # 22
         ]
         return params
 
@@ -1433,6 +1420,7 @@ class TrainMLPClassifier:
         # Validate geometry & amount of rasters of y
         param_y = parameters[self.idx_y]
         param_y.clearMessage()
+        y_paths_clean = []
         if param_y.value and not param_y.hasBeenValidated:
             try:
                 y_text = param_y.valueAsText
@@ -1455,6 +1443,11 @@ class TrainMLPClassifier:
                     param_y.setErrorMessage("Only one raster file is supported. If multiple target label layers are provided, they must be feature layers.")
             except Exception:
                 pass
+
+        param_apply_smote = parameters[self.idx_apply_smote]
+        param_apply_smote.clearMessage()
+        if param_apply_smote.value and len(y_paths_clean) > 2:
+            param_apply_smote.setErrorMessage("SMOTE is only supported for binary classification in this tool.")
 
         # Validate dropout rate(s)
         param_hidden_layers = parameters[self.idx_hidden_layers]
@@ -1498,7 +1491,6 @@ class TrainMLPClassifier:
             parameters[self.idx_hidden_layers].value,
             parameters[self.idx_hidden_activation].valueAsText
         )
-        last_layer = parameters[self.idx_last_activation].valueAsText
         validation_data = parameters[self.idx_validation_data].valueAsText if parameters[self.idx_validation_data].value is not None else None
         apply_smote = parameters[self.idx_apply_smote].value
         smote_params = None
@@ -1517,7 +1509,6 @@ class TrainMLPClassifier:
             target_labels_attr=get_valueAsText_if_enabled(parameters[self.idx_y_attribute]),
             y_nodata_value=get_value_if_enabled(parameters[self.idx_y_nodata_value]),
             hidden_layers=hidden_layers,
-            last_layer=last_layer,
             epochs=parameters[self.idx_epochs].value,
             batch_size=parameters[self.idx_batch_size].value,
             optimizer=parameters[self.idx_optimizer].valueAsText,
@@ -1551,28 +1542,27 @@ class TrainMLPRegressor:
         self.idx_y_nodata_value = 5
         self.idx_hidden_layers = 6
         self.idx_hidden_activation = 7
-        self.idx_last_layer_activation = 8
-        self.idx_epochs = 9
-        self.idx_batch_size = 10
-        self.idx_optimizer = 11
-        self.idx_learning_rate = 12
-        self.idx_loss_function = 13
-        self.idx_is_early_stopping = 14
-        self.idx_early_stopping_patience = 15
-        self.idx_validation_split = 16
-        self.idx_validation_data = 17
-        self.idx_metrics = 18
-        self.idx_random_state = 19
-        self.idx_apply_smote = 20
-        self.idx_n_synthetic_samples = 21
-        self.idx_minority_class_label = 22
-        self.idx_k_neighbors = 23
+        self.idx_epochs = 8
+        self.idx_batch_size = 9
+        self.idx_optimizer = 10
+        self.idx_learning_rate = 11
+        self.idx_loss_function = 12
+        self.idx_is_early_stopping = 13
+        self.idx_early_stopping_patience = 14
+        self.idx_validation_split = 15
+        self.idx_validation_data = 16
+        self.idx_metrics = 17
+        self.idx_random_state = 18
+        self.idx_apply_smote = 19
+        self.idx_n_synthetic_samples = 20
+        self.idx_minority_class_label = 21
+        self.idx_k_neighbors = 22
         self.idxs_hidden_smote_params = [
             self.idx_n_synthetic_samples,
             self.idx_minority_class_label,
             self.idx_k_neighbors
         ]
-        self.idx_output_file = 24
+        self.idx_output_file = 23
 
     def getParameterInfo(self):
         (param_X,
@@ -1585,17 +1575,6 @@ class TrainMLPRegressor:
 
         param_hidden_layers = make_mlp_hidden_layers_params()
         param_hidden_layer_activation = make_mlp_hidden_layer_activation_param()
-
-        param_last_layer_activation = arcpy.Parameter(
-            displayName="Last Layer Activation Function",
-            name="last_layer_activation",
-            datatype="GPString",
-            parameterType="Required",
-            direction="Input"
-        )
-        param_last_layer_activation.filter.type = "ValueList"
-        param_last_layer_activation.filter.list = [ACTIVATION_LINEAR, ACTIVATION_SIGMOID]
-        param_last_layer_activation.value = ACTIVATION_LINEAR
 
         (param_validation_split,
             param_validation_data,
@@ -1652,23 +1631,22 @@ class TrainMLPRegressor:
             param_y_nodata_value,  # 5
             param_hidden_layers,  # 6
             param_hidden_layer_activation,  # 7
-            param_last_layer_activation,  # 8
-            param_epochs,  # 9
-            param_batch_size,  # 10
-            param_optimizer,  # 11
-            param_learning_rate,  # 12
-            param_loss_function,  # 13
-            param_is_early_stopping,  # 14
-            param_early_stopping_patience,  # 15
-            param_validation_split,  # 16
-            param_validation_data,  # 17
-            param_metrics,  # 18
-            param_random_state,  # 19
-            param_apply_smote,  # 20
-            param_n_synthetic_samples,  # 21
-            param_minority_class_label,  # 22
-            param_k_neighbors,  # 23
-            param_output_model_filepath,  # 24
+            param_epochs,  # 8
+            param_batch_size,  # 9
+            param_optimizer,  # 10
+            param_learning_rate,  # 11
+            param_loss_function,  # 12
+            param_is_early_stopping,  # 13
+            param_early_stopping_patience,  # 14
+            param_validation_split,  # 15
+            param_validation_data,  # 16
+            param_metrics,  # 17
+            param_random_state,  # 18
+            param_apply_smote,  # 19
+            param_n_synthetic_samples,  # 20
+            param_minority_class_label,  # 21
+            param_k_neighbors,  # 22
+            param_output_model_filepath,  # 23
         ]
         return params
 
@@ -1780,7 +1758,6 @@ class TrainMLPRegressor:
             parameters[self.idx_hidden_layers].value,
             parameters[self.idx_hidden_activation].valueAsText
         )
-        last_layer = parameters[self.idx_last_layer_activation].valueAsText
         validation_data = parameters[self.idx_validation_data].valueAsText if parameters[self.idx_validation_data].value is not None else None
         apply_smote = parameters[self.idx_apply_smote].value
         smote_params = None
@@ -1799,7 +1776,6 @@ class TrainMLPRegressor:
             target_labels_attr=get_valueAsText_if_enabled(parameters[self.idx_y_attribute]),
             y_nodata_value=get_value_if_enabled(parameters[self.idx_y_nodata_value]),
             hidden_layers=hidden_layers,
-            last_layer=last_layer,
             epochs=parameters[self.idx_epochs].value,
             batch_size=parameters[self.idx_batch_size].value,
             optimizer=parameters[self.idx_optimizer].valueAsText,
@@ -2546,7 +2522,7 @@ def make_mlp_classifier_prediction_params(
     param_classification_threshold.value = 0.5
 
     param_output_prob_raster = arcpy.Parameter(
-        displayName="Output predicted values probability raster",
+        displayName="Output predicted probability raster (binary: 1 band, multiclass: 1 band per class)",
         name="output_prob_raster",
         datatype="DERasterDataset",
         parameterType="Required",
