@@ -47,6 +47,32 @@ def train_MLP_regressor(
     smote_params: Optional[Tuple[Optional[int], int, int]],
     output_model_file: str
 ) -> None:
+    """Train a Multilayer Perceptron (MLP) regression model using PyTorch.
+    
+    Parameters
+        input_rasters: List of file paths to input feature rasters.
+        X_nodata_value: NoData value to apply to input features, or None to use existing NoData.
+        standardize: Whether to standardize features to zero mean and unit variance.
+        target_labels: List of file paths to target label rasters or vectors, or a single path for binary classification.
+        target_labels_attr: If target_labels contains vector data, the attribute field to use for labels
+        y_nodata_value: NoData value to apply to target labels, or None to use existing NoData.
+        hidden_layers: Specification of hidden layers (units, activation, dropout).
+        last_layer: Activation function of the last layer.
+        epochs: Maximum number of training epochs.
+        batch_size: Training batch size.
+        optimizer: Optimizer to use (e.g. "adam", "sgd").
+        learning_rate: Learning rate for the optimizer.
+        is_early_stopping: Whether to use early stopping.
+        early_stopping_patience: Number of epochs with no improvement to wait before stopping.
+        validation_split: Fraction of training data to use for validation.
+        validation_data: Path to validation data.
+        validation_metrics: Metrics to evaluate on validation data.
+        random_state: Random seed for reproducibility.
+        apply_smote: Whether to apply SMOTE for imbalanced data.
+        smote_params: Parameters for SMOTE (k_neighbors, sampling_strategy, random_state).
+        output_model_file: Path to save the trained model.
+    """
+
     arcpy.AddMessage("Starting MLP regressor training...")
     device = arcsdm.machine_learning.pytorch_utils.get_device()
     arcpy.AddMessage(f"Device is: {device}")
