@@ -49,7 +49,7 @@ def train_MLP_regressor(
 ) -> None:
     """Train a Multilayer Perceptron (MLP) regression model using PyTorch.
     
-    Parameters
+    Parameters:
         input_rasters: List of file paths to input feature rasters.
         X_nodata_value: NoData value to apply to input features, or None to use existing NoData.
         standardize: Whether to standardize features to zero mean and unit variance.
