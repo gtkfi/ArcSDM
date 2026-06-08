@@ -1,6 +1,6 @@
 """Shared helpers exposed by the MLP common package."""
 
-from arcsdm.mlp.common.data import (
+from Toolbox.arcsdm.machine_learning.mlp.common.data import (
     load_mlp_metadata,
     make_mlp_prediction_loader,
     standardize_from_mlp_metadata,

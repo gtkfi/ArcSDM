@@ -1,13 +1,13 @@
 """Public exports for MLP classification tools."""
 
-from arcsdm.mlp.classification.model import MLPClassifierModel
-from arcsdm.mlp.classification.prediction import (
+from Toolbox.arcsdm.machine_learning.mlp.classification.model import MLPClassifierModel
+from Toolbox.arcsdm.machine_learning.mlp.classification.prediction import (
     predict_MLP_classifier,
     predict_with_MLP_classifier,
     test_MLP_classifier,
 )
-from arcsdm.mlp.classification.training import train_MLP_classifier
-from arcsdm.mlp.classification.types import (
+from Toolbox.arcsdm.machine_learning.mlp.classification.training import train_MLP_classifier
+from Toolbox.arcsdm.machine_learning.mlp.classification.types import (
     HiddenLayerSpec,
     LastLayerConfig,
     MLPClassifierPredictionResult,

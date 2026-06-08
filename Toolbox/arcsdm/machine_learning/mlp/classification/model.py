@@ -6,7 +6,7 @@ from typing import Optional, Sequence
 import torch
 import torch.nn as nn
 
-from arcsdm.mlp.classification.types import HiddenLayerSpec
+from Toolbox.arcsdm.machine_learning.mlp.classification.types import HiddenLayerSpec
 
 
 class MLPClassifierModel(nn.Module):

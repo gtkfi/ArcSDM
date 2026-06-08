@@ -14,13 +14,13 @@ from torch.utils.data import DataLoader, TensorDataset
 
 import arcsdm.common
 import arcsdm.machine_learning.general
-import arcsdm.machine_learning.pytorch_utils
+import Toolbox.arcsdm.machine_learning.mlp.pytorch_utils
 import arcsdm.smote
 
-from arcsdm.mlp.regression.data import read_regressor_target_array, validate_regressor_input_rasters
-from arcsdm.mlp.regression.metrics import log_regression_validation_metric
-from arcsdm.mlp.regression.model import MLPRegressorModel
-from arcsdm.mlp.regression.types import HiddenLayerSpec
+from Toolbox.arcsdm.machine_learning.mlp.regression.data import read_regressor_target_array, validate_regressor_input_rasters
+from Toolbox.arcsdm.machine_learning.mlp.regression.metrics import log_regression_validation_metric
+from Toolbox.arcsdm.machine_learning.mlp.regression.model import MLPRegressorModel
+from Toolbox.arcsdm.machine_learning.mlp.regression.types import HiddenLayerSpec
 from utils.arcpy_callback import ArcPyLoggingCallback
 
 
@@ -74,7 +74,7 @@ def train_MLP_regressor(
     """
 
     arcpy.AddMessage("Starting MLP regressor training...")
-    device = arcsdm.machine_learning.pytorch_utils.get_device()
+    device = Toolbox.arcsdm.machine_learning.mlp.pytorch_utils.get_device()
     arcpy.AddMessage(f"Device is: {device}")
 
     grids = validate_regressor_input_rasters(input_rasters)
@@ -174,9 +174,9 @@ def train_MLP_regressor(
     )
     model.to(device)
 
-    pytorch_optimizer = arcsdm.machine_learning.pytorch_utils.get_pytorch_optimizer(optimizer, model.parameters(), learning_rate)
+    pytorch_optimizer = Toolbox.arcsdm.machine_learning.mlp.pytorch_utils.get_pytorch_optimizer(optimizer, model.parameters(), learning_rate)
     try:
-        criterion = arcsdm.machine_learning.pytorch_utils.get_pytorch_regression_loss(loss_function)
+        criterion = Toolbox.arcsdm.machine_learning.mlp.pytorch_utils.get_pytorch_regression_loss(loss_function)
     except arcpy.ExecuteError:
         msg = f"Unsupported loss function: {loss_function}"
         raise arcsdm.machine_learning.general.MLPInputError(msg)
@@ -195,8 +195,8 @@ def train_MLP_regressor(
     callback.on_train_begin()
     try:
         for epoch in range(epochs):
-            train_loss = arcsdm.machine_learning.pytorch_utils.train_regression_epoch(device, training_loader, model, criterion, pytorch_optimizer)
-            val_loss = arcsdm.machine_learning.pytorch_utils.evaluate_regression_epoch(device, testing_loader, model, criterion)
+            train_loss = Toolbox.arcsdm.machine_learning.mlp.pytorch_utils.train_regression_epoch(device, training_loader, model, criterion, pytorch_optimizer)
+            val_loss = Toolbox.arcsdm.machine_learning.mlp.pytorch_utils.evaluate_regression_epoch(device, testing_loader, model, criterion)
 
             train_loss_dict[epoch + 1] = train_loss
             val_loss_dict[epoch + 1] = val_loss
