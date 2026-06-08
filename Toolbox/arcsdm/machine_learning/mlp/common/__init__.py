@@ -1,6 +1,29 @@
 """Shared helpers exposed by the MLP common package."""
 
-from Toolbox.arcsdm.machine_learning.mlp.common.data import (
+from .constants import (
+    ACTIVATION_LINEAR,
+    ACTIVATION_RELU,
+    ACTIVATION_SIGMOID,
+    ACTIVATION_SOFTMAX,
+    ACTIVATION_TANH,
+    LOSS_HUBER,
+    LOSS_L1,
+    LOSS_MSE,
+    OPTIMIZER_ADAGRAD,
+    OPTIMIZER_ADAM,
+    OPTIMIZER_RMSPROP,
+    OPTIMIZER_SGD,
+    VALIDATION_ACCURACY,
+    VALIDATION_F1,
+    VALIDATION_L1,
+    VALIDATION_MSE,
+    VALIDATION_PRECISION,
+    VALIDATION_R2,
+    VALIDATION_RECALL,
+    VALIDATION_RMSE,
+)
+
+from .data import (
     load_mlp_metadata,
     make_mlp_prediction_loader,
     standardize_from_mlp_metadata,
@@ -10,6 +33,26 @@ from Toolbox.arcsdm.machine_learning.mlp.common.data import (
 
 
 __all__ = [
+    "ACTIVATION_LINEAR",
+    "ACTIVATION_RELU",
+    "ACTIVATION_SIGMOID",
+    "ACTIVATION_SOFTMAX",
+    "ACTIVATION_TANH",
+    "LOSS_HUBER",
+    "LOSS_L1",
+    "LOSS_MSE",
+    "OPTIMIZER_ADAGRAD",
+    "OPTIMIZER_ADAM",
+    "OPTIMIZER_RMSPROP",
+    "OPTIMIZER_SGD",
+    "VALIDATION_ACCURACY",
+    "VALIDATION_F1",
+    "VALIDATION_L1",
+    "VALIDATION_MSE",
+    "VALIDATION_PRECISION",
+    "VALIDATION_R2",
+    "VALIDATION_RECALL",
+    "VALIDATION_RMSE",
     "load_mlp_metadata",
     "make_mlp_prediction_loader",
     "standardize_from_mlp_metadata",

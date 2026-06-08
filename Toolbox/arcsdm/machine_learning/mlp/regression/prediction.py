@@ -7,9 +7,9 @@ import numpy as np
 import torch
 
 import arcsdm.common
-import arcsdm.machine_learning.pytorch_utils
+import arcsdm.machine_learning.mlp.pytorch_utils
 
-from arcsdm.mlp.regression.data import (
+from arcsdm.machine_learning.mlp.regression.data import (
     load_regressor_metadata,
     make_regressor_prediction_loader,
     prepare_regressor_prediction_features,
@@ -19,9 +19,9 @@ from arcsdm.mlp.regression.data import (
     validate_regressor_input_rasters,
     warn_if_standardization_setting_differs,
 )
-from arcsdm.mlp.regression.metrics import log_regression_test_metrics
-from arcsdm.mlp.regression.model import MLPRegressorModel
-from arcsdm.mlp.regression.types import MLPRegressorPredictionResult
+from arcsdm.machine_learning.mlp.regression.metrics import log_regression_test_metrics
+from arcsdm.machine_learning.mlp.regression.model import MLPRegressorModel
+from arcsdm.machine_learning.mlp.regression.types import MLPRegressorPredictionResult
 
 
 def load_regressor_model(
@@ -50,7 +50,7 @@ def _predict_MLP_regressor(
     mode_label: str = "Prediction",
     grids: Optional[Sequence[Mapping[str, Any]]] = None
 ) -> MLPRegressorPredictionResult:
-    device = arcsdm.machine_learning.pytorch_utils.get_device()
+    device = arcsdm.machine_learning.mlp.pytorch_utils.get_device()
     arcpy.AddMessage(f"Device is: {device}")
 
     if grids is None:
@@ -67,7 +67,7 @@ def _predict_MLP_regressor(
         metadata=metadata
     )
     prediction_loader = make_regressor_prediction_loader(X, metadata)
-    predicted = arcsdm.machine_learning.pytorch_utils.predict(device, prediction_loader, model)
+    predicted = arcsdm.machine_learning.mlp.pytorch_utils.predict(device, prediction_loader, model)
     predicted_values = torch.cat(predicted).reshape(-1).cpu().numpy()
 
     height = int(grids[0]["rows"])

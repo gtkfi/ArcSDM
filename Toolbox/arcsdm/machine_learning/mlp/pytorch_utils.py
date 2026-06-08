@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-import Toolbox.arcsdm.machine_learning.mlp.common as mlp_common
+import arcsdm.machine_learning.mlp.common as mlp_common
 
 
 def get_device():

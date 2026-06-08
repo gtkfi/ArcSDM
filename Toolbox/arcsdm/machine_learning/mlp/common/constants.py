@@ -1,4 +1,4 @@
-# Constants
+"""Shared MLP constants for activations, losses, optimizers, and metrics."""
 
 # Activation functions
 ACTIVATION_LINEAR = "Linear"

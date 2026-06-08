@@ -15,12 +15,12 @@ from torch.utils.data import DataLoader, TensorDataset
 
 import arcsdm.common
 import arcsdm.machine_learning.general
-import Toolbox.arcsdm.machine_learning.mlp.pytorch_utils
+import arcsdm.machine_learning.mlp.pytorch_utils
 import arcsdm.smote
 
-from Toolbox.arcsdm.machine_learning.mlp.classification.model import MLPClassifierModel
-from Toolbox.arcsdm.machine_learning.mlp.classification.metrics import classification_metric_value
-from Toolbox.arcsdm.machine_learning.mlp.classification.types import HiddenLayerSpec
+from arcsdm.machine_learning.mlp.classification.model import MLPClassifierModel
+from arcsdm.machine_learning.mlp.classification.metrics import classification_metric_value
+from arcsdm.machine_learning.mlp.classification.types import HiddenLayerSpec
 from utils.arcpy_callback import ArcPyLoggingCallback
 
 
@@ -118,7 +118,7 @@ def train_MLP_classifier(
         output_model_file: Path to save the trained model.
     """
     arcpy.AddMessage("Starting MLP classifier training...")
-    device = Toolbox.arcsdm.machine_learning.mlp.pytorch_utils.get_device()
+    device = arcsdm.machine_learning.mlp.pytorch_utils.get_device()
     arcpy.AddMessage(f"Device is: {device}")
 
     grids = [arcsdm.machine_learning.general.describe_raster_grid(p) for p in input_rasters]
@@ -288,7 +288,7 @@ def train_MLP_classifier(
     )
     model.to(device)
 
-    optimizer = Toolbox.arcsdm.machine_learning.mlp.pytorch_utils.get_pytorch_optimizer(optimizer, model.parameters(), learning_rate)
+    optimizer = arcsdm.machine_learning.mlp.pytorch_utils.get_pytorch_optimizer(optimizer, model.parameters(), learning_rate)
 
     if target_label_count == 1:
         criterion = torch.nn.BCEWithLogitsLoss()
@@ -309,7 +309,7 @@ def train_MLP_classifier(
     callback.on_train_begin()
     try:
         for epoch in range(epochs):
-            train_ret = Toolbox.arcsdm.machine_learning.mlp.pytorch_utils.train_classifier_epoch(
+            train_ret = arcsdm.machine_learning.mlp.pytorch_utils.train_classifier_epoch(
                 device,
                 training_loader,
                 model,
@@ -318,7 +318,7 @@ def train_MLP_classifier(
                 target_dtype=target_dtype,
                 binary_classifier=target_label_count == 1
             )
-            val_ret = Toolbox.arcsdm.machine_learning.mlp.pytorch_utils.evaluate_classifier_epoch(
+            val_ret = arcsdm.machine_learning.mlp.pytorch_utils.evaluate_classifier_epoch(
                 device,
                 testing_loader,
                 model,

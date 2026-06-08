@@ -7,7 +7,7 @@ import numpy as np
 from torch.utils.data import DataLoader
 
 import arcsdm.machine_learning.general
-from arcsdm.mlp.common.data import (
+from arcsdm.machine_learning.mlp.common.data import (
     load_mlp_metadata,
     make_mlp_prediction_loader,
     standardize_from_mlp_metadata,
@@ -15,7 +15,7 @@ from arcsdm.mlp.common.data import (
     warn_if_standardization_setting_differs as warn_if_standardization_setting_differs_common,
 )
 
-from arcsdm.mlp.regression.types import MLPRegressorPredictionResult
+from arcsdm.machine_learning.mlp.regression.types import MLPRegressorPredictionResult
 
 
 def validate_regressor_input_rasters(input_rasters: Sequence[str]) -> Sequence[Mapping[str, Any]]:

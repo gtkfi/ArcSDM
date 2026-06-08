@@ -6,7 +6,7 @@ from typing import Optional, Sequence
 import torch
 import torch.nn as nn
 
-from Toolbox.arcsdm.machine_learning.mlp.regression.types import HiddenLayerSpec
+from arcsdm.machine_learning.mlp.regression.types import HiddenLayerSpec
 
 
 class MLPRegressorModel(nn.Module):

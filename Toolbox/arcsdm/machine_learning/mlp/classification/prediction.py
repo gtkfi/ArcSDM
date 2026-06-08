@@ -7,9 +7,9 @@ import numpy as np
 import torch
 
 import arcsdm.common
-import arcsdm.machine_learning.pytorch_utils
+import arcsdm.machine_learning.mlp.pytorch_utils
 
-from arcsdm.mlp.classification.data import (
+from arcsdm.machine_learning.mlp.classification.data import (
     classifier_prediction_rasters,
     load_classifier_metadata,
     make_classifier_prediction_loader,
@@ -19,9 +19,9 @@ from arcsdm.mlp.classification.data import (
     validate_classifier_input_rasters,
     warn_if_standardization_setting_differs,
 )
-from arcsdm.mlp.classification.metrics import log_classifier_test_metrics
-from arcsdm.mlp.classification.model import MLPClassifierModel
-from arcsdm.mlp.classification.types import MLPClassifierPredictionResult
+from arcsdm.machine_learning.mlp.classification.metrics import log_classifier_test_metrics
+from arcsdm.machine_learning.mlp.classification.model import MLPClassifierModel
+from arcsdm.machine_learning.mlp.classification.types import MLPClassifierPredictionResult
 
 
 def load_classifier_model(
@@ -70,7 +70,7 @@ def _predict_MLP_classifier(
     mode_label: str = "Prediction",
     grids: Optional[Sequence[Mapping[str, Any]]] = None
 ) -> MLPClassifierPredictionResult:
-    device = arcsdm.machine_learning.pytorch_utils.get_device()
+    device = arcsdm.machine_learning.mlp.pytorch_utils.get_device()
     arcpy.AddMessage(f"Device is: {device}")
 
     if grids is None:
@@ -90,7 +90,7 @@ def _predict_MLP_classifier(
         metadata=metadata
     )
     pred_loader = make_classifier_prediction_loader(X, metadata)
-    predicted = arcsdm.machine_learning.pytorch_utils.predict(device, pred_loader, model)
+    predicted = arcsdm.machine_learning.mlp.pytorch_utils.predict(device, pred_loader, model)
     predicted_raw = torch.cat(predicted)
     y_pred, predicted_probs = classification_predictions_from_raw_output(
         predicted_raw=predicted_raw,
