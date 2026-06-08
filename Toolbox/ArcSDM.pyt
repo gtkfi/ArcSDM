@@ -8,8 +8,8 @@ import arcsdm.calculateresponse_arcpy_wip
 import arcsdm.calculateresponse
 import arcsdm.calculateweights
 import arcsdm.categoricalreclass
-from arcsdm.mlp import mlp_classification
-from arcsdm.mlp import mlp_regression
+from arcsdm.machine_learning.mlp import mlp_classification
+from arcsdm.machine_learning.mlp import mlp_regression
 import arcsdm.pca
 import arcsdm.roctool
 import arcsdm.splitting
@@ -18,7 +18,7 @@ import arcsdm.wofe_common
 
 from arcsdm.common import execute_tool
 
-from arcsdm.mlp.common import (
+from arcsdm.machine_learning.mlp.common import (
     ACTIVATION_LINEAR,
     ACTIVATION_RELU,
     ACTIVATION_SIGMOID,
