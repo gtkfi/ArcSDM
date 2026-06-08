@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-import arcsdm.machine_learning.mlp_common
+import Toolbox.arcsdm.mlp.mlp_common
 
 
 def get_device():
@@ -17,13 +17,13 @@ def get_device():
 def get_pytorch_optimizer(optimizer: str, params, learning_rate):
     """Create a Pytorch optimizer from given name and parameters."""
     optimizer = optimizer.lower().strip()
-    if optimizer == arcsdm.machine_learning.mlp_common.OPTIMIZER_ADAM.lower():
+    if optimizer == Toolbox.arcsdm.mlp.mlp_common.OPTIMIZER_ADAM.lower():
         return optim.Adam(params, lr=learning_rate)
-    elif optimizer == arcsdm.machine_learning.mlp_common.OPTIMIZER_ADAGRAD.lower():
+    elif optimizer == Toolbox.arcsdm.mlp.mlp_common.OPTIMIZER_ADAGRAD.lower():
         return optim.Adagrad(params, lr=learning_rate)
-    elif optimizer == arcsdm.machine_learning.mlp_common.OPTIMIZER_RMSPROP.lower():
+    elif optimizer == Toolbox.arcsdm.mlp.mlp_common.OPTIMIZER_RMSPROP.lower():
         return optim.RMSprop(params, lr=learning_rate)
-    elif optimizer == arcsdm.machine_learning.mlp_common.OPTIMIZER_SGD.lower():
+    elif optimizer == Toolbox.arcsdm.mlp.mlp_common.OPTIMIZER_SGD.lower():
         return optim.SGD(params, lr=learning_rate)
     else:
         arcpy.AddError(f"Unidentified optimizer: {optimizer}")
@@ -35,19 +35,19 @@ def get_pytorch_regression_loss(loss_function: str):
     selected_loss = str(loss_function).strip().lower() if loss_function is not None else ""
 
     if selected_loss in {
-        arcsdm.machine_learning.mlp_common.LOSS_MSE.lower(),
-        arcsdm.machine_learning.mlp_common.VALIDATION_MSE.lower()
+        Toolbox.arcsdm.mlp.mlp_common.LOSS_MSE.lower(),
+        Toolbox.arcsdm.mlp.mlp_common.VALIDATION_MSE.lower()
     }:
         return nn.MSELoss()
 
     if selected_loss in {
-        arcsdm.machine_learning.mlp_common.LOSS_L1.lower(),
-        arcsdm.machine_learning.mlp_common.VALIDATION_L1.lower()
+        Toolbox.arcsdm.mlp.mlp_common.LOSS_L1.lower(),
+        Toolbox.arcsdm.mlp.mlp_common.VALIDATION_L1.lower()
     }:
         return nn.L1Loss()
 
     if selected_loss in {
-        arcsdm.machine_learning.mlp_common.LOSS_HUBER.lower()
+        Toolbox.arcsdm.mlp.mlp_common.LOSS_HUBER.lower()
     }:
         return nn.HuberLoss()
 
