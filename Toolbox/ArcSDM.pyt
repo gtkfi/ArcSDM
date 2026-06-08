@@ -18,7 +18,7 @@ import arcsdm.wofe_common
 
 from arcsdm.common import execute_tool
 
-from arcsdm.machine_learning.mlp_common import (
+from arcsdm.mlp.common import (
     ACTIVATION_LINEAR,
     ACTIVATION_RELU,
     ACTIVATION_SIGMOID,
