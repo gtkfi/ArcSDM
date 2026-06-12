@@ -128,13 +128,19 @@ def select_features_by_mask(input_feature):
         if mask_type in ["FeatureLayer", "FeatureClass", "ShapeFile"]:
             arcpy.management.SelectLayerByLocation(input_feature, "COMPLETELY_WITHIN", mask)
         elif mask_type in ["RasterLayer", "RasterDataset"]:
-            # Convert the raster to a feature, since SelectLayerByLocation requires features
+            # Convert the raster valid-data footprint to a feature, since RasterToPolygon
+            # requires an integer raster and study area masks may be floating point.
+            tmp_mask_raster = arcpy.CreateScratchName("tmp_mask_ras", data_type="RasterDataset", workspace=arcpy.env.scratchGDB)
             tmp_mask = arcpy.CreateScratchName("tmp_mask", data_type="Shapefile", workspace=arcpy.env.scratchFolder)
 
+            valid_area_raster = arcpy.sa.SetNull(arcpy.sa.IsNull(mask), 1, "VALUE = 1")
+            valid_area_raster.save(tmp_mask_raster)
+
             # If the conversion seems slow with more complicated rasters, set max_vertices_per_feature
-            arcpy.conversion.RasterToPolygon(mask, tmp_mask)
+            arcpy.conversion.RasterToPolygon(tmp_mask_raster, tmp_mask, "NO_SIMPLIFY", "VALUE")
             arcpy.management.SelectLayerByLocation(input_feature, "COMPLETELY_WITHIN", tmp_mask)
-            # Delete the temporary layer
+            # Delete the temporary layers
+            arcpy.management.Delete(tmp_mask_raster)
             arcpy.management.Delete(tmp_mask)
         else:
             raise ValueError(f"Mask has forbidden data type: {mask_type}!")
