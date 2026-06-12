@@ -47,6 +47,18 @@ class UserException(Exception):
     pass
 
 
+def _map_class_value_to_vat_value(class_value, vat_values, rounded_vat_map, tolerance=1.0e-6):
+    rounded_value = round(float(class_value), 8)
+    if rounded_value in rounded_vat_map:
+        return rounded_vat_map[rounded_value]
+
+    closest_value = min(vat_values, key=lambda value: abs(value - class_value))
+    if abs(closest_value - class_value) <= tolerance:
+        return closest_value
+
+    return None
+
+
 def Execute(self, parameters, messages):
     arcpy.CheckOutExtension("Spatial")
     arcpy.env.overwriteOutput = True
@@ -72,19 +84,27 @@ def Execute(self, parameters, messages):
     masked_evidence_raster = apply_mask_to_raster(evidence_raster, nodata_value)
 
     # Create a summary statistics table
-    statistics_table, class_column_name, count_column_name = get_training_point_statistics(masked_evidence_raster, training_point_feature)
+    statistics_table, class_column_name, count_column_name = get_training_point_statistics(
+        masked_evidence_raster,
+        training_point_feature,
+        keep_class_as_float=True)
 
     # Calculate the number of sites on the pattern
     missing_pattern_training_point_count = 0
     pattern_training_point_count = 0
 
     stats_fields = [class_column_name, count_column_name]
+    class_frequency_rows = []
     with arcpy.da.SearchCursor(statistics_table, stats_fields) as cursor:
         for row in cursor:
             class_category, count = row
-            if class_category == nodata_value:
+            if class_category is None:
+                continue
+            if abs(float(class_category) - float(nodata_value)) <= 1.0e-12:
                 missing_pattern_training_point_count += count
-            else: pattern_training_point_count += count
+            else:
+                class_frequency_rows.append((float(class_category), count))
+                pattern_training_point_count += count
     
     # Check if the counts match the number of training sites
     if pattern_training_point_count != (total_training_point_count - missing_pattern_training_point_count):
@@ -104,7 +124,7 @@ def Execute(self, parameters, messages):
     arcpy.management.AddField(output_table, "CAPP_CumAr", "DOUBLE", field_alias="CAPP_Cumulative_Area")
     arcpy.management.AddField(output_table, "Eff_CumAre", "DOUBLE", field_alias="Efficiency_Cumulative_Area")
     arcpy.management.AddField(output_table, "Cum_Sites", "DOUBLE", field_alias="Cumulative_Sites")
-    arcpy.management.AddField(output_table, "I_CumSites", "DOUBLE", field_alias="Cumulative_Sites")
+    arcpy.management.AddField(output_table, "I_CumSites", "DOUBLE", field_alias="I_Cumulative_Sites")
     arcpy.management.AddField(output_table, "Eff_AUC", "DOUBLE", field_alias="A_U_C")
     
     # Calculate the area factor
@@ -116,7 +136,22 @@ def Execute(self, parameters, messages):
     arcpy.AddMessage(f"factor: {factor}")
     
     flt_ras = FloatRasterVAT(masked_evidence_raster)
-    rasrows = flt_ras.FloatRasterSearchcursor()
+    rasrows = list(flt_ras.FloatRasterSearchcursor())
+    vat_values = [row.value for row in rasrows]
+    rounded_vat_map = {round(value, 8): value for value in vat_values}
+    site_count_by_vat_value = {value: 0 for value in vat_values}
+
+    unmatched_class_count = 0
+    for class_value, site_count in class_frequency_rows:
+        matched_value = _map_class_value_to_vat_value(class_value, vat_values, rounded_vat_map)
+        if matched_value is None:
+            unmatched_class_count += 1
+            continue
+        site_count_by_vat_value[matched_value] += site_count
+
+    if unmatched_class_count > 0:
+        arcpy.AddWarning(
+            f"Could not match {unmatched_class_count} training-point class values to raster VAT values.")
 
     # Initialize variables for cumulative calculations
     pattern_area = 0.0
@@ -127,17 +162,8 @@ def Execute(self, parameters, messages):
     # Update the output table with area & training point frequency
     with arcpy.da.InsertCursor(output_table, ["RASTERVALU", "Area_sqkm", "Frequency"]) as cursor:
         for rasrow in rasrows:
-            class_category = int(rasrow.value)
             area_sqkm = rasrow.count * factor
-            site_count = 0
-
-            expression = f"{class_column_name} = {class_category}"
-
-            with arcpy.da.SearchCursor(statistics_table, [class_column_name, count_column_name], where_clause=expression) as cursor_stats:
-                for row_stats in cursor_stats:
-                    if row_stats:
-                        _, site_count = row_stats
-                        break
+            site_count = site_count_by_vat_value.get(rasrow.value, 0)
             
             pattern_area += area_sqkm
             effective_area_by_class.append(area_sqkm)

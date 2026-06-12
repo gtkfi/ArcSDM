@@ -207,21 +207,23 @@ def get_evidence_values_at_training_points(evidence_raster, training_point_featu
     return output_tmp_feature
 
 
-def get_training_point_statistics(evidence_raster, training_point_feature):
+def get_training_point_statistics(evidence_raster, training_point_feature, keep_class_as_float=False):
     values_at_training_points_tmp_feature = get_evidence_values_at_training_points(evidence_raster, training_point_feature)
 
     arcpy.management.Delete(os.path.join(arcpy.env.scratchWorkspace, "WtsStatistics"))
     output_tmp_table = arcpy.management.CreateTable(arcpy.env.scratchWorkspace, "WtsStatistics")
 
     arcpy.analysis.Statistics(values_at_training_points_tmp_feature, output_tmp_table, "rastervalu Sum", "rastervalu")
-    # The rastervalu field has type SmallInteger, which is inconvenient
-    # Create a new field with type Integer
+    # The rastervalu field can be small integer depending on source.
+    # Create a typed class_category field for downstream comparisons.
+    expression = "float(!rastervalu!)" if keep_class_as_float else "int(!rastervalu!)"
+    field_type = "DOUBLE" if keep_class_as_float else "LONG"
     arcpy.management.CalculateField(
         in_table=output_tmp_table,
         field="class_category",
-        expression="int(!rastervalu!)",
+        expression=expression,
         expression_type="PYTHON3",
-        field_type="LONG")
+        field_type=field_type)
 
     arcpy.management.Delete(values_at_training_points_tmp_feature)
 
@@ -235,14 +237,14 @@ def apply_mask_to_raster(evidence_raster, nodata_value=None, codefield_column_na
             raise WofeInputError("Mask doesn't exist! Set Mask under Analysis/Environments.")
 
     mask_descr = arcpy.Describe(mask)
-    masked_evidence_raster = arcpy.sa.ExtractByMask(evidence_raster, mask_descr.catalogPath, analysis_extent=mask_descr.catalogPath)
+    masked_evidence_raster = arcpy.sa.ExtractByMask(evidence_raster, mask_descr.catalogPath)
 
     if nodata_value is not None:
         masked_evidence_descr = arcpy.Describe(masked_evidence_raster)
         temp_nodata_mask = arcpy.sa.IsNull(masked_evidence_descr.catalogPath)
 
         # Set nodata value to nodata areas within the mask
-        masked_evidence_raster = arcpy.sa.Con(temp_nodata_mask, nodata_value, evidence_raster, "VALUE = 1")
+        masked_evidence_raster = arcpy.sa.Con(temp_nodata_mask, nodata_value, masked_evidence_raster, "VALUE = 1")
     
         if (codefield_column_name is not None and codefield_column_name != ""):
             arcpy.management.JoinField(in_data=masked_evidence_raster, in_field="VALUE", join_table=evidence_raster, join_field="VALUE", fields=[codefield_column_name])
