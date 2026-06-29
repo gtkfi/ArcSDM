@@ -19,10 +19,8 @@ import arcsdm.wofe_common
 from arcsdm.common import execute_tool
 
 from arcsdm.machine_learning.mlp.common import (
-    ACTIVATION_LINEAR,
     ACTIVATION_RELU,
     ACTIVATION_SIGMOID,
-    ACTIVATION_SOFTMAX,
     ACTIVATION_TANH,
     LOSS_HUBER,
     LOSS_L1,
@@ -1298,7 +1296,7 @@ class TrainMLPClassifier:
             param_y,
             param_y_attribute,
             param_y_nodata_value
-        ) = make_mlp_X_y_params()
+        ) = make_mlp_X_y_params(multiple_y_supported=False)
 
         param_hidden_layers = make_mlp_hidden_layers_params()
         param_hidden_layer_activation = make_mlp_hidden_layer_activation_param()
@@ -1372,17 +1370,10 @@ class TrainMLPClassifier:
         y = parameters[self.idx_y]
         if y.value and not y.hasBeenValidated:
             try:
-                contains_raster, has_attribute_table, more_than_one = check_mlp_y_conditionals(y)
+                contains_raster, has_attribute_table, _ = check_mlp_y_conditionals(y)
 
-                # Classifier allows more than one label file, but in that case they are all expected
-                # to be feature layers, so nodata param is not applicable. Each feature will be considered
-                # to be one target class, so no need for attribute param either.
-                if more_than_one:
-                    parameters[self.idx_y_nodata_value].enabled = False
-                    parameters[self.idx_y_attribute].enabled = False
-                else:
-                    parameters[self.idx_y_nodata_value].enabled = contains_raster
-                    parameters[self.idx_y_attribute].enabled = has_attribute_table
+                parameters[self.idx_y_nodata_value].enabled = contains_raster
+                parameters[self.idx_y_attribute].enabled = has_attribute_table
             except Exception:
                 pass
         if not y.value:
@@ -1443,11 +1434,6 @@ class TrainMLPClassifier:
                     param_y.setErrorMessage("Only one raster file is supported. If multiple target label layers are provided, they must be feature layers.")
             except Exception:
                 pass
-
-        param_apply_smote = parameters[self.idx_apply_smote]
-        param_apply_smote.clearMessage()
-        if param_apply_smote.value and len(y_paths_clean) > 2:
-            param_apply_smote.setErrorMessage("SMOTE is only supported for binary classification in this tool.")
 
         # Validate dropout rate(s)
         param_hidden_layers = parameters[self.idx_hidden_layers]
@@ -1821,7 +1807,7 @@ class ValidateMLPClassifier:
             param_y,
             param_y_attribute,
             param_y_nodata_value
-        ) = make_mlp_X_y_params()
+        ) = make_mlp_X_y_params(multiple_y_supported=False)
 
         param_model_file = make_mlp_input_model_file_param()
 
@@ -1863,27 +1849,15 @@ class ValidateMLPClassifier:
         y = parameters[self.idx_y]
         if y.value and not y.hasBeenValidated:
             try:
-                contains_raster, has_attribute_table, more_than_one = check_mlp_y_conditionals(y)
+                contains_raster, has_attribute_table, _ = check_mlp_y_conditionals(y)
 
-                # Classifier allows more than one label file, but in that case they are all expected
-                # to be feature layers, so nodata param is not applicable. Each feature will be considered
-                # to be one target class, so no need for attribute param either.
-                if more_than_one:
-                    parameters[self.idx_y_nodata_value].enabled = False
-                    parameters[self.idx_y_attribute].enabled = False
-                else:
-                    parameters[self.idx_y_nodata_value].enabled = contains_raster
-                    parameters[self.idx_y_attribute].enabled = has_attribute_table
+                parameters[self.idx_y_nodata_value].enabled = contains_raster
+                parameters[self.idx_y_attribute].enabled = has_attribute_table
             except Exception:
                 pass
         if not y.value:
             parameters[self.idx_y_nodata_value].enabled = False
             parameters[self.idx_y_attribute].enabled = False
-
-        update_mlp_classifier_threshold_parameter(
-            model_file_param=parameters[self.idx_model_file],
-            threshold_param=parameters[self.idx_threshold]
-        )
 
         return
 
@@ -2103,10 +2077,6 @@ class PredictMLPClassifier:
         return True
 
     def updateParameters(self, parameters):
-        update_mlp_classifier_threshold_parameter(
-            model_file_param=parameters[self.idx_param_model_file],
-            threshold_param=parameters[self.idx_param_classification_threshold]
-        )
         return
 
     def updateMessages(self, parameters):
@@ -2474,26 +2444,6 @@ def make_mlp_input_model_file_param():
     )
 
 
-def is_mlp_classifier_multiclass_model(model_file):
-    if not model_file:
-        return False
-
-    metadata_file = f"{os.path.splitext(str(model_file))[0]}.meta.json"
-    if not os.path.exists(metadata_file):
-        return False
-
-    try:
-        with open(metadata_file, "r", encoding="utf-8") as metadata_stream:
-            metadata = json.load(metadata_stream)
-        return int(metadata.get("target_label_count", 1)) > 1
-    except Exception:
-        return False
-
-
-def update_mlp_classifier_threshold_parameter(model_file_param, threshold_param):
-    threshold_param.enabled = not is_mlp_classifier_multiclass_model(model_file_param.valueAsText)
-
-
 def make_mlp_prediction_input_params():
     """Construct parameter objects for the parameters shared by MLP prediction tools."""
     param_X, param_X_nodata_value, param_X_standardize = make_mlp_X_params()
@@ -2522,7 +2472,7 @@ def make_mlp_classifier_prediction_params(
     param_classification_threshold.value = 0.5
 
     param_output_prob_raster = arcpy.Parameter(
-        displayName="Output predicted probability raster (binary: 1 band, multiclass: 1 band per class)",
+        displayName="Output predicted probability raster",
         name="output_prob_raster",
         datatype="DERasterDataset",
         parameterType="Required",
