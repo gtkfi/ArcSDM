@@ -46,7 +46,5 @@ class MLPClassifierModel(nn.Module):
             return nn.Tanh()
         elif name == "sigmoid":
             return nn.Sigmoid()
-        elif name == "softmax":
-            return nn.Softmax(dim=1)
         else:
             return None

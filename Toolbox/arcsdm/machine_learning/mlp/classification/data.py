@@ -25,18 +25,10 @@ def read_classifier_target_array(
     ref_raster_path: str
 ) -> np.ndarray:
     """Read and rasterize classifier targets into a single 2D label array."""
-    if len(target_labels) > 1:
-        label_arrays = []
-        for i in range(len(target_labels)):
-            label_arrays.append(
-                arcsdm.machine_learning.general.rasterize_vector_to_array(
-                    vector_path=target_labels[i],
-                    ref_path=ref_raster_path,
-                    value_field=None,
-                    const=i + 1
-                )
-            )
-        return arcsdm.machine_learning.general.pick_value(label_arrays, prefer="first")
+    if len(target_labels) != 1:
+        msg = "MLP classifier only supports a single target label layer."
+        arcpy.AddError(msg)
+        raise arcsdm.machine_learning.general.MLPInputError(msg)
 
     target_desc = arcpy.Describe(target_labels[0]).dataType
     if target_desc in ["FeatureLayer", "FeatureClass", "ShapeFile"]:
@@ -173,22 +165,17 @@ def classifier_prediction_rasters(
     nodata_mask: np.ndarray
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Reconstruct probability and class outputs back to raster-shaped arrays."""
-    if predicted_probabilities.ndim == 1:
-        prob_raster_array = arcsdm.machine_learning.general.reshape_predictions(
-            predictions=predicted_probabilities,
-            height=height,
-            width=width,
-            nodata_mask=nodata_mask
-        )
-    elif predicted_probabilities.ndim == 2:
-        class_count = predicted_probabilities.shape[1]
-        full_predictions = np.full((class_count, width * height), np.nan, dtype=predicted_probabilities.dtype)
-        full_predictions[:, ~nodata_mask.ravel()] = predicted_probabilities.T
-        prob_raster_array = full_predictions.reshape((class_count, height, width))
-    else:
+    if predicted_probabilities.ndim != 1:
         msg = f"Unexpected prediction probability shape: {predicted_probabilities.shape}"
         arcpy.AddError(msg)
         raise arcsdm.machine_learning.general.MLPInputError(msg)
+
+    prob_raster_array = arcsdm.machine_learning.general.reshape_predictions(
+        predictions=predicted_probabilities,
+        height=height,
+        width=width,
+        nodata_mask=nodata_mask
+    )
 
     class_raster_array = arcsdm.machine_learning.general.reshape_predictions(
         predictions=y_pred.astype(np.float32),

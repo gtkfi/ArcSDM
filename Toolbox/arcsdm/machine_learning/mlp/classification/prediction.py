@@ -7,6 +7,7 @@ import numpy as np
 import torch
 
 import arcsdm.common
+import arcsdm.machine_learning.general
 import arcsdm.machine_learning.mlp.pytorch_utils
 
 from arcsdm.machine_learning.mlp.classification.data import (
@@ -44,18 +45,11 @@ def load_classifier_model(
 
 def classification_predictions_from_raw_output(
     predicted_raw: torch.Tensor,
-    target_label_count: int,
     classification_threshold: Optional[float]
 ) -> Tuple[np.ndarray, np.ndarray]:
-
-    if target_label_count == 1:
-        threshold = 0.5 if classification_threshold is None else classification_threshold
-        predicted_probabilities = torch.sigmoid(predicted_raw).reshape(-1).cpu().numpy()
-        y_pred = (predicted_probabilities >= threshold).astype(np.int64)
-    else:
-        class_probability_array = torch.softmax(predicted_raw, dim=1).cpu().numpy()
-        predicted_probabilities = class_probability_array
-        y_pred = class_probability_array.argmax(axis=1).astype(np.int64)
+    threshold = 0.5 if classification_threshold is None else classification_threshold
+    predicted_probabilities = torch.sigmoid(predicted_raw).reshape(-1).cpu().numpy()
+    y_pred = (predicted_probabilities >= threshold).astype(np.int64)
 
     return y_pred, predicted_probabilities
 
@@ -79,7 +73,12 @@ def _predict_MLP_classifier(
     ref_raster_path = grids[0]["path"]
     metadata = load_classifier_metadata(model_file)
 
-    target_label_count = int(metadata["target_label_count"])
+    target_label_count = int(metadata.get("target_label_count", 1))
+    if target_label_count != 1:
+        msg = "Loaded model metadata indicates multiclass classifier. This MLP implementation supports binary classification only."
+        arcpy.AddError(msg)
+        raise arcsdm.machine_learning.general.MLPInputError(msg)
+
     warn_if_standardization_setting_differs(standardize, metadata, mode_label)
     model = load_classifier_model(model_file, metadata, device)
 
@@ -94,7 +93,6 @@ def _predict_MLP_classifier(
     predicted_raw = torch.cat(predicted)
     y_pred, predicted_probs = classification_predictions_from_raw_output(
         predicted_raw=predicted_raw,
-        target_label_count=target_label_count,
         classification_threshold=classification_threshold
     )
 

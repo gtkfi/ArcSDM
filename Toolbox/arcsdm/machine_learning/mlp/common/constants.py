@@ -4,7 +4,6 @@
 ACTIVATION_LINEAR = "Linear"
 ACTIVATION_RELU = "ReLU"
 ACTIVATION_SIGMOID = "Sigmoid"
-ACTIVATION_SOFTMAX = "Softmax"
 ACTIVATION_TANH = "Tanh"
 
 # Loss functions

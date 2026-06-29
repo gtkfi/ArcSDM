@@ -28,9 +28,6 @@ NUMERIC_FIELD_TYPES = ["SmallInteger", "Integer", "Single", "Double"]
 
 
 def _source_label_mapping(target_labels: Sequence[str], target_labels_attr: Optional[str]) -> Optional[dict]:
-    if len(target_labels) > 1:
-        return {str(i): str(target_labels[i]) for i in range(len(target_labels))}
-
     if target_labels_attr is None:
         return None
 
@@ -99,7 +96,7 @@ def train_MLP_classifier(
         input_rasters: List of file paths to input feature rasters.
         X_nodata_value: NoData value to apply to input features, or None to use existing NoData.
         standardize: Whether to standardize features to zero mean and unit variance.
-        target_labels: List of file paths to target label rasters or vectors, or a single path for binary classification.
+        target_labels: List containing one file path to target label raster or vector.
         target_labels_attr: If target_labels contains vector data, the attribute field to use for labels
         y_nodata_value: NoData value to apply to target labels, or None to use existing NoData.
         hidden_layers: Specification of hidden layers (units, activation, dropout).
@@ -130,49 +127,28 @@ def train_MLP_classifier(
     ref_raster = grids[0]["path"]
     source_mapping = _source_label_mapping(target_labels, target_labels_attr)
 
-    if len(target_labels) > 1:
-        mapping = dict()
-        label_arrays = []
+    if len(target_labels) != 1:
+        msg = "MLP classifier only supports a single target label layer."
+        arcpy.AddError(msg)
+        raise arcsdm.machine_learning.general.MLPInputError(msg)
 
-        for i in range(len(target_labels)):
-            label_array = arcsdm.machine_learning.general.rasterize_vector_to_array(
-                vector_path=target_labels[i],
-                ref_path=ref_raster,
-                value_field=None,
-                const=i + 1
-            )
+    if arcpy.Describe(target_labels[0]).dataType in ["FeatureLayer", "FeatureClass", "ShapeFile"]:
+        y = arcsdm.machine_learning.general.rasterize_vector_to_array(
+            vector_path=target_labels[0],
+            ref_path=ref_raster,
+            value_field=target_labels_attr,
+            const=1
+        )
+    elif arcpy.Describe(target_labels[0]).dataType in ["RasterLayer", "RasterDataset", "RasterBand"]:
+        label_bands = arcsdm.machine_learning.general.raster_to_band_arrays(target_labels[0])
+        if len(label_bands) != 1:
+            msg = "Target label raster must have exactly one band."
+            arcpy.AddError(msg)
+            raise arcsdm.machine_learning.general.MLPInputError(msg)
 
-            mapping[str(int(i))] = str(target_labels[i])
-            label_arrays.append(label_array)
-
-        y = arcsdm.machine_learning.general.pick_value(label_arrays, prefer="first")
-
-        unique_json = arcpy.CreateUniqueName("mapping.json", arcpy.env.scratchFolder)
-        with open(unique_json, "w") as f:
-            json.dump(mapping, f, indent=2)
-            json_str = json.dumps(mapping, indent=2)
-
-            arcpy.AddMessage(f"Encoded label features and saved mapping to {unique_json}. Mapping: {json_str}")
-
-        del label_arrays
-    else:
-        if arcpy.Describe(target_labels[0]).dataType in ["FeatureLayer", "FeatureClass", "ShapeFile"]:
-            y = arcsdm.machine_learning.general.rasterize_vector_to_array(
-                vector_path=target_labels[0],
-                ref_path=ref_raster,
-                value_field=target_labels_attr,
-                const=1
-            )
-        elif arcpy.Describe(target_labels[0]).dataType in ["RasterLayer", "RasterDataset", "RasterBand"]:
-            label_bands = arcsdm.machine_learning.general.raster_to_band_arrays(target_labels[0])
-            if len(label_bands) != 1:
-                msg = "Target label raster must have exactly one band."
-                arcpy.AddError(msg)
-                raise arcsdm.machine_learning.general.MLPInputError(msg)
-
-            y = label_bands[0]
-            if y_nodata_value is not None and not arcsdm.machine_learning.general.is_nan_like(y_nodata_value):
-                arcsdm.machine_learning.general.apply_explicit_nodata_inplace(y, y_nodata_value, np.float32)
+        y = label_bands[0]
+        if y_nodata_value is not None and not arcsdm.machine_learning.general.is_nan_like(y_nodata_value):
+            arcsdm.machine_learning.general.apply_explicit_nodata_inplace(y, y_nodata_value, np.float32)
 
     raster_arrays = arcsdm.machine_learning.general.read_raster_bands(
         raster_files=input_rasters,
@@ -191,6 +167,10 @@ def train_MLP_classifier(
     unique_labels = np.unique(y)
     if len(unique_labels) < 2:
         msg = "At least two classes are required for classification."
+        arcpy.AddError(msg)
+        raise arcsdm.machine_learning.general.MLPInputError(msg)
+    if len(unique_labels) > 2:
+        msg = "MLP classifier supports binary classification only."
         arcpy.AddError(msg)
         raise arcsdm.machine_learning.general.MLPInputError(msg)
 
@@ -249,11 +229,6 @@ def train_MLP_classifier(
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=random_state, shuffle=True)
 
     if apply_smote:
-        if len(unique_labels) > 2:
-            msg = "SMOTE is only supported for binary classification in this tool. Disable SMOTE for multiclass training."
-            arcpy.AddError(msg)
-            raise arcsdm.machine_learning.general.MLPInputError(msg)
-
         n_synthetic, minority_class_label, k_neighbors = smote_params if smote_params else (None, 1, 5)
         mapped_minority = label_to_index.get(float(minority_class_label), int(minority_class_label))
         X_train, y_train = arcsdm.smote.smote(
@@ -278,7 +253,7 @@ def train_MLP_classifier(
     training_loader = DataLoader(training_dataset, batch_size=batch_size)
     testing_loader = DataLoader(testing_dataset, batch_size=batch_size)
 
-    target_label_count = 1 if len(unique_labels) == 2 else len(unique_labels)
+    target_label_count = 1
     last_layer = (target_label_count, None, None)
 
     model = MLPClassifierModel(
@@ -290,12 +265,8 @@ def train_MLP_classifier(
 
     optimizer = arcsdm.machine_learning.mlp.pytorch_utils.get_pytorch_optimizer(optimizer, model.parameters(), learning_rate)
 
-    if target_label_count == 1:
-        criterion = torch.nn.BCEWithLogitsLoss()
-        target_dtype = torch.float32
-    else:
-        criterion = torch.nn.CrossEntropyLoss()
-        target_dtype = torch.long
+    criterion = torch.nn.BCEWithLogitsLoss()
+    target_dtype = torch.float32
 
     best_val_loss = None
     best_model_wts = None
@@ -316,7 +287,7 @@ def train_MLP_classifier(
                 criterion,
                 optimizer,
                 target_dtype=target_dtype,
-                binary_classifier=target_label_count == 1
+                binary_classifier=True
             )
             val_ret = arcsdm.machine_learning.mlp.pytorch_utils.evaluate_classifier_epoch(
                 device,
@@ -324,7 +295,7 @@ def train_MLP_classifier(
                 model,
                 criterion,
                 target_dtype=target_dtype,
-                binary_classifier=target_label_count == 1
+                binary_classifier=True
             )
 
             current_loss = train_ret['loss'].item()
@@ -369,12 +340,8 @@ def train_MLP_classifier(
             for data, target in testing_loader:
                 data = data.to(device).to(torch.float32)
                 output = model(data)
-                if target_label_count == 1:
-                    pred = (torch.sigmoid(output).reshape(-1) >= 0.5).cpu().numpy().astype(np.int64)
-                    true = target.reshape(-1).cpu().numpy().astype(np.int64)
-                else:
-                    pred = output.argmax(dim=1).cpu().numpy().astype(np.int64)
-                    true = target.cpu().numpy().astype(np.int64)
+                pred = (torch.sigmoid(output).reshape(-1) >= 0.5).cpu().numpy().astype(np.int64)
+                true = target.reshape(-1).cpu().numpy().astype(np.int64)
                 y_true_all.append(true)
                 y_pred_all.append(pred)
 
