@@ -223,10 +223,10 @@ def train_MLP_classifier(
         X_train = X
         y_train = y
     elif validation_split and validation_split > 0:
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=validation_split, random_state=random_state, shuffle=True)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=validation_split, random_state=random_state, shuffle=True, stratify=y)
     else:
         arcpy.AddWarning("Validation split was not provided; using default validation_split=0.2")
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=random_state, shuffle=True)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=random_state, shuffle=True, stratify=y)
 
     if apply_smote:
         n_synthetic, minority_class_label, k_neighbors = smote_params if smote_params else (None, 1, 5)
@@ -376,9 +376,9 @@ def train_MLP_classifier(
     fig.savefig(png_path)
     arcpy.AddMessage(f"Loss curve saved to {png_path}")
 
-    epoch_with_min_loss = min(train_loss_dict, key=train_loss_dict.get)
+    epoch_with_min_loss = min(val_loss_dict, key=val_loss_dict.get)
 
-    arcpy.AddMessage(f"Epoch with smallest loss: {epoch_with_min_loss}")
+    arcpy.AddMessage(f"Epoch with smallest validation loss: {epoch_with_min_loss}")
     arcpy.AddMessage("Saving best model...")
 
     output_dirname = os.path.dirname(output_model_file)
@@ -400,6 +400,7 @@ def train_MLP_classifier(
         "scaler_scale": scaler.scale_.tolist() if scaler is not None else None,
         "best_val_loss": float(best_val_loss) if best_val_loss is not None else None,
         "trained_epochs": int(trained_epochs),
+        "best_epoch": int(epoch_with_min_loss),
     }
 
     torch.save(model.state_dict(), output_model_file)
